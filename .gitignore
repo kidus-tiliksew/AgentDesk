@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build and test output
+dist/
+build/
+out/
+coverage/
+*.tsbuildinfo
+
+# Environment files
+.env*
+
+# Wrangler local state
+.wrangler/
+.dev.vars*
+
+# Expo local state
+.expo/
+.expo-shared/
+web-build/
+expo-env.d.ts
+
+# Logs and OS files
+*.log
+.DS_Store
