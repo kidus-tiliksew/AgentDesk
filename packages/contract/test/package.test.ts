@@ -42,7 +42,7 @@ describe("purity", () => {
   test("source modules import only zod and each other", () => {
     for (const file of files) {
       const text = readFileSync(`${srcDir}${file}`, "utf8");
-      for (const [, specifier] of text.matchAll(/from "([^"]+)"/g)) {
+      for (const [, specifier] of text.matchAll(/(?:from|import)\s+"([^"]+)"/g)) {
         expect(specifier === "zod" || /^\.\/[a-z-]+\.js$/.test(specifier ?? ""), file).toBe(true);
       }
     }
