@@ -5,8 +5,8 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { z } from "zod";
 import schema from "../schema";
-import { modules } from "../test.modules";
 import { serviceRoute } from "./svc";
+import { modules } from "./test.modules";
 
 const SECRET = "test-service-secret";
 const PATH = "/svc/test/echo";
@@ -21,7 +21,7 @@ function setup(handler: (input: { name: string }) => Promise<unknown>) {
     method: "POST",
     handler: serviceRoute(z.object({ name: z.string() }), (_ctx, input) => spy(input)),
   });
-  const t = convexTest(schema, { ...modules, "./http.ts": async () => ({ default: router }) });
+  const t = convexTest(schema, { ...modules, "../http.ts": async () => ({ default: router }) });
   return { t, spy };
 }
 

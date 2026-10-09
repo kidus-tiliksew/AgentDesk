@@ -1,8 +1,8 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import schema from "../schema";
-import { modules } from "../test.modules";
 import { requireUser } from "./auth";
+import { modules } from "./test.modules";
 
 const unauthenticated = { data: { code: "unauthenticated" } };
 

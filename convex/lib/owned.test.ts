@@ -3,8 +3,8 @@ import { v } from "convex/values";
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { tables as identity } from "../identity/schema";
-import { modules } from "../test.modules";
 import { getOwned } from "./owned";
+import { modules } from "./test.modules";
 
 // No production table carries userId yet, so the test composes an owned
 // fixture table beside the real users table.

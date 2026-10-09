@@ -1,7 +1,7 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
+import { modules } from "../lib/test.modules";
 import schema from "../schema";
-import { modules } from "../test.modules";
 import { ensureUser, getUserByClerkId } from "./users";
 
 const identity = { subject: "user_a", email: "a@example.com" };
