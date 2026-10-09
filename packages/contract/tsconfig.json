@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Source compiles without Node types, so no Node API can enter code that
+    // Convex and the Worker bundle (component-contract §Package).
+    "types": []
+  },
+  "include": ["src"]
+}
