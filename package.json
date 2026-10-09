@@ -8,14 +8,23 @@
   },
   "scripts": {
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test",
-    "typecheck": "tsc --noEmit --strict --target ES2022 --module NodeNext --moduleResolution NodeNext --types node --skipLibCheck vitest.config.ts && pnpm --recursive --if-present run typecheck",
+    "dev": "npx convex dev",
+    "typecheck": "tsc --noEmit --strict --target ES2022 --module NodeNext --moduleResolution NodeNext --types node --skipLibCheck vitest.config.ts && tsc -p convex/tsconfig.json && pnpm --recursive --if-present run typecheck",
     "lint": "biome check .",
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@edge-runtime/vm": "^5.0.0",
     "@types/node": "^22.20.5",
+    "convex-test": "^0.0.60",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "@agentdesk/contract": "workspace:*",
+    "@convex-dev/expo-push-notifications": "^0.3.1",
+    "convex": "^1.46.0",
+    "zod": "^4.6.5"
   }
 }
