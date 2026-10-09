@@ -11,12 +11,15 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "spec": "tsx scripts/spec.ts",
+    "spec:check": "tsx scripts/spec.ts --check"
   },
   "dependencies": {
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15"
   }
 }

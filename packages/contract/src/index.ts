@@ -4,6 +4,7 @@
 export * from "./answers.js";
 export * from "./decisions.js";
 export * from "./errors.js";
+export * from "./http/routes.js";
 export * from "./read-shapes.js";
 export * from "./status.js";
 export * from "./topics.js";

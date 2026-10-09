@@ -29,6 +29,8 @@ describe("public exports", () => {
       "decisionSchema",
       "agentSessionSchema",
       "webhookEventSchema",
+      "ROUTES",
+      "ERROR_STATUS",
     ]) {
       expect(contract, name).toHaveProperty(name);
     }
@@ -37,13 +39,23 @@ describe("public exports", () => {
 
 // component-contract §Package: no I/O and no clock reads.
 describe("purity", () => {
-  const files = readdirSync(srcDir).filter((file) => file.endsWith(".ts"));
+  // Recursive, so src/http/ is scanned too.
+  const files = readdirSync(srcDir, { recursive: true, encoding: "utf8" }).filter((file) =>
+    file.endsWith(".ts"),
+  );
+
+  test("the scan covers the route table", () => {
+    expect(files).toContain("http/routes.ts");
+  });
 
   test("source modules import only zod and each other", () => {
     for (const file of files) {
       const text = readFileSync(`${srcDir}${file}`, "utf8");
       for (const [, specifier] of text.matchAll(/(?:from|import)\s+"([^"]+)"/g)) {
-        expect(specifier === "zod" || /^\.\/[a-z-]+\.js$/.test(specifier ?? ""), file).toBe(true);
+        expect(
+          specifier === "zod" || /^\.\.?\/(?:[a-z-]+\/)?[a-z-]+\.js$/.test(specifier ?? ""),
+          file,
+        ).toBe(true);
       }
     }
   });
