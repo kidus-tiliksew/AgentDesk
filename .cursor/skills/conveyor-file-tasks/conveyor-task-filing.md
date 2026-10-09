@@ -1,0 +1,175 @@
+<!-- conveyor:skills-install owner=v1 version=v0.37.0 source=docs/playbooks/conveyor-task-filing.md -->
+# Filing Conveyor tasks
+
+Tasks are the factory's only transition object. The body you write is the
+contract the spec, implement, and review agents are held to — write it
+for them, not for the operator.
+
+The corpus documentation discipline applies to task bodies too (DEC-28):
+every contract item must be decidable by the implementing agent alone,
+anchored to citable IDs and `file:line` evidence, with rationale cited
+(REQ-n / DEC-n) rather than restated at length.
+Apply the sentence rules in ref-260823-f4729f v2 (informative): name the actor,
+mechanism, source, field, or measurement, and keep one term per concept and one
+idea per sentence. Cut generic praise, filler, hedging, ornamental adverbs,
+restating labels, forced groups of three, and conversational framing; prefer
+plain words and active voice.
+
+## Investigate before filing
+
+Use the server-specific native MCP connection already configured for the
+intended factory. Supply its workspace explicitly on every investigation
+call. With a human session or PAT, use `list_workspaces` from a known workspace
+scope and `list_repositories` to verify the destination. These reads require
+`view_workspace`; they do not require a claim. Agent and worker credentials
+must stay within their existing work-order context tools.
+
+Use `get_task` for a known ID or `list_tasks` with `state: terminal` / `all`
+and repository or text filters. An empty `list_work_orders` response says
+nothing about task existence. Read `get_task_context` and `list_task_events`
+to distinguish a suggestion, its confirmation, and the resulting attachment.
+Cite recorded actor/source, event ID, and timestamp; state unknown attribution
+as unknown. Do not infer who attached a document from a task description.
+
+Discover current authority with `list_documents` and `list_decisions`. Read
+an attached design with its explicit `pinned_version` through `get_document`;
+compare that with `current_version`. Set `include_archived:true` only to
+inspect historical evidence. Archived documents and proposed versions grant
+no active authority; reference documents remain informative. Do not replace a
+missing confirmed corpus with task prose.
+
+Follow the returned snapshot and offset for repeatable bounded pages. Keep
+all filters unchanged and restart after snapshot expiry or refusal. A snapshot
+records an observation; refresh document state before citing current authority.
+The full tool schemas, output budgets, and terminal-task/archived-design fixture
+are documented in `docs/mcp.md` in the Conveyor repository.
+
+Investigation uses reads only. Do not create a task, claim, renew, confirm,
+attach, restore, or enqueue work to learn what exists. After the operator
+requests filing, use the separate `create_task` mutation with the evidence and
+confirmed authority IDs. Preserve the task's gate defaults and propose-confirm
+boundary; investigation never grants permission to mutate.
+
+## Mechanics
+
+- File via MCP `create_task`: `body`, `repo`, `idempotency_key`
+  (required — kebab slug + date, e.g. `phase8-3-plan-stage-20260807`),
+  optional `depends_on: [task-ids]`, `hold`, `spec_approval`,
+  `merge_approval`. Defaults are correct for ordinary work (spec gate on,
+  merge gate off).
+- The title is generated from the body; don't write one.
+- When tasks are filed out of order, use the human-only MCP
+  `add_task_dependency` tool with `task_id`, `depends_on_task_id`, an audit
+  `reason`, and a stable `request_id`. It applies the same open-task and
+  same-workspace rules as intake, rejects cycles, and changes ordering only;
+  it never changes branches or interrupts claimed work.
+- **Phase-sized work is never one task.** File a dependency-ordered set —
+  each task one coherent slice with its own exit criterion, `depends_on`
+  expressing the real order. (Lesson: 8.2 shipped as a single 11-item
+  task → one 4-hour session, whole-phase review, migration collision.)
+- Parallel tasks collide on the shared namespaces nobody owns. State it
+  explicitly in each body: which files each sibling owns ("Do NOT touch X
+  — sibling task NNN owns it") and where migration numbering starts
+  ("migrations start at NNN; the duplicate-version guard enforces this").
+
+## Record the frozen gate policy at intake
+
+Before filing a task or a dependency-ordered queue, record the effective
+`spec_approval` and `merge_approval` values for every task. Display both values
+and their consequences in the filing summary so the operator can correct the
+choice before intake freezes it. Preserve explicit per-task choices; workspace
+default changes apply only to later tasks and never rewrite an in-flight
+contract.
+
+- `spec_approval: true` pauses after planning for operator approval;
+  `spec_approval: false` permits the next stage without that plan gate.
+- `merge_approval: true` makes an approved review wait for an authenticated
+  operator or user merge decision.
+- `merge_approval: false` sends an approved review directly to the runtime
+  auto-merge path. That path checks the approved head and forge mergeability,
+  then merges through GitHub's REST API as the workspace GitHub App, using the
+  App's cached installation token (DEC-59), and relies on configured branch
+  protection for any required checks. It has no universal separate CI-status
+  gate and does not promise a later merge gate.
+
+A queue that requires one decision per pull request must set
+`merge_approval: true` at intake. A coordinator may require exact-head green CI
+before admitting work to independent review, but that queue procedure is not a
+new runtime gate and does not change the frozen merge policy. Never manually
+hold a gate-off queue while describing it as waiting for a later merge
+decision.
+
+## Body house style
+
+Structure that has survived contact with the agents:
+
+1. Open directly with one paragraph: what was observed or decided, with
+   evidence (task/PR/review references) — the why. Do not open with a `#` or
+   `##` summary heading: the title is generated from the body (see Mechanics),
+   so a leading summary heading renders as a duplicate beneath the title in
+   the task view.
+2. Numbered contract items, most important first. Each: the defect or
+   goal, `file.go:line` anchors, a concrete failure scenario or behavior
+   spec, and the fix **shape** (constrain the approach only where it
+   matters; leave the rest to the spec stage).
+3. `## Boundaries` — what must NOT change. Always include the standing
+   ones that apply: both gates untouched; no priority/assignee/
+   phase fields; events append-only; propose→confirm authority unchanged;
+   drift is a signal never a gate; conformance suites extend, never
+   shrink; new edge kinds ship with projector + two-store conformance +
+   vocabulary lockstep + rebuild proof on day one.
+4. `## Exit` — observable, agent-satisfiable criteria ending with the
+   gates: `make test` (and `make test-integration` when stores/migrations
+   are touched) green.
+
+Task bodies are read by people and agents who never saw the filing session
+(DEC-28). Attribute actions and observations to people by name, never by
+personal host aliases, SSH config names, home-directory paths, or IP addresses.
+Carry evidence inline in the body, or cite an uploaded artifact or a PR/task/event
+reference. Never point at a file that only one machine can read. Do not tell the
+implementer to preserve or rely on state that exists only on the filer's machine.
+For example, replace “verified on `<personal SSH alias>`” with “verified by
+`<operator name>` on their development server”.
+
+## Authority boundary in acceptance criteria
+
+Never write a criterion requiring an operator-only act (gate approval,
+drift resolution, confirming decisions/designs/requirements, cancel/
+hold). The implementing agent can neither perform nor verify those. If
+the work genuinely needs one mid-flight, phrase it as an operator
+checkpoint — "pause and report until the operator has done X; the pause
+is the success condition" — or scope it out. (Lesson: task 260805-b8b13c
+looped through three doomed recoveries on an AC only an operator could
+satisfy.)
+
+If implementation reveals that the approved execution plan conflicts with
+repository reality, direct the implementer to call the operator-gated
+`request_plan_revision` surface. Never turn the conflict into an acceptance-
+criteria exception or authorize a prose-only departure from the approved plan.
+
+## Source boundaries
+
+For web-only work, state that regenerating `internal/httpapi/dashboard` is
+expected build output of the web change under DEC-16. Never impose a blanket
+"no changes under `internal/**`" boundary; exclude unrelated internal source
+explicitly without excluding the generated dashboard bundle.
+
+## Citations and context
+
+- The confirmed factory document corpus is the authority for new work. Cite
+  confirmed REQ-n/AC-n.m, DEC-n, and the governing System Design document name
+  or ID. Name the System Design
+  document governing the task's paths and say whether the change alters
+  the documented mechanism (if yes, the agent should propose the design
+  revision in-session; if no, say no revision is warranted — this steers
+  the drift/suppression outcome).
+- When authorities disagree, cite requirements over decisions over System
+  Design documents, per DEC-57(2), and never cite a pending document as authority.
+- Attach the requirements a task serves directly at intake with
+  `requirement_ids` (or a planning-bundle task's `context.requirement_ids`).
+
+## After filing
+
+Tell the operator which gates will come to them and in what order. Don't
+watch the queue unless asked — the factory notifies through its own
+surfaces.
