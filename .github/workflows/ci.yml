@@ -35,6 +35,8 @@ jobs:
       - name: Typecheck, lint, and test
         run: pnpm check
 
+      - name: Check the published specification
+        run: pnpm --filter @agentdesk/contract spec:check
+
       # Later steps append here, one step each:
-      # - the contract specification check (pnpm --filter @agentdesk/contract spec:check)
       # - Convex codegen against the CI dev deployment (npx convex codegen --typecheck enable)

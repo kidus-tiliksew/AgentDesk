@@ -10,7 +10,8 @@
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test",
     "typecheck": "tsc --noEmit --strict --target ES2022 --module NodeNext --moduleResolution NodeNext --types node --skipLibCheck vitest.config.ts && pnpm --recursive --if-present run typecheck",
     "lint": "biome check .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "spec": "pnpm --filter @agentdesk/contract spec"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
