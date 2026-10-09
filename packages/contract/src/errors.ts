@@ -20,7 +20,6 @@ export const errorBodySchema = z.object({
     code: errorCodeSchema,
     message: z.string(),
     field: z.string().optional(),
-    retry_after: z.int().min(0).optional(),
   }),
 });
 export type ErrorBody = z.infer<typeof errorBodySchema>;
