@@ -12,6 +12,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "../_generated/server";
+import { pendingCountForAgent } from "../decisions/counts";
 import { appError } from "../lib/errors";
 import { getOwned } from "../lib/owned";
 
@@ -212,7 +213,10 @@ export const status = internalMutation({
     // Phase 2 slice 1 emits `agent.status_changed` here through
     // component-notifications' `emit`, which does not exist yet.
 
-    return toAgentSession({ ...session, ...patch }, 0);
+    return toAgentSession(
+      { ...session, ...patch },
+      await pendingCountForAgent(ctx, agentSessionId),
+    );
   },
 });
 
@@ -236,8 +240,8 @@ export const session = internalQuery({
 // The contract's AgentSession read shape (component-contract §Read shapes).
 // Absent values are null and instants are ISO 8601 strings. The card name is
 // `displayName` once set, else `clientName · topic` (req-agent-status AC-2.1,
-// AC-2.2). `pendingDecisionCount` comes from component-decisions; until that
-// domain is built, callers pass 0 (AC-2.3 is not yet met).
+// AC-2.2). `pendingDecisionCount` comes from component-decisions'
+// `pendingCountForAgent` (AC-2.3).
 export function toAgentSession(
   doc: Doc<"agentSessions">,
   pendingDecisionCount: number,
