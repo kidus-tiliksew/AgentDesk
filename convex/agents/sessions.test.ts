@@ -1,10 +1,10 @@
 import { agentSessionSchema } from "@agentdesk/contract";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { modules } from "../lib/test.modules";
 import schema from "../schema";
+import { agents } from "./refs";
 import { touch } from "./sessions";
 
 const START = Date.UTC(2026, 9, 10, 12, 0, 0);
@@ -25,7 +25,7 @@ async function setup() {
     });
     return { userId, otherUserId, credentialId };
   });
-  const opened = await t.mutation(internal.agents.sessions.open, {
+  const opened = await t.mutation(agents.sessions.open, {
     userId: ids.userId,
     credentialId: ids.credentialId,
     clientName: "Claude Code",
@@ -48,7 +48,7 @@ function status(
     display_name?: string;
   }>,
 ) {
-  return t.mutation(internal.agents.sessions.status, {
+  return t.mutation(agents.sessions.status, {
     userId,
     agentSessionId,
     topic: "repo/x",
@@ -104,7 +104,7 @@ describe("open", () => {
   test("issues a distinct mcpSessionId per open", async () => {
     const { t, userId, credentialId, mcpSessionId } = await setup();
 
-    const second = await t.mutation(internal.agents.sessions.open, {
+    const second = await t.mutation(agents.sessions.open, {
       userId,
       credentialId,
       clientName: "Claude Code",
@@ -118,7 +118,7 @@ describe("open", () => {
     const { t, userId } = await setup();
 
     await expect(
-      t.mutation(internal.agents.sessions.open, {
+      t.mutation(agents.sessions.open, {
         userId,
         credentialId: "not-an-id",
         clientName: "Claude Code",
@@ -145,14 +145,31 @@ describe("touch", () => {
     });
   });
 
-  test("a touch without a topic records activity but does not activate", async () => {
+  // req-agent-status REQ-2; req-agent-tools AC-8.2
+  test("the first touch without a topic is rejected naming the field and writes nothing", async () => {
     const { t, userId, agentSessionId } = await setup();
+
+    await expect(
+      t.run((ctx) => touch(ctx, userId, agentSessionId, undefined, START + 1_000)),
+    ).rejects.toMatchObject({ data: { code: "invalid", field: "topic" } });
+
+    const session = await loadSession(t, agentSessionId);
+    expect(session?.lastActivityAt).toBe(START);
+    expect(session?.activatedAt).toBeUndefined();
+    expect(session?.topic).toBeUndefined();
+  });
+
+  test("an activated session accepts a touch without a topic", async () => {
+    const { t, userId, agentSessionId } = await setup();
+    await t.run((ctx) => touch(ctx, userId, agentSessionId, "repo/x", START));
 
     await t.run((ctx) => touch(ctx, userId, agentSessionId, undefined, START + 1_000));
 
-    const session = await loadSession(t, agentSessionId);
-    expect(session?.lastActivityAt).toBe(START + 1_000);
-    expect(session?.activatedAt).toBeUndefined();
+    expect(await loadSession(t, agentSessionId)).toMatchObject({
+      topic: "repo/x",
+      activatedAt: START,
+      lastActivityAt: START + 1_000,
+    });
   });
 
   // req-agent-tools AC-8.2
@@ -321,7 +338,7 @@ describe("session", () => {
   test("resolves the caller's mcpSessionId", async () => {
     const { t, userId, agentSessionId, mcpSessionId } = await setup();
 
-    expect(await t.query(internal.agents.sessions.session, { userId, mcpSessionId })).toEqual({
+    expect(await t.query(agents.sessions.session, { userId, mcpSessionId })).toEqual({
       agentSessionId,
     });
   });
@@ -331,10 +348,10 @@ describe("session", () => {
     const { t, userId, otherUserId, mcpSessionId } = await setup();
 
     await expect(
-      t.query(internal.agents.sessions.session, { userId: otherUserId, mcpSessionId }),
+      t.query(agents.sessions.session, { userId: otherUserId, mcpSessionId }),
     ).rejects.toMatchObject(notFound);
     await expect(
-      t.query(internal.agents.sessions.session, { userId, mcpSessionId: "f".repeat(64) }),
+      t.query(agents.sessions.session, { userId, mcpSessionId: "f".repeat(64) }),
     ).rejects.toMatchObject(notFound);
   });
 });

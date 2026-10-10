@@ -1,11 +1,11 @@
 import { cronJobs } from "convex/server";
-import { internal } from "./_generated/api";
+import { agents } from "./agents/refs";
 
 // component-backend-foundation §Composition: each cron row is added in the
 // same change that adds its function.
 const crons = cronJobs();
 
-crons.interval("agent sweep", { minutes: 1 }, internal.agents.sweep.run, {});
-crons.daily("agent purge", { hourUTC: 3, minuteUTC: 0 }, internal.agents.purge.run, {});
+crons.interval("agent sweep", { minutes: 1 }, agents.sweep.run, {});
+crons.daily("agent purge", { hourUTC: 3, minuteUTC: 0 }, agents.purge.run, {});
 
 export default crons;

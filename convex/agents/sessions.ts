@@ -84,15 +84,16 @@ export const open = internalMutation({
 // like a missing one (req-agent-tools AC-7.1). Sets `lastActivityAt`, clears
 // `staleSince` (req-agent-status AC-3.3), and clears an `idle` end, so a
 // session that went idle re-enters the live set; a `done` end stays until a
-// later non-`done` status clears it. The first call that carries a topic sets
-// `activatedAt` and `topic` together; later calls never change them. A call
-// without a topic on a session that is not yet activated records activity
-// only, because a card needs a topic for its name (AC-2.1) and the contract's
-// AgentSession shape requires one.
+// later non-`done` status clears it. The first call sets `activatedAt` and
+// `topic` together (REQ-2); later calls never change them and may omit the
+// topic. The first call must carry a topic, because the card name needs one
+// (AC-2.1) and the contract's AgentSession shape requires one: a missing or
+// invalid topic on a session that is not yet activated is rejected as
+// `invalid` naming `topic` before any write (req-agent-tools REQ-8, AC-8.2).
 //
 // `topic` is a raw caller value; it is lowercased and checked by the contract
-// (req-agent-tools AC-8.1, AC-8.2) and rejected as `invalid` naming `topic`.
-// Returns the session as it is after the touch.
+// (req-agent-tools AC-8.1, AC-8.2). Returns the session as it is after the
+// touch.
 export async function touch(
   ctx: Pick<MutationCtx, "db">,
   userId: Id<"users">,
@@ -109,7 +110,7 @@ export async function touch(
     patch.endedAt = undefined;
     patch.endReason = undefined;
   }
-  if (session.activatedAt === undefined && topic !== undefined) {
+  if (session.activatedAt === undefined) {
     const normalized = normalizeTopic(topic);
     if (!normalized.success) {
       throw appError(errorCodeSchema.enum.invalid, "Invalid topic", "topic");

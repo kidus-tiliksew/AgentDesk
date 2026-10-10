@@ -1,7 +1,7 @@
 import type { RouteSpec } from "convex/server";
 import { z } from "zod";
-import { internal } from "../_generated/api";
 import { serviceRoute } from "../lib/svc";
+import { agents } from "./refs";
 
 // The agents domain's service routes, mounted by convex/http.ts
 // (component-backend-foundation §Composition; component-agent-presence
@@ -21,7 +21,7 @@ export const routes: RouteSpec[] = [
         clientName: z.string().min(1),
         clientVersion: z.string(),
       }),
-      (ctx, input) => ctx.runMutation(internal.agents.sessions.open, input),
+      (ctx, input) => ctx.runMutation(agents.sessions.open, input),
     ),
   },
   {
@@ -38,7 +38,7 @@ export const routes: RouteSpec[] = [
         link: z.string().optional(),
         display_name: z.string().optional(),
       }),
-      (ctx, input) => ctx.runMutation(internal.agents.sessions.status, input),
+      (ctx, input) => ctx.runMutation(agents.sessions.status, input),
     ),
   },
   {
@@ -47,7 +47,7 @@ export const routes: RouteSpec[] = [
     method: "POST",
     handler: serviceRoute(
       z.object({ userId: z.string().min(1), mcpSessionId: z.string().min(1) }),
-      (ctx, input) => ctx.runQuery(internal.agents.sessions.session, input),
+      (ctx, input) => ctx.runQuery(agents.sessions.session, input),
     ),
   },
 ];

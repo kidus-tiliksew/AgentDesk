@@ -1,9 +1,9 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { modules } from "../lib/test.modules";
 import schema from "../schema";
+import { agents } from "./refs";
 
 const NOW = Date.UTC(2026, 9, 10, 3, 0, 0);
 const DAY = 24 * 60 * 60_000;
@@ -57,7 +57,7 @@ test("deletes sessions ended more than 7 days ago with their history and keeps n
     };
   });
 
-  await t.mutation(internal.agents.purge.run, {});
+  await t.mutation(agents.purge.run, {});
 
   const historyFor = (id: Id<"agentSessions">) =>
     t.run((ctx) =>
@@ -95,10 +95,10 @@ test("a session ended exactly 7 days ago is kept until it is older", async () =>
     });
   });
 
-  await t.mutation(internal.agents.purge.run, {});
+  await t.mutation(agents.purge.run, {});
   expect(await t.run((ctx) => ctx.db.get("agentSessions", id))).not.toBeNull();
 
   vi.setSystemTime(NOW + 1);
-  await t.mutation(internal.agents.purge.run, {});
+  await t.mutation(agents.purge.run, {});
   expect(await t.run((ctx) => ctx.db.get("agentSessions", id))).toBeNull();
 });

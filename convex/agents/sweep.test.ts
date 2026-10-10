@@ -1,8 +1,8 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { internal } from "../_generated/api";
 import { modules } from "../lib/test.modules";
 import schema from "../schema";
+import { agents } from "./refs";
 import { touch } from "./sessions";
 
 const START = Date.UTC(2026, 9, 10, 12, 0, 0);
@@ -21,7 +21,7 @@ async function setup(activate = true) {
     });
     return { userId, credentialId };
   });
-  const { agentSessionId } = await t.mutation(internal.agents.sessions.open, {
+  const { agentSessionId } = await t.mutation(agents.sessions.open, {
     userId,
     credentialId,
     clientName: "Claude Code",
@@ -33,7 +33,7 @@ async function setup(activate = true) {
   const load = () => t.run((ctx) => ctx.db.get("agentSessions", agentSessionId));
   const sweep = async (at: number) => {
     vi.setSystemTime(at);
-    await t.mutation(internal.agents.sweep.run, {});
+    await t.mutation(agents.sweep.run, {});
   };
   return { t, userId, agentSessionId, load, sweep };
 }
@@ -83,7 +83,7 @@ test("skips unactivated and done sessions", async () => {
 
   vi.setSystemTime(START);
   const done = await setup();
-  await done.t.mutation(internal.agents.sessions.status, {
+  await done.t.mutation(agents.sessions.status, {
     userId: done.userId,
     agentSessionId: done.agentSessionId,
     topic: "repo/x",
