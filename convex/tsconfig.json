@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Convex bundles functions with esbuild, so imports resolve the way a
+    // bundler resolves them. The default runtime provides the Web APIs.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["./**/*"],
+  "exclude": ["./_generated"]
+}

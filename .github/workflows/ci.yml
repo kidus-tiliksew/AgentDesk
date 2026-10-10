@@ -38,5 +38,9 @@ jobs:
       - name: Check the published specification
         run: pnpm --filter @agentdesk/contract spec:check
 
-      # Later steps append here, one step each:
-      # - Convex codegen against the CI dev deployment (npx convex codegen --typecheck enable)
+      # CONVEX_DEPLOY_KEY holds a deploy key for the CI dev deployment, never
+      # for production (component-repository §Continuous integration).
+      - name: Generate and typecheck Convex code
+        run: npx convex codegen --typecheck enable
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
