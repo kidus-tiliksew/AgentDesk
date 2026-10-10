@@ -5,7 +5,8 @@ import { appError } from "../lib/errors";
 
 // component-identity §Accounts.
 
-async function findUser(ctx: Pick<QueryCtx, "db">, clerkUserId: string) {
+// Returns the raw row for a Clerk user, including one whose deletion has started.
+export async function findUser(ctx: Pick<QueryCtx, "db">, clerkUserId: string) {
   return await ctx.db
     .query("users")
     .withIndex("by_clerk", (q) => q.eq("clerkUserId", clerkUserId))
