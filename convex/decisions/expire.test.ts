@@ -173,3 +173,50 @@ test("an expiry run for a deleted decision does nothing", async () => {
     t.mutation(decisions.expire.run, { decisionId: decision.id as Id<"decisions"> }),
   ).resolves.toBeNull();
 });
+
+// req-decision-requests REQ-5: expiry happens only at the stored deadline.
+describe("an expiry run before the deadline", () => {
+  test.each([
+    ["with a default", { ...choice, default: { kind: "option", option_id: "sq" } }],
+    ["without a default", choice],
+  ])("leaves a pending decision %s unchanged", async (_name, input) => {
+    const { t, ask, load } = await setup();
+    const decision = await ask(input);
+    const stored = await load(decision.id);
+    vi.setSystemTime(DEADLINE - 1);
+
+    const result = await t.mutation(decisions.expire.run, {
+      decisionId: decision.id as Id<"decisions">,
+    });
+
+    expect(result).toBeNull();
+    expect(await load(decision.id)).toEqual(stored);
+  });
+
+  test("leaves a decision without a deadline unchanged", async () => {
+    const { t, ask, load } = await setup();
+    const decision = await ask({ ...choice, deadline: undefined });
+    const stored = await load(decision.id);
+    vi.setSystemTime(DEADLINE + 60 * MINUTE);
+
+    await t.mutation(decisions.expire.run, { decisionId: decision.id as Id<"decisions"> });
+
+    expect(stored?.state).toBe("pending");
+    expect(await load(decision.id)).toEqual(stored);
+  });
+
+  test("expires the decision at exactly the deadline", async () => {
+    const { t, ask, load } = await setup();
+    const decision = await ask({ ...choice, default: { kind: "option", option_id: "sq" } });
+    vi.setSystemTime(DEADLINE);
+
+    await t.mutation(decisions.expire.run, { decisionId: decision.id as Id<"decisions"> });
+
+    expect(await load(decision.id)).toMatchObject({
+      state: "expired",
+      answer: { kind: "option", option_id: "sq" },
+      appliedByDefault: true,
+      settledAt: DEADLINE,
+    });
+  });
+});

@@ -115,8 +115,10 @@ describe("devAnswer.answer", () => {
     const rejected = results.filter((r) => r.status === "rejected");
     expect(fulfilled).toHaveLength(1);
     expect(rejected).toHaveLength(1);
-    expect(rejected[0]?.reason).toMatchObject({ data: { code: "conflict" } });
     const winner = fulfilled[0]?.value;
+    expect(winner).toBeDefined();
+    expect(rejected[0]?.reason).toMatchObject({ data: { code: "conflict" } });
+    expect(rejected[0]?.reason.data.decision).toEqual(winner);
     expect((await load())?.answer).toEqual(winner?.answer);
   });
 

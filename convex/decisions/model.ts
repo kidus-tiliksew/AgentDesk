@@ -364,7 +364,9 @@ export async function cancelDecision(
 // Expiry: with a default, the default becomes the answer, applied by default
 // (req-decision-requests AC-5.1); without one, the decision expires with no
 // answer (AC-5.2). A settled decision is refused, so a late job never
-// replaces an answer (AC-5.4).
+// replaces an answer (AC-5.4). A pending decision with no deadline, or one
+// whose deadline is still ahead, is left unchanged, so expiry happens only at
+// the stored deadline (REQ-5).
 export async function expireDecision(
   ctx: WriterCtx,
   doc: Doc<"decisions">,
@@ -372,6 +374,9 @@ export async function expireDecision(
 ): Promise<Decision> {
   if (doc.state !== "pending") {
     return await refuseSettled(ctx, doc);
+  }
+  if (doc.deadline === undefined || now < doc.deadline) {
+    return await serialize(ctx, doc);
   }
   const patch: Partial<Doc<"decisions">> = { state: "expired", settledAt: now };
   if (doc.default !== undefined) {

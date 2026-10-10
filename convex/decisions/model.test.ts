@@ -1,4 +1,4 @@
-import { decisionSchema } from "@agentdesk/contract";
+import { type Decision, decisionSchema } from "@agentdesk/contract";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { Id } from "../_generated/dataModel";
@@ -6,7 +6,7 @@ import { agents } from "../agents/refs";
 import { touch } from "../agents/sessions";
 import { modules } from "../lib/test.modules";
 import schema from "../schema";
-import { answerDecision, cancelDecision, getDecision } from "./model";
+import { answerDecision, cancelDecision, expireDecision, getDecision } from "./model";
 import { decisions } from "./refs";
 
 const START = Date.UTC(2026, 9, 10, 12, 0, 0);
@@ -401,13 +401,29 @@ describe("settled decisions", () => {
     ["answered", "cancel"],
     ["cancelled", "answer"],
     ["cancelled", "cancel"],
+    ["expired", "answer"],
+    ["expired", "cancel"],
   ])("a %s decision refuses %s with conflict carrying the stored decision", async (state, act) => {
-    const { ask, answer, cancel, load } = await setup();
-    const decision = await ask(approve);
-    const settled =
-      state === "answered"
-        ? await answer(decision.id, { kind: "approve" })
-        : await cancel(decision.id);
+    const { t, ask, answer, cancel, load } = await setup();
+    const decision = await ask({
+      ...approve,
+      deadline: new Date(START + HOUR).toISOString(),
+      default: { kind: "approve" },
+    });
+    let settled: Decision;
+    if (state === "answered") {
+      settled = await answer(decision.id, { kind: "approve" });
+    } else if (state === "cancelled") {
+      settled = await cancel(decision.id);
+    } else {
+      vi.setSystemTime(START + HOUR);
+      settled = await t.run(async (ctx) => {
+        const doc = await ctx.db.get("decisions", decision.id as Id<"decisions">);
+        if (doc === null) throw new Error("missing");
+        return expireDecision(ctx, doc, Date.now());
+      });
+      expect(settled).toMatchObject({ state: "expired", applied_by_default: true });
+    }
     const stored = await load(decision.id);
 
     const attempt =
