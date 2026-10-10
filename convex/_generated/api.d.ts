@@ -8,7 +8,11 @@
  * @module
  */
 
+import type * as agents_purge from "../agents/purge.js";
+import type * as agents_sessions from "../agents/sessions.js";
+import type * as agents_settings from "../agents/settings.js";
 import type * as agents_svc from "../agents/svc.js";
+import type * as agents_sweep from "../agents/sweep.js";
 import type * as crons from "../crons.js";
 import type * as decisions_svc from "../decisions/svc.js";
 import type * as http from "../http.js";
@@ -30,7 +34,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "agents/purge": typeof agents_purge;
+  "agents/sessions": typeof agents_sessions;
+  "agents/settings": typeof agents_settings;
   "agents/svc": typeof agents_svc;
+  "agents/sweep": typeof agents_sweep;
   crons: typeof crons;
   "decisions/svc": typeof decisions_svc;
   http: typeof http;
