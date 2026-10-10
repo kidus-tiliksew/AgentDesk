@@ -35,8 +35,8 @@ jobs:
       - name: Typecheck, lint, and test
         run: pnpm check
 
-      # Later steps append here, one step each:
-      # - the contract specification check (pnpm --filter @agentdesk/contract spec:check)
+      - name: Check the published specification
+        run: pnpm --filter @agentdesk/contract spec:check
 
       # CONVEX_DEPLOY_KEY holds a deploy key for the CI dev deployment, never
       # for production (component-repository §Continuous integration).
