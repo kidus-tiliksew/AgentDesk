@@ -5,17 +5,18 @@ import type { ServiceCall } from "./convex.js";
 // deadline, and timers, and keeps nothing between polls (DEC-4), so several
 // waits on one decision each read its settlement (req-agent-tools AC-3.5).
 
-// Poll starts are 25 seconds apart on the call's own clock, so service
-// latency does not accumulate into the interval. A decision that settles just
-// after a poll returns on the next one (AC-3.1).
-export const POLL_INTERVAL_MS = 25_000;
+// Poll starts are 15 seconds apart on the call's own clock, so service
+// latency does not accumulate into the interval. The poll after a settlement
+// starts within 15 seconds and answers within the 10-second service timeout,
+// so `await` returns within 25 seconds of the settlement (AC-3.1).
+export const POLL_INTERVAL_MS = 15_000;
 
 export interface AwaitCaller {
   userId: string;
   agentSessionId: string;
 }
 
-// Polls `/svc/decisions/poll` at once and every 25 seconds until the decision
+// Polls `/svc/decisions/poll` at once and every 15 seconds until the decision
 // is no longer pending, and returns it. Returns null when `timeoutSeconds`
 // elapse first: the deadline cancels a poll in flight, and no poll starts at
 // or after it. Each poll touches the agent session in Convex, so a waiting

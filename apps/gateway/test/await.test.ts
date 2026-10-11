@@ -27,16 +27,18 @@ const ANSWERED = decision({
   answered_via: "app",
 });
 
-// A decision whose state a test changes mid-wait. Each poll reads it after
-// `latencyMs`, as a mutation answering after that delay would.
+// A decision whose state a test changes mid-wait. Each poll reads it when the
+// poll starts and delivers that snapshot `latencyMs` later, so a settlement
+// during the delay reaches the gateway only on the next poll.
 function stored(latencyMs = 0) {
   const store: { current: Decision } = { current: decision() };
   const convex = fakeConvex({
     "decisions/poll": async () => {
+      const snapshot = store.current;
       if (latencyMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, latencyMs));
       }
-      return store.current;
+      return snapshot;
     },
   });
   const polls = () => convex.calls.filter((call) => call.route === "decisions/poll");
@@ -170,36 +172,44 @@ describe("await", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("returns a decision settled mid-wait on the next poll, under 30 seconds later", async () => {
-    // Every poll answers 2 seconds after it starts.
-    const latency = 2_000;
-    const { store, convex, polls } = stored(latency);
-    const wait = await start(convex.svc, { decision_id: "decision_1" });
-
-    // The second poll starts at 25 s and reads the decision at 27 s.
-    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS + latency);
-    expect(polls()).toHaveLength(2);
-    // The decision settles 1 ms after that read.
-    await vi.advanceTimersByTimeAsync(1);
-    store.current = ANSWERED;
-    const settledAt = wait.elapsed();
-
-    // The third poll starts at 50 s and returns at 52 s.
-    await vi.advanceTimersByTimeAsync(2 * POLL_INTERVAL_MS + latency - settledAt - 1);
-    expect(wait.state.ended).toBe(false);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(wait.state.ended).toBe(true);
-    expect(polls()).toHaveLength(3);
-    expect(wait.state.endedAt - settledAt).toBeLessThanOrEqual(POLL_INTERVAL_MS + latency);
-    expect(wait.state.endedAt - settledAt).toBeLessThan(30_000);
-    expect(resultOf(wait.events().messages[0])).toEqual({
-      content: [{ type: "text", text: JSON.stringify(ANSWERED) }],
-      isError: false,
-    });
-    expect(vi.getTimerCount()).toBe(0);
+  it("polls every 15 seconds", () => {
+    expect(POLL_INTERVAL_MS).toBe(15_000);
   });
 
-  it("starts polls 25 seconds apart on the call's clock, whatever the latency", async () => {
+  it.each([
+    // A poll at 0 s reads pending; the decision settles 1 ms later. The poll
+    // at 15 s reads it and answers just under the 10-second service timeout.
+    ["after the first poll's snapshot", 1, 15_000],
+    // The same after the second poll's snapshot, at 15 s.
+    ["after a later poll's snapshot", 15_001, 30_000],
+  ])(
+    "returns a decision settled just %s within 25 seconds, with 9,999 ms latency",
+    async (_, settleAt, nextPoll) => {
+      const latency = 9_999;
+      const { store, convex, polls } = stored(latency);
+      const wait = await start(convex.svc, { decision_id: "decision_1" });
+
+      await vi.advanceTimersByTimeAsync(settleAt);
+      store.current = ANSWERED;
+      const returnAt = nextPoll + latency;
+
+      await vi.advanceTimersByTimeAsync(returnAt - settleAt - 1);
+      expect(wait.state.ended).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(wait.state.ended).toBe(true);
+      expect(wait.state.endedAt).toBe(returnAt);
+      expect(wait.state.endedAt - settleAt).toBeLessThanOrEqual(25_000);
+      expect(wait.state.endedAt - settleAt).toBeLessThan(30_000);
+      expect(polls()).toHaveLength(nextPoll / 15_000 + 1);
+      expect(resultOf(wait.events().messages.at(-1))).toEqual({
+        content: [{ type: "text", text: JSON.stringify(ANSWERED) }],
+        isError: false,
+      });
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
+
+  it("starts polls 15 seconds apart on the call's clock, whatever the latency", async () => {
     const { convex, polls } = stored(3_000);
     const startedAt: number[] = [];
     const t0 = Date.now();
@@ -213,15 +223,17 @@ describe("await", () => {
     await start(svc, { decision_id: "decision_1", timeout_seconds: 100 });
     await vi.advanceTimersByTimeAsync(100_000);
 
-    expect(startedAt).toEqual([0, 25_000, 50_000, 75_000]);
-    expect(polls()).toHaveLength(4);
+    expect(startedAt).toEqual([0, 15_000, 30_000, 45_000, 60_000, 75_000, 90_000]);
+    expect(polls()).toHaveLength(7);
   });
 
   it.each([
     [1, 1],
-    [26, 2],
-    [300, 12],
-    [600, 24],
+    [15, 1],
+    [16, 2],
+    [30, 2],
+    [300, 20],
+    [600, 40],
   ])(
     "with timeout_seconds %i polls %i times and returns pending at the limit",
     async (seconds, expected) => {
@@ -267,7 +279,7 @@ describe("await", () => {
     expect(wait.state.ended).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
     expect(wait.state.ended).toBe(true);
-    expect(polls()).toHaveLength(12);
+    expect(polls()).toHaveLength(20);
   });
 
   it("returns pending at the limit when a poll hangs past it, and cancels that poll", async () => {
@@ -334,6 +346,39 @@ describe("await", () => {
     },
   );
 
+  it.each([
+    ["answers", false],
+    ["fails", true],
+  ])("writes nothing more when a cancelled poll %s late", async (_, fails) => {
+    let settle: (() => void) | undefined;
+    const convex = fakeConvex({
+      // The poll ignores its signal and settles only when the test says.
+      "decisions/poll": () =>
+        new Promise((resolve, reject) => {
+          settle = () =>
+            fails
+              ? reject(new UpstreamError("Service call decisions/poll failed"))
+              : resolve(ANSWERED);
+        }),
+    });
+    const wait = await start(convex.svc, { decision_id: "decision_1", timeout_seconds: 5 });
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(wait.state.ended).toBe(true);
+    const text = wait.state.text;
+    settle?.();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    // An unobserved rejection would fail this test run.
+    expect(wait.state.text).toBe(text);
+    expect(wait.events().messages).toHaveLength(1);
+    expect(JSON.parse(resultOf(wait.events().messages[0]).content[0]?.text ?? "")).toEqual({
+      state: "pending",
+      decision_id: "decision_1",
+    });
+    expect(convex.routes().filter((route) => route === "decisions/poll")).toHaveLength(1);
+  });
+
   it("sends a keepalive comment every 15 seconds, then one message, then ends", async () => {
     const { convex } = stored();
     const wait = await start(convex.svc, { decision_id: "decision_1", timeout_seconds: 50 });
@@ -375,7 +420,8 @@ describe("await", () => {
     const client = new AbortController();
     const wait = await start(convex.svc, { decision_id: "decision_1" }, { signal: client.signal });
 
-    await vi.advanceTimersByTimeAsync(20_000);
+    // Between the polls at 0 and 15 s.
+    await vi.advanceTimersByTimeAsync(10_000);
     client.abort();
     await vi.advanceTimersByTimeAsync(600_000);
 
@@ -398,7 +444,7 @@ describe("await", () => {
     const client = new AbortController();
     const wait = await start(convex.svc, { decision_id: "decision_1" }, { signal: client.signal });
 
-    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    await vi.advanceTimersByTimeAsync(15_000);
     expect(signals).toHaveLength(2);
     expect(signals[1]?.aborted).toBe(false);
     client.abort();
@@ -441,12 +487,16 @@ describe("await", () => {
     await vi.advanceTimersByTimeAsync(5_000);
     const second = await start(convex.svc, { decision_id: "decision_1" });
 
-    await vi.advanceTimersByTimeAsync(10_000);
+    // The decision settles at 16 s, after the polls at 0, 5, and 15 s.
+    await vi.advanceTimersByTimeAsync(11_000);
     store.current = ANSWERED;
-    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    await vi.advanceTimersByTimeAsync(15_000);
 
-    // Each call polled on its own: at 0 and 25 s, and at 5 and 30 s.
-    expect(polls()).toHaveLength(4);
+    // Each call polled on its own clock: the first at 0, 15, and 30 s, the
+    // second at 5 and 20 s.
+    expect(polls()).toHaveLength(5);
+    expect(first.state.endedAt).toBe(30_000);
+    expect(second.state.endedAt).toBe(15_000);
     for (const wait of [first, second]) {
       expect(wait.state.ended).toBe(true);
       expect(resultOf(wait.events().messages[0]).content[0]?.text).toBe(JSON.stringify(ANSWERED));
@@ -516,7 +566,7 @@ describe("await", () => {
     });
     const wait = await start(convex.svc, { decision_id: "decision_1" });
 
-    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    await vi.advanceTimersByTimeAsync(15_000);
 
     expect(wait.state.ended).toBe(true);
     expect(wait.events().messages).toEqual([

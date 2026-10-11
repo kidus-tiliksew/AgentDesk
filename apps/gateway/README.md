@@ -2,7 +2,7 @@
 
 The Cloudflare Worker that serves AgentDesk's public origin (`component-gateway`). It authenticates each request and calls Convex service routes. It stores nothing.
 
-This slice serves the remote MCP server at `POST /mcp`, `GET /mcp`, and `DELETE /mcp`, with the tools `ask`, `await`, `check`, `cancel`, and `status`. Every response is JSON except a `tools/call` for `await`, which answers `text/event-stream`. It sends a `: keepalive` comment every 15 seconds while it polls the decision every 25 seconds, then one `message` event carrying the JSON-RPC response. Clerk OAuth tokens, the `/.well-known` discovery documents, the `/v1` HTTP API, `/device/*`, and `/install.sh` are not built yet. A connection token (`adc_…`) is the only accepted credential.
+This slice serves the remote MCP server at `POST /mcp`, `GET /mcp`, and `DELETE /mcp`, with the tools `ask`, `await`, `check`, `cancel`, and `status`. Every response is JSON except a `tools/call` for `await`, which answers `text/event-stream`. It sends a `: keepalive` comment every 15 seconds while it polls the decision every 15 seconds, then one `message` event carrying the JSON-RPC response. Clerk OAuth tokens, the `/.well-known` discovery documents, the `/v1` HTTP API, `/device/*`, and `/install.sh` are not built yet. A connection token (`adc_…`) is the only accepted credential.
 
 ## Configuration
 
