@@ -12,6 +12,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { appError } from "../lib/errors";
 import { getOwned } from "../lib/owned";
+import { decisionEvent, emit } from "../notifications/events";
 import { decisions } from "./refs";
 
 // component-decisions: the decision state machine, owned reads, and the
@@ -262,8 +263,14 @@ export async function insertDecision(
     });
     await ctx.db.patch("decisions", decisionId, { expiryJobId });
   }
-  // Phase 2 slice 1 emits `decision.created` here through
-  // component-notifications' `emit`, which does not exist yet.
+  await emit(
+    ctx,
+    decisionEvent(
+      "decision.created",
+      { _id: decisionId, userId, agentSessionId, topic: input.topic, priority: input.priority },
+      now,
+    ),
+  );
   const doc = await ctx.db.get("decisions", decisionId);
   if (doc === null) {
     throw new Error("Inserted decision is missing");
@@ -339,8 +346,7 @@ export async function answerDecision(
     settledAt: now,
     searchText: joinSearch([doc.searchText, ...answerWords(doc, answer.data), note]),
   });
-  // Phase 2 slice 1 emits `decision.answered` here through
-  // component-notifications' `emit`, which does not exist yet.
+  await emit(ctx, decisionEvent("decision.answered", doc, now));
   return settled;
 }
 
@@ -356,8 +362,7 @@ export async function cancelDecision(
   }
   await cancelExpiry(ctx, doc);
   const settled = await settle(ctx, doc, { state: "cancelled", settledAt: now });
-  // Phase 2 slice 1 emits `decision.cancelled` here through
-  // component-notifications' `emit`, which does not exist yet.
+  await emit(ctx, decisionEvent("decision.cancelled", doc, now));
   return settled;
 }
 
@@ -387,7 +392,6 @@ export async function expireDecision(
     patch.searchText = joinSearch([doc.searchText, ...answerWords(doc, doc.default)]);
   }
   const settled = await settle(ctx, doc, patch);
-  // Phase 2 slice 1 emits `decision.expired` here through
-  // component-notifications' `emit`, which does not exist yet.
+  await emit(ctx, decisionEvent("decision.expired", doc, now));
   return settled;
 }

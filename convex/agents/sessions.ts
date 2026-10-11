@@ -15,6 +15,7 @@ import {
 import { pendingCountForAgent } from "../decisions/counts";
 import { appError } from "../lib/errors";
 import { getOwned } from "../lib/owned";
+import { agentEvent, emit } from "../notifications/events";
 
 // component-agent-presence §Lifecycle: sessions, activity, and status.
 
@@ -202,16 +203,18 @@ export const status = internalMutation({
       // REQ-4: a done session leaves the live set.
       patch.endedAt = now;
       patch.endReason = "done";
-      // Phase 2 slice 1 emits `agent.done` here through component-notifications'
-      // `emit`, which does not exist yet.
     } else if (session.endReason === "done") {
       // §Lifecycle: a non-done status on a done session clears its end.
       patch.endedAt = undefined;
       patch.endReason = undefined;
     }
     await ctx.db.patch("agentSessions", agentSessionId, patch);
-    // Phase 2 slice 1 emits `agent.status_changed` here through
-    // component-notifications' `emit`, which does not exist yet.
+    // §Lifecycle: every status emits `agent.status_changed`; a done status
+    // then also emits `agent.done`.
+    await emit(ctx, agentEvent("agent.status_changed", session, now));
+    if (input.data.state === "done") {
+      await emit(ctx, agentEvent("agent.done", session, now));
+    }
 
     return toAgentSession(
       { ...session, ...patch },
