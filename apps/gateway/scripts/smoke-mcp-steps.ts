@@ -303,35 +303,41 @@ export class McpClient {
     // the fetch implementation does with its body.
     const stop = new AbortController();
     const linked = AbortSignal.any([signal, stop.signal]);
-    let first: { from: "read" | "opened"; error: unknown } | undefined;
-    const failFast = <T>(from: "read" | "opened", promise: Promise<T>) =>
+    // The read branch also checks the message and tool result, so a stream
+    // that ends without a valid result fails it, and stops `opened`, before
+    // the call waits for `opened` to settle.
+    const body = response.body;
+    const readResult = async () => {
+      let read: StreamRead;
+      try {
+        read = await readEventStream(body, this.options.clock, linked);
+      } catch (error) {
+        throw new SmokeError(step, `await stream failed: ${describe(error)}`);
+      }
+      const message = this.streamMessage(step, read, id);
+      return {
+        result: toolJson(step, message.result),
+        comments: read.comments,
+        messageAt: message.at,
+      };
+    };
+    let first: { error: unknown } | undefined;
+    const failFast = <T>(promise: Promise<T>) =>
       promise.catch((error: unknown) => {
         if (first === undefined) {
-          first = { from, error };
+          first = { error };
           stop.abort(error);
         }
         throw error;
       });
-    const [read] = await Promise.allSettled([
-      failFast("read", readEventStream(response.body, this.options.clock, linked)),
-      failFast("opened", opened(linked)),
-    ]);
+    const [read] = await Promise.allSettled([failFast(readResult()), failFast(opened(linked))]);
     if (first !== undefined) {
-      if (first.from === "opened") {
-        throw first.error;
-      }
-      throw new SmokeError(step, `await stream failed: ${describe(first.error)}`);
+      throw first.error;
     }
     if (read.status !== "fulfilled") {
       throw new SmokeError(step, "await stream failed");
     }
-    const message = this.streamMessage(step, read.value, id);
-    return {
-      result: toolJson(step, message.result),
-      comments: read.value.comments,
-      openedAt,
-      messageAt: message.at,
-    };
+    return { ...read.value, openedAt };
   }
 
   // The stream's single `message` event, checked as the response to `id`.

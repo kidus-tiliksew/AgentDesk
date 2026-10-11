@@ -871,6 +871,45 @@ describe("runSmoke", () => {
     expect(blocked.state).toEqual({ started: true, aborted: true, settled: true });
   });
 
+  it("stops the answer helper and waits for it when the stream ends without a valid result", async () => {
+    const endings: [string, (id: unknown) => string][] = [
+      ["event stream ended mid-event", () => 'event: message\ndata: {"jsonrpc":"2.0"'],
+      ["carried 0 message events", () => ": keepalive\n\n"],
+      [
+        "JSON-RPC error",
+        (id) =>
+          `event: message\ndata: ${JSON.stringify({
+            jsonrpc: "2.0",
+            id,
+            error: { code: -32603, message: "AgentDesk is temporarily unavailable" },
+          })}\n\n`,
+      ],
+      [
+        "tool error",
+        (id) =>
+          message(id, toolResult({ error: { code: "not_found", message: "Not found" } }, true)),
+      ],
+    ];
+    for (const [reason, ending] of endings) {
+      const blocked = blockedHelper();
+      const { result } = await run({
+        quick: true,
+        gateway: {
+          await: (call) =>
+            sseResponse(
+              scripted(call.clock, [{ at: 1_000, after: blocked.started, text: ending(call.id) }])
+                .body,
+            ),
+        },
+        answer: () => blocked.helper,
+      });
+      const error = await failure(result);
+      expect(error.step).toBe("answered: await");
+      expect(error.message).toContain(reason);
+      expect(blocked.state).toEqual({ started: true, aborted: true, settled: true });
+    }
+  });
+
   it("stops the answer helper and waits for it when the run is interrupted", async () => {
     const clock = fakeClock();
     const stop = new AbortController();
