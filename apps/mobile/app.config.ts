@@ -3,6 +3,11 @@ import type { ExpoConfig } from "expo/config";
 // EAS_PROJECT_ID links the app to its EAS project. It is unset until the
 // operator links the project, and local tests and Metro bundling need none.
 const projectId = process.env.EAS_PROJECT_ID?.trim();
+// GOOGLE_SERVICES_JSON is the path to the Firebase google-services.json that
+// Android needs for FCM push, set by the operator as an EAS file environment
+// variable. Builds without it run, and Android push setup reports a token
+// failure (component-mobile-app §Notifications).
+const googleServicesFile = process.env.GOOGLE_SERVICES_JSON?.trim();
 
 const config: ExpoConfig = {
   name: "AgentDesk",
@@ -12,8 +17,17 @@ const config: ExpoConfig = {
   orientation: "portrait",
   userInterfaceStyle: "automatic",
   ios: { bundleIdentifier: "sh.kidus.agentdesk" },
-  android: { package: "sh.kidus.agentdesk" },
-  plugins: ["expo-router", "expo-secure-store"],
+  android: {
+    package: "sh.kidus.agentdesk",
+    ...(googleServicesFile ? { googleServicesFile } : {}),
+  },
+  // expo-notifications adds the push entitlement and names the Android
+  // channel the app creates at startup (component-mobile-app §Notifications).
+  plugins: [
+    "expo-router",
+    "expo-secure-store",
+    ["expo-notifications", { defaultChannel: "default" }],
+  ],
   ...(projectId ? { extra: { eas: { projectId } } } : {}),
 };
 
