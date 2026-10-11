@@ -1,4 +1,5 @@
 import { type ApiFromModules, anyApi } from "convex/server";
+import type * as app from "./app";
 import type * as purge from "./purge";
 import type * as sessions from "./sessions";
 import type * as sweep from "./sweep";
@@ -8,6 +9,7 @@ import type * as sweep from "./sweep";
 // edit to the generated declarations that component-backend-foundation owns.
 // The imports are type-only, so this module loads no function code.
 type AgentsApi = ApiFromModules<{
+  "agents/app": typeof app;
   "agents/purge": typeof purge;
   "agents/sessions": typeof sessions;
   "agents/sweep": typeof sweep;
