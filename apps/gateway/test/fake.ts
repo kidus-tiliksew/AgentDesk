@@ -19,11 +19,12 @@ export const env: Env = {
   SERVICE_SECRET: "service-secret-value",
 };
 
-type Handler = (body: Record<string, unknown>) => unknown;
+type Handler = (body: Record<string, unknown>, signal?: AbortSignal) => unknown;
 
 export interface Call {
   route: ServiceRoute;
   body: Record<string, unknown>;
+  signal?: AbortSignal;
 }
 
 // The default handlers know one user with one connection token and one MCP
@@ -46,13 +47,13 @@ export function fakeConvex(overrides: Partial<Record<ServiceRoute, Handler>> = {
     },
     ...overrides,
   };
-  const svc: ServiceCall = async (route, body) => {
-    calls.push({ route, body });
+  const svc: ServiceCall = async (route, body, signal) => {
+    calls.push(signal === undefined ? { route, body } : { route, body, signal });
     const handler = handlers[route];
     if (handler === undefined) {
       throw new Error(`Unexpected service call ${route}`);
     }
-    return await handler(body);
+    return await handler(body, signal);
   };
   return { svc, calls, routes: () => calls.map((call) => call.route) };
 }
@@ -77,6 +78,31 @@ export function mcpRequest(body: unknown, headers: Record<string, string | null>
     headers: Object.entries(all).filter((entry): entry is [string, string] => entry[1] !== null),
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
+}
+
+// Reads a `text/event-stream` body to its end and returns its comment lines
+// and the data of each `message` event, parsed as JSON.
+export async function readEvents(
+  response: Response,
+): Promise<{ comments: string[]; messages: unknown[] }> {
+  return parseEvents(await response.text());
+}
+
+export function parseEvents(text: string): { comments: string[]; messages: unknown[] } {
+  const comments: string[] = [];
+  const messages: unknown[] = [];
+  for (const frame of text.split("\n\n").filter((part) => part !== "")) {
+    if (frame.startsWith(":")) {
+      comments.push(frame);
+      continue;
+    }
+    const lines = frame.split("\n");
+    if (lines[0] !== "event: message" || !lines[1]?.startsWith("data: ")) {
+      throw new Error(`Unexpected event frame ${JSON.stringify(frame)}`);
+    }
+    messages.push(JSON.parse(lines[1].slice("data: ".length)));
+  }
+  return { comments, messages };
 }
 
 export function rpc(method: string, params?: Record<string, unknown>, id: string | number = 1) {

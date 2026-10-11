@@ -14,6 +14,7 @@ import {
   env,
   fakeConvex,
   mcpRequest,
+  readEvents,
   rpc,
   TRANSPORT_ROUTES,
   USER,
@@ -35,7 +36,18 @@ async function call(
     convex.svc,
   );
   expect(response.status).toBe(200);
-  const { result } = (await response.json()) as { result: ToolResult };
+  // `await` answers with one `message` event; every other tool with JSON.
+  let body: unknown;
+  if (name === "await") {
+    expect(response.headers.get("Content-Type")).toBe("text/event-stream");
+    const { messages } = await readEvents(response);
+    expect(messages).toHaveLength(1);
+    body = messages[0];
+  } else {
+    expect(response.headers.get("Content-Type")).toBe("application/json");
+    body = await response.json();
+  }
+  const { result } = body as { result: ToolResult };
   const text = result.content[0]?.text ?? "";
   let payload: unknown = text;
   try {
@@ -177,13 +189,16 @@ describe("argument validation", () => {
   });
 
   it("accepts the await limits 1 and 600 and defaults to 300", async () => {
+    const answered = decision({ id: "d", state: "answered", answer: { kind: "approve" } });
     for (const args of [
       { decision_id: "d", timeout_seconds: 1 },
       { decision_id: "d", timeout_seconds: 600 },
       { decision_id: "d" },
     ]) {
-      const { payload } = await call("await", args);
-      expect(payload).not.toMatchObject({ error: { code: "invalid" } });
+      const convex = fakeConvex({ "decisions/poll": () => answered });
+      const { result, payload } = await call("await", args, convex);
+      expect(result.isError).toBe(false);
+      expect(payload).toEqual(answered);
     }
   });
 });
@@ -398,11 +413,36 @@ describe("status", () => {
 });
 
 describe("await", () => {
-  it("returns a tool error until its handler is built, and polls nothing", async () => {
-    const { result, payload, calls } = await call("await", { decision_id: "decision_1" });
+  it("polls for the caller's session and drops identity arguments", async () => {
+    const answered = decision({ state: "answered", answer: { kind: "approve" }, note: "Go" });
+    const convex = fakeConvex({ "decisions/poll": () => answered });
+
+    const { result, payload, calls } = await call(
+      "await",
+      { decision_id: "decision_1", userId: "user_b", agentSessionId: "agent_session_b" },
+      convex,
+    );
+
+    expect(result.isError).toBe(false);
+    expect(payload).toEqual(answered);
+    expect(calls.slice(2).map(({ route, body }) => ({ route, body }))).toEqual([
+      {
+        route: "decisions/poll",
+        body: { userId: USER, agentSessionId: AGENT_SESSION, decisionId: "decision_1" },
+      },
+    ]);
+  });
+
+  it("passes not_found for another user's decision through unchanged", async () => {
+    const convex = fakeConvex({
+      "decisions/poll": () => {
+        throw new ServiceError("not_found", "Not found");
+      },
+    });
+
+    const { result, payload } = await call("await", { decision_id: "decision_other" }, convex);
 
     expect(result.isError).toBe(true);
-    expect(payload).toBe("await is not available yet; call check to read the decision");
-    expect(calls.map((c) => c.route)).toEqual(TRANSPORT_ROUTES);
+    expect(payload).toEqual({ error: { code: "not_found", message: "Not found" } });
   });
 });

@@ -8,6 +8,7 @@ import {
   validateDecisionInput,
 } from "@agentdesk/contract";
 import { z } from "zod";
+import { pollDecision } from "./await.js";
 import { type ServiceCall, ServiceError } from "./convex.js";
 
 // component-gateway §Tools. Each tool parses its arguments with the contract
@@ -45,7 +46,14 @@ interface Tool {
   description: string;
   // Published as the tool's inputSchema.
   schema: z.ZodType;
-  run(svc: ServiceCall, caller: ToolCaller, args: unknown): Promise<ToolResult>;
+  // `signal` aborts when the client disconnects; only `await` outlives a
+  // single service call.
+  run(
+    svc: ServiceCall,
+    caller: ToolCaller,
+    args: unknown,
+    signal: AbortSignal,
+  ): Promise<ToolResult>;
 }
 
 class InvalidArguments extends Error {
@@ -88,14 +96,30 @@ const TOOLS: Tool[] = [
     description:
       "Wait until a decision is answered, expires, or is cancelled, or until timeout_seconds elapse.",
     schema: awaitInputSchema,
-    async run(_svc, _caller, args) {
-      parse(awaitInputSchema.safeParse(args));
-      // The poll loop and its event stream arrive in the next gateway slice.
+    async run(svc, caller, args, signal) {
+      const input = parse(awaitInputSchema.safeParse(args));
+      const decision = await pollDecision(
+        svc,
+        caller,
+        input.decision_id,
+        input.timeout_seconds,
+        signal,
+      );
+      if (decision !== null) {
+        // The settled decision with its answer and note (req-agent-tools
+        // AC-3.1).
+        return result(decision);
+      }
+      // The limit elapsed; the decision is unchanged (AC-3.2).
       return {
         content: [
-          { type: "text", text: "await is not available yet; call check to read the decision" },
+          {
+            type: "text",
+            text: JSON.stringify({ state: "pending", decision_id: input.decision_id }),
+          },
+          { type: "text", text: AWAIT_AGAIN },
         ],
-        isError: true,
+        isError: false,
       };
     },
   },
@@ -137,6 +161,8 @@ const TOOLS: Tool[] = [
   },
 ];
 
+export const AWAIT_AGAIN = "Call await again with the same decision_id";
+
 const BY_NAME = new Map(TOOLS.map((tool) => [tool.name, tool]));
 
 // The `tools/list` result: exactly ask, await, check, cancel, and status
@@ -161,13 +187,14 @@ export async function callTool(
   caller: ToolCaller,
   name: string,
   args: unknown,
+  signal: AbortSignal = new AbortController().signal,
 ): Promise<ToolResult> {
   const tool = BY_NAME.get(name);
   if (tool === undefined) {
     throw new Error(`Unknown tool ${name}`);
   }
   try {
-    return await tool.run(svc, caller, args ?? {});
+    return await tool.run(svc, caller, args ?? {}, signal);
   } catch (caught) {
     if (caught instanceof InvalidArguments) {
       return error("invalid", caught.message, caught.field);

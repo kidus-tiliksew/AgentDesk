@@ -13,12 +13,17 @@ export type ServiceRoute =
   | "agents/session"
   | "agents/status"
   | "decisions/create"
+  | "decisions/poll"
   | "decisions/check"
   | "decisions/cancel";
 
-// Posts one service call and returns its parsed JSON result. Tests replace it
-// with a fake.
-export type ServiceCall = (route: ServiceRoute, body: Record<string, unknown>) => Promise<unknown>;
+// Posts one service call and returns its parsed JSON result. Aborting `signal`
+// cancels the call in flight. Tests replace it with a fake.
+export type ServiceCall = (
+  route: ServiceRoute,
+  body: Record<string, unknown>,
+  signal?: AbortSignal,
+) => Promise<unknown>;
 
 // A contract error body from a service route, such as `not_found` for another
 // user's decision.
@@ -48,11 +53,20 @@ export function serviceClient(
   fetcher: typeof fetch = fetch,
 ): ServiceCall {
   const origin = env.CONVEX_SITE_URL.replace(/\/+$/, "");
-  return async (route, body) => {
+  return async (route, body, signal) => {
     // A timer rather than AbortSignal.timeout, so tests can drive it with fake
     // timers.
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), SERVICE_TIMEOUT_MS);
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, SERVICE_TIMEOUT_MS);
+    const cancel = () => controller.abort();
+    if (signal?.aborted) {
+      cancel();
+    }
+    signal?.addEventListener("abort", cancel);
     let response: Response;
     let text: string;
     try {
@@ -68,12 +82,15 @@ export function serviceClient(
       text = await response.text();
     } catch {
       throw new UpstreamError(
-        controller.signal.aborted
+        timedOut
           ? `Service call ${route} timed out`
-          : `Service call ${route} failed`,
+          : controller.signal.aborted
+            ? `Service call ${route} was cancelled`
+            : `Service call ${route} failed`,
       );
     } finally {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", cancel);
     }
 
     let parsed: unknown;
