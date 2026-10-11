@@ -1,13 +1,16 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// The root `pnpm dev` (component-repository §Toolchain): runs `convex dev` and
-// the gateway's `wrangler dev` together. When either exits, or the launcher is
-// interrupted, it stops the other and exits.
+// The root `pnpm dev` (component-repository §Toolchain): runs `convex dev`, the
+// gateway's `wrangler dev`, and the mobile app's `expo start` when apps/mobile
+// exists, together. When any of them exits, or the launcher is interrupted, it
+// stops the others and exits.
 
 const gateway = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(gateway, "../..");
+const mobile = resolve(root, "apps/mobile");
 // How long a child has to stop after SIGINT before it is killed.
 const STOP_GRACE_MS = 10_000;
 
@@ -34,6 +37,21 @@ const children = [
     group: true,
   },
 ];
+
+if (existsSync(resolve(mobile, "package.json"))) {
+  children.push({
+    name: "mobile",
+    // Expo leads its own process group like wrangler, so stopping the group
+    // also stops Metro. Convex holds the terminal, so Expo reads no input and
+    // runs without its keyboard shortcuts.
+    child: spawn(resolve(mobile, "node_modules/.bin/expo"), ["start"], {
+      cwd: mobile,
+      stdio: ["ignore", "inherit", "inherit"],
+      detached: true,
+    }),
+    group: true,
+  });
+}
 
 let exitCode;
 
