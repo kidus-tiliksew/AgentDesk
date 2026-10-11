@@ -226,6 +226,76 @@ describe("get", () => {
     expect(detail.history.map((h) => h.line)).toEqual(["third", "second", "first"]);
   });
 
+  // req-agent-status AC-1.2: the read caps history itself. `status` already
+  // trims storage to 20 rows, so this fixture inserts the rows directly.
+  test("reads only the newest 20 of more than 20 stored history rows", async () => {
+    const { t, open, status, asA } = await setup();
+    const session = await open();
+    await status(session);
+    const other = await open();
+    await status(other);
+    // Distinct times inserted out of order, then three rows sharing the
+    // latest time, then another session's rows, newer than all of them.
+    const distinct = Array.from({ length: 24 }, (_, i) => i).sort(
+      (a, b) => ((a * 7) % 24) - ((b * 7) % 24),
+    );
+    await t.run(async (ctx) => {
+      for (const i of distinct) {
+        await ctx.db.insert("statusHistory", {
+          agentSessionId: session,
+          state: "working",
+          line: `Row ${i}`,
+          at: START + i * MINUTE,
+        });
+      }
+      for (const line of ["tie a", "tie b", "tie c"]) {
+        await ctx.db.insert("statusHistory", {
+          agentSessionId: session,
+          state: "blocked",
+          line,
+          link: "https://x.dev/tie",
+          at: START + 30 * MINUTE,
+        });
+      }
+      for (let i = 0; i < 5; i++) {
+        await ctx.db.insert("statusHistory", {
+          agentSessionId: other,
+          state: "waiting",
+          line: `Other ${i}`,
+          at: START + (60 + i) * MINUTE,
+        });
+      }
+    });
+    const stored = await t.run((ctx) =>
+      ctx.db
+        .query("statusHistory")
+        .withIndex("by_session_at", (q) => q.eq("agentSessionId", session))
+        .collect(),
+    );
+    expect(stored).toHaveLength(27);
+
+    const { history } = await asA.query(agents.app.get, { agentSessionId: session });
+
+    expect(history.map((h) => h.line)).toEqual([
+      "tie c",
+      "tie b",
+      "tie a",
+      ...Array.from({ length: 17 }, (_, i) => `Row ${23 - i}`),
+    ]);
+    expect(history[0]).toEqual({
+      state: "blocked",
+      line: "tie c",
+      link: "https://x.dev/tie",
+      at: new Date(START + 30 * MINUTE).toISOString(),
+    });
+    expect(history[19]).toEqual({
+      state: "working",
+      line: "Row 7",
+      link: null,
+      at: new Date(START + 7 * MINUTE).toISOString(),
+    });
+  });
+
   // req-agent-status AC-2.3; req-accounts-and-connections AC-1.1
   test("returns only the session's own pending decisions", async () => {
     const { open, status, ask, asA } = await setup();
