@@ -6,12 +6,13 @@ import {
   convexAuthState,
   deferred,
   ensureAccount,
+  queryCalls,
   signInAs,
   signOut,
 } from "./fakes";
 import { renderApp } from "./render";
 
-const inbox = "Your pending decisions and live agents will appear here.";
+const inbox = "No pending decisions.";
 const settingUp = "Setting up your account";
 
 describe("account bootstrap", () => {
@@ -28,11 +29,13 @@ describe("account bootstrap", () => {
     act(() => convexAuthState.set({ isLoading: false, isAuthenticated: true }));
     expect(ensureAccount).toHaveBeenCalledTimes(1);
     expect(ensureAccount).toHaveBeenCalledWith({});
+    expect(queryCalls).toEqual([]);
 
     await act(async () => pending.resolve(account));
 
     expect(screen.getByText(inbox)).toBeOnTheScreen();
     expect(ensureAccount).toHaveBeenCalledTimes(1);
+    expect(queryCalls.map((call) => call.name)).toContain("decisions/app:listPending");
   });
 
   test("holds a directly opened settings route until the account exists", async () => {

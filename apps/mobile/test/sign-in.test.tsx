@@ -2,7 +2,7 @@ import { fireEvent, screen } from "expo-router/testing-library";
 import { clerkApiError, deferred, ensureAccount, signIn, signUp } from "./fakes";
 import { renderApp } from "./render";
 
-const inbox = "Your pending decisions and live agents will appear here.";
+const inbox = "No pending decisions.";
 
 async function submitEmail(address: string) {
   fireEvent.changeText(await screen.findByLabelText("Email address"), address);

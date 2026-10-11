@@ -2,7 +2,7 @@ import { fireEvent, screen } from "expo-router/testing-library";
 import { clerkState, ensureAccount, signInAs, signOut } from "./fakes";
 import { renderApp } from "./render";
 
-const inbox = "Your pending decisions and live agents will appear here.";
+const inbox = "No pending decisions.";
 
 describe("route guards", () => {
   test("sends a signed-out person from the inbox to sign-in", async () => {

@@ -97,9 +97,44 @@ export function clerkApiError(code: string, message: string) {
   return { errors: [{ code, message, longMessage: message }] };
 }
 
+// Convex query results by function name, as useQuery returns them. A test sets
+// a value, `loading`, an error that useQuery throws, or a function of the
+// query's arguments. Setting a result re-renders every subscribed screen, as
+// a Convex reactive query does when its data changes.
+export const loading = Symbol("loading");
+export const queries = store<Record<string, unknown>>({});
+const defaultQueries: Record<string, unknown> = {
+  "decisions/app:listPending": [],
+  "agents/app:liveAgents": [],
+};
+
+// Every useQuery call in render order, so a test can check which queries ran.
+export const queryCalls: { name: string; args: unknown }[] = [];
+
+export function setQuery(name: string, result: unknown) {
+  queries.set({ [name]: result });
+}
+
+export function readQuery(name: string, args: unknown): unknown {
+  queryCalls.push({ name, args });
+  const results = queries.get();
+  if (!(name in results)) {
+    throw new Error(`Unexpected query ${name}`);
+  }
+  const result = results[name];
+  const value = typeof result === "function" ? result(args) : result;
+  if (value === loading) {
+    return undefined;
+  }
+  if (value instanceof Error) {
+    throw value;
+  }
+  return value;
+}
+
 // Restores the signed-out state and each fake's default behavior: every Clerk
 // step succeeds, finalizing signs a session in, and ensureAccount resolves at
-// once.
+// once. Each screen query returns an empty list.
 export function resetFakes() {
   clerkState.reset({ isLoaded: true, isSignedIn: false, sessionId: null });
   convexAuthState.reset({ isLoading: false, isAuthenticated: false });
@@ -131,4 +166,6 @@ export function resetFakes() {
     return ok;
   });
   ensureAccount.mockReset().mockResolvedValue(account);
+  queries.reset({ ...defaultQueries });
+  queryCalls.length = 0;
 }
