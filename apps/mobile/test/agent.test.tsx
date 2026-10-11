@@ -102,14 +102,19 @@ describe("agent screen", () => {
 
   test("a pending decision opens its decision screen", async () => {
     setQuery(get, (args: { agentSessionId: string }) => detail(args.agentSessionId));
+    setQuery("decisions/app:get", (args: { decisionId: string }) =>
+      decision({ id: args.decisionId, title: "Keep the old endpoint?", agent_session_id: "a_1" }),
+    );
     await openAgent();
 
     fireEvent.press(
       await screen.findByRole("button", { name: "Decision: Keep the old endpoint?" }),
     );
 
-    expect(await screen.findByText("The decision view is coming soon.")).toBeOnTheScreen();
+    expect(await screen.findByRole("button", { name: "Submit answer" })).toBeOnTheScreen();
+    expect(screen.getByRole("link", { name: "Agent: Claude on laptop" })).toBeOnTheScreen();
     expect(screen).toHavePathname("/decision/d_3");
+    expect(queryCalls).toContainEqual({ name: "decisions/app:get", args: { decisionId: "d_3" } });
   });
 
   test("shows empty states for no history and no pending decisions", async () => {

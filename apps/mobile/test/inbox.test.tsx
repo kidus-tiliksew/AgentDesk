@@ -313,12 +313,17 @@ describe("topic filter", () => {
 describe("navigation", () => {
   test("a decision row opens its decision screen", async () => {
     setQuery(listPending, [decision({ id: "d_42", title: "Deploy?" })]);
+    setQuery("decisions/app:get", (args: { decisionId: string }) =>
+      decision({ id: args.decisionId, title: "Deploy?", body: "Ship the **release** today." }),
+    );
     await openInbox();
 
     fireEvent.press(screen.getByRole("button", { name: "Decision: Deploy?" }));
 
-    expect(await screen.findByText("The decision view is coming soon.")).toBeOnTheScreen();
+    expect(await screen.findByText("release")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Submit answer" })).toBeOnTheScreen();
     expect(screen).toHavePathname("/decision/d_42");
+    expect(queryCalls).toContainEqual({ name: "decisions/app:get", args: { decisionId: "d_42" } });
   });
 
   test("an agent card opens its agent screen", async () => {
