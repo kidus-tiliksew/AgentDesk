@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2022"],
+    // Workers runtime globals only, so no Node API enters the Worker bundle.
+    "types": ["@cloudflare/workers-types"]
+  },
+  "include": ["src"]
+}

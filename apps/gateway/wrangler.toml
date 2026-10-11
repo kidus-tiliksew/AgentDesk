@@ -1,0 +1,20 @@
+# component-gateway §Configuration. Secrets are not declared here: set
+# SERVICE_SECRET and CLERK_SECRET_KEY with `wrangler secret put` for a deployed
+# Worker, and in the git-ignored .dev.vars file for `wrangler dev` (README.md).
+name = "agentdesk-gateway"
+main = "src/index.ts"
+# Not later than the workerd that @cloudflare/vitest-pool-workers bundles, so
+# tests and deployments run with the same date.
+compatibility_date = "2026-08-01"
+
+[vars]
+PUBLIC_ORIGIN = "http://localhost:8787"
+CONVEX_SITE_URL = "http://127.0.0.1:3211"
+CLERK_PUBLISHABLE_KEY = ""
+
+# §Sign-in endpoints: 10 `/device/start` calls per minute per client IP. No
+# route uses it until `/device/*` is built.
+[[ratelimits]]
+name = "DEVICE_START_LIMIT"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
