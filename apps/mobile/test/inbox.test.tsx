@@ -1,6 +1,5 @@
 import { ConvexError } from "convex/values";
 import { act, fireEvent, screen, within } from "expo-router/testing-library";
-import { AppState, type AppStateStatus } from "react-native";
 import { agent, decision } from "./data";
 import { loading, queryCalls, setQuery, signInAs } from "./fakes";
 import { renderApp } from "./render";
@@ -339,75 +338,22 @@ describe("navigation", () => {
   });
 });
 
+// Real timers: fake timers inside the route tree leave state behind that
+// hangs the next test file in the same worker. screen-clock.test.tsx covers
+// focus, background, and cleanup with fake timers on the hook alone.
 describe("elapsed time", () => {
-  const start = Date.parse("2026-10-11T12:00:00.000Z");
-  let listeners: ((state: AppStateStatus) => void)[];
-
-  beforeEach(() => {
-    jest.useFakeTimers({ now: start });
-    listeners = [];
-    jest.spyOn(AppState, "addEventListener").mockImplementation((_type, listener) => {
-      listeners.push(listener as (state: AppStateStatus) => void);
-      return { remove: jest.fn() };
-    });
-    setQuery("agents/app:liveAgents", [
+  test("the time since the last update advances while the inbox is open", async () => {
+    setQuery(liveAgents, [
       agent({
         id: "a_1",
         display_name: "Builder",
-        status_at: new Date(start - 58_000).toISOString(),
+        status_at: new Date(Date.now() - 58_500).toISOString(),
       }),
     ]);
-  });
 
-  afterEach(() => {
-    jest.useRealTimers();
-    jest.restoreAllMocks();
-  });
+    await openInbox();
+    expect(screen.getByText(/^Updated 5[89]s ago$/)).toBeOnTheScreen();
 
-  function setAppState(state: AppStateStatus) {
-    act(() => {
-      for (const listener of listeners) {
-        listener(state);
-      }
-    });
-  }
-
-  // findByText would advance the fake clock while it polls, so the inbox is
-  // rendered and focused by flushing promises and zero-delay timers instead.
-  async function openTicking() {
-    signInAs("sess_a");
-    renderApp("/");
-    await act(async () => {});
-    act(() => jest.advanceTimersByTime(0));
-    expect(screen.getByText("Updated 58s ago")).toBeOnTheScreen();
-  }
-
-  test("the time since the last update advances while the inbox is open", async () => {
-    await openTicking();
-
-    act(() => jest.advanceTimersByTime(2_000));
-    expect(screen.getByText("Updated 1m ago")).toBeOnTheScreen();
-
-    act(() => jest.advanceTimersByTime(60_000));
-    expect(screen.getByText("Updated 2m ago")).toBeOnTheScreen();
-  });
-
-  test("stops in the background and catches up on return to the foreground", async () => {
-    await openTicking();
-
-    // Other libraries keep timers of their own, so the clock's interval shows
-    // as the difference in the timer count.
-    const withClock = jest.getTimerCount();
-    setAppState("background");
-    expect(jest.getTimerCount()).toBe(withClock - 1);
-    act(() => jest.advanceTimersByTime(5 * 60_000));
-    expect(screen.getByText("Updated 58s ago")).toBeOnTheScreen();
-
-    setAppState("active");
-    expect(screen.getByText("Updated 5m ago")).toBeOnTheScreen();
-    expect(jest.getTimerCount()).toBe(withClock);
-
-    act(() => jest.advanceTimersByTime(60_000));
-    expect(screen.getByText("Updated 6m ago")).toBeOnTheScreen();
+    expect(await screen.findByText("Updated 1m ago", {}, { timeout: 3_000 })).toBeOnTheScreen();
   });
 });
