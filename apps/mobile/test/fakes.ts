@@ -31,18 +31,30 @@ function store<T extends object>(initial: T) {
   };
 }
 
+// Clerk reports isSignedIn and sessionId as undefined until it has loaded,
+// then false and null when signed out.
 export const clerkState = store({
   isLoaded: true,
-  isSignedIn: false,
-  sessionId: null as string | null,
+  isSignedIn: false as boolean | undefined,
+  sessionId: null as string | null | undefined,
 });
+
+// Clerk before it has loaded, as on a cold start.
+export function clerkLoading() {
+  clerkState.set({ isLoaded: false, isSignedIn: undefined, sessionId: undefined });
+}
+
+// Clerk finishing its load with no session.
+export function clerkLoadedSignedOut() {
+  clerkState.set({ isLoaded: true, isSignedIn: false, sessionId: null });
+}
 
 export const convexAuthState = store({ isLoading: false, isAuthenticated: false });
 
 // Signs a session in on both sides, as ConvexProviderWithClerk reports once
 // the backend accepts the session's token.
 export function signInAs(sessionId: string) {
-  clerkState.set({ isSignedIn: true, sessionId });
+  clerkState.set({ isLoaded: true, isSignedIn: true, sessionId });
   convexAuthState.set({ isLoading: false, isAuthenticated: true });
 }
 

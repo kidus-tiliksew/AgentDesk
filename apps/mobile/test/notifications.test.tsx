@@ -5,6 +5,8 @@ import { FOREGROUND_BEHAVIOR } from "../src/notifications";
 import { agent, decision } from "./data";
 import {
   account,
+  clerkLoadedSignedOut,
+  clerkLoading,
   constants,
   deferred,
   device,
@@ -424,6 +426,60 @@ describe("tap routing", () => {
     act(() => tap(launch));
     await act(async () => {});
     expect(screen).toHavePathname("/");
+  });
+
+  describe("a tap that launched the app while Clerk was still loading", () => {
+    const launch = tapResponse("n_9", { kind: "decision.created", decisionId: "d_9" });
+
+    function coldStart() {
+      push.lastResponse = launch;
+      clerkLoading();
+      renderApp("/");
+      expect(screen.getByText("Loading")).toBeOnTheScreen();
+      expect(push.lastResponse).toBeNull();
+    }
+
+    // After the launch tap opened its screen, the same response from the live
+    // listener opens nothing more.
+    async function expectOpenedOnce() {
+      expect(await screen.findByText("Decision d_9")).toBeOnTheScreen();
+      expect(screen).toHavePathname("/decision/d_9");
+      act(() => router.back());
+      expect(await screen.findByText(inbox)).toBeOnTheScreen();
+      act(() => tap(launch));
+      await act(async () => {});
+      expect(screen).toHavePathname("/");
+    }
+
+    test("opens once after Clerk loads signed out and the person signs in", async () => {
+      const pending = deferred<typeof account>();
+      ensureAccount.mockReturnValueOnce(pending.promise);
+      coldStart();
+
+      act(() => clerkLoadedSignedOut());
+      await screen.findByLabelText("Email address");
+      act(() => signInAs("sess_a"));
+      await screen.findByText("Setting up your account");
+      expect(screen).not.toHavePathname("/decision/d_9");
+
+      await act(async () => pending.resolve(account));
+
+      await expectOpenedOnce();
+    });
+
+    test("opens once after Clerk loads directly signed in", async () => {
+      const pending = deferred<typeof account>();
+      ensureAccount.mockReturnValueOnce(pending.promise);
+      coldStart();
+
+      act(() => signInAs("sess_a"));
+      await screen.findByText("Setting up your account");
+      expect(screen).not.toHavePathname("/decision/d_9");
+
+      await act(async () => pending.resolve(account));
+
+      await expectOpenedOnce();
+    });
   });
 
   test("a tap waiting when its session signs out does not open in the next session", async () => {

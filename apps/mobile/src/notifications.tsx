@@ -375,7 +375,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     taps: new TapInbox(),
   }));
   const { sessionId } = useAuth();
-  const previousSession = useRef(sessionId);
+  // The last session Clerk reported as established. Clerk reports
+  // `undefined` while it loads and `null` when signed out; neither is an
+  // established session.
+  const established = useRef<string | null>(null);
 
   useEffect(() => {
     Notifications.setNotificationHandler({
@@ -398,14 +401,19 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     return () => subscription.remove();
   }, [value]);
 
-  // A tap waiting when its session ends is dropped, so it cannot open a
-  // screen in the next person's session. A tap captured while signed out
-  // waits through sign-in.
+  // A tap waiting when an established session ends or changes is dropped, so
+  // it cannot open a screen in the next person's session. A tap captured
+  // while Clerk loads or while signed out waits through sign-in, so a tap
+  // that launched the app survives Clerk's undefined-to-null or
+  // undefined-to-session start (REQ-4). A return to loading is not an end.
   useEffect(() => {
-    if (previousSession.current !== null && previousSession.current !== sessionId) {
+    if (sessionId === undefined) {
+      return;
+    }
+    if (established.current !== null && established.current !== sessionId) {
       value.taps.clear();
     }
-    previousSession.current = sessionId;
+    established.current = sessionId;
   }, [sessionId, value]);
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
