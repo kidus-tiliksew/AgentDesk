@@ -1,6 +1,14 @@
 import { ConvexError } from "convex/values";
 import { act, fireEvent, screen } from "expo-router/testing-library";
-import { account, convexAuthState, deferred, ensureAccount, signInAs, signOut } from "./fakes";
+import {
+  account,
+  clerkState,
+  convexAuthState,
+  deferred,
+  ensureAccount,
+  signInAs,
+  signOut,
+} from "./fakes";
 import { renderApp } from "./render";
 
 const inbox = "Your pending decisions and live agents will appear here.";
@@ -114,6 +122,7 @@ describe("account bootstrap", () => {
 
     expect(await screen.findByLabelText("Email address")).toBeOnTheScreen();
     expect(signOut).toHaveBeenCalledTimes(1);
+    expect(signOut).toHaveBeenCalledWith({ sessionId: "sess_a" });
     expect(screen).toHavePathname("/sign-in");
     expect(screen.queryByText(inbox)).not.toBeOnTheScreen();
   });
@@ -142,5 +151,88 @@ describe("account bootstrap", () => {
 
     expect(await screen.findByLabelText("Email address")).toBeOnTheScreen();
     expect(ensureAccount).not.toHaveBeenCalled();
+  });
+
+  test("hides the app when Convex loses authentication after the account is ready", async () => {
+    signInAs("sess_a");
+    renderApp("/");
+    await screen.findByText(inbox);
+
+    act(() => convexAuthState.set({ isLoading: true, isAuthenticated: false }));
+    expect(screen.queryByText(inbox)).not.toBeOnTheScreen();
+    expect(screen.getByText("Reconnecting")).toBeOnTheScreen();
+
+    act(() => convexAuthState.set({ isLoading: false, isAuthenticated: false }));
+    expect(screen.queryByText(inbox)).not.toBeOnTheScreen();
+    expect(
+      screen.getByText("The AgentDesk backend did not accept this sign-in."),
+    ).toBeOnTheScreen();
+
+    act(() => convexAuthState.set({ isLoading: false, isAuthenticated: true }));
+    expect(screen.getByText(inbox)).toBeOnTheScreen();
+    expect(ensureAccount).toHaveBeenCalledTimes(1);
+  });
+
+  describe("while a new session waits for Convex", () => {
+    function switchToWaitingSession() {
+      act(() => {
+        clerkState.set({ sessionId: "sess_b" });
+        convexAuthState.set({ isLoading: true, isAuthenticated: false });
+      });
+    }
+
+    test("an earlier session's refusal signs nothing out", async () => {
+      const first = deferred<typeof account>();
+      ensureAccount.mockReturnValueOnce(first.promise);
+      signInAs("sess_a");
+      renderApp("/");
+      switchToWaitingSession();
+
+      await act(async () =>
+        first.reject(
+          new ConvexError({ code: "unauthenticated", message: "Account is being deleted" }),
+        ),
+      );
+
+      expect(signOut).not.toHaveBeenCalled();
+      expect(clerkState.get()).toMatchObject({ isSignedIn: true, sessionId: "sess_b" });
+      expect(screen.getByText(settingUp)).toBeOnTheScreen();
+
+      act(() => convexAuthState.set({ isLoading: false, isAuthenticated: true }));
+      expect(await screen.findByText(inbox)).toBeOnTheScreen();
+      expect(ensureAccount).toHaveBeenCalledTimes(2);
+    });
+
+    test("an earlier session's success does not unlock the app", async () => {
+      const first = deferred<typeof account>();
+      const second = deferred<typeof account>();
+      ensureAccount.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+      signInAs("sess_a");
+      renderApp("/");
+      switchToWaitingSession();
+
+      await act(async () => first.resolve(account));
+      expect(screen.queryByText(inbox)).not.toBeOnTheScreen();
+
+      act(() => convexAuthState.set({ isLoading: false, isAuthenticated: true }));
+      expect(screen.queryByText(inbox)).not.toBeOnTheScreen();
+      expect(ensureAccount).toHaveBeenCalledTimes(2);
+
+      await act(async () => second.resolve(account));
+      expect(screen.getByText(inbox)).toBeOnTheScreen();
+    });
+
+    test("an earlier session's failure offers no retry", async () => {
+      const first = deferred<typeof account>();
+      ensureAccount.mockReturnValueOnce(first.promise);
+      signInAs("sess_a");
+      renderApp("/");
+      switchToWaitingSession();
+
+      await act(async () => first.reject(new Error("Network request failed")));
+
+      expect(screen.queryByRole("button", { name: "Try again" })).not.toBeOnTheScreen();
+      expect(screen.getByText(settingUp)).toBeOnTheScreen();
+    });
   });
 });

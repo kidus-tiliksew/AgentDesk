@@ -51,7 +51,7 @@ export function signOutAll() {
   convexAuthState.set({ isLoading: false, isAuthenticated: false });
 }
 
-export const signOut = jest.fn<Promise<void>, []>();
+export const signOut = jest.fn<Promise<void>, [{ sessionId?: string }?]>();
 
 export const signIn = {
   status: "needs_identifier",
@@ -105,7 +105,12 @@ export function resetFakes() {
   convexAuthState.reset({ isLoading: false, isAuthenticated: false });
   signIn.status = "needs_identifier";
   signUp.status = "missing_requirements";
-  signOut.mockReset().mockImplementation(async () => signOutAll());
+  // Clerk's signOut({ sessionId }) ends only that session.
+  signOut.mockReset().mockImplementation(async (options) => {
+    if (options?.sessionId === undefined || options.sessionId === clerkState.get().sessionId) {
+      signOutAll();
+    }
+  });
   signIn.emailCode.sendCode.mockReset().mockResolvedValue(ok);
   signIn.emailCode.verifyCode.mockReset().mockImplementation(async () => {
     signIn.status = "complete";
