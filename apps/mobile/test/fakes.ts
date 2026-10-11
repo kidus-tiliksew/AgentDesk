@@ -86,6 +86,139 @@ export const ensureAccount = jest.fn<Promise<typeof account>, [Record<string, ne
 export type AnswerArgs = { decisionId: string; answer: unknown; note?: string };
 export const answerDecision = jest.fn<Promise<unknown>, [AnswerArgs]>();
 
+// notifications/devices:registerDevice and unregisterDevice. Both resolve by
+// default.
+export type RegisterArgs = {
+  deviceId: string;
+  pushToken: string;
+  platform: "ios" | "android";
+  name: string;
+};
+export const registerDevice = jest.fn<Promise<null>, [RegisterArgs]>();
+export const unregisterDevice = jest.fn<Promise<null>, [{ deviceId: string }]>();
+
+// expo-secure-store as an in-memory map that survives a simulated restart:
+// only resetFakes clears it. `failReads` and `failWrites` make the calls
+// reject.
+type SecureStoreFake = {
+  values: Map<string, string>;
+  failReads: boolean;
+  failWrites: boolean;
+  getItemAsync: jest.Mock<Promise<string | null>, [string]>;
+  setItemAsync: jest.Mock<Promise<void>, [string, string]>;
+};
+export const secureStore: SecureStoreFake = {
+  values: new Map<string, string>(),
+  failReads: false,
+  failWrites: false,
+  getItemAsync: jest.fn(async (key: string): Promise<string | null> => {
+    if (secureStore.failReads) {
+      throw new Error("Keychain unavailable");
+    }
+    return secureStore.values.get(key) ?? null;
+  }),
+  setItemAsync: jest.fn(async (key: string, value: string): Promise<void> => {
+    if (secureStore.failWrites) {
+      throw new Error("Keychain unavailable");
+    }
+    secureStore.values.set(key, value);
+  }),
+};
+
+// expo-crypto's randomUUID, numbered so a test can tell ids apart.
+export const crypto = { next: 0 };
+export function nextUuid() {
+  crypto.next += 1;
+  return `00000000-0000-4000-8000-${String(crypto.next).padStart(12, "0")}`;
+}
+
+// expo-device and expo-constants values the notification code reads.
+export const device = {
+  isDevice: true,
+  deviceName: "Kidus's iPhone" as string | null,
+  modelName: "iPhone 17" as string | null,
+};
+export const constants = { projectId: "eas-project-1" as string | null };
+
+type PermissionStatus = { granted: boolean; canAskAgain: boolean; status: string };
+type TokenListener = (token: { type: string; data: string }) => void;
+type ResponseListener = (response: unknown) => void;
+
+// expo-notifications. A test sets the permission it reports, what a request
+// returns, and the Expo token; fires native token changes and taps; and reads
+// the foreground handler the app installed.
+type PushFake = {
+  permission: PermissionStatus;
+  requestResult: PermissionStatus;
+  expoToken: string;
+  tokenListeners: Set<TokenListener>;
+  responseListeners: Set<ResponseListener>;
+  lastResponse: unknown;
+  handler: null | { handleNotification: (notification: unknown) => Promise<unknown> };
+  getPermissionsAsync: jest.Mock<Promise<PermissionStatus>, []>;
+  requestPermissionsAsync: jest.Mock<Promise<PermissionStatus>, []>;
+  getExpoPushTokenAsync: jest.Mock<
+    Promise<{ type: string; data: string }>,
+    [{ projectId?: string }?]
+  >;
+  setNotificationChannelAsync: jest.Mock<Promise<null>, unknown[]>;
+  scheduleNotificationAsync: jest.Mock<Promise<string>, unknown[]>;
+  setBadgeCountAsync: jest.Mock<Promise<boolean>, unknown[]>;
+};
+export const push: PushFake = {
+  permission: { granted: false, canAskAgain: true, status: "undetermined" } as PermissionStatus,
+  requestResult: { granted: true, canAskAgain: true, status: "granted" } as PermissionStatus,
+  expoToken: "ExponentPushToken[aaaa]",
+  tokenListeners: new Set<TokenListener>(),
+  responseListeners: new Set<ResponseListener>(),
+  lastResponse: null as unknown,
+  handler: null as null | { handleNotification: (notification: unknown) => Promise<unknown> },
+  getPermissionsAsync: jest.fn(async (): Promise<PermissionStatus> => push.permission),
+  requestPermissionsAsync: jest.fn(async (): Promise<PermissionStatus> => {
+    push.permission = push.requestResult;
+    return push.requestResult;
+  }),
+  getExpoPushTokenAsync: jest.fn(async (_options?: { projectId?: string }) => ({
+    type: "expo",
+    data: push.expoToken,
+  })),
+  setNotificationChannelAsync: jest.fn(async () => null),
+  scheduleNotificationAsync: jest.fn(async () => "local"),
+  setBadgeCountAsync: jest.fn(async () => true),
+};
+
+// Fires a native push token change, as the OS reports a rotated APNs or FCM
+// token.
+export function rotateDeviceToken(data: string) {
+  for (const listener of [...push.tokenListeners]) {
+    listener({ type: "ios", data });
+  }
+}
+
+export const DEFAULT_ACTION = "expo.modules.notifications.actions.DEFAULT";
+
+// A notification response as expo-notifications delivers it for a tap.
+export function tapResponse(identifier: string, data: unknown, actionIdentifier = DEFAULT_ACTION) {
+  return {
+    actionIdentifier,
+    notification: {
+      date: 0,
+      request: {
+        identifier,
+        content: { title: "AgentDesk", body: null, data },
+        trigger: null,
+      },
+    },
+  };
+}
+
+// Delivers a tap to the app's live response listener.
+export function tap(response: unknown) {
+  for (const listener of [...push.responseListeners]) {
+    listener(response);
+  }
+}
+
 // A promise a test settles when it chooses.
 export function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -139,7 +272,8 @@ export function readQuery(name: string, args: unknown): unknown {
 
 // Restores the signed-out state and each fake's default behavior: every Clerk
 // step succeeds, finalizing signs a session in, and ensureAccount resolves at
-// once. Each screen query returns an empty list. The answer mutation fails
+// once. Notification permission is undetermined and a request grants it, the
+// device registers and unregisters, and secure storage is empty. Each screen query returns an empty list. The answer mutation fails
 // until a test scripts it.
 export function resetFakes() {
   clerkState.reset({ isLoaded: true, isSignedIn: false, sessionId: null });
@@ -172,6 +306,31 @@ export function resetFakes() {
     return ok;
   });
   ensureAccount.mockReset().mockResolvedValue(account);
+  registerDevice.mockReset().mockResolvedValue(null);
+  unregisterDevice.mockReset().mockResolvedValue(null);
+  secureStore.values.clear();
+  secureStore.failReads = false;
+  secureStore.failWrites = false;
+  secureStore.getItemAsync.mockClear();
+  secureStore.setItemAsync.mockClear();
+  crypto.next = 0;
+  device.isDevice = true;
+  device.deviceName = "Kidus's iPhone";
+  device.modelName = "iPhone 17";
+  constants.projectId = "eas-project-1";
+  push.permission = { granted: false, canAskAgain: true, status: "undetermined" };
+  push.requestResult = { granted: true, canAskAgain: true, status: "granted" };
+  push.expoToken = "ExponentPushToken[aaaa]";
+  push.tokenListeners.clear();
+  push.responseListeners.clear();
+  push.lastResponse = null;
+  push.handler = null;
+  push.getPermissionsAsync.mockClear();
+  push.requestPermissionsAsync.mockClear();
+  push.getExpoPushTokenAsync.mockClear();
+  push.setNotificationChannelAsync.mockClear();
+  push.scheduleNotificationAsync.mockClear();
+  push.setBadgeCountAsync.mockClear();
   answerDecision.mockReset().mockImplementation(async () => {
     throw new Error("Unexpected answer mutation");
   });

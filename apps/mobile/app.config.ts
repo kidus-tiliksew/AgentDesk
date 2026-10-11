@@ -13,7 +13,13 @@ const config: ExpoConfig = {
   userInterfaceStyle: "automatic",
   ios: { bundleIdentifier: "sh.kidus.agentdesk" },
   android: { package: "sh.kidus.agentdesk" },
-  plugins: ["expo-router", "expo-secure-store"],
+  // expo-notifications adds the push entitlement and names the Android
+  // channel the app creates at startup (component-mobile-app §Notifications).
+  plugins: [
+    "expo-router",
+    "expo-secure-store",
+    ["expo-notifications", { defaultChannel: "default" }],
+  ],
   ...(projectId ? { extra: { eas: { projectId } } } : {}),
 };
 
