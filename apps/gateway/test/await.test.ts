@@ -82,6 +82,44 @@ async function start(
   };
 }
 
+// Counts the abort listeners each signal holds, so a test can assert that a
+// terminal path removed every one it added.
+function trackAbortListeners() {
+  type Listen = (this: EventTarget, type: string, listener: unknown, options?: unknown) => void;
+  const proto = EventTarget.prototype as unknown as {
+    addEventListener: Listen;
+    removeEventListener: Listen;
+  };
+  const live = new Map<EventTarget, Set<unknown>>();
+  const add = proto.addEventListener;
+  const remove = proto.removeEventListener;
+  vi.spyOn(proto, "addEventListener").mockImplementation(function (
+    this: EventTarget,
+    type,
+    listener,
+    options,
+  ) {
+    if (type === "abort") {
+      const set = live.get(this) ?? new Set();
+      set.add(listener);
+      live.set(this, set);
+    }
+    add.call(this, type, listener, options);
+  });
+  vi.spyOn(proto, "removeEventListener").mockImplementation(function (
+    this: EventTarget,
+    type,
+    listener,
+    options,
+  ) {
+    if (type === "abort") {
+      live.get(this)?.delete(listener);
+    }
+    remove.call(this, type, listener, options);
+  });
+  return (target: EventTarget) => live.get(target)?.size ?? 0;
+}
+
 function resultOf(message: unknown) {
   const { result } = message as { result: { content: { text: string }[]; isError: boolean } };
   return result;
@@ -93,6 +131,7 @@ describe("await", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("answers with an event stream", async () => {
@@ -254,6 +293,46 @@ describe("await", () => {
     expect(JSON.parse(text ?? "")).toEqual({ state: "pending", decision_id: "decision_1" });
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it.each([
+    ["the limit", false],
+    ["a client disconnect", true],
+  ])(
+    "removes every abort listener when %s abandons a poll that never settles",
+    async (_, disconnect) => {
+      const listeners = trackAbortListeners();
+      const signals: AbortSignal[] = [];
+      const convex = fakeConvex({
+        "decisions/poll": (_body, signal) => {
+          if (signal !== undefined) {
+            signals.push(signal);
+          }
+          return new Promise(() => {});
+        },
+      });
+      const client = new AbortController();
+      const wait = await start(
+        convex.svc,
+        { decision_id: "decision_1", timeout_seconds: 30 },
+        { signal: client.signal },
+      );
+      expect(signals).toHaveLength(1);
+      const poll = signals[0] as AbortSignal;
+      expect(listeners(poll)).toBeGreaterThan(0);
+
+      if (disconnect) {
+        await vi.advanceTimersByTimeAsync(10_000);
+        client.abort();
+      }
+      await vi.advanceTimersByTimeAsync(30_000);
+
+      expect(wait.state.ended).toBe(true);
+      expect(poll.aborted).toBe(true);
+      expect(listeners(poll)).toBe(0);
+      expect(listeners(client.signal)).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
 
   it("sends a keepalive comment every 15 seconds, then one message, then ends", async () => {
     const { convex } = stored();

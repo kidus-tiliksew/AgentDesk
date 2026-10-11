@@ -75,8 +75,9 @@ class Stopped extends Error {
 }
 
 // Settles with `promise`, or rejects once `signal` aborts, so a service call
-// that ignores its signal cannot hold the loop past the deadline. The losing
-// promise's rejection is observed.
+// that ignores its signal cannot hold the loop past the deadline. Either path
+// removes the listener, including for a promise that never settles. The
+// losing promise's rejection is observed.
 function untilAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
   promise.catch(() => {});
   return new Promise<T>((resolve, reject) => {
@@ -84,7 +85,10 @@ function untilAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
       reject(new Stopped());
       return;
     }
-    const onAbort = () => reject(new Stopped());
+    const onAbort = () => {
+      signal.removeEventListener("abort", onAbort);
+      reject(new Stopped());
+    };
     signal.addEventListener("abort", onAbort);
     promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
   });
@@ -99,6 +103,7 @@ function sleep(ms: number | null, signal: AbortSignal): Promise<void> {
       return;
     }
     const onAbort = () => {
+      signal.removeEventListener("abort", onAbort);
       if (timer !== undefined) {
         clearTimeout(timer);
       }
@@ -114,6 +119,6 @@ function sleep(ms: number | null, signal: AbortSignal): Promise<void> {
             },
             Math.max(0, ms),
           );
-    signal.addEventListener("abort", onAbort, { once: true });
+    signal.addEventListener("abort", onAbort);
   });
 }
