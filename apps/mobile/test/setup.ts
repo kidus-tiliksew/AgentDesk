@@ -21,6 +21,8 @@ jest.mock("@clerk/expo/token-cache", () => ({ tokenCache: {} }));
 
 // useMutation hands out the ensureAccount fake and refuses any other
 // function, so a test fails if a screen calls Convex for anything else.
+// useQuery reads the scripted query results and re-renders when a test
+// changes them; "skip" runs no query, as in Convex.
 jest.mock("convex/react", () => {
   const { useSyncExternalStore } = require("react");
   const { getFunctionName } = require("convex/server");
@@ -35,6 +37,13 @@ jest.mock("convex/react", () => {
         throw new Error(`Unexpected mutation ${name}`);
       }
       return fakes.ensureAccount;
+    },
+    useQuery: (reference: unknown, args: unknown = {}) => {
+      useSyncExternalStore(fakes.queries.subscribe, fakes.queries.get);
+      if (args === "skip") {
+        return undefined;
+      }
+      return fakes.readQuery(getFunctionName(reference), args);
     },
   };
 });

@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 
-// Shared styles for the shell's screens.
+// Shared styles for the app's screens.
 export const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
   screen: { flex: 1, gap: 16, padding: 24 },
@@ -21,4 +21,26 @@ export const styles = StyleSheet.create({
   buttonText: { color: "#ffffff", fontSize: 17, fontWeight: "600" },
   link: { color: "#1f5fbf", fontSize: 16, padding: 6 },
   headerLinks: { flexDirection: "row", gap: 4 },
+  scroll: { gap: 12, padding: 16 },
+  heading: { fontSize: 18, fontWeight: "600", marginTop: 8 },
+  empty: { color: "#5f5f5f", fontSize: 15 },
+  list: { gap: 8 },
+  row: { borderColor: "#d0d0d0", borderRadius: 8, borderWidth: 1, gap: 4, padding: 12 },
+  rowTitle: { flexShrink: 1, fontSize: 16, fontWeight: "600" },
+  rowMeta: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  meta: { color: "#5f5f5f", fontSize: 14 },
+  line: { fontSize: 15 },
+  urgent: { color: "#b3261e", fontSize: 14, fontWeight: "600" },
+  stale: { color: "#8a5a00", fontSize: 14, fontWeight: "600" },
+  chips: { gap: 8 },
+  chip: {
+    borderColor: "#8a8a8a",
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  chipSelected: { backgroundColor: "#1f5fbf", borderColor: "#1f5fbf" },
+  chipText: { fontSize: 14 },
+  chipTextSelected: { color: "#ffffff", fontSize: 14 },
 });
