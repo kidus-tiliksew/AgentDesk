@@ -1,4 +1,7 @@
 import { convexTest, type TestConvex } from "convex-test";
+import type { Id } from "../_generated/dataModel";
+import { agents } from "../agents/refs";
+import { touch } from "../agents/sessions";
 import { modules } from "../lib/test.modules";
 import schema from "../schema";
 import { pushNotifications } from "./push";
@@ -55,4 +58,37 @@ export function tokenStatus(t: Setup["t"], deviceId: string) {
 // The notifications queued for an install's current token, newest first.
 export function queued(t: Setup["t"], deviceId: string) {
   return t.run((ctx) => pushNotifications.getNotificationsForUser(ctx, { userId: deviceId }));
+}
+
+// Opens and activates an agent session on topic `repo/x` for `userId`.
+export async function openSession(t: Setup["t"], userId: Id<"users">, displayName?: string) {
+  const credentialId = await t.run((ctx) =>
+    ctx.db.insert("credentials", { userId, kind: "connection_token", tokenHash: "0".repeat(64) }),
+  );
+  const { agentSessionId } = await t.mutation(agents.sessions.open, {
+    userId,
+    credentialId,
+    clientName: "Claude Code",
+    clientVersion: "2.1.0",
+  });
+  await t.run(async (ctx) => {
+    await touch(ctx, userId, agentSessionId, "repo/x", Date.now());
+    if (displayName !== undefined) {
+      await ctx.db.patch("agentSessions", agentSessionId, { displayName });
+    }
+  });
+  return agentSessionId;
+}
+
+// Every stored event, oldest first.
+export function eventsOf(t: Setup["t"]) {
+  return t.run((ctx) => ctx.db.query("events").collect());
+}
+
+// The event ids of the scheduled `route` runs, oldest first.
+export async function scheduledRoutes(t: Setup["t"]) {
+  const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+  return jobs
+    .filter((job) => job.name.startsWith("notifications/route"))
+    .map((job) => (job.args[0] as { eventId: Id<"events"> }).eventId);
 }

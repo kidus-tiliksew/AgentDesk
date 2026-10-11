@@ -1,4 +1,5 @@
 import { internalMutation } from "../_generated/server";
+import { agentEvent, emit } from "../notifications/events";
 import { staleThresholdMs } from "./settings";
 
 // component-agent-presence §Sweep. Runs every minute from convex/crons.ts.
@@ -34,8 +35,7 @@ export const run = internalMutation({
         silence >= (await staleThresholdMs(ctx, session.userId))
       ) {
         await ctx.db.patch("agentSessions", session._id, { staleSince: now });
-        // Phase 2 slice 1 emits `agent.stale` here through
-        // component-notifications' `emit`, which does not exist yet.
+        await emit(ctx, agentEvent("agent.stale", session, now));
       }
     }
   },

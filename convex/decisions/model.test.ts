@@ -243,7 +243,10 @@ describe("idempotent ask", () => {
       idempotency_key: "k1",
       deadline: new Date(START + 48 * HOUR).toISOString(),
     };
+    const jobs = () => t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
     const first = await ask(input);
+    // The first create schedules its expiry and its event's route.
+    const jobsAfterFirst = (await jobs()).length;
 
     vi.setSystemTime(START + 24 * HOUR - 1);
     const otherSession = await openSession(userId);
@@ -251,8 +254,9 @@ describe("idempotent ask", () => {
 
     expect(retried).toEqual(first);
     expect(await all()).toHaveLength(1);
-    const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
-    expect(jobs).toHaveLength(1);
+    const after = await jobs();
+    expect(after.filter((job) => job.name === "decisions/expire:run")).toHaveLength(1);
+    expect(after).toHaveLength(jobsAfterFirst);
   });
 
   test("returns the first decision in its current state", async () => {
