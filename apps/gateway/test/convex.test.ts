@@ -117,4 +117,44 @@ describe("serviceClient", () => {
     expect(error).toBeInstanceOf(UpstreamError);
     expect((error as Error).message).toBe("Service call agents/open timed out");
   });
+
+  it("cancels a call in flight when the caller's signal aborts", async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    const fetcher = ((_url: string, init: RequestInit) => {
+      signal = init.signal ?? undefined;
+      return new Promise((_resolve, reject) => {
+        signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+      });
+    }) as unknown as typeof fetch;
+    const caller = new AbortController();
+
+    const outcome = serviceClient(ENV, fetcher)("decisions/poll", {}, caller.signal).then(
+      () => "resolved",
+      (error: Error) => error,
+    );
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(signal?.aborted).toBe(false);
+    caller.abort();
+
+    const error = await outcome;
+    expect(signal?.aborted).toBe(true);
+    expect(error).toBeInstanceOf(UpstreamError);
+    expect((error as Error).message).toBe("Service call decisions/poll was cancelled");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("cancels at once for a signal that already aborted", async () => {
+    let signal: AbortSignal | undefined;
+    const fetcher = (async (_url: string, init: RequestInit) => {
+      signal = init.signal ?? undefined;
+      throw new DOMException("aborted", "AbortError");
+    }) as unknown as typeof fetch;
+    const caller = new AbortController();
+    caller.abort();
+
+    const error = await failure(serviceClient(ENV, fetcher)("decisions/poll", {}, caller.signal));
+    expect(signal?.aborted).toBe(true);
+    expect(error.message).toBe("Service call decisions/poll was cancelled");
+  });
 });

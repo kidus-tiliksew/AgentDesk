@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { authenticate, type Caller, unauthorized } from "./auth.js";
-import { type ServiceCall, ServiceError } from "./convex.js";
+import { type ServiceCall, ServiceError, UpstreamError } from "./convex.js";
 import type { Env } from "./env.js";
-import { callTool, hasTool, listTools } from "./tools.js";
+import { eventStream } from "./sse.js";
+import { callTool, hasTool, listTools, type ToolCaller } from "./tools.js";
 
 // component-gateway §MCP transport: Streamable HTTP with hand-written JSON-RPC
 // handling. Sessions live in Convex (component-agent-presence), so any Worker
@@ -18,6 +19,7 @@ const PARSE_ERROR = -32700;
 const INVALID_REQUEST = -32600;
 const METHOD_NOT_FOUND = -32601;
 const INVALID_PARAMS = -32602;
+const INTERNAL_ERROR = -32603;
 const SESSION_NOT_FOUND = -32001;
 
 const idSchema = z.union([z.string(), z.number()]);
@@ -141,6 +143,9 @@ async function post(request: Request, svc: ServiceCall, caller: Caller): Promise
       if (!hasTool(params.data.name)) {
         return rpcError(message.id, INVALID_PARAMS, `Unknown tool: ${params.data.name}`, 200);
       }
+      if (params.data.name === "await") {
+        return awaitStream(request, svc, toolCaller, message.id, params.data.arguments);
+      }
       const result = await callTool(svc, toolCaller, params.data.name, params.data.arguments);
       return rpcResult(message.id, result);
     }
@@ -172,6 +177,34 @@ async function initialize(
     { protocolVersion, capabilities: { tools: { listChanged: false } }, serverInfo: SERVER_INFO },
     { "Mcp-Session-Id": opened.mcpSessionId },
   );
+}
+
+// `await` answers `text/event-stream` whatever its outcome, including a tool
+// error. The stream is open before the first poll, so Convex failing during
+// the wait ends it with a JSON-RPC error rather than the 503 that `handle`
+// returns before a response starts. The error names no credential or secret.
+function awaitStream(
+  request: Request,
+  svc: ServiceCall,
+  caller: ToolCaller,
+  id: Id,
+  args: Record<string, unknown> | undefined,
+): Response {
+  return eventStream(request.signal, async (signal) => {
+    try {
+      return { jsonrpc: "2.0", id, result: await callTool(svc, caller, "await", args, signal) };
+    } catch (error) {
+      if (signal.aborted) {
+        throw error;
+      }
+      const unavailable = error instanceof UpstreamError || error instanceof ServiceError;
+      if (!unavailable) {
+        console.error(error);
+      }
+      const message = unavailable ? "AgentDesk is temporarily unavailable" : "Internal error";
+      return { jsonrpc: "2.0", id, error: { code: INTERNAL_ERROR, message } };
+    }
+  });
 }
 
 // Checks a request made after initialization, POST or DELETE, and resolves
