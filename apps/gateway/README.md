@@ -84,7 +84,9 @@ Append `--quick` to skip the five-minute leg while iterating. `smoke:mcp` runs `
 2. `tools/list`, which must return exactly `ask`, `await`, `check`, `cancel`, and `status`;
 3. `status` with state `working` on topic `smoke/mcp`;
 4. the answered leg: `ask` for an approve-or-reject decision with no deadline, then `await`. Once the stream is open, it runs `npx convex run decisions/devAnswer:answer` from the repository root. `await` must return `answered` with the answer and note, within 30 seconds of the answer;
-5. the default leg, skipped by `--quick`: `ask` with a deadline five minutes ahead and the default `reject`, then one `await` with `timeout_seconds: 330`. It must return `expired` with the default and `applied_by_default: true`. Keepalive comments must arrive throughout the wait, never more than 30 seconds apart, so a proxy that buffers an idle stream fails the run.
+5. the default leg, skipped by `--quick`: `ask` with a deadline five minutes ahead and the default `reject`, then one `await` with `timeout_seconds: 330`. It must return `expired` with the default and `applied_by_default: true`. The decision must carry the requested deadline and an `answered_at` no earlier than it. `await` must not return sooner than 5 seconds before the deadline on this machine's clock, which allows for skew against the deployment's clock. Keepalive comments must arrive throughout the wait, never more than 30 seconds apart, so a proxy that buffers an idle stream fails the run.
+
+Ctrl-C, or a failure of the `await` stream while the answer helper runs, terminates the helper's process group and waits for it to exit before the run ends. The helper is given 120 seconds.
 
 Each passing step prints one line. The default leg's line reports the keepalive count, the first and last arrival, and the largest gap. On a mismatch the run prints `FAIL <step>: <reason>` and exits 1. It never prints the token. The Convex CLI in step 4 must act on the deployment that the gateway's `CONVEX_SITE_URL` names; otherwise the answer helper fails to find the decision. Each run leaves two decisions and a session on the dev deployment.
 

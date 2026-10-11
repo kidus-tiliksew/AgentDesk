@@ -20,6 +20,10 @@ export const MAX_SETTLE_LATENCY_MS = 30_000;
 // limit.
 export const DEFAULT_LEG_DEADLINE_MS = 300_000;
 export const DEFAULT_LEG_TIMEOUT_SECONDS = 330;
+// The default leg's `await` must return no earlier than the deadline, read on
+// this machine's clock, less this allowance for skew against the deployment's
+// clock. An `await` that returns sooner did not span the five-minute wait.
+export const CLOCK_SKEW_TOLERANCE_MS = 5_000;
 
 export type Step =
   | "initialize"
@@ -264,12 +268,14 @@ export class McpClient {
 
   // Opens an `await` stream. Once the gateway answers with the stream's
   // headers, `opened` runs while the stream is read, so a settlement it causes
-  // happens during the wait. Returns the decoded tool result, every comment,
-  // and the times the stream opened and its message arrived.
+  // happens during the wait. The first of the two to fail aborts the signal
+  // passed to `opened` and cancels the read, and the call returns once both
+  // have settled, so no work outlives it. Returns the decoded tool result,
+  // every comment, and the times the stream opened and its message arrived.
   async awaitDecision(
     step: Step,
     args: { decision_id: string; timeout_seconds: number },
-    opened: () => Promise<void> = async () => {},
+    opened: (signal: AbortSignal) => Promise<void> = async () => {},
   ): Promise<{ result: Json; comments: Comment[]; openedAt: number; messageAt: number }> {
     const limitMs = args.timeout_seconds * 1000 + this.requestTimeoutMs;
     const { response, id, signal } = await this.post(
@@ -296,29 +302,33 @@ export class McpClient {
     // The request's own bound and interruption also stop the read, whatever
     // the fetch implementation does with its body.
     const stop = new AbortController();
-    const reading = readEventStream(
-      response.body,
-      this.options.clock,
-      AbortSignal.any([signal, stop.signal]),
-    );
-    // A failure in `opened` cancels the read.
-    reading.catch(() => {});
-    try {
-      await opened();
-    } catch (error) {
-      stop.abort(error);
-      throw error;
+    const linked = AbortSignal.any([signal, stop.signal]);
+    let first: { from: "read" | "opened"; error: unknown } | undefined;
+    const failFast = <T>(from: "read" | "opened", promise: Promise<T>) =>
+      promise.catch((error: unknown) => {
+        if (first === undefined) {
+          first = { from, error };
+          stop.abort(error);
+        }
+        throw error;
+      });
+    const [read] = await Promise.allSettled([
+      failFast("read", readEventStream(response.body, this.options.clock, linked)),
+      failFast("opened", opened(linked)),
+    ]);
+    if (first !== undefined) {
+      if (first.from === "opened") {
+        throw first.error;
+      }
+      throw new SmokeError(step, `await stream failed: ${describe(first.error)}`);
     }
-    let read: StreamRead;
-    try {
-      read = await reading;
-    } catch (error) {
-      throw new SmokeError(step, `await stream failed: ${describe(error)}`);
+    if (read.status !== "fulfilled") {
+      throw new SmokeError(step, "await stream failed");
     }
-    const message = this.streamMessage(step, read, id);
+    const message = this.streamMessage(step, read.value, id);
     return {
       result: toolJson(step, message.result),
-      comments: read.comments,
+      comments: read.value.comments,
       openedAt,
       messageAt: message.at,
     };
@@ -477,13 +487,17 @@ function expectEqual(step: Step, field: string, actual: unknown, expected: unkno
 }
 
 // Settles a decision on the dev deployment, as the Convex dev answer helper
-// does (`decisions/devAnswer:answer`).
-export type AnswerHelper = (args: {
-  decisionId: string;
-  answer: { kind: "approve" };
-  note: string;
-  answeredVia: "app";
-}) => Promise<void>;
+// does (`decisions/devAnswer:answer`). It stops its work and settles once
+// `signal` aborts.
+export type AnswerHelper = (
+  args: {
+    decisionId: string;
+    answer: { kind: "approve" };
+    note: string;
+    answeredVia: "app";
+  },
+  signal: AbortSignal,
+) => Promise<void>;
 
 export interface SmokeOptions {
   client: McpClient;
@@ -557,14 +571,12 @@ async function answeredLeg(
   const waited = await client.awaitDecision(
     "answered: await",
     { decision_id: decisionId, timeout_seconds: 120 },
-    async () => {
+    async (signal) => {
       try {
-        await options.answer({
-          decisionId,
-          answer: { kind: "approve" },
-          note: SMOKE_NOTE,
-          answeredVia: "app",
-        });
+        await options.answer(
+          { decisionId, answer: { kind: "approve" }, note: SMOKE_NOTE, answeredVia: "app" },
+          signal,
+        );
       } catch (error) {
         throw new SmokeError("answered: answer helper", describe(error));
       }
@@ -593,7 +605,8 @@ async function defaultLeg(
   options: SmokeOptions,
 ): Promise<{ decisionId: string; keepalive: KeepaliveEvidence }> {
   const { client, clock } = options;
-  const deadline = new Date(clock.now() + DEFAULT_LEG_DEADLINE_MS).toISOString();
+  const deadlineMs = clock.now() + DEFAULT_LEG_DEADLINE_MS;
+  const deadline = new Date(deadlineMs).toISOString();
   const decisionId = await ask(options, "default: ask", {
     title: "Smoke: let this decision expire",
     input_type: "approve_reject",
@@ -621,6 +634,23 @@ async function defaultLeg(
   expectEqual(step, "answer", waited.result.answer, { kind: "reject" });
   expectEqual(step, "applied_by_default", waited.result.applied_by_default, true);
   expectEqual(step, "answered_via", waited.result.answered_via, "default");
+  // The deployment expired the decision at its deadline, not before
+  // (req-decision-requests AC-5.1), and the stream stayed open until then.
+  expectEqual(step, "deadline", parseInstant(waited.result.deadline), deadlineMs);
+  const expiredAt = parseInstant(waited.result.answered_at);
+  if (expiredAt === null || expiredAt < deadlineMs) {
+    throw new SmokeError(
+      step,
+      `answered_at ${JSON.stringify(waited.result.answered_at)} is before the deadline ${deadline}`,
+    );
+  }
+  if (waited.messageAt < deadlineMs - CLOCK_SKEW_TOLERANCE_MS) {
+    throw new SmokeError(
+      step,
+      `await returned ${deadlineMs - waited.messageAt} ms before the deadline ${deadline}, ` +
+        `more than the ${CLOCK_SKEW_TOLERANCE_MS} ms clock tolerance; the five-minute wait was not exercised`,
+    );
+  }
   if (keepalive.comments === 0 || keepalive.maxGapMs > MAX_KEEPALIVE_GAP_MS) {
     throw new SmokeError(
       step,
@@ -629,6 +659,15 @@ async function defaultLeg(
     );
   }
   return { decisionId, keepalive };
+}
+
+// Epoch milliseconds of an ISO 8601 instant, or null.
+function parseInstant(value: unknown): number | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const ms = Date.parse(value);
+  return Number.isNaN(ms) ? null : ms;
 }
 
 async function ask(options: SmokeOptions, step: Step, args: Json): Promise<string> {

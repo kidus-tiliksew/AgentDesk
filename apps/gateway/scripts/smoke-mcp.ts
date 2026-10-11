@@ -1,7 +1,8 @@
-import { execFile } from "node:child_process";
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { type HelperProcess, runHelperProcess } from "./helper-process.js";
 import { type AnswerHelper, McpClient, runSmoke, SmokeError } from "./smoke-mcp-steps.js";
 
 // component-gateway §Verification: the MCP smoke run against a running gateway
@@ -17,23 +18,56 @@ import { type AnswerHelper, McpClient, runSmoke, SmokeError } from "./smoke-mcp-
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 // Bound on one `npx convex run`, which may download the CLI on first use.
 const HELPER_TIMEOUT_MS = 120_000;
+// How long `npx convex run` has to exit after SIGTERM before SIGKILL.
+const HELPER_GRACE_MS = 5_000;
+// The standard error kept for a failure report.
+const STDERR_TAIL = 2_000;
 
-const answerWithConvex: AnswerHelper = (args) =>
-  new Promise((done, fail) => {
-    // No shell: the JSON argument reaches the CLI as one argv entry.
-    execFile(
-      "npx",
-      ["convex", "run", "decisions/devAnswer:answer", JSON.stringify(args)],
-      { cwd: root, timeout: HELPER_TIMEOUT_MS, maxBuffer: 1024 * 1024 },
-      (error, _stdout, stderr) => {
-        if (error === null) {
-          done();
-          return;
-        }
-        const detail = stderr.trim().split("\n").slice(-5).join("\n");
-        fail(new Error(`npx convex run failed (${error.message.split("\n")[0]})\n${detail}`));
-      },
-    );
+// Starts `npx convex run` from the repository root. No shell: the JSON
+// argument reaches the CLI as one argv entry. The process leads its own group,
+// so `kill` also stops the Convex CLI that npx starts.
+function startConvexRun(args: unknown): HelperProcess {
+  const child = spawn(
+    "npx",
+    ["convex", "run", "decisions/devAnswer:answer", JSON.stringify(args)],
+    {
+      cwd: root,
+      detached: true,
+      stdio: ["ignore", "ignore", "pipe"],
+    },
+  );
+  let stderr = "";
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (data: string) => {
+    stderr = (stderr + data).slice(-STDERR_TAIL);
+  });
+  return {
+    exited: new Promise((done) => {
+      child.once("close", (code, signal) => done({ code, signal }));
+      child.once("error", (error) => {
+        stderr += error.message;
+        done({ code: -1, signal: null });
+      });
+    }),
+    kill(signal) {
+      if (child.pid === undefined) {
+        return;
+      }
+      try {
+        process.kill(-child.pid, signal);
+      } catch {
+        // The group has already exited.
+      }
+    },
+    stderr: () => stderr.trim(),
+  };
+}
+
+const answerWithConvex: AnswerHelper = (args, signal) =>
+  runHelperProcess(() => startConvexRun(args), {
+    signal,
+    timeoutMs: HELPER_TIMEOUT_MS,
+    graceMs: HELPER_GRACE_MS,
   });
 
 function usage(message: string): never {

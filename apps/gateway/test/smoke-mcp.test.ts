@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { type HelperProcess, runHelperProcess } from "../scripts/helper-process.js";
 import {
   type AnswerHelper,
+  CLOCK_SKEW_TOLERANCE_MS,
   DEFAULT_LEG_DEADLINE_MS,
   DEFAULT_LEG_TIMEOUT_SECONDS,
   MAX_KEEPALIVE_GAP_MS,
@@ -39,6 +41,8 @@ interface Chunk {
   text?: string;
   bytes?: Uint8Array;
   after?: Promise<void>;
+  // Errors the stream instead of delivering text.
+  error?: Error;
 }
 
 // A stream that delivers one chunk per read, setting the clock first, so each
@@ -62,6 +66,10 @@ function scripted(clock: FakeClock, chunks: Chunk[], signal?: AbortSignal) {
           return;
         }
         clock.t = Math.max(clock.t, base + next.at);
+        if (next.error !== undefined) {
+          controller.error(next.error);
+          return;
+        }
         controller.enqueue(next.bytes ?? encoder.encode(next.text ?? ""));
       },
       cancel() {
@@ -103,6 +111,8 @@ interface AwaitCall {
   n: number;
   clock: FakeClock;
   signal: AbortSignal | undefined;
+  // The arguments of the latest `ask`.
+  asked: Json;
 }
 
 interface FakeOptions {
@@ -135,6 +145,11 @@ const EXPIRED = decision({
   applied_by_default: true,
 });
 
+// The expired decision for the default leg's `ask`, settled at its deadline.
+function expiredFor(call: AwaitCall) {
+  return { ...EXPIRED, deadline: call.asked.deadline, answered_at: call.asked.deadline };
+}
+
 function sseResponse(body: ReadableStream<Uint8Array>): Response {
   return new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } });
 }
@@ -153,7 +168,7 @@ function defaultAwait(call: AwaitCall, answered: Promise<void>): Response {
   return sseResponse(
     scripted(call.clock, [
       ...keepalives(300_000),
-      { at: 307_000, text: message(call.id, toolResult(EXPIRED)) },
+      { at: 307_000, text: message(call.id, toolResult(expiredFor(call))) },
     ]).body,
   );
 }
@@ -229,6 +244,7 @@ function fakeGateway(clock: FakeClock, options: FakeOptions = {}) {
               n: awaits.length + 1,
               clock,
               signal: init?.signal ?? undefined,
+              asked: asks.at(-1) ?? {},
             };
             awaits.push(call);
             return (options.await ?? defaultAwait)(call, answered);
@@ -619,10 +635,18 @@ describe("runSmoke", () => {
 
   it("fails the default leg when the decision does not expire with its default", async () => {
     for (const settled of [
-      { ...EXPIRED, applied_by_default: false },
-      { ...EXPIRED, answer: { kind: "approve" } },
-      { ...EXPIRED, state: "answered", answered_via: "app" },
-      { ...EXPIRED, answered_via: "app" },
+      (call: AwaitCall) => ({ ...expiredFor(call), applied_by_default: false }),
+      (call: AwaitCall) => ({ ...expiredFor(call), answer: { kind: "approve" } }),
+      (call: AwaitCall) => ({ ...expiredFor(call), state: "answered", answered_via: "app" }),
+      (call: AwaitCall) => ({ ...expiredFor(call), answered_via: "app" }),
+      // Another deadline than the one asked for.
+      (call: AwaitCall) => ({ ...expiredFor(call), deadline: "2026-10-11T10:00:00.000Z" }),
+      // Expired a second before its deadline.
+      (call: AwaitCall) => ({
+        ...expiredFor(call),
+        answered_at: new Date(Date.parse(String(call.asked.deadline)) - 1_000).toISOString(),
+      }),
+      (call: AwaitCall) => ({ ...expiredFor(call), answered_at: null }),
     ]) {
       const error = await failure(
         (
@@ -634,7 +658,7 @@ describe("runSmoke", () => {
                   : sseResponse(
                       scripted(call.clock, [
                         ...keepalives(300_000),
-                        { at: 301_000, text: message(call.id, toolResult(settled)) },
+                        { at: 301_000, text: message(call.id, toolResult(settled(call))) },
                       ]).body,
                     ),
             },
@@ -691,7 +715,7 @@ describe("runSmoke", () => {
                 : sseResponse(
                     scripted(call.clock, [
                       ...buffered,
-                      { at: 301_000, text: message(call.id, toolResult(EXPIRED)) },
+                      { at: 301_000, text: message(call.id, toolResult(expiredFor(call))) },
                     ]).body,
                   ),
           },
@@ -712,7 +736,7 @@ describe("runSmoke", () => {
                 ? defaultAwait(call, answered)
                 : sseResponse(
                     scripted(call.clock, [
-                      { at: 20_000, text: message(call.id, toolResult(EXPIRED)) },
+                      { at: 301_000, text: message(call.id, toolResult(expiredFor(call))) },
                     ]).body,
                   ),
           },
@@ -721,6 +745,55 @@ describe("runSmoke", () => {
     );
     expect(error.step).toBe("default: await");
     expect(error.message).toContain("0 comments");
+  });
+
+  it("fails the default leg when it settles before the five-minute wait", async () => {
+    // A valid expired payload 20 seconds into the wait, after one keepalive.
+    const error = await failure(
+      (
+        await run({
+          gateway: {
+            await: (call, answered) =>
+              call.n === 1
+                ? defaultAwait(call, answered)
+                : sseResponse(
+                    scripted(call.clock, [
+                      { at: 15_000, text: ": keepalive\n\n" },
+                      { at: 20_000, text: message(call.id, toolResult(expiredFor(call))) },
+                    ]).body,
+                  ),
+          },
+        })
+      ).result,
+    );
+    expect(error.step).toBe("default: await");
+    expect(error.message).toContain("the five-minute wait was not exercised");
+  });
+
+  it("allows the default leg to return up to the clock tolerance before the deadline", async () => {
+    // The second ask runs 5 seconds after the start, when the stream opens, so
+    // the deadline is DEFAULT_LEG_DEADLINE_MS after the stream opens.
+    const returningAt = (offsetMs: number) =>
+      run({
+        gateway: {
+          await: (call, answered) =>
+            call.n === 1
+              ? defaultAwait(call, answered)
+              : sseResponse(
+                  scripted(call.clock, [
+                    ...keepalives(offsetMs),
+                    { at: offsetMs, text: message(call.id, toolResult(expiredFor(call))) },
+                  ]).body,
+                ),
+        },
+      });
+    const earliest = DEFAULT_LEG_DEADLINE_MS - CLOCK_SKEW_TOLERANCE_MS;
+    const passed = await (await returningAt(earliest)).result;
+    expect(passed.defaulted?.keepalive.elapsedMs).toBe(earliest);
+
+    const error = await failure((await returningAt(earliest - 1)).result);
+    expect(error.step).toBe("default: await");
+    expect(error.message).toContain(`${CLOCK_SKEW_TOLERANCE_MS + 1} ms before the deadline`);
   });
 
   it("allows keepalive gaps up to the tolerance and fails one past it", async () => {
@@ -735,7 +808,7 @@ describe("runSmoke", () => {
                     ...keepalives(150_000),
                     { at: 150_000 + gapMs, text: ": keepalive\n\n" },
                     ...keepalives(300_000).filter((chunk) => chunk.at > 150_000 + gapMs),
-                    { at: 301_000, text: message(call.id, toolResult(EXPIRED)) },
+                    { at: 301_000, text: message(call.id, toolResult(expiredFor(call))) },
                   ]).body,
                 ),
         },
@@ -775,6 +848,168 @@ describe("runSmoke", () => {
     expect(fake.awaits[0]?.signal?.aborted).toBe(true);
     const error = await failure(waiting);
     expect(error.message).toContain("interrupted by SIGINT");
+  });
+
+  it("stops the answer helper and waits for it when the stream fails while it runs", async () => {
+    const blocked = blockedHelper();
+    const { result } = await run({
+      quick: true,
+      gateway: {
+        await: (call) =>
+          sseResponse(
+            scripted(call.clock, [
+              { at: 0, text: ": keepalive\n\n" },
+              { at: 1_000, after: blocked.started, error: new Error("connection reset") },
+            ]).body,
+          ),
+      },
+      answer: () => blocked.helper,
+    });
+    const error = await failure(result);
+    expect(error.step).toBe("answered: await");
+    expect(error.message).toContain("connection reset");
+    expect(blocked.state).toEqual({ started: true, aborted: true, settled: true });
+  });
+
+  it("stops the answer helper and waits for it when the run is interrupted", async () => {
+    const clock = fakeClock();
+    const stop = new AbortController();
+    const blocked = blockedHelper(() => stop.abort(new Error("interrupted by SIGINT")));
+    const fake = fakeGateway(clock, {
+      await: (call) =>
+        sseResponse(
+          scripted(call.clock, [{ at: 0, after: new Promise(() => {}), text: "" }], call.signal)
+            .body,
+        ),
+    });
+    const error = await failure(
+      runSmoke({
+        client: new McpClient({
+          url: URL,
+          token: TOKEN,
+          fetch: fake.fetch,
+          clock,
+          signal: stop.signal,
+        }),
+        answer: blocked.helper,
+        clock,
+        runId: "run_1",
+        quick: true,
+        log: () => {},
+      }),
+    );
+    expect(error.message).toContain("interrupted by SIGINT");
+    expect(blocked.state).toEqual({ started: true, aborted: true, settled: true });
+  });
+});
+
+// An answer helper that runs until its signal aborts, then settles a tick
+// later, the way a killed process exits after its signal. `onStart` runs once
+// it has started.
+function blockedHelper(onStart: () => void = () => {}) {
+  const state = { started: false, aborted: false, settled: false };
+  let markStarted: () => void = () => {};
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  const helper: AnswerHelper = (_args, signal) =>
+    new Promise((_resolve, fail) => {
+      state.started = true;
+      markStarted();
+      signal.addEventListener("abort", () => {
+        state.aborted = true;
+        setTimeout(() => {
+          state.settled = true;
+          fail(signal.reason);
+        }, 0);
+      });
+      setTimeout(onStart, 0);
+    });
+  return { helper, state, started };
+}
+
+describe("runHelperProcess", () => {
+  // A fake process that exits with `code` when `finish` is called, or on the
+  // first kill signal it obeys.
+  function fakeProcess(obeys: "SIGTERM" | "SIGKILL" = "SIGTERM", stderr = "") {
+    const kills: string[] = [];
+    const state = { exited: false };
+    let exit: (value: { code: number | null; signal: string | null }) => void = () => {};
+    const exited = new Promise<{ code: number | null; signal: string | null }>((resolve) => {
+      exit = (value) => {
+        state.exited = true;
+        resolve(value);
+      };
+    });
+    const process: HelperProcess = {
+      exited,
+      kill(signal) {
+        kills.push(signal);
+        if (signal === obeys || signal === "SIGKILL") {
+          setTimeout(() => exit({ code: null, signal }), 0);
+        }
+      },
+      stderr: () => stderr,
+    };
+    return { process, kills, state, finish: (code: number) => exit({ code, signal: null }) };
+  }
+
+  const limits = (signal: AbortSignal, timeoutMs = 5_000) => ({ signal, timeoutMs, graceMs: 20 });
+
+  it("resolves when the process exits with status 0", async () => {
+    const fake = fakeProcess();
+    const running = runHelperProcess(() => fake.process, limits(new AbortController().signal));
+    fake.finish(0);
+    await running;
+    expect(fake.kills).toEqual([]);
+  });
+
+  it("reports a non-zero exit with the tail of standard error", async () => {
+    const fake = fakeProcess("SIGTERM", "Error: Decision not found");
+    const running = runHelperProcess(() => fake.process, limits(new AbortController().signal));
+    fake.finish(1);
+    await expect(running).rejects.toThrow(/exit 1\)\nError: Decision not found/);
+  });
+
+  it("terminates the process on abort and rejects only after it exits", async () => {
+    const fake = fakeProcess("SIGTERM");
+    const stop = new AbortController();
+    const running = runHelperProcess(() => fake.process, limits(stop.signal));
+    stop.abort(new Error("interrupted by SIGINT"));
+    await expect(running).rejects.toThrow("interrupted by SIGINT");
+    expect(fake.kills).toEqual(["SIGTERM"]);
+    expect(fake.state.exited).toBe(true);
+  });
+
+  it("kills a process that ignores SIGTERM once the grace period ends", async () => {
+    const fake = fakeProcess("SIGKILL");
+    const stop = new AbortController();
+    const running = runHelperProcess(() => fake.process, limits(stop.signal));
+    stop.abort(new Error("interrupted by SIGINT"));
+    await expect(running).rejects.toThrow("interrupted by SIGINT");
+    expect(fake.kills).toEqual(["SIGTERM", "SIGKILL"]);
+    expect(fake.state.exited).toBe(true);
+  });
+
+  it("terminates the process at its timeout", async () => {
+    const fake = fakeProcess("SIGTERM");
+    const running = runHelperProcess(() => fake.process, limits(new AbortController().signal, 10));
+    await expect(running).rejects.toThrow("helper timed out after 10 ms");
+    expect(fake.kills).toEqual(["SIGTERM"]);
+    expect(fake.state.exited).toBe(true);
+  });
+
+  it("starts nothing when the signal has already aborted", async () => {
+    const stop = new AbortController();
+    stop.abort(new Error("interrupted by SIGINT"));
+    let started = false;
+    await expect(
+      runHelperProcess(() => {
+        started = true;
+        return fakeProcess().process;
+      }, limits(stop.signal)),
+    ).rejects.toThrow("interrupted by SIGINT");
+    expect(started).toBe(false);
   });
 });
 
