@@ -17,11 +17,44 @@ import { styles } from "../../../src/styles";
 // commits the revocation; the screen never removes a row itself.
 
 type Connection = FunctionReturnType<typeof identity.connections.listConnections>[number];
+type Revoke = (args: { credentialId: Connection["credentialId"] }) => Promise<null>;
 
 function connectionLabel(connection: Connection) {
   return connection.machineName === undefined
     ? connection.name
     : `${connection.name} on ${connection.machineName}`;
+}
+
+// The open confirmation in a row. It owns the revokeConnection hook, so the
+// screen binds the mutation only while a person is confirming a revocation.
+function RevokeConfirmation({
+  connection,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  connection: Connection;
+  busy: boolean;
+  onConfirm: (revoke: Revoke) => void;
+  onCancel: () => void;
+}) {
+  const revoke = useMutation(identity.connections.revokeConnection);
+  return (
+    <View style={styles.outcome}>
+      <Text style={styles.line}>
+        Revoke {connectionLabel(connection)}? Its next tool call will be refused.
+      </Text>
+      <Button label="Revoke connection" onPress={() => onConfirm(revoke)} disabled={busy} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: busy }}
+        disabled={busy}
+        onPress={onCancel}
+      >
+        <Text style={styles.link}>Cancel</Text>
+      </Pressable>
+    </View>
+  );
 }
 
 function ConnectionRow({
@@ -38,7 +71,7 @@ function ConnectionRow({
   busy: boolean;
   error: string | null;
   onRevoke: () => void;
-  onConfirm: () => void;
+  onConfirm: (revoke: Revoke) => void;
   onCancel: () => void;
 }) {
   return (
@@ -55,20 +88,12 @@ function ConnectionRow({
       </Text>
       {error === null ? null : <Text style={styles.error}>{error}</Text>}
       {confirming ? (
-        <View style={styles.outcome}>
-          <Text style={styles.line}>
-            Revoke {connectionLabel(connection)}? Its next tool call will be refused.
-          </Text>
-          <Button label="Revoke connection" onPress={onConfirm} disabled={busy} />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: busy }}
-            disabled={busy}
-            onPress={onCancel}
-          >
-            <Text style={styles.link}>Cancel</Text>
-          </Pressable>
-        </View>
+        <RevokeConfirmation
+          connection={connection}
+          busy={busy}
+          onConfirm={onConfirm}
+          onCancel={onCancel}
+        />
       ) : (
         <Pressable
           accessibilityRole="button"
@@ -86,7 +111,6 @@ function ConnectionRow({
 
 function ConnectionList() {
   const connections = useQuery(identity.connections.listConnections, {});
-  const revoke = useMutation(identity.connections.revokeConnection);
   const [confirmingId, setConfirmingId] = useState<Connection["credentialId"] | null>(null);
   const [pendingId, setPendingId] = useState<Connection["credentialId"] | null>(null);
   const [failure, setFailure] = useState<{
@@ -100,7 +124,7 @@ function ConnectionList() {
     return <Loading label="Loading connections" />;
   }
 
-  const confirm = async (connection: Connection) => {
+  const confirm = async (connection: Connection, revoke: Revoke) => {
     if (pending.current) {
       return;
     }
@@ -138,7 +162,7 @@ function ConnectionList() {
                 setFailure(null);
                 setConfirmingId(connection.credentialId);
               }}
-              onConfirm={() => void confirm(connection)}
+              onConfirm={(revoke) => void confirm(connection, revoke)}
               onCancel={() => setConfirmingId(null)}
             />
           ))}

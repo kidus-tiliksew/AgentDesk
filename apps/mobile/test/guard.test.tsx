@@ -1,5 +1,5 @@
 import { fireEvent, screen } from "expo-router/testing-library";
-import { clerkState, ensureAccount, signInAs, signOut } from "./fakes";
+import { clerkState, ensureAccount, setQuery, signInAs, signOut } from "./fakes";
 import { renderApp } from "./render";
 
 const inbox = "No pending decisions.";
@@ -42,12 +42,13 @@ describe("route guards", () => {
 
 describe("navigation", () => {
   test("the inbox header links to the settings screens", async () => {
+    setQuery("identity/connections:listConnections", []);
     signInAs("sess_a");
     renderApp("/");
     await screen.findByText(inbox);
 
     fireEvent.press(screen.getByText("Connections"));
-    expect(await screen.findByText("Your connected harnesses will appear here.")).toBeOnTheScreen();
+    expect(await screen.findByText("No connected harnesses.")).toBeOnTheScreen();
     expect(screen).toHavePathname("/settings/connections");
   });
 
