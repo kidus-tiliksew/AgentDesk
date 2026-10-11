@@ -81,6 +81,11 @@ export const account = {
 
 export const ensureAccount = jest.fn<Promise<typeof account>, [Record<string, never>]>();
 
+// decisions/app:answer. Each test scripts its result; an unscripted call
+// fails the test.
+export type AnswerArgs = { decisionId: string; answer: unknown; note?: string };
+export const answerDecision = jest.fn<Promise<unknown>, [AnswerArgs]>();
+
 // A promise a test settles when it chooses.
 export function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -134,7 +139,8 @@ export function readQuery(name: string, args: unknown): unknown {
 
 // Restores the signed-out state and each fake's default behavior: every Clerk
 // step succeeds, finalizing signs a session in, and ensureAccount resolves at
-// once. Each screen query returns an empty list.
+// once. Each screen query returns an empty list. The answer mutation fails
+// until a test scripts it.
 export function resetFakes() {
   clerkState.reset({ isLoaded: true, isSignedIn: false, sessionId: null });
   convexAuthState.reset({ isLoading: false, isAuthenticated: false });
@@ -166,6 +172,9 @@ export function resetFakes() {
     return ok;
   });
   ensureAccount.mockReset().mockResolvedValue(account);
+  answerDecision.mockReset().mockImplementation(async () => {
+    throw new Error("Unexpected answer mutation");
+  });
   queries.reset({ ...defaultQueries });
   queryCalls.length = 0;
 }
