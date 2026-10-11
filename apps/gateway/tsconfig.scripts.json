@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // The smoke run is a Node CLI; it never enters the Worker bundle.
+    "types": ["node"]
+  },
+  "include": ["scripts/**/*.ts"]
+}
