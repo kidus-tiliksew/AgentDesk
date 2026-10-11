@@ -1,4 +1,4 @@
-import { type ServiceCall, serviceClient, UpstreamError } from "./convex.js";
+import { type ServiceCall, ServiceError, serviceClient, UpstreamError } from "./convex.js";
 import type { Env } from "./env.js";
 import { handleMcp } from "./mcp.js";
 
@@ -11,9 +11,10 @@ export async function handle(request: Request, env: Env, svc: ServiceCall): Prom
   try {
     return await handleMcp(request, env, svc);
   } catch (error) {
-    // Convex could not answer. The response names no credential, session, or
-    // secret.
-    if (error instanceof UpstreamError) {
+    // Convex could not answer, or answered a transport step with an error the
+    // step does not expect, such as `rate_limited` while resolving a
+    // credential. The response names no credential, session, or secret.
+    if (error instanceof UpstreamError || error instanceof ServiceError) {
       return Response.json(
         { error: { code: "unavailable", message: "AgentDesk is temporarily unavailable" } },
         { status: 503 },

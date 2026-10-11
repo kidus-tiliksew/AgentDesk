@@ -29,8 +29,9 @@ export async function hashToken(token: string): Promise<string> {
 }
 
 // Resolves the request's bearer credential, or returns null when it is
-// missing, malformed, of another kind, or refused by identity. A Convex outage
-// throws UpstreamError instead, so it is never mistaken for a bad credential.
+// missing, malformed, of another kind, or refused by identity as
+// `unauthenticated`. Any other failure, an outage or another service error
+// code, propagates, so it is never mistaken for a bad credential.
 export async function authenticate(request: Request, svc: ServiceCall): Promise<Caller | null> {
   const match = /^Bearer +(\S+)$/i.exec(request.headers.get("Authorization") ?? "");
   const token = match?.[1];
@@ -41,7 +42,7 @@ export async function authenticate(request: Request, svc: ServiceCall): Promise<
   try {
     resolved = await svc("identity/resolve-token", { token_hash: await hashToken(token) });
   } catch (error) {
-    if (error instanceof ServiceError) {
+    if (error instanceof ServiceError && error.code === "unauthenticated") {
       return null;
     }
     throw error;

@@ -114,16 +114,6 @@ async function post(request: Request, svc: ServiceCall, caller: Caller): Promise
     return await initialize(svc, caller, message.id, message.params);
   }
 
-  const version = request.headers.get("MCP-Protocol-Version");
-  if (version !== null && !isSupported(version)) {
-    return rpcError(
-      message.kind === "request" ? message.id : null,
-      INVALID_REQUEST,
-      `Unsupported MCP-Protocol-Version ${version}`,
-      400,
-    );
-  }
-
   const session = await resolveSession(
     request,
     svc,
@@ -184,15 +174,21 @@ async function initialize(
   );
 }
 
-// Resolves `Mcp-Session-Id` to the caller's agent session. A missing header
-// is a 400; an unknown id, or one owned by another user, is a 404 so the
-// client initializes again (req-agent-tools REQ-7).
+// Checks a request made after initialization, POST or DELETE, and resolves
+// its `Mcp-Session-Id` to the caller's agent session. An unsupported
+// `MCP-Protocol-Version` or a missing session header is a 400; an unknown id,
+// or one owned by another user, is a 404 so the client initializes again
+// (req-agent-tools REQ-7).
 async function resolveSession(
   request: Request,
   svc: ServiceCall,
   caller: Caller,
   id: Id | null,
 ): Promise<{ agentSessionId: string } | Response> {
+  const version = request.headers.get("MCP-Protocol-Version");
+  if (version !== null && !isSupported(version)) {
+    return rpcError(id, INVALID_REQUEST, `Unsupported MCP-Protocol-Version ${version}`, 400);
+  }
   const mcpSessionId = request.headers.get("Mcp-Session-Id");
   if (mcpSessionId === null || mcpSessionId === "") {
     return rpcError(id, INVALID_REQUEST, "Mcp-Session-Id header is required", 400);

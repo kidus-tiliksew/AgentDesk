@@ -36,7 +36,7 @@ CLERK_SECRET_KEY=
 
 Then run either:
 
-- `pnpm dev` from the repository root, which starts `npx convex dev` and this Worker together and stops both when either exits;
+- `pnpm dev` from the repository root, which runs `scripts/dev.mjs`. It starts `convex dev` and this Worker together. When either exits, or on Ctrl-C, it stops the other;
 - `pnpm --filter @agentdesk/gateway dev` for the Worker alone, on `http://localhost:8787`.
 
 To reach it from an MCP client, mint a connection token on the dev deployment (`component-identity` §Development mint) and send it as `Authorization: Bearer adc_…` to `http://localhost:8787/mcp`.

@@ -218,6 +218,32 @@ describe("HTTP methods and message kinds", () => {
     expect(response.status).toBe(404);
   });
 
+  it.each(["2025-06-18", "2025-11-25"])(
+    "answers DELETE with MCP-Protocol-Version %s",
+    async (version) => {
+      const response = await handle(
+        authenticated("DELETE", { "Mcp-Session-Id": SESSION, "MCP-Protocol-Version": version }),
+        env,
+        fakeConvex().svc,
+      );
+
+      expect(response.status).toBe(200);
+    },
+  );
+
+  it("rejects DELETE with an unsupported MCP-Protocol-Version before resolving the session", async () => {
+    const convex = fakeConvex();
+
+    const response = await handle(
+      authenticated("DELETE", { "Mcp-Session-Id": SESSION, "MCP-Protocol-Version": "2024-11-05" }),
+      env,
+      convex.svc,
+    );
+
+    expect(response.status).toBe(400);
+    expect(convex.routes()).toEqual(["identity/resolve-token"]);
+  });
+
   it("answers any other path with 404", async () => {
     const response = await handle(
       new Request("https://agentdesk.example/v1/decisions"),

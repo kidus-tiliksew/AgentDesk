@@ -2,7 +2,7 @@ import { exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { hashToken as backendHashToken, mintToken } from "../../../convex/identity/tokens.js";
 import { hashToken } from "../src/auth.js";
-import { ServiceError, UpstreamError } from "../src/convex.js";
+import { ServiceError, serviceClient, UpstreamError } from "../src/convex.js";
 import { handle } from "../src/index.js";
 import { env, fakeConvex, mcpRequest, rpc, TOKEN, USER } from "./fake.js";
 
@@ -107,6 +107,49 @@ describe("credential dispatch", () => {
     const text = await response.text();
     expect(text).not.toContain(TOKEN);
     expect(text).not.toContain(env.SERVICE_SECRET);
+  });
+
+  describe("through the service client", () => {
+    // Answers identity/resolve-token with a status and a contract error body,
+    // the way Convex service routes do.
+    function convexAnswering(status: number, code: string) {
+      const fetcher = (async () =>
+        Response.json(
+          { error: { code, message: `${code} from identity` } },
+          { status },
+        )) as unknown as typeof fetch;
+      return serviceClient(env, fetcher);
+    }
+
+    it("answers a revoked or unknown token, refused as unauthenticated, with 401", async () => {
+      const response = await handle(
+        mcpRequest(rpc("tools/list")),
+        env,
+        convexAnswering(401, "unauthenticated"),
+      );
+
+      expect(response.status).toBe(401);
+      expect(response.headers.get("WWW-Authenticate")).toBe(CHALLENGE);
+    });
+
+    it.each([
+      [429, "rate_limited"],
+      [400, "invalid"],
+      [409, "conflict"],
+    ])("answers a resolution failing with %i %s with 503, not 401", async (status, code) => {
+      const response = await handle(
+        mcpRequest(rpc("tools/list")),
+        env,
+        convexAnswering(status, code),
+      );
+
+      expect(response.status).toBe(503);
+      expect(response.headers.get("WWW-Authenticate")).toBeNull();
+      const text = await response.text();
+      expect(text).not.toContain(code);
+      expect(text).not.toContain(TOKEN);
+      expect(text).not.toContain(env.SERVICE_SECRET);
+    });
   });
 
   it("challenges with the deployed PUBLIC_ORIGIN through the Worker entrypoint", async () => {

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test",
-    "dev": "trap 'kill 0' EXIT; pnpm --filter @agentdesk/gateway dev & npx convex dev",
+    "dev": "node apps/gateway/scripts/dev.mjs",
     "typecheck": "tsc --noEmit --strict --target ES2022 --module NodeNext --moduleResolution NodeNext --types node --skipLibCheck vitest.config.ts && tsc -p convex/tsconfig.json && pnpm --recursive --if-present run typecheck",
     "lint": "biome check .",
     "test": "vitest run --passWithNoTests",
