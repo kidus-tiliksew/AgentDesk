@@ -24,12 +24,24 @@ jest.mock("@clerk/expo/token-cache", () => ({ tokenCache: {} }));
 // anything else.
 // useQuery reads the scripted query results and re-renders when a test
 // changes them; "skip" runs no query, as in Convex.
+// useConvex returns one client whose `mutation` hands out the first-launch
+// time zone fake and refuses any other function the same way.
 jest.mock("convex/react", () => {
   const { useSyncExternalStore } = require("react");
   const { getFunctionName } = require("convex/server");
   const fakes = require("./fakes");
+  const client = {
+    mutation: (reference: unknown, args: unknown) => {
+      const name = getFunctionName(reference);
+      if (name === "notifications/settings:initializeTimeZone") {
+        return fakes.initializeTimeZone(args);
+      }
+      throw new Error(`Unexpected client mutation ${name}`);
+    },
+  };
   return {
     ConvexReactClient: class {},
+    useConvex: () => client,
     useConvexAuth: () =>
       useSyncExternalStore(fakes.convexAuthState.subscribe, fakes.convexAuthState.get),
     useMutation: (reference: unknown) => {
