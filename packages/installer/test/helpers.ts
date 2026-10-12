@@ -132,6 +132,8 @@ export class FakeGateway {
   refused = new Set<string>();
   /** Status for DELETE /device/connection, per token. */
   deleteStatus = new Map<string, number>();
+  /** Status for every DELETE /device/connection, when set. */
+  deleteStatusAll: number | undefined;
   revoked: string[] = [];
   issued: { harness: string; connectionId: string; token: string }[] = [];
   deviceSecrets: string[] = [];
@@ -207,7 +209,7 @@ export class FakeGateway {
           : json(401, { error: { code: "unauthenticated" } });
       }
       if (method === "DELETE") {
-        const status = this.deleteStatus.get(token ?? "");
+        const status = this.deleteStatusAll ?? this.deleteStatus.get(token ?? "");
         if (status) return json(status, { error: { code: "unavailable" } });
         if (!known) return json(401, { error: { code: "unauthenticated" } });
         this.revoked.push(token ?? "");

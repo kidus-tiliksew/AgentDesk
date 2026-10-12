@@ -112,13 +112,46 @@ async function start(
  * Checks an approved result: exactly one connection per requested harness,
  * each with its own connection id and token (AC-6.4).
  */
+/** A connection the server reported as issued, as far as it can be read. */
+export interface ReportedConnection {
+  harness?: string;
+  connectionId?: string;
+  token?: string;
+}
+
+/**
+ * An approved result the installer cannot use. The server may still have
+ * issued the connections it lists, so they travel with the error for the
+ * caller to revoke or record (AC-9.6).
+ */
+export class InvalidSignInResult extends InstallerError {
+  constructor(
+    server: string,
+    readonly reported: ReportedConnection[],
+  ) {
+    super(`AgentDesk at ${server} returned an invalid sign-in result.`);
+  }
+}
+
+function reportedConnections(raw: unknown): ReportedConnection[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isRecord).map((item) => ({
+    ...(typeof item.harness === "string" ? { harness: item.harness } : {}),
+    ...(typeof item.connection_id === "string" && item.connection_id.length > 0
+      ? { connectionId: item.connection_id }
+      : {}),
+    ...(typeof item.token === "string" && item.token.length > 0 && !/\s/.test(item.token)
+      ? { token: item.token }
+      : {}),
+  }));
+}
+
 function validateConnections(
   server: string,
   raw: unknown,
   requested: readonly HarnessId[],
 ): Connection[] {
-  const invalid = () =>
-    new InstallerError(`AgentDesk at ${server} returned an invalid sign-in result.`);
+  const invalid = () => new InvalidSignInResult(server, reportedConnections(raw));
   if (!Array.isArray(raw) || raw.length !== requested.length) throw invalid();
   const connections: Connection[] = [];
   for (const item of raw) {

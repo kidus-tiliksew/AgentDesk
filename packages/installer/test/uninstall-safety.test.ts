@@ -40,6 +40,12 @@ async function installed(executables: string[]): Promise<Installed> {
   return { sandbox, gateway, clock };
 }
 
+/** The recovery records for connections whose revocation is not established. */
+function unrevoked(sandbox: Sandbox): Record<string, string>[] {
+  const state = readJson(join(sandbox.home, ".config", "agentdesk", "state.json"));
+  return (state.unrevoked ?? []) as Record<string, string>[];
+}
+
 function recorded(sandbox: Sandbox): Record<string, Record<string, string>> {
   return readJson(join(sandbox.home, ".config", "agentdesk", "state.json")).harnesses as Record<
     string,
@@ -340,9 +346,17 @@ describe("missing local token (round 2 P2)", () => {
     id: string,
   ) {
     const issued = gateway.issued.find((i) => i.harness === id);
-    const record = recorded(sandbox)[id];
-    expect(record?.connectionId).toBe(issued?.connectionId);
-    expect(record?.server).toBe("https://agentdesk.test");
+    // The connection id and server move to a recovery record; no token is stored.
+    expect(unrevoked(sandbox)).toEqual([
+      expect.objectContaining({
+        harness: id,
+        connectionId: issued?.connectionId,
+        server: "https://agentdesk.test",
+      }),
+    ]);
+    expect(read(join(sandbox.home, ".config", "agentdesk", "state.json"))).not.toContain(
+      issued?.token ?? "",
+    );
     expect(gateway.requests.filter((r) => r.method === "DELETE")).toEqual([]);
     const err = h.err.join("\n");
     expect(err).toContain(`${issued?.connectionId}`);
@@ -389,7 +403,7 @@ describe("missing local token (round 2 P2)", () => {
     // A second plain uninstall still refuses to forget it.
     const again = makeContext(sandbox, { gateway, clock });
     expect(await again.run(["uninstall"])).toBe(1);
-    expect(recorded(sandbox).cursor?.connectionId).toBe(connectionId);
+    expect(unrevoked(sandbox).map((u) => u.connectionId)).toEqual([connectionId]);
 
     const forget = makeContext(sandbox, { gateway, clock });
     expect(await forget.run(["uninstall", "--forget-unrevoked"])).toBe(0);
@@ -397,14 +411,19 @@ describe("missing local token (round 2 P2)", () => {
     expect(existsSync(statePath(forget.ctx))).toBe(false);
   });
 
-  it("warns on install that a recorded connection without a local token cannot be revoked", async () => {
+  it("keeps a recovery record on install for a recorded connection without a local token", async () => {
     const { sandbox, gateway, clock } = await installed(["cursor-agent"]);
     const oldConnection = gateway.issued[0]?.connectionId;
     write(join(sandbox.home, ".cursor", "mcp.json"), JSON.stringify({ mcpServers: {} }));
     const h = makeContext(sandbox, { gateway, clock });
-    expect(await h.run(["install", "--yes"])).toBe(0);
-    expect(h.err.join("\n")).toContain(`recorded connection ${oldConnection} has no token`);
+    // The run is not fully complete while the old connection is unresolved.
+    expect(await h.run(["install", "--yes"])).toBe(1);
+    expect(h.err.join("\n")).toContain(
+      `connection ${oldConnection} at https://agentdesk.test is not revoked`,
+    );
     expect(h.err.join("\n")).toContain("Settings → Connections");
+    expect(h.err.join("\n")).toContain(`agentdesk forget ${oldConnection}`);
+    expect(unrevoked(sandbox).map((u) => u.connectionId)).toEqual([oldConnection]);
     expect(gateway.startRequests()).toHaveLength(2);
   });
 

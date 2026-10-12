@@ -2,7 +2,14 @@ import { spawn } from "node:child_process";
 import { homedir, hostname } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
-import { FORGET_UNREVOKED_FLAG, install, skillInstall, status, uninstall } from "./commands.js";
+import {
+  FORGET_UNREVOKED_FLAG,
+  forget,
+  install,
+  skillInstall,
+  status,
+  uninstall,
+} from "./commands.js";
 import { type Context, InstallerError, type Io, type Runner, redactingIo } from "./context.js";
 import { DEFAULT_SERVER_ORIGIN, EMBEDDED_SKILL, INSTALLER_VERSION } from "./defaults.js";
 import { HARNESS_IDS, HARNESSES, type HarnessId, isHarnessId } from "./harnesses.js";
@@ -16,11 +23,15 @@ Commands:
                      MCP connection and the skill.
   skill install      Install or update only the skill for every detected harness.
   status             Show each recorded harness, its connection, and its skill version.
+  forget <connection-id>
+                     Forget a connection the installer could not revoke, after
+                     you revoked it in the AgentDesk app under Settings →
+                     Connections. The installation stays in place.
   uninstall [--forget-unrevoked]
                      Revoke each connection and remove what the installer wrote.
-                     --forget-unrevoked forgets a recorded connection whose token
-                     is gone from its harness configuration, after you revoked
-                     it in the AgentDesk app under Settings → Connections.
+                     --forget-unrevoked forgets every connection the installer
+                     could not revoke, after you revoked each in the AgentDesk
+                     app under Settings → Connections.
 
 Options for install:
   --server <url>     Use this AgentDesk server instead of the default.
@@ -87,6 +98,13 @@ export async function runCli(argv: readonly string[], ctx: Context): Promise<num
       case "status":
         if (rest.length > 0) throw usageError("status takes no arguments.");
         return await status(ctx);
+      case "forget": {
+        const [connectionId, ...extra] = rest;
+        if (!connectionId || extra.length > 0 || connectionId.startsWith("-")) {
+          throw usageError("Use: agentdesk forget <connection-id>");
+        }
+        return await forget(ctx, connectionId);
+      }
       case "uninstall": {
         const forgetUnrevoked = rest.length === 1 && rest[0] === FORGET_UNREVOKED_FLAG;
         if (rest.length > 0 && !forgetUnrevoked) {

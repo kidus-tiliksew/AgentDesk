@@ -15,8 +15,16 @@ import {
   type Harness,
   type HarnessId,
   harnessById,
+  isHarnessId,
 } from "./harnesses.js";
-import { type Connection, checkConnection, revokeConnection, signIn } from "./signin.js";
+import {
+  type Connection,
+  checkConnection,
+  InvalidSignInResult,
+  type ReportedConnection,
+  revokeConnection,
+  signIn,
+} from "./signin.js";
 import { installedSkillVersion, planSkills, removeSkillDir, writeSkill } from "./skill.js";
 import {
   deleteState,
@@ -24,8 +32,11 @@ import {
   type HarnessRecord,
   readState,
   recordedServer,
+  recordUnrevoked,
   type State,
+  stateIsEmpty,
   statePath,
+  type UnrevokedConnection,
   writeState,
 } from "./state.js";
 
@@ -203,23 +214,24 @@ export async function install(ctx: Context, options: InstallOptions): Promise<nu
         `${harness.displayName}: connection check ${check.kind === "refused" ? "was refused" : `failed (${check.detail})`}; signing in again.`,
       );
     }
-    if (record?.connectionId && !entry.token) {
-      // The old connection cannot be revoked from here; say so instead of dropping it silently.
-      ctx.io.err(
-        `${harness.displayName}: the recorded connection ${record.connectionId} has no token in ${harness.configPath(ctx)}, so it cannot be revoked from here. Revoke it in the AgentDesk app under Settings → Connections.`,
-      );
-    }
     needSignIn.push(harness);
   }
 
   let connections: Connection[] = [];
   if (needSignIn.length > 0) {
     ctx.io.out(`Signing in ${needSignIn.map((h) => h.displayName).join(", ")}.`);
-    connections = await signIn(
-      ctx,
-      server,
-      needSignIn.map((h) => h.id),
-    );
+    try {
+      connections = await signIn(
+        ctx,
+        server,
+        needSignIn.map((h) => h.id),
+      );
+    } catch (error) {
+      if (error instanceof InvalidSignInResult) {
+        await recoverReported(ctx, previous, server, error.reported);
+      }
+      throw error;
+    }
   } else {
     ctx.io.out("Every selected harness is already connected. No sign-in is needed.");
   }
@@ -228,6 +240,7 @@ export async function install(ctx: Context, options: InstallOptions): Promise<nu
     version: 1,
     server,
     harnesses: { ...previous.harnesses },
+    unrevoked: [...previous.unrevoked],
   };
   for (const id of kept) {
     state.harnesses[id] = { ...state.harnesses[id], server };
@@ -235,6 +248,13 @@ export async function install(ctx: Context, options: InstallOptions): Promise<nu
 
   const backups = new BackupRegistry();
   const failures: string[] = [];
+  // Connections this run could not revoke; each is kept as a recovery record.
+  const unresolved: UnrevokedConnection[] = [];
+  const keepUnrevoked = (record: UnrevokedConnection) => {
+    recordUnrevoked(state, record);
+    unresolved.push(record);
+  };
+
   for (const connection of connections) {
     const harness = harnessById(ctx, connection.harness);
     const file = harness.configPath(ctx);
@@ -244,11 +264,52 @@ export async function install(ctx: Context, options: InstallOptions): Promise<nu
       failures.push(
         `${harness.displayName}: its MCP entry in ${file} was not written: ${message(error)}`,
       );
+      // The new connection is unused; revoke it, or keep it recorded.
       const undo = await revokeConnection(ctx, server, connection.token);
       if (undo.kind === "failed") {
-        failures.push(`${harness.displayName}: revoke the unused connection in the AgentDesk app.`);
+        keepUnrevoked({
+          harness: harness.id,
+          connectionId: connection.connectionId,
+          server,
+          reason: `its configuration was not written and revocation failed: ${undo.detail}`,
+        });
       }
       continue;
+    }
+    ctx.io.out(`${harness.displayName}: connected; MCP entry written to ${file}`);
+
+    // The connection this one replaces is revoked, or kept as a recovery record.
+    const prior = previous.harnesses[harness.id];
+    const old = oldEntries.get(harness.id);
+    const oldServer = old ? serverOfEntry(old) : undefined;
+    const priorServer = recordedServer(previous, harness.id) ?? oldServer ?? server;
+    if (prior?.connectionId && prior.connectionId !== connection.connectionId) {
+      if (old?.token && old.token !== connection.token) {
+        const result = await revokeConnection(ctx, oldServer ?? priorServer, old.token);
+        if (result.kind === "failed") {
+          keepUnrevoked({
+            harness: harness.id,
+            connectionId: prior.connectionId,
+            server: priorServer,
+            reason: `revocation failed: ${result.detail}`,
+          });
+        }
+      } else {
+        keepUnrevoked({
+          harness: harness.id,
+          connectionId: prior.connectionId,
+          server: priorServer,
+          reason: `no token for it was in ${file}`,
+        });
+      }
+    } else if (old?.token && oldServer && old.token !== connection.token) {
+      // An entry no state recorded, so no connection id is known for it.
+      const result = await revokeConnection(ctx, oldServer, old.token);
+      if (result.kind === "failed") {
+        failures.push(
+          `${harness.displayName}: the AgentDesk entry it replaced could not be revoked (${result.detail}), and no connection id was recorded for it. Revoke it in the AgentDesk app under Settings → Connections.`,
+        );
+      }
     }
     state.harnesses[harness.id] = {
       ...state.harnesses[harness.id],
@@ -256,30 +317,91 @@ export async function install(ctx: Context, options: InstallOptions): Promise<nu
       connectionId: connection.connectionId,
       configPath: file,
     };
-    ctx.io.out(`${harness.displayName}: connected; MCP entry written to ${file}`);
-
-    // A replaced token is revoked so it does not stay valid unused.
-    const old = oldEntries.get(harness.id);
-    const oldServer = old ? serverOfEntry(old) : undefined;
-    if (old?.token && oldServer && old.token !== connection.token) {
-      const result = await revokeConnection(ctx, oldServer, old.token);
-      if (result.kind === "failed") {
-        ctx.io.err(
-          `${harness.displayName}: the previous connection could not be revoked (${result.detail}). Revoke it in the AgentDesk app.`,
-        );
-      }
-    }
   }
 
   // AC-9.4: every run rewrites the skill at the current version.
   failures.push(...installSkills(ctx, selected, state));
   writeState(ctx, state);
 
+  for (const record of unresolved) failures.push(unrevokedLine(ctx, record, "forget"));
+  const earlier = state.unrevoked.filter((u) => !unresolved.includes(u));
+  for (const record of earlier) ctx.io.err(unrevokedLine(ctx, record, "forget"));
   if (failures.length > 0) {
     for (const line of failures) ctx.io.err(line);
     return 1;
   }
   ctx.io.out("AgentDesk is installed. A new agent session can call ask now.");
+  return 0;
+}
+
+/**
+ * Handles connections a rejected approved result reported: each is revoked
+ * with its token, or kept as a recovery record when that fails or no token
+ * was given, so a connection the server issued is never forgotten.
+ */
+async function recoverReported(
+  ctx: Context,
+  previous: State,
+  server: string,
+  reported: ReportedConnection[],
+): Promise<void> {
+  const state: State = {
+    ...previous,
+    harnesses: { ...previous.harnesses },
+    unrevoked: [...previous.unrevoked],
+  };
+  for (const item of reported) {
+    if (item.token) {
+      const result = await revokeConnection(ctx, server, item.token);
+      if (result.kind === "revoked") continue;
+    }
+    if (!item.connectionId) continue;
+    const record: UnrevokedConnection = {
+      harness: item.harness && isHarnessId(item.harness) ? item.harness : "unknown",
+      connectionId: item.connectionId,
+      server,
+      reason: "the server returned an invalid sign-in result",
+    };
+    recordUnrevoked(state, record);
+    ctx.io.err(unrevokedLine(ctx, record, "forget"));
+  }
+  if (state.unrevoked.length > previous.unrevoked.length) writeState(ctx, state);
+}
+
+/**
+ * Describes a connection whose revocation is not established and the step
+ * that resolves it: `forget` names `agentdesk forget <id>`, which keeps the
+ * installation; `uninstall` names `agentdesk uninstall --forget-unrevoked`.
+ */
+export function unrevokedLine(
+  ctx: Context,
+  record: UnrevokedConnection,
+  next: "forget" | "uninstall",
+): string {
+  const command =
+    next === "forget"
+      ? `agentdesk forget ${record.connectionId}`
+      : `agentdesk uninstall ${FORGET_UNREVOKED_FLAG}`;
+  return `${displayNameOf(ctx, record.harness)}: connection ${record.connectionId} at ${record.server} is not revoked (${record.reason}). Revoke it in the AgentDesk app under Settings → Connections, then run: ${command}`;
+}
+
+function displayNameOf(ctx: Context, harness: HarnessId | "unknown"): string {
+  return harness === "unknown" ? "Unknown harness" : harnessById(ctx, harness).displayName;
+}
+
+/** `agentdesk forget <connection-id>`: drop one recovery record after manual revocation. */
+export async function forget(ctx: Context, connectionId: string): Promise<number> {
+  const state = readState(ctx);
+  const record = state?.unrevoked.find((u) => u.connectionId === connectionId);
+  if (!state || !record) {
+    throw new InstallerError(`No unrevoked connection ${connectionId} is recorded.`);
+  }
+  state.unrevoked = state.unrevoked.filter((u) => u !== record);
+  ctx.io.out(
+    `${displayNameOf(ctx, record.harness)}: Forgot connection ${record.connectionId} at ${record.server}. Make sure it is revoked in the AgentDesk app under Settings → Connections.`,
+  );
+  if (stateIsEmpty(state)) deleteState(ctx);
+  else writeState(ctx, state);
   return 0;
 }
 
@@ -306,11 +428,13 @@ export async function skillInstall(ctx: Context): Promise<number> {
 export async function status(ctx: Context): Promise<number> {
   const state = readState(ctx);
   const ids = HARNESS_IDS.filter((id) => state?.harnesses[id]);
-  if (!state || ids.length === 0) {
+  if (!state || (ids.length === 0 && state.unrevoked.length === 0)) {
     ctx.io.out("AgentDesk is not installed on this machine. Run: agentdesk install");
     return 0;
   }
   ctx.io.out(`AgentDesk server: ${state.server ?? "none recorded"}`);
+  // Connections whose revocation is not established are always listed.
+  for (const record of state.unrevoked) ctx.io.out(unrevokedLine(ctx, record, "forget"));
   for (const id of ids) {
     const harness = harnessById(ctx, id);
     const record = state.harnesses[id] as HarnessRecord;
@@ -398,8 +522,6 @@ export async function uninstall(
       continue;
     }
 
-    // A connection that cannot be revoked from here stays recorded.
-    let unresolved = false;
     if (record.connectionId || record.configPath) {
       // An unreadable or malformed configuration is not proof the entry is
       // gone: keep the record so a later run can revoke and remove it.
@@ -425,18 +547,14 @@ export async function uninstall(
         }
         ctx.io.out(`${harness.displayName}: connection revoked.`);
       } else if (record.connectionId) {
-        // A missing local token is not proof the server revoked the connection.
-        const server = recordedServer(state, id) ?? "the recorded server";
-        if (options.forgetUnrevoked) {
-          ctx.io.out(
-            `${harness.displayName}: Forgot connection ${record.connectionId} at ${server} without revoking it, as ${FORGET_UNREVOKED_FLAG} asked. Make sure it is revoked in the AgentDesk app under Settings → Connections.`,
-          );
-        } else {
-          unresolved = true;
-          failures.push(
-            `${harness.displayName}: connection ${record.connectionId} at ${server} could not be revoked, because ${configPath} holds no AgentDesk token. Revoke it in the AgentDesk app under Settings → Connections, then run: agentdesk uninstall ${FORGET_UNREVOKED_FLAG}`,
-          );
-        }
+        // A missing local token is not proof the server revoked the
+        // connection: it becomes a recovery record, listed below.
+        recordUnrevoked(state, {
+          harness: id,
+          connectionId: record.connectionId,
+          server: recordedServer(state, id) ?? serverOfEntry(entry) ?? "the recorded server",
+          reason: `no token for it was in ${configPath}`,
+        });
       }
       try {
         if (entry.present) {
@@ -449,11 +567,9 @@ export async function uninstall(
         );
         continue;
       }
-      if (!unresolved) {
-        delete record.connectionId;
-        delete record.configPath;
-        delete record.server;
-      }
+      delete record.connectionId;
+      delete record.configPath;
+      delete record.server;
     }
 
     if (record.skillPath) {
@@ -468,10 +584,22 @@ export async function uninstall(
       delete record.skillRealPath;
       delete record.skillVersion;
     }
-    if (!unresolved) delete state.harnesses[id];
+    delete state.harnesses[id];
   }
 
-  if (Object.keys(state.harnesses).length === 0) {
+  // Recovery records leave the state only on the person's explicit request.
+  if (options.forgetUnrevoked) {
+    for (const record of state.unrevoked) {
+      ctx.io.out(
+        `${displayNameOf(ctx, record.harness)}: Forgot connection ${record.connectionId} at ${record.server} without revoking it, as ${FORGET_UNREVOKED_FLAG} asked. Make sure it is revoked in the AgentDesk app under Settings → Connections.`,
+      );
+    }
+    state.unrevoked = [];
+  } else {
+    for (const record of state.unrevoked) failures.push(unrevokedLine(ctx, record, "uninstall"));
+  }
+
+  if (stateIsEmpty(state)) {
     deleteState(ctx);
     ctx.io.out(`Removed ${statePath(ctx)}`);
   } else {
