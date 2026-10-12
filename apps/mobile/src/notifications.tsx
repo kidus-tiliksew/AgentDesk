@@ -16,6 +16,7 @@ import {
 import { AppState, Platform } from "react-native";
 import { notifications } from "../../../convex/notifications/refs";
 import { ensureInstallId, readInstallId } from "./install-id";
+import { ANDROID_CHANNEL_ID, notificationActionsSettled } from "./notification-actions";
 import { notificationRoute } from "./notification-route";
 import { deviceTimeZone } from "./notification-settings";
 
@@ -42,9 +43,9 @@ export type RegistrationStatus =
   | { kind: "denied" }
   | { kind: "failed"; reason: SetupFailure };
 
-// The Android channel every push lands in. component-notifications sends no
-// channel id, so Android uses the default channel the plugin names.
-export const ANDROID_CHANNEL_ID = "default";
+// The Android channel every push lands in, defined with the notification
+// actions so their outcome notifications use it too.
+export { ANDROID_CHANNEL_ID };
 
 // Foreground presentation: a push that arrives while the app is open shows in
 // the banner and the notification list with no sound and no badge change. It
@@ -232,6 +233,10 @@ export class DeviceRegistration {
       const deviceId = await ensureInstallId().catch(() => {
         throw new SetupError("storage");
       });
+      // The action categories this launch registers settle before the token
+      // is requested (component-mobile-app §Notifications). The wait never
+      // fails: a failed category registration only warns.
+      await notificationActionsSettled();
       const token = await Notifications.getExpoPushTokenAsync({ projectId }).then(
         (result) => result.data,
         () => {

@@ -14,6 +14,7 @@ jest.mock("@clerk/expo", () => {
     }),
     useSignIn: () => ({ signIn: fakes.signIn, errors: {}, fetchStatus: "idle" }),
     useSignUp: () => ({ signUp: fakes.signUp, errors: {}, fetchStatus: "idle" }),
+    getClerkInstance: fakes.clerkSingleton.getClerkInstance,
   };
 });
 
@@ -90,6 +91,9 @@ jest.mock("expo-notifications", () => {
     setNotificationChannelAsync: push.setNotificationChannelAsync,
     scheduleNotificationAsync: push.scheduleNotificationAsync,
     setBadgeCountAsync: push.setBadgeCountAsync,
+    setNotificationCategoryAsync: push.setNotificationCategoryAsync,
+    registerTaskAsync: push.registerTaskAsync,
+    dismissNotificationAsync: push.dismissNotificationAsync,
     setNotificationHandler: (handler: unknown) => {
       push.handler = handler;
     },
@@ -105,6 +109,16 @@ jest.mock("expo-notifications", () => {
     clearLastNotificationResponse: () => {
       push.lastResponse = null;
     },
+  };
+});
+
+// The notification action task's definition and registration state.
+jest.mock("expo-task-manager", () => {
+  const { taskManager } = require("./fakes");
+  return {
+    __esModule: true,
+    defineTask: taskManager.defineTask,
+    isTaskRegisteredAsync: taskManager.isTaskRegisteredAsync,
   };
 });
 

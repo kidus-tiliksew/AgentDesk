@@ -194,6 +194,11 @@ type PushFake = {
   setNotificationChannelAsync: jest.Mock<Promise<null>, unknown[]>;
   scheduleNotificationAsync: jest.Mock<Promise<string>, unknown[]>;
   setBadgeCountAsync: jest.Mock<Promise<boolean>, unknown[]>;
+  // Notification actions: category registration, the notification task, and
+  // dismissal of an answered notification. Each resolves by default.
+  setNotificationCategoryAsync: jest.Mock<Promise<unknown>, [string, unknown[], unknown?]>;
+  registerTaskAsync: jest.Mock<Promise<null>, [string]>;
+  dismissNotificationAsync: jest.Mock<Promise<void>, [string]>;
 };
 export const push: PushFake = {
   permission: { granted: false, canAskAgain: true, status: "undetermined" } as PermissionStatus,
@@ -215,6 +220,56 @@ export const push: PushFake = {
   setNotificationChannelAsync: jest.fn(async () => null),
   scheduleNotificationAsync: jest.fn(async () => "local"),
   setBadgeCountAsync: jest.fn(async () => true),
+  setNotificationCategoryAsync: jest.fn(async (identifier: string, actions: unknown[]) => ({
+    identifier,
+    actions,
+  })),
+  registerTaskAsync: jest.fn(async (name: string) => {
+    taskManager.registered.add(name);
+    return null;
+  }),
+  dismissNotificationAsync: jest.fn(async (_identifier: string): Promise<void> => undefined),
+};
+
+// expo-task-manager: the tasks defined by name and the names the OS holds as
+// registered. registerTaskAsync above adds a name here.
+type TaskExecutor = (body: { data: unknown; error: unknown; executionInfo: unknown }) => unknown;
+type TaskManagerFake = {
+  defined: Map<string, TaskExecutor>;
+  registered: Set<string>;
+  defineTask: jest.Mock<void, [string, TaskExecutor]>;
+  isTaskRegisteredAsync: jest.Mock<Promise<boolean>, [string]>;
+};
+export const taskManager: TaskManagerFake = {
+  defined: new Map<string, TaskExecutor>(),
+  registered: new Set<string>(),
+  defineTask: jest.fn((name: string, executor: TaskExecutor) => {
+    taskManager.defined.set(name, executor);
+  }),
+  isTaskRegisteredAsync: jest.fn(async (name: string) => taskManager.registered.has(name)),
+};
+
+// The Clerk singleton that getClerkInstance returns outside React.
+// `instance` is the one ClerkProvider or an earlier call made; `created` is
+// the one a call with options makes when there is none. Without options and
+// without an instance, getClerkInstance throws, as Clerk does.
+type ClerkSingletonFake = {
+  instance: unknown;
+  created: unknown;
+  getClerkInstance: jest.Mock<unknown, [unknown?]>;
+};
+export const clerkSingleton: ClerkSingletonFake = {
+  instance: null,
+  created: null,
+  getClerkInstance: jest.fn((options?: unknown): unknown => {
+    if (clerkSingleton.instance === null && options !== undefined) {
+      clerkSingleton.instance = clerkSingleton.created;
+    }
+    if (clerkSingleton.instance === null) {
+      throw new Error("Clerk has not been initialized");
+    }
+    return clerkSingleton.instance;
+  }),
 };
 
 // Fires a native push token change, as the OS reports a rotated APNs or FCM
@@ -365,6 +420,22 @@ export function resetFakes() {
   push.setNotificationChannelAsync.mockClear();
   push.scheduleNotificationAsync.mockClear();
   push.setBadgeCountAsync.mockClear();
+  push.setNotificationCategoryAsync.mockReset().mockImplementation(async (identifier, actions) => ({
+    identifier,
+    actions,
+  }));
+  push.registerTaskAsync.mockReset().mockImplementation(async (name) => {
+    taskManager.registered.add(name);
+    return null;
+  });
+  push.dismissNotificationAsync.mockReset().mockResolvedValue(undefined);
+  taskManager.defined.clear();
+  taskManager.registered.clear();
+  taskManager.defineTask.mockClear();
+  taskManager.isTaskRegisteredAsync.mockClear();
+  clerkSingleton.instance = null;
+  clerkSingleton.created = null;
+  clerkSingleton.getClerkInstance.mockClear();
   answerDecision.mockReset().mockImplementation(async () => {
     throw new Error("Unexpected answer mutation");
   });
