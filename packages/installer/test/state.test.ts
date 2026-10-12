@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { statePath } from "../src/state.js";
@@ -55,6 +55,7 @@ describe("state file (component-installer §State, re-run, and uninstall)", () =
           connectionId: gateway.issued[0]?.connectionId,
           configPath: join(sandbox.home, ".claude.json"),
           skillPath: join(sandbox.home, ".claude", "skills", "agentdesk"),
+          skillRealPath: realpathSync(join(sandbox.home, ".claude", "skills", "agentdesk")),
           skillVersion: "1.0.0",
         },
         codex: {
@@ -62,6 +63,7 @@ describe("state file (component-installer §State, re-run, and uninstall)", () =
           connectionId: gateway.issued[1]?.connectionId,
           configPath: join(sandbox.home, ".codex", "config.toml"),
           skillPath: join(sandbox.home, ".codex", "skills", "agentdesk"),
+          skillRealPath: realpathSync(join(sandbox.home, ".codex", "skills", "agentdesk")),
           skillVersion: "1.0.0",
         },
         cursor: {

@@ -123,7 +123,7 @@ function installSkills(ctx: Context, harnesses: readonly Harness[], state: State
     const record: HarnessRecord = state.harnesses[harness.id] ?? {};
     if (plan.dir) {
       try {
-        writeSkill(plan.dir, ctx.skill.content);
+        record.skillRealPath = writeSkill(plan.dir, ctx.skill.content);
         record.skillPath = plan.dir;
         record.skillVersion = ctx.skill.version;
         ctx.io.out(`${harness.displayName}: skill ${ctx.skill.version} written to ${plan.dir}`);
@@ -135,8 +135,9 @@ function installSkills(ctx: Context, harnesses: readonly Harness[], state: State
       if (record.skillPath && resolve(record.skillPath) === harness.skillDir(ctx)) {
         try {
           ctx.io.out(`${harness.displayName}: removing its own skill folder ${record.skillPath}`);
-          removeSkillDir(record.skillPath, harness.skillAnchor(ctx));
+          removeSkillDir(record.skillPath, harness.skillAnchor(ctx), record.skillRealPath);
           delete record.skillPath;
+          delete record.skillRealPath;
           delete record.skillVersion;
         } catch (error) {
           failures.push(`${harness.displayName}: ${message(error)}`);
@@ -200,6 +201,12 @@ export async function install(ctx: Context, options: InstallOptions): Promise<nu
       }
       ctx.io.out(
         `${harness.displayName}: connection check ${check.kind === "refused" ? "was refused" : `failed (${check.detail})`}; signing in again.`,
+      );
+    }
+    if (record?.connectionId && !entry.token) {
+      // The old connection cannot be revoked from here; say so instead of dropping it silently.
+      ctx.io.err(
+        `${harness.displayName}: the recorded connection ${record.connectionId} has no token in ${harness.configPath(ctx)}, so it cannot be revoked from here. Revoke it in the AgentDesk app under Settings → Connections.`,
       );
     }
     needSignIn.push(harness);
@@ -349,8 +356,21 @@ export async function status(ctx: Context): Promise<number> {
   return 0;
 }
 
+export interface UninstallOptions {
+  /**
+   * Forget a recorded connection that cannot be revoked because its harness
+   * configuration holds no token, after the person revoked it in the app.
+   */
+  forgetUnrevoked: boolean;
+}
+
+export const FORGET_UNREVOKED_FLAG = "--forget-unrevoked";
+
 /** `agentdesk uninstall`: revoke, remove, and forget what the state records (AC-9.6). */
-export async function uninstall(ctx: Context): Promise<number> {
+export async function uninstall(
+  ctx: Context,
+  options: UninstallOptions = { forgetUnrevoked: false },
+): Promise<number> {
   const state = readState(ctx);
   if (!state) {
     ctx.io.out(`Nothing to uninstall: ${statePath(ctx)} does not exist.`);
@@ -378,6 +398,8 @@ export async function uninstall(ctx: Context): Promise<number> {
       continue;
     }
 
+    // A connection that cannot be revoked from here stays recorded.
+    let unresolved = false;
     if (record.connectionId || record.configPath) {
       // An unreadable or malformed configuration is not proof the entry is
       // gone: keep the record so a later run can revoke and remove it.
@@ -403,9 +425,18 @@ export async function uninstall(ctx: Context): Promise<number> {
         }
         ctx.io.out(`${harness.displayName}: connection revoked.`);
       } else if (record.connectionId) {
-        ctx.io.out(
-          `${harness.displayName}: no AgentDesk token is in ${configPath}; revoke the connection in the AgentDesk app if it is still listed.`,
-        );
+        // A missing local token is not proof the server revoked the connection.
+        const server = recordedServer(state, id) ?? "the recorded server";
+        if (options.forgetUnrevoked) {
+          ctx.io.out(
+            `${harness.displayName}: Forgot connection ${record.connectionId} at ${server} without revoking it, as ${FORGET_UNREVOKED_FLAG} asked. Make sure it is revoked in the AgentDesk app under Settings → Connections.`,
+          );
+        } else {
+          unresolved = true;
+          failures.push(
+            `${harness.displayName}: connection ${record.connectionId} at ${server} could not be revoked, because ${configPath} holds no AgentDesk token. Revoke it in the AgentDesk app under Settings → Connections, then run: agentdesk uninstall ${FORGET_UNREVOKED_FLAG}`,
+          );
+        }
       }
       try {
         if (entry.present) {
@@ -418,23 +449,26 @@ export async function uninstall(ctx: Context): Promise<number> {
         );
         continue;
       }
-      delete record.connectionId;
-      delete record.configPath;
-      delete record.server;
+      if (!unresolved) {
+        delete record.connectionId;
+        delete record.configPath;
+        delete record.server;
+      }
     }
 
     if (record.skillPath) {
       try {
         ctx.io.out(`${harness.displayName}: removing the skill folder ${record.skillPath}`);
-        removeSkillDir(record.skillPath, harness.skillAnchor(ctx));
+        removeSkillDir(record.skillPath, harness.skillAnchor(ctx), record.skillRealPath);
       } catch (error) {
         failures.push(`${harness.displayName}: ${message(error)}`);
         continue;
       }
       delete record.skillPath;
+      delete record.skillRealPath;
       delete record.skillVersion;
     }
-    delete state.harnesses[id];
+    if (!unresolved) delete state.harnesses[id];
   }
 
   if (Object.keys(state.harnesses).length === 0) {

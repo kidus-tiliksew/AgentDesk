@@ -249,3 +249,170 @@ describe("unreadable configuration and failed removal (P2)", () => {
     expect(read(file)).toBe("broken = = 1\n");
   });
 });
+
+// Review round 2 regressions: a redirected harness base (P1) and a recorded
+// connection whose local token is missing (P2).
+
+describe("redirected harness bases (round 2 P1)", () => {
+  it("refuses removal when ~/.codex itself was redirected after install", async () => {
+    const { sandbox, gateway, clock } = await installed(["codex"]);
+    const base = join(sandbox.home, ".codex");
+    const elsewhere = join(sandbox.root, "external-codex");
+    write(join(elsewhere, "skills", "agentdesk", "keep.txt"), "external content\n");
+    write(join(elsewhere, "config.toml"), read(join(base, "config.toml")));
+    rmSync(base, { recursive: true });
+    symlinkSync(elsewhere, base);
+
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["uninstall"])).toBe(1);
+    expect(read(join(elsewhere, "skills", "agentdesk", "keep.txt"))).toBe("external content\n");
+    expect(recorded(sandbox).codex?.skillPath).toBe(join(base, "skills", "agentdesk"));
+    expect(h.err.join("\n")).toContain("resolves to");
+  });
+
+  it("refuses removal when a custom CODEX_HOME base was redirected after install", async () => {
+    const sandbox = makeSandbox();
+    const codexHome = join(sandbox.root, "codex-home");
+    write(join(codexHome, "config.toml"), "");
+    const clock = new FakeClock();
+    const gateway = new FakeGateway(clock);
+    const env = { CODEX_HOME: codexHome };
+    expect(await makeContext(sandbox, { gateway, clock, env }).run(["install", "--yes"])).toBe(0);
+
+    const elsewhere = join(sandbox.root, "external-codex-home");
+    write(join(elsewhere, "skills", "agentdesk", "keep.txt"), "external content\n");
+    write(join(elsewhere, "config.toml"), read(join(codexHome, "config.toml")));
+    rmSync(codexHome, { recursive: true });
+    symlinkSync(elsewhere, codexHome);
+
+    const h = makeContext(sandbox, { gateway, clock, env });
+    expect(await h.run(["uninstall"])).toBe(1);
+    expect(read(join(elsewhere, "skills", "agentdesk", "keep.txt"))).toBe("external content\n");
+    expect(recorded(sandbox).codex?.skillPath).toBe(join(codexHome, "skills", "agentdesk"));
+  });
+
+  it("refuses removal when a directory above the Codex base was redirected after install", async () => {
+    const sandbox = makeSandbox();
+    const parent = join(sandbox.root, "tools");
+    const codexHome = join(parent, "codex");
+    write(join(codexHome, "config.toml"), "");
+    const clock = new FakeClock();
+    const gateway = new FakeGateway(clock);
+    const env = { CODEX_HOME: codexHome };
+    expect(await makeContext(sandbox, { gateway, clock, env }).run(["install", "--yes"])).toBe(0);
+
+    const elsewhere = join(sandbox.root, "external-tools");
+    write(join(elsewhere, "codex", "skills", "agentdesk", "keep.txt"), "external content\n");
+    write(join(elsewhere, "codex", "config.toml"), read(join(codexHome, "config.toml")));
+    rmSync(parent, { recursive: true });
+    symlinkSync(elsewhere, parent);
+
+    const h = makeContext(sandbox, { gateway, clock, env });
+    expect(await h.run(["uninstall"])).toBe(1);
+    expect(read(join(elsewhere, "codex", "skills", "agentdesk", "keep.txt"))).toBe(
+      "external content\n",
+    );
+  });
+
+  it("refuses Claude Code skill removal when the home directory was redirected after install", async () => {
+    const { sandbox, gateway, clock } = await installed(["claude"]);
+    // Move the whole home elsewhere and leave a symlink at the old path.
+    const moved = join(sandbox.root, "moved-home");
+    renameSync(sandbox.home, moved);
+    symlinkSync(moved, sandbox.home);
+    const marker = join(moved, ".claude", "skills", "agentdesk", "keep.txt");
+    write(marker, "external content\n");
+
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["uninstall"])).toBe(1);
+    expect(read(marker)).toBe("external content\n");
+    expect(recorded(sandbox)["claude-code"]?.skillPath).toBe(
+      join(sandbox.home, ".claude", "skills", "agentdesk"),
+    );
+  });
+});
+
+describe("missing local token (round 2 P2)", () => {
+  function unresolvedAssertions(
+    h: ReturnType<typeof makeContext>,
+    sandbox: Sandbox,
+    gateway: FakeGateway,
+    id: string,
+  ) {
+    const issued = gateway.issued.find((i) => i.harness === id);
+    const record = recorded(sandbox)[id];
+    expect(record?.connectionId).toBe(issued?.connectionId);
+    expect(record?.server).toBe("https://agentdesk.test");
+    expect(gateway.requests.filter((r) => r.method === "DELETE")).toEqual([]);
+    const err = h.err.join("\n");
+    expect(err).toContain(`${issued?.connectionId}`);
+    expect(err).toContain("Settings → Connections");
+    expect(err).toContain("agentdesk uninstall --forget-unrevoked");
+  }
+
+  it("keeps the connection record and exits 1 when the MCP entry is gone", async () => {
+    const { sandbox, gateway, clock } = await installed(["cursor-agent"]);
+    write(join(sandbox.home, ".cursor", "mcp.json"), JSON.stringify({ mcpServers: {} }));
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["uninstall"])).toBe(1);
+    unresolvedAssertions(h, sandbox, gateway, "cursor");
+    expect(existsSync(statePath(h.ctx))).toBe(true);
+  });
+
+  it("keeps the connection record and exits 1 when the Authorization header is missing", async () => {
+    const { sandbox, gateway, clock } = await installed(["cursor-agent"]);
+    write(
+      join(sandbox.home, ".cursor", "mcp.json"),
+      JSON.stringify({
+        mcpServers: { agentdesk: { url: "https://agentdesk.test/mcp", headers: {} } },
+      }),
+    );
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["uninstall"])).toBe(1);
+    unresolvedAssertions(h, sandbox, gateway, "cursor");
+  });
+
+  it("keeps the connection record and exits 1 when the Authorization header cannot be parsed", async () => {
+    const { sandbox, gateway, clock } = await installed(["codex"]);
+    const file = join(sandbox.home, ".codex", "config.toml");
+    write(file, read(file).replace(/"Bearer [^"]+"/, '"Token not-a-bearer value"'));
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["uninstall"])).toBe(1);
+    unresolvedAssertions(h, sandbox, gateway, "codex");
+  });
+
+  it("forgets an unresolved record only with --forget-unrevoked, and says so", async () => {
+    const { sandbox, gateway, clock } = await installed(["cursor-agent"]);
+    write(join(sandbox.home, ".cursor", "mcp.json"), JSON.stringify({ mcpServers: {} }));
+    const connectionId = gateway.issued[0]?.connectionId;
+    expect(await makeContext(sandbox, { gateway, clock }).run(["uninstall"])).toBe(1);
+    // A second plain uninstall still refuses to forget it.
+    const again = makeContext(sandbox, { gateway, clock });
+    expect(await again.run(["uninstall"])).toBe(1);
+    expect(recorded(sandbox).cursor?.connectionId).toBe(connectionId);
+
+    const forget = makeContext(sandbox, { gateway, clock });
+    expect(await forget.run(["uninstall", "--forget-unrevoked"])).toBe(0);
+    expect(forget.out.join("\n")).toContain(`Forgot connection ${connectionId}`);
+    expect(existsSync(statePath(forget.ctx))).toBe(false);
+  });
+
+  it("warns on install that a recorded connection without a local token cannot be revoked", async () => {
+    const { sandbox, gateway, clock } = await installed(["cursor-agent"]);
+    const oldConnection = gateway.issued[0]?.connectionId;
+    write(join(sandbox.home, ".cursor", "mcp.json"), JSON.stringify({ mcpServers: {} }));
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes"])).toBe(0);
+    expect(h.err.join("\n")).toContain(`recorded connection ${oldConnection} has no token`);
+    expect(h.err.join("\n")).toContain("Settings → Connections");
+    expect(gateway.startRequests()).toHaveLength(2);
+  });
+
+  it("does not forget a connection whose revocation failed at the server, even with --forget-unrevoked", async () => {
+    const { sandbox, gateway, clock } = await installed(["codex"]);
+    gateway.deleteStatus.set(gateway.tokenFor("codex"), 503);
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["uninstall", "--forget-unrevoked"])).toBe(1);
+    expect(recorded(sandbox).codex?.connectionId).toBe(gateway.issued[0]?.connectionId);
+  });
+});

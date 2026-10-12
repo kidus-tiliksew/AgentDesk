@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { HARNESSES } from "../src/harnesses.js";
@@ -126,10 +126,12 @@ describe("agentdesk skill install (REQ-3)", () => {
     expect(state.harnesses).toEqual({
       "claude-code": {
         skillPath: join(sandbox.home, ".claude", "skills", "agentdesk"),
+        skillRealPath: realpathSync(join(sandbox.home, ".claude", "skills", "agentdesk")),
         skillVersion: "1.0.0",
       },
       codex: {
         skillPath: join(sandbox.home, ".codex", "skills", "agentdesk"),
+        skillRealPath: realpathSync(join(sandbox.home, ".codex", "skills", "agentdesk")),
         skillVersion: "1.0.0",
       },
     });

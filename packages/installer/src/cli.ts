@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { homedir, hostname } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
-import { install, skillInstall, status, uninstall } from "./commands.js";
+import { FORGET_UNREVOKED_FLAG, install, skillInstall, status, uninstall } from "./commands.js";
 import { type Context, InstallerError, type Io, type Runner, redactingIo } from "./context.js";
 import { DEFAULT_SERVER_ORIGIN, EMBEDDED_SKILL, INSTALLER_VERSION } from "./defaults.js";
 import { HARNESS_IDS, HARNESSES, type HarnessId, isHarnessId } from "./harnesses.js";
@@ -16,7 +16,11 @@ Commands:
                      MCP connection and the skill.
   skill install      Install or update only the skill for every detected harness.
   status             Show each recorded harness, its connection, and its skill version.
-  uninstall          Revoke each connection and remove what the installer wrote.
+  uninstall [--forget-unrevoked]
+                     Revoke each connection and remove what the installer wrote.
+                     --forget-unrevoked forgets a recorded connection whose token
+                     is gone from its harness configuration, after you revoked
+                     it in the AgentDesk app under Settings → Connections.
 
 Options for install:
   --server <url>     Use this AgentDesk server instead of the default.
@@ -83,9 +87,13 @@ export async function runCli(argv: readonly string[], ctx: Context): Promise<num
       case "status":
         if (rest.length > 0) throw usageError("status takes no arguments.");
         return await status(ctx);
-      case "uninstall":
-        if (rest.length > 0) throw usageError("uninstall takes no arguments.");
-        return await uninstall(ctx);
+      case "uninstall": {
+        const forgetUnrevoked = rest.length === 1 && rest[0] === FORGET_UNREVOKED_FLAG;
+        if (rest.length > 0 && !forgetUnrevoked) {
+          throw usageError(`uninstall takes only ${FORGET_UNREVOKED_FLAG}.`);
+        }
+        return await uninstall(ctx, { forgetUnrevoked });
+      }
       default:
         throw usageError(`Unknown command ${JSON.stringify(command)}.`);
     }

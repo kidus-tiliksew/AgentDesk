@@ -15,6 +15,12 @@ export interface HarnessRecord {
   configPath?: string;
   /** The skill folder this installation owns. */
   skillPath?: string;
+  /**
+   * The skill folder's resolved path when it was written. Removal requires the
+   * folder to resolve to it still, so a base redirected after install (such as
+   * a symlinked ~/.codex or CODEX_HOME) is refused.
+   */
+  skillRealPath?: string;
   skillVersion?: string;
 }
 
@@ -40,6 +46,7 @@ const RECORD_FIELDS = [
   "connectionId",
   "configPath",
   "skillPath",
+  "skillRealPath",
   "skillVersion",
 ] as const;
 

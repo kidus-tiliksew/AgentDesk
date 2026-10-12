@@ -13,7 +13,7 @@
 | `test/config.test.ts` | the `claude mcp remove` and `claude mcp add` arguments, the `~/.claude.json` fallback, byte-preserving Codex table replacement, `~/.cursor/mcp.json` merges, malformed-file refusal, once-per-run backups |
 | `test/signin.test.ts` | approval for several harnesses, the 2-second poll interval on a fake clock, decline, expiry and a new code, invalid approved results, server errors, secrecy of tokens and device secrets |
 | `test/state.test.ts` | state contents and mode 0600, re-runs that keep working connections and refresh the skill, server changes, `status`, `uninstall` with failed revocation and redirected paths |
-| `test/uninstall-safety.test.ts` | refusal of a symlinked skill folder and of a redirected skill parent for each harness; malformed and unreadable configuration and a nonzero `claude mcp remove`, each keeping the record and exiting with status 1 |
+| `test/uninstall-safety.test.ts` | refusal of a symlinked skill folder, a redirected skill parent for each harness, and a redirected base (`~/.codex`, a custom `CODEX_HOME`, a directory above it, the home directory); malformed and unreadable configuration and a nonzero `claude mcp remove`; a recorded connection whose entry or Authorization header is missing or unparseable, kept until `uninstall --forget-unrevoked`; each keeping the record and exiting with status 1 |
 | `test/skill.test.ts` | the Cursor skill rule, `supportsSkills: false`, `skill install` |
 | `test/packaging.test.ts` | the bundle built by `scripts/build.mjs`, packed with `npm pack` and run outside the workspace against a local HTTP gateway |
 | `test/install-script.test.ts` | `install.sh` under `sh` against a `file://` download directory: platform selection, checksum success and mismatch, the `PATH` hint, the placeholder; `scripts/build-binaries.mjs` with a stub Bun |
@@ -42,4 +42,5 @@ Run this on a macOS machine and on a Linux host reached over SSH with no display
 7. Revoke one connection in the app, then run `agentdesk install` again. Confirm a code is shown only for that harness.
 8. Run `agentdesk status`. Confirm each harness shows its connection check and skill version.
 9. Revoke one connection in the app, run `agentdesk install` again, and decline in the app. Confirm the installer exits with status 1 and prints "Sign-in was declined in the app".
-10. Run `agentdesk uninstall`. Confirm the app no longer lists the connections, the `agentdesk` entries and skill folders are gone, other entries and skills remain, and the state file is deleted.
+10. Delete the `agentdesk` entry from one harness configuration by hand and run `agentdesk uninstall`. Confirm it exits with status 1, names that connection, and tells you to revoke it in the app under Settings → Connections. Revoke it there, then run `agentdesk uninstall --forget-unrevoked` and confirm it names the forgotten connection.
+11. Run `agentdesk install` and then `agentdesk uninstall`. Confirm the app no longer lists the connections, the `agentdesk` entries and skill folders are gone, other entries and skills remain, and the state file is deleted.

@@ -46,11 +46,15 @@ function refuseLink(dir: string): void {
   }
 }
 
-/** Writes SKILL.md at the current version (AC-9.4). */
-export function writeSkill(dir: string, content: string): void {
+/**
+ * Writes SKILL.md at the current version (AC-9.4) and returns the folder's
+ * resolved path, which the state records for removal.
+ */
+export function writeSkill(dir: string, content: string): string {
   refuseLink(dir);
   mkdirSync(dir, { recursive: true });
   writeFileAtomic(join(dir, SKILL_FILE), content, 0o644);
+  return realpathSync(dir);
 }
 
 /**
@@ -87,12 +91,29 @@ export function assertOwnedDir(dir: string, anchor: string): void {
 
 /**
  * Removes an owned skill folder; returns whether it existed. `anchor` is the
- * harness's own base directory (the home directory or CODEX_HOME). The caller
- * reports the path before calling.
+ * harness's own base directory (the home directory or CODEX_HOME), and
+ * `recordedRealPath` is the folder's resolved path recorded when it was
+ * written. The folder must still resolve to that path, which covers a
+ * redirected anchor or any directory above it; the components below the
+ * anchor must also be real directories. The caller reports the path before
+ * calling.
  */
-export function removeSkillDir(dir: string, anchor: string): boolean {
+export function removeSkillDir(
+  dir: string,
+  anchor: string,
+  recordedRealPath: string | undefined,
+): boolean {
   if (!existsSync(dir) && !isDanglingLink(dir)) return false;
   assertOwnedDir(dir, anchor);
+  const refuse = (why: string) =>
+    new InstallerError(
+      `${dir} is not a skill folder the installer owns (${why}); it was not removed.`,
+    );
+  if (!recordedRealPath) throw refuse("no resolved location was recorded when it was written");
+  const resolved = realpathSync(dir);
+  if (resolved !== recordedRealPath) {
+    throw refuse(`it resolves to ${resolved}, not to ${recordedRealPath} where it was written`);
+  }
   rmSync(dir, { recursive: true });
   return true;
 }
