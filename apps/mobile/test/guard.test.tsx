@@ -20,6 +20,14 @@ describe("route guards", () => {
     expect(screen).toHavePathname("/sign-in");
   });
 
+  test("sends a signed-out person from history to sign-in", async () => {
+    renderApp("/history");
+
+    expect(await screen.findByLabelText("Email address")).toBeOnTheScreen();
+    expect(screen).toHavePathname("/sign-in");
+    expect(ensureAccount).not.toHaveBeenCalled();
+  });
+
   test("sends a signed-in person from sign-in to the inbox", async () => {
     signInAs("sess_a");
 
@@ -41,6 +49,16 @@ describe("route guards", () => {
 });
 
 describe("navigation", () => {
+  test("the inbox header shows the history and settings links", async () => {
+    signInAs("sess_a");
+    renderApp("/");
+    await screen.findByText(inbox);
+
+    expect(screen.getByText("History")).toBeOnTheScreen();
+    expect(screen.getByText("Connections")).toBeOnTheScreen();
+    expect(screen.getByText("Account")).toBeOnTheScreen();
+  });
+
   test("the inbox header links to the settings screens", async () => {
     setQuery("identity/connections:listConnections", []);
     signInAs("sess_a");

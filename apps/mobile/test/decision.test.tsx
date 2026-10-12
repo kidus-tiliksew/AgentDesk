@@ -77,23 +77,24 @@ describe("display", () => {
       history: [],
       pending_decisions: [],
     }));
-    await open(
-      decision({
-        id: "d_1",
-        title: "Pick a plan",
-        body: "## Context\n\nThe **refund** flow needs a choice.\n\n- keep old\n- add new",
-        input_type: "single_choice",
-        options: choices,
-        recommendation: { kind: "option", option_id: "b" },
-        default: { kind: "option", option_id: "a" },
-        deadline,
-        priority: "urgent",
-        topic: "acme/billing",
-        agent_session_id: "a_1",
-        parent_id: "d_parent",
-        follow_up_ids: ["d_f1", "d_f2"],
-      }),
-    );
+    const item = decision({
+      id: "d_1",
+      title: "Pick a plan",
+      body: "## Context\n\nThe **refund** flow needs a choice.\n\n- keep old\n- add new",
+      input_type: "single_choice",
+      options: choices,
+      recommendation: { kind: "option", option_id: "b" },
+      default: { kind: "option", option_id: "a" },
+      deadline,
+      priority: "urgent",
+      topic: "acme/billing",
+      agent_session_id: "a_1",
+      parent_id: "d_parent",
+      follow_up_ids: ["d_f1", "d_f2"],
+    });
+    serve(item, decision({ id: "d_parent", title: "Parent question" }));
+    openDecision("d_1");
+    await screen.findByText("Pick a plan");
 
     expect(queryCalls).toContainEqual({ name: get, args: { decisionId: "d_1" } });
     // Markdown: a heading, bold text, and list items render as their own
@@ -293,6 +294,86 @@ describe("related decisions", () => {
     expect(screen.getByRole("radio", { name: "Reject" })).not.toBeChecked();
     expect(screen.getByRole("radio", { name: "Approve" })).not.toBeChecked();
     expect(screen.getByLabelText("Note")).toHaveDisplayValue("");
+  });
+});
+
+describe("removed decisions", () => {
+  const child = decision({ id: "d_1", title: "Child question", parent_id: "d_parent" });
+
+  // component-decisions §Removal: a follow-up keeps its parent's id.
+  test("a follow-up whose parent was removed shows the parent as unavailable and stays answerable", async () => {
+    answerDecision.mockResolvedValue(answered({ id: "d_1", title: "Child question" }));
+    serve(child);
+    openDecision("d_1");
+
+    expect(await screen.findByText("Parent decision unavailable")).toBeOnTheScreen();
+    expect(screen.queryByRole("link", { name: "Parent decision" })).not.toBeOnTheScreen();
+    expect(screen.getByText("Child question")).toBeOnTheScreen();
+    expect(queryCalls).toContainEqual({ name: get, args: { decisionId: "d_parent" } });
+
+    fireEvent.press(screen.getByRole("radio", { name: "Approve" }));
+    submit();
+    await flush();
+
+    expect(lastAnswer()).toEqual({ decisionId: "d_1", answer: { kind: "approve" } });
+    expect(screen.getByText("Answered")).toBeOnTheScreen();
+  });
+
+  test("a malformed parent id shows the parent as unavailable", async () => {
+    setQuery(get, (args: { decisionId: string }) =>
+      args.decisionId === "d_1"
+        ? child
+        : new ConvexError({ code: "invalid", message: "Invalid id", field: "decisionId" }),
+    );
+    openDecision("d_1");
+
+    expect(await screen.findByText("Parent decision unavailable")).toBeOnTheScreen();
+  });
+
+  test("the parent shows loading until its query returns", async () => {
+    let parentReady = false;
+    setQuery(get, (args: { decisionId: string }) =>
+      args.decisionId === "d_1"
+        ? child
+        : parentReady
+          ? decision({ id: "d_parent", title: "Parent question" })
+          : loading,
+    );
+    openDecision("d_1");
+
+    expect(await screen.findByText("Loading parent")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Submit answer" })).toBeOnTheScreen();
+
+    parentReady = true;
+    act(() => serve(child, decision({ id: "d_parent", title: "Parent question" })));
+
+    expect(screen.getByRole("link", { name: "Parent decision" })).toBeOnTheScreen();
+    expect(screen.queryByText("Loading parent")).not.toBeOnTheScreen();
+  });
+
+  test("another parent lookup failure offers a retry without hiding the decision", async () => {
+    setQuery(get, (args: { decisionId: string }) =>
+      args.decisionId === "d_1" ? child : new Error("Network request failed"),
+    );
+    openDecision("d_1");
+
+    expect(await screen.findByText("Could not load the parent decision.")).toBeOnTheScreen();
+    expect(screen.getByText("Child question")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Submit answer" })).toBeOnTheScreen();
+
+    serve(child, decision({ id: "d_parent", title: "Parent question" }));
+    fireEvent.press(screen.getByRole("button", { name: "Retry parent" }));
+
+    expect(await screen.findByRole("link", { name: "Parent decision" })).toBeOnTheScreen();
+  });
+
+  test("a decision removed while open shows the not-found state", async () => {
+    await open(decision({ id: "d_1", title: "Soon gone" }));
+
+    act(() => serve());
+
+    expect(await screen.findByText("Decision not found")).toBeOnTheScreen();
+    expect(screen.queryByText("Soon gone")).not.toBeOnTheScreen();
   });
 });
 

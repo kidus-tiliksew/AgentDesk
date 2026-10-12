@@ -1,8 +1,8 @@
 import type { Answer, Decision, Option } from "@agentdesk/contract";
-import { useRouter } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import Markdown from "react-native-markdown-display";
 import { DecisionAgent } from "./decision-agent";
+import { DecisionLink, DecisionParent } from "./decision-parent";
 import { formatDeadline } from "./decision-row";
 import { styles } from "./styles";
 
@@ -59,23 +59,11 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DecisionLink({ id, label }: { id: string; label: string }) {
-  const router = useRouter();
-  return (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={label}
-      onPress={() => router.push({ pathname: "/decision/[id]", params: { id } })}
-    >
-      <Text style={styles.link}>{label}</Text>
-    </Pressable>
-  );
-}
-
 // Everything the decision screen shows above the answer controls: title,
 // body as Markdown, recommendation, deadline with a live countdown while
 // pending, default, priority, topic, agent, and parent and follow-up links
-// (req-mobile-app AC-3.1; req-decision-requests AC-3.2, AC-6.2).
+// (req-mobile-app AC-3.1; req-decision-requests AC-3.2, AC-6.2). A removed
+// parent reads as unavailable (src/decision-parent.tsx).
 export function DecisionDetail({ decision, now }: { decision: Decision; now: number }) {
   const { options } = decision;
   return (
@@ -106,12 +94,7 @@ export function DecisionDetail({ decision, now }: { decision: Decision; now: num
       <Field label="Priority" value={decision.priority === "urgent" ? "Urgent" : "Normal"} />
       <Field label="Topic" value={decision.topic} />
       <DecisionAgent agentSessionId={decision.agent_session_id} />
-      {decision.parent_id === null ? null : (
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>Parent</Text>
-          <DecisionLink id={decision.parent_id} label="Parent decision" />
-        </View>
-      )}
+      {decision.parent_id === null ? null : <DecisionParent parentId={decision.parent_id} />}
       {decision.follow_up_ids.length === 0 ? null : (
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>Follow-ups</Text>
