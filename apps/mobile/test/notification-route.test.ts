@@ -71,8 +71,52 @@ describe("notification route", () => {
     expect(notificationRoute(data)).toBe("/");
   });
 
-  test("a digest push opens the inbox", () => {
-    expect(notificationRoute({ kind: "digest", digestId: "dg1abc" })).toBe("/");
+  // component-notifications §Digests: a digest push carries
+  // `{ kind: "digest", digestId }` and no eventId.
+  test("a digest push opens its digest screen", () => {
+    expect(notificationRoute({ kind: "digest", digestId: "dg1abc" })).toEqual({
+      pathname: "/digest/[id]",
+      params: { id: "dg1abc" },
+    });
+  });
+
+  test("a digest id of 128 characters opens its digest screen", () => {
+    const id = "a".repeat(128);
+    expect(notificationRoute({ kind: "digest", digestId: id })).toEqual({
+      pathname: "/digest/[id]",
+      params: { id },
+    });
+  });
+
+  // The decision and agent ids are well formed and must not be used.
+  test.each([
+    ...malformedIds.map(([label, value]): [string, Record<string, unknown>] => [
+      label,
+      {
+        kind: "digest",
+        decisionId: "jd7abc",
+        agentSessionId: "ks9xyz",
+        ...("id" in value ? { digestId: value.id } : {}),
+      },
+    ]),
+    ["a digest id under another field", { kind: "digest", eventId: "dg1abc" }],
+    [
+      "a path field beside a malformed id",
+      { kind: "digest", digestId: "../history", path: "/digest/dg1abc" },
+    ],
+  ])("a digest push with %s opens the inbox", (_label, data) => {
+    expect(notificationRoute(data)).toBe("/");
+  });
+
+  test("a digest push ignores a path or URL field in its data", () => {
+    expect(
+      notificationRoute({
+        kind: "digest",
+        digestId: "dg1abc",
+        path: "/settings/account",
+        url: "https://example.com",
+      }),
+    ).toEqual({ pathname: "/digest/[id]", params: { id: "dg1abc" } });
   });
 
   test.each([
