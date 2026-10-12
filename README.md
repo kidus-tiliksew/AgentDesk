@@ -10,6 +10,8 @@ AgentDesk is an inbox for your coding agents. Agents ask you for decisions and r
 
 AgentDesk is in early development. Nothing is released yet.
 
+To run the mobile app on an iOS simulator, follow [apps/mobile/README.md](apps/mobile/README.md).
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

@@ -13,7 +13,7 @@ import { SettingsLinks } from "../../src/settings-links";
 export default function AppLayout() {
   const { isLoaded, isSignedIn } = useAuth();
   if (!isLoaded) {
-    return <Loading label="Loading" />;
+    return <Loading label="Loading" headerless />;
   }
   if (!isSignedIn) {
     return <Redirect href="/sign-in" />;

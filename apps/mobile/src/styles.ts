@@ -1,9 +1,19 @@
 import { StyleSheet } from "react-native";
 
+// The padding around a screen's content. A screen without a navigation header
+// adds the device's safe-area insets to it (src/headerless-screen.tsx).
+export const SCREEN_PADDING = 24;
+
 // Shared styles for the app's screens.
 export const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
-  screen: { flex: 1, gap: 16, padding: 24 },
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    padding: SCREEN_PADDING,
+  },
+  screen: { flex: 1, gap: 16, padding: SCREEN_PADDING },
   title: { fontSize: 22, fontWeight: "600", textAlign: "center" },
   body: { fontSize: 16, textAlign: "center" },
   code: { fontFamily: "Courier", fontSize: 14 },

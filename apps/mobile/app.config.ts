@@ -23,10 +23,14 @@ const config: ExpoConfig = {
   },
   // expo-notifications adds the push entitlement and names the Android
   // channel the app creates at startup (component-mobile-app §Notifications).
+  // @clerk/expo raises the iOS deployment target to 17.0, which its native
+  // module requires, in Podfile.properties.json and the Xcode project. The app
+  // signs in by email code only, so it adds no Sign in with Apple entitlement.
   plugins: [
     "expo-router",
     "expo-secure-store",
     ["expo-notifications", { defaultChannel: "default" }],
+    ["@clerk/expo", { appleSignIn: false }],
   ],
   ...(projectId ? { extra: { eas: { projectId } } } : {}),
 };

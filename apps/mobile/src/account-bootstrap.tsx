@@ -3,12 +3,13 @@ import { useAuth } from "@clerk/expo";
 import { useConvexAuth, useMutation } from "convex/react";
 import { ConvexError } from "convex/values";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { Text } from "react-native";
 // The app references Convex functions through each domain's refs module, not
 // convex/_generated/api, so it builds without local codegen. Later screens
 // import their domain's refs from ../../../convex/<domain>/refs the same way.
 import { identity } from "../../../convex/identity/refs";
 import { Button } from "./button";
+import { HeaderlessScreen } from "./headerless-screen";
 import { Loading } from "./loading";
 import { styles } from "./styles";
 
@@ -77,30 +78,35 @@ export function AccountGate({ children }: { children: ReactNode }) {
 
   const outcome = result !== null && result.key === key ? result.outcome : null;
   if (outcome === "refused") {
-    return <Loading label="Signing out" />;
+    return <Loading label="Signing out" headerless />;
   }
   if (outcome === "failed") {
     return (
-      <View style={styles.centered}>
+      <HeaderlessScreen style={styles.centered}>
         <Text style={styles.error}>Could not set up your account. Check your connection.</Text>
         <Button label="Try again" onPress={() => setAttempt((n) => n + 1)} />
-      </View>
+      </HeaderlessScreen>
     );
   }
   if (isLoading) {
-    return <Loading label={outcome === "ready" ? "Reconnecting" : "Setting up your account"} />;
+    return (
+      <Loading
+        label={outcome === "ready" ? "Reconnecting" : "Setting up your account"}
+        headerless
+      />
+    );
   }
   if (!isAuthenticated) {
     // Clerk holds a session that the backend does not accept.
     return (
-      <View style={styles.centered}>
+      <HeaderlessScreen style={styles.centered}>
         <Text style={styles.error}>The AgentDesk backend did not accept this sign-in.</Text>
         <Button label="Sign out" onPress={() => signOut().catch(() => undefined)} />
-      </View>
+      </HeaderlessScreen>
     );
   }
   if (outcome === "ready") {
     return children;
   }
-  return <Loading label="Setting up your account" />;
+  return <Loading label="Setting up your account" headerless />;
 }
