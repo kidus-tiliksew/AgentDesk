@@ -1,6 +1,8 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import type { Id } from "../_generated/dataModel";
 import { modules } from "../lib/test.modules";
+import { ensureSettings } from "../notifications/settings";
 import schema from "../schema";
 import { agents } from "./refs";
 import { touch } from "./sessions";
@@ -57,6 +59,55 @@ test("marks an activated session stale at the 30-minute default once", async () 
   expect((await load())?.staleSince).toBe(START + 30 * MINUTE);
 
   await sweep(START + 31 * MINUTE);
+  expect((await load())?.staleSince).toBe(START + 30 * MINUTE);
+});
+
+// Saves the user's stale threshold on their settings row
+// (component-notifications §Tables).
+async function saveThreshold(
+  t: Awaited<ReturnType<typeof setup>>["t"],
+  userId: Id<"users">,
+  minutes: number,
+) {
+  await t.run(async (ctx) => {
+    const row = await ensureSettings(ctx, userId, START);
+    await ctx.db.patch("settings", row._id, { staleThresholdMinutes: minutes });
+  });
+}
+
+// req-agent-status REQ-3, AC-3.1
+test("marks a session stale at the user's saved 10-minute threshold", async () => {
+  const { t, userId, load, sweep } = await setup();
+  await saveThreshold(t, userId, 10);
+
+  await sweep(START + 9 * MINUTE);
+  expect((await load())?.staleSince).toBeUndefined();
+  await sweep(START + 10 * MINUTE);
+  expect((await load())?.staleSince).toBe(START + 10 * MINUTE);
+});
+
+// req-agent-status REQ-3, AC-3.1
+test("does not mark a session stale at 30 minutes when the user saved 60", async () => {
+  const { t, userId, load, sweep } = await setup();
+  await saveThreshold(t, userId, 60);
+
+  await sweep(START + 30 * MINUTE);
+  expect((await load())?.staleSince).toBeUndefined();
+  await sweep(START + 59 * MINUTE);
+  expect((await load())?.staleSince).toBeUndefined();
+  await sweep(START + 60 * MINUTE);
+  expect((await load())?.staleSince).toBe(START + 60 * MINUTE);
+});
+
+// req-agent-status AC-3.1: a settings row that keeps the default threshold
+// behaves like no row.
+test("a settings row with the default threshold marks at 30 minutes", async () => {
+  const { t, userId, load, sweep } = await setup();
+  await t.run((ctx) => ensureSettings(ctx, userId, START));
+
+  await sweep(START + 29 * MINUTE);
+  expect((await load())?.staleSince).toBeUndefined();
+  await sweep(START + 30 * MINUTE);
   expect((await load())?.staleSince).toBe(START + 30 * MINUTE);
 });
 

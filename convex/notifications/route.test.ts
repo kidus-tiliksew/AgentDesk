@@ -788,3 +788,266 @@ describe("rule-driven push messages", () => {
     );
   });
 });
+
+// Step 3 (req-notification-rules REQ-5, AC-5.1, AC-5.3) runs at the routing
+// mutation's own time, so each test sets the clock to a fixed UTC instant
+// before routing.
+describe("quiet hours", () => {
+  type Quiet = { timeZone: string; quietStart: string; quietEnd: string; urgentOverride?: boolean };
+
+  async function quietSetup(quiet: Quiet) {
+    const s = await setup();
+    await register(s.asA, "install-1", "ExponentPushToken[1]");
+    await s.asA.mutation(notifications.settings.updateSettings, quiet);
+    const agentSessionId = await openSession(s.t, s.userA);
+    return { ...s, agentSessionId };
+  }
+
+  // A `decision.created` event for a new decision of `priority`, routed at
+  // `at`. Returns the stored action.
+  async function routeDecisionAt(
+    s: Awaited<ReturnType<typeof quietSetup>>,
+    at: number,
+    priority: "normal" | "urgent" = "normal",
+  ) {
+    vi.setSystemTime(at);
+    const decisionId = await insertDecision(s.t, s.userA, s.agentSessionId, { priority });
+    const eventId = await s.t.run((ctx) =>
+      ctx.db.insert("events", {
+        userId: s.userA,
+        kind: "decision.created",
+        topic: "repo/x",
+        decisionId,
+        agentSessionId: s.agentSessionId,
+        priority,
+        occurredAt: at,
+      }),
+    );
+    return await routedAction(s.t, eventId);
+  }
+
+  const NY_DAY: Quiet = { timeZone: "America/New_York", quietStart: "09:00", quietEnd: "17:00" };
+  const BERLIN_NIGHT: Quiet = {
+    timeZone: "Europe/Berlin",
+    quietStart: "22:00",
+    quietEnd: "07:00",
+  };
+
+  // 2026-10-12 is EDT (UTC-4).
+  test.each([
+    ["08:59 EDT", Date.UTC(2026, 9, 12, 12, 59), "push"],
+    ["09:00 EDT, the start", Date.UTC(2026, 9, 12, 13, 0), "digest"],
+    ["16:59 EDT", Date.UTC(2026, 9, 12, 20, 59), "digest"],
+    ["17:00 EDT, the end", Date.UTC(2026, 9, 12, 21, 0), "push"],
+  ])("a window inside one day in New York at %s gives %s", async (_name, at, action) => {
+    const s = await quietSetup(NY_DAY);
+    expect(await routeDecisionAt(s, at)).toBe(action);
+  });
+
+  // 2026-10-12 is CEST (UTC+2).
+  test.each([
+    ["21:59 CEST", Date.UTC(2026, 9, 12, 19, 59), "push"],
+    ["22:00 CEST, the start", Date.UTC(2026, 9, 12, 20, 0), "digest"],
+    ["00:30 CEST, past midnight", Date.UTC(2026, 9, 12, 22, 30), "digest"],
+    ["06:59 CEST", Date.UTC(2026, 9, 13, 4, 59), "digest"],
+    ["07:00 CEST, the end", Date.UTC(2026, 9, 13, 5, 0), "push"],
+  ])("a window across midnight in Berlin at %s gives %s", async (_name, at, action) => {
+    const s = await quietSetup(BERLIN_NIGHT);
+    expect(await routeDecisionAt(s, at)).toBe(action);
+  });
+
+  test("follows New York's offset on both sides of its spring change", async () => {
+    const s = await quietSetup({
+      timeZone: "America/New_York",
+      quietStart: "07:00",
+      quietEnd: "08:00",
+    });
+    // 11:30Z is 06:30 EST on 2026-03-07 and 07:30 EDT on 2026-03-09.
+    expect(await routeDecisionAt(s, Date.UTC(2026, 2, 7, 11, 30))).toBe("push");
+    expect(await routeDecisionAt(s, Date.UTC(2026, 2, 9, 11, 30))).toBe("digest");
+  });
+
+  test("follows Berlin's offset on both sides of its autumn change", async () => {
+    const s = await quietSetup({
+      timeZone: "Europe/Berlin",
+      quietStart: "22:00",
+      quietEnd: "23:00",
+    });
+    // 20:30Z is 22:30 CEST on 2026-10-24 and 21:30 CET on 2026-10-26.
+    expect(await routeDecisionAt(s, Date.UTC(2026, 9, 24, 20, 30))).toBe("digest");
+    expect(await routeDecisionAt(s, Date.UTC(2026, 9, 26, 20, 30))).toBe("push");
+  });
+
+  test("both occurrences of a repeated local time are quiet", async () => {
+    const s = await quietSetup({
+      timeZone: "America/New_York",
+      quietStart: "01:00",
+      quietEnd: "02:00",
+    });
+    // 01:30 EDT, then 01:30 EST, on 2026-11-01.
+    expect(await routeDecisionAt(s, Date.UTC(2026, 10, 1, 5, 30))).toBe("digest");
+    expect(await routeDecisionAt(s, Date.UTC(2026, 10, 1, 6, 30))).toBe("digest");
+  });
+
+  // req-notification-rules AC-5.1, AC-5.2
+  test("an urgent decision is pushed during quiet hours while the override is on", async () => {
+    const s = await quietSetup(BERLIN_NIGHT);
+    const at = Date.UTC(2026, 9, 12, 22, 30);
+    expect(await routeDecisionAt(s, at, "urgent")).toBe("push");
+    expect(await routeDecisionAt(s, at, "normal")).toBe("digest");
+    expect(await queued(s.t, "install-1")).toHaveLength(1);
+  });
+
+  test("an urgent decision goes to the digest during quiet hours with the override off", async () => {
+    const s = await quietSetup({ ...BERLIN_NIGHT, urgentOverride: false });
+    expect(await routeDecisionAt(s, Date.UTC(2026, 9, 12, 22, 30), "urgent")).toBe("digest");
+    expect(await queued(s.t, "install-1")).toEqual([]);
+  });
+
+  test("a pushed agent event goes to the digest during quiet hours and sends nothing", async () => {
+    const s = await quietSetup(BERLIN_NIGHT);
+    vi.setSystemTime(Date.UTC(2026, 9, 12, 22, 30));
+    const eventId = await insertEvent(s.t, s.userA, "agent.stale", {
+      agentSessionId: s.agentSessionId,
+    });
+    expect(await routedAction(s.t, eventId)).toBe("digest");
+    expect((await loadEvent(s.t, eventId))?.digestId).toBeUndefined();
+    expect(await deliveriesOf(s.t, eventId)).toEqual([]);
+    expect(await queued(s.t, "install-1")).toEqual([]);
+  });
+
+  test("digest and mute pass through unchanged, including an urgent decision's", async () => {
+    const s = await quietSetup(BERLIN_NIGHT);
+    const at = Date.UTC(2026, 9, 12, 22, 30);
+    vi.setSystemTime(at);
+    for (const [kind, action] of [
+      ["decision.expired", "digest"],
+      ["agent.done", "digest"],
+      ["agent.status_changed", "mute"],
+    ] as const) {
+      const eventId = await insertEvent(s.t, s.userA, kind, { agentSessionId: s.agentSessionId });
+      expect(await routedAction(s.t, eventId)).toBe(action);
+    }
+
+    await insertRule(s.t, s.userA, { priority: "urgent", action: "mute" });
+    expect(await routeDecisionAt(s, at, "urgent")).toBe("mute");
+    await insertRule(s.t, s.userA, {
+      priority: "urgent",
+      eventKind: "decision.created",
+      action: "digest",
+    });
+    expect(await routeDecisionAt(s, at, "urgent")).toBe("digest");
+    expect(await queued(s.t, "install-1")).toEqual([]);
+  });
+
+  test("a rule's push is downgraded the same way as a default push", async () => {
+    const s = await quietSetup(BERLIN_NIGHT);
+    await insertRule(s.t, s.userA, { eventKind: "agent.done", action: "push" });
+    vi.setSystemTime(Date.UTC(2026, 9, 12, 22, 30));
+    const quiet = await insertEvent(s.t, s.userA, "agent.done", {
+      agentSessionId: s.agentSessionId,
+    });
+    expect(await routedAction(s.t, quiet)).toBe("digest");
+
+    vi.setSystemTime(Date.UTC(2026, 9, 13, 10, 0));
+    const loud = await insertEvent(s.t, s.userA, "agent.done", {
+      agentSessionId: s.agentSessionId,
+    });
+    expect(await routedAction(s.t, loud)).toBe("push");
+    expect(await queued(s.t, "install-1")).toHaveLength(1);
+  });
+
+  test("only the event owner's settings govern routing", async () => {
+    const s = await setup();
+    await register(s.asA, "install-1", "ExponentPushToken[1]");
+    await s.asB.mutation(notifications.settings.updateSettings, {
+      quietStart: "00:00",
+      quietEnd: "23:59",
+    });
+    const agentSessionId = await openSession(s.t, s.userA);
+    const decisionId = await insertDecision(s.t, s.userA, agentSessionId);
+    const eventId = await insertEvent(s.t, s.userA, "decision.created", {
+      agentSessionId,
+      decisionId,
+    });
+    expect(await routedAction(s.t, eventId)).toBe("push");
+    expect(await queued(s.t, "install-1")).toHaveLength(1);
+  });
+});
+
+// component-notifications §Tables: `route` calls ensureSettings, so every
+// account with a routed event has a row and a `nextDigestAt`
+// (req-notification-rules REQ-6).
+describe("settings from routing", () => {
+  function settingsOf(t: Setup["t"]) {
+    return t.run((ctx) => ctx.db.query("settings").collect());
+  }
+
+  test("creates the owner's default row with a next digest, for every action", async () => {
+    const { t, userA, userB } = await setup();
+    const agentSessionId = await openSession(t, userA);
+    const eventId = await insertEvent(t, userA, "agent.status_changed", { agentSessionId });
+
+    expect(await routedAction(t, eventId)).toBe("mute");
+
+    const rows = await settingsOf(t);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      userId: userA,
+      timeZone: "UTC",
+      timeZoneSource: "default",
+      digestTime: "09:00",
+      // START is 12:00Z on 2026-10-11.
+      nextDigestAt: Date.UTC(2026, 9, 12, 9, 0),
+    });
+    expect(rows.some((row) => row.userId === userB)).toBe(false);
+  });
+
+  test("later routes keep the row and its schedule, even when overdue", async () => {
+    const { t, userA } = await setup();
+    const agentSessionId = await openSession(t, userA);
+    await route(t, await insertEvent(t, userA, "agent.done", { agentSessionId }));
+    const [created] = await settingsOf(t);
+
+    vi.setSystemTime(START + 3 * 24 * 60 * MINUTE);
+    await route(t, await insertEvent(t, userA, "agent.done", { agentSessionId }));
+    await route(t, await insertEvent(t, userA, "decision.expired", { agentSessionId }));
+
+    expect(await settingsOf(t)).toEqual([created]);
+  });
+
+  test("an unrouted event creates no row", async () => {
+    const { t, userA } = await setup();
+    const agentSessionId = await openSession(t, userA);
+    const routed = await insertEvent(t, userA, "agent.done", { agentSessionId });
+    await route(t, routed);
+    for (const row of await settingsOf(t)) {
+      await t.run((ctx) => ctx.db.delete("settings", row._id));
+    }
+
+    // Already routed, and webhook-only: neither reaches step 4.
+    await route(t, routed);
+    await route(t, await insertEvent(t, userA, "decision.cancelled", { agentSessionId }));
+    expect(await settingsOf(t)).toEqual([]);
+  });
+
+  test("a failed push rolls back a newly created row with the action", async () => {
+    const { t, userA } = await setup();
+    const agentSessionId = await openSession(t, userA);
+    const eventId = await insertEvent(t, userA, "agent.stale", { agentSessionId });
+    // A device row whose install never gave the component a token makes the
+    // send throw.
+    await t.run((ctx) =>
+      ctx.db.insert("devices", {
+        userId: userA,
+        deviceId: "install-1",
+        name: "Phone",
+        platform: "ios",
+      }),
+    );
+
+    await expect(route(t, eventId)).rejects.toThrow();
+    expect((await loadEvent(t, eventId))?.action).toBeUndefined();
+    expect(await settingsOf(t)).toEqual([]);
+  });
+});

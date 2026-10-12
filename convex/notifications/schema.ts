@@ -3,8 +3,7 @@ import { v } from "convex/values";
 
 // The notifications domain's tables, spread into convex/schema.ts
 // (component-backend-foundation §Composition; component-notifications §Tables).
-// Settings, digests, and webhook tables arrive with the later slices that use
-// them.
+// Digest and webhook tables arrive with the later slices that use them.
 
 // The five notifiable kinds (req-notification-rules REQ-2) and the two
 // webhook-only kinds, mirrored from webhookEventKindSchema in
@@ -58,6 +57,15 @@ export const priorityValidator = v.union(v.literal("normal"), v.literal("urgent"
 
 export const platformValidator = v.union(v.literal("ios"), v.literal("android"));
 
+// Who set `settings.timeZone`: `default` is the UTC fallback nobody chose,
+// `device` the zone the app supplied at first launch, and `user` a zone chosen
+// in settings.
+export const timeZoneSourceValidator = v.union(
+  v.literal("default"),
+  v.literal("device"),
+  v.literal("user"),
+);
+
 export const tables = {
   // One row per emitted event. `action` stays unset until `route` stores it.
   // `digestId` stays unset until the digest slice stamps it; it is a string so
@@ -89,6 +97,23 @@ export const tables = {
     priority: v.optional(priorityValidator),
     action: ruleActionValidator,
     updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  // One row per person (req-mobile-app REQ-5), kept unique by ensureSettings
+  // in convex/notifications/settings.ts. `quietStart` and `quietEnd` are local
+  // `HH:MM` times, both set or both absent. `digestTime` is a local `HH:MM`.
+  // `nextDigestAt` is the epoch milliseconds of the next digest
+  // (req-notification-rules REQ-6).
+  settings: defineTable({
+    userId: v.id("users"),
+    timeZone: v.string(),
+    timeZoneSource: timeZoneSourceValidator,
+    quietStart: v.optional(v.string()),
+    quietEnd: v.optional(v.string()),
+    urgentOverride: v.boolean(),
+    digestTime: v.string(),
+    staleThresholdMinutes: v.number(),
+    nextDigestAt: v.number(),
   }).index("by_user", ["userId"]),
 
   // One row per app install. `deviceId` is the stable install id and the push
