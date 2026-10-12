@@ -6,7 +6,7 @@ import { Loading } from "../../src/loading";
 export default function AuthLayout() {
   const { isLoaded, isSignedIn } = useAuth();
   if (!isLoaded) {
-    return <Loading label="Loading" />;
+    return <Loading label="Loading" headerless />;
   }
   if (isSignedIn) {
     return <Redirect href="/" />;

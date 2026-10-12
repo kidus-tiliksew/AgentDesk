@@ -1,4 +1,5 @@
-import { Text, View } from "react-native";
+import { Text } from "react-native";
+import { HeaderlessScreen } from "./headerless-screen";
 import { styles } from "./styles";
 
 // Shown instead of the app when a public configuration variable is missing,
@@ -6,7 +7,7 @@ import { styles } from "./styles";
 // variable names only, never values.
 export function ConfigError({ missing }: { missing: string[] }) {
   return (
-    <View style={styles.centered}>
+    <HeaderlessScreen style={styles.centered}>
       <Text accessibilityRole="header" style={styles.title}>
         AgentDesk is not configured
       </Text>
@@ -16,6 +17,6 @@ export function ConfigError({ missing }: { missing: string[] }) {
           {name}
         </Text>
       ))}
-    </View>
+    </HeaderlessScreen>
   );
 }

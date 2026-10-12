@@ -120,6 +120,108 @@ describe("sign-in", () => {
     expect(signIn.emailCode.sendCode).toHaveBeenCalledTimes(1);
   });
 
+  // A verified sign-up that Clerk still holds incomplete, for example because
+  // the instance requires a password, cannot finish.
+  test("an incomplete sign-up offers a fresh sign-up for the same address", async () => {
+    signIn.emailCode.sendCode.mockResolvedValueOnce({
+      error: clerkApiError("form_identifier_not_found", "Couldn't find your account."),
+    });
+    signUp.verifications.verifyEmailCode.mockResolvedValueOnce({ error: null });
+    renderApp("/sign-in");
+    await submitEmail("new@example.com");
+
+    submitCode("111111");
+
+    expect(
+      await screen.findByText(
+        "Sign-up needs details the app does not collect. Check the Clerk settings.",
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Signing up new@example.com did not finish.")).toBeOnTheScreen();
+    expect(screen.queryByLabelText("Code")).not.toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Verify" })).not.toBeOnTheScreen();
+    expect(signUp.finalize).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByRole("button", { name: "Start sign-up again" }));
+
+    expect(await screen.findByText("Enter the code we sent to new@example.com.")).toBeOnTheScreen();
+    expect(signUp.create).toHaveBeenCalledTimes(2);
+    expect(signUp.create).toHaveBeenLastCalledWith({ emailAddress: "new@example.com" });
+    expect(signUp.verifications.sendEmailCode).toHaveBeenCalledTimes(2);
+    expect(screen.getByLabelText("Code")).toHaveDisplayValue("");
+
+    submitCode("222222");
+
+    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    expect(signUp.verifications.verifyEmailCode).toHaveBeenCalledTimes(2);
+    expect(signUp.verifications.verifyEmailCode).toHaveBeenLastCalledWith({ code: "222222" });
+    expect(signUp.finalize).toHaveBeenCalledTimes(1);
+    expect(ensureAccount).toHaveBeenCalledTimes(1);
+  });
+
+  test("a failed fresh sign-up keeps the recovery step and shows Clerk's message", async () => {
+    signIn.emailCode.sendCode.mockResolvedValueOnce({
+      error: clerkApiError("form_identifier_not_found", "Couldn't find your account."),
+    });
+    signUp.verifications.verifyEmailCode.mockResolvedValueOnce({ error: null });
+    renderApp("/sign-in");
+    await submitEmail("new@example.com");
+    submitCode("111111");
+    await screen.findByText("Signing up new@example.com did not finish.");
+
+    signUp.create.mockResolvedValueOnce({
+      error: clerkApiError("too_many_requests", "Too many requests. Try again later."),
+    });
+    fireEvent.press(screen.getByRole("button", { name: "Start sign-up again" }));
+
+    expect(await screen.findByText("Too many requests. Try again later.")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Start sign-up again" })).toBeOnTheScreen();
+    expect(screen.queryByLabelText("Code")).not.toBeOnTheScreen();
+    expect(signUp.verifications.sendEmailCode).toHaveBeenCalledTimes(1);
+
+    fireEvent.press(screen.getByRole("button", { name: "Use a different email" }));
+    expect(await screen.findByLabelText("Email address")).toHaveDisplayValue("new@example.com");
+  });
+
+  test("Verify after a failed finalize finalizes again without re-submitting the code", async () => {
+    signIn.finalize.mockResolvedValueOnce({
+      error: clerkApiError("network_error", "Could not reach Clerk."),
+    });
+    renderApp("/sign-in");
+    await submitEmail("a@example.com");
+
+    submitCode("123456");
+
+    expect(await screen.findByText("Could not reach Clerk.")).toBeOnTheScreen();
+    expect(signIn.emailCode.verifyCode).toHaveBeenCalledTimes(1);
+
+    fireEvent(screen.getByLabelText("Code"), "submitEditing");
+
+    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    expect(signIn.emailCode.verifyCode).toHaveBeenCalledTimes(1);
+    expect(signIn.finalize).toHaveBeenCalledTimes(2);
+  });
+
+  test("a completed sign-up verification is not re-submitted when finalize is retried", async () => {
+    signIn.emailCode.sendCode.mockResolvedValueOnce({
+      error: clerkApiError("form_identifier_not_found", "Couldn't find your account."),
+    });
+    signUp.finalize.mockResolvedValueOnce({
+      error: clerkApiError("network_error", "Could not reach Clerk."),
+    });
+    renderApp("/sign-in");
+    await submitEmail("new@example.com");
+
+    submitCode("654321");
+    expect(await screen.findByText("Could not reach Clerk.")).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole("button", { name: "Verify" }));
+
+    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    expect(signUp.verifications.verifyEmailCode).toHaveBeenCalledTimes(1);
+    expect(signUp.finalize).toHaveBeenCalledTimes(2);
+  });
+
   test("a different email returns to the email step", async () => {
     renderApp("/sign-in");
     await submitEmail("a@example.com");

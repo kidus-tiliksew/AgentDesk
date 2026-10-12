@@ -1,6 +1,6 @@
 import { useSignIn, useSignUp } from "@clerk/expo";
 import { useRef, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput } from "react-native";
 import { Button } from "../../src/button";
 import {
   clerkMessage,
@@ -8,16 +8,25 @@ import {
   hasClerkCode,
   IDENTIFIER_NOT_FOUND,
 } from "../../src/clerk-errors";
+import { HeaderlessScreen } from "../../src/headerless-screen";
 import { styles } from "../../src/styles";
 
 // component-mobile-app §Screens `(auth)/sign-in`: an email address, then the
 // code Clerk emails to it, with no password (req-accounts-and-connections
 // REQ-2). An address that holds no Clerk user signs up through the same two
 // steps. Finalizing activates the Clerk session; the (auth) layout then
-// redirects to the app, whose layout creates the account.
+// redirects to the app, whose layout creates the account. A sign-up whose
+// code verified but that Clerk still holds incomplete cannot go on, so the
+// screen offers a fresh sign-up for the same address instead of the code step.
 
 type Flow = "signIn" | "signUp";
-type Step = { kind: "email" } | { kind: "code"; flow: Flow; email: string };
+type Step =
+  | { kind: "email" }
+  | { kind: "code"; flow: Flow; email: string }
+  | { kind: "restart"; email: string };
+
+const INCOMPLETE_SIGN_UP =
+  "Sign-up needs details the app does not collect. Check the Clerk settings.";
 
 export default function SignInScreen() {
   const { signIn } = useSignIn();
@@ -29,6 +38,10 @@ export default function SignInScreen() {
   const [busy, setBusy] = useState(false);
   // Guards against a second press that lands before the disabled state renders.
   const inFlight = useRef(false);
+  // Set once the current attempt's code has verified, so a retry after a
+  // failed finalize finalizes again and never re-submits the code. Cleared
+  // when a new code is sent for a new attempt.
+  const verified = useRef(false);
 
   // Runs one request at a time; a press while one runs does nothing.
   async function run(action: () => Promise<void>) {
@@ -57,8 +70,7 @@ export default function SignInScreen() {
       }
       const sent = await signIn.emailCode.sendCode({ emailAddress: address });
       if (sent.error === null) {
-        setCode("");
-        setStep({ kind: "code", flow: "signIn", email: address });
+        enterCode("signIn", address);
         return;
       }
       if (!hasClerkCode(sent.error, IDENTIFIER_NOT_FOUND)) {
@@ -66,19 +78,33 @@ export default function SignInScreen() {
         return;
       }
       // No Clerk user holds this address, so this is a first sign-in.
-      const created = await signUp.create({ emailAddress: address });
-      if (created.error !== null) {
-        setError(clerkMessage(created.error));
-        return;
-      }
-      const sentUp = await signUp.verifications.sendEmailCode();
-      if (sentUp.error !== null) {
-        setError(clerkMessage(sentUp.error));
-        return;
-      }
-      setCode("");
-      setStep({ kind: "code", flow: "signUp", email: address });
+      await startSignUp(address);
     });
+
+  // Shows the code step for a new attempt.
+  function enterCode(flow: Flow, address: string) {
+    verified.current = false;
+    setCode("");
+    setStep({ kind: "code", flow, email: address });
+  }
+
+  // Creates a new Clerk sign-up for the address and emails its code. Any
+  // earlier sign-up is abandoned.
+  async function startSignUp(address: string) {
+    const created = await signUp.create({ emailAddress: address });
+    if (created.error !== null) {
+      setError(clerkMessage(created.error));
+      return;
+    }
+    const sent = await signUp.verifications.sendEmailCode();
+    if (sent.error !== null) {
+      setError(clerkMessage(sent.error));
+      return;
+    }
+    enterCode("signUp", address);
+  }
+
+  const restartSignUp = (address: string) => run(() => startSignUp(address));
 
   const resendCode = (flow: Flow) =>
     run(async () => {
@@ -93,19 +119,25 @@ export default function SignInScreen() {
       setCode("");
     });
 
-  const verifyCode = (flow: Flow) =>
+  const verifyCode = (flow: Flow, address: string) =>
     run(async () => {
-      const entered = code.trim();
-      if (entered === "") {
-        setError("Enter the code from the email.");
-        return;
-      }
-      if (flow === "signIn") {
-        const verified = await signIn.emailCode.verifyCode({ code: entered });
-        if (verified.error !== null) {
-          setError(codeMessage(verified.error));
+      if (!verified.current) {
+        const entered = code.trim();
+        if (entered === "") {
+          setError("Enter the code from the email.");
           return;
         }
+        const result =
+          flow === "signIn"
+            ? await signIn.emailCode.verifyCode({ code: entered })
+            : await signUp.verifications.verifyEmailCode({ code: entered });
+        if (result.error !== null) {
+          setError(codeMessage(result.error));
+          return;
+        }
+        verified.current = true;
+      }
+      if (flow === "signIn") {
         if (signIn.status !== "complete") {
           setError("This account needs a sign-in step the app does not support.");
           return;
@@ -116,13 +148,11 @@ export default function SignInScreen() {
         }
         return;
       }
-      const verified = await signUp.verifications.verifyEmailCode({ code: entered });
-      if (verified.error !== null) {
-        setError(codeMessage(verified.error));
-        return;
-      }
       if (signUp.status !== "complete") {
-        setError("Sign-up needs details the app does not collect. Check the Clerk settings.");
+        // The verified sign-up cannot finish, and verifying it again fails, so
+        // only a new sign-up can go on.
+        setCode("");
+        setStep({ kind: "restart", email: address });
         return;
       }
       const finalized = await signUp.finalize();
@@ -132,13 +162,14 @@ export default function SignInScreen() {
     });
 
   const changeEmail = () => {
+    verified.current = false;
     setStep({ kind: "email" });
     setCode("");
     setError(null);
   };
 
   return (
-    <View style={styles.screen}>
+    <HeaderlessScreen style={styles.screen}>
       <Text accessibilityRole="header" style={styles.title}>
         Sign in to AgentDesk
       </Text>
@@ -161,6 +192,20 @@ export default function SignInScreen() {
           {error !== null && <Text style={styles.error}>{error}</Text>}
           <Button label="Send code" onPress={sendCode} disabled={busy} />
         </>
+      ) : step.kind === "restart" ? (
+        <>
+          <Text style={styles.body}>Signing up {step.email} did not finish.</Text>
+          <Text style={styles.error}>{INCOMPLETE_SIGN_UP}</Text>
+          {error !== null && <Text style={styles.error}>{error}</Text>}
+          <Button
+            label="Start sign-up again"
+            onPress={() => restartSignUp(step.email)}
+            disabled={busy}
+          />
+          <Pressable accessibilityRole="button" disabled={busy} onPress={changeEmail}>
+            <Text style={styles.link}>Use a different email</Text>
+          </Pressable>
+        </>
       ) : (
         <>
           <Text style={styles.body}>Enter the code we sent to {step.email}.</Text>
@@ -170,13 +215,17 @@ export default function SignInScreen() {
             editable={!busy}
             inputMode="numeric"
             onChangeText={setCode}
-            onSubmitEditing={() => verifyCode(step.flow)}
+            onSubmitEditing={() => verifyCode(step.flow, step.email)}
             style={styles.input}
             textContentType="oneTimeCode"
             value={code}
           />
           {error !== null && <Text style={styles.error}>{error}</Text>}
-          <Button label="Verify" onPress={() => verifyCode(step.flow)} disabled={busy} />
+          <Button
+            label="Verify"
+            onPress={() => verifyCode(step.flow, step.email)}
+            disabled={busy}
+          />
           <Pressable
             accessibilityRole="button"
             disabled={busy}
@@ -189,6 +238,6 @@ export default function SignInScreen() {
           </Pressable>
         </>
       )}
-    </View>
+    </HeaderlessScreen>
   );
 }
