@@ -134,8 +134,8 @@ function installSkills(ctx: Context, harnesses: readonly Harness[], state: State
       // A folder this installation owned earlier is no longer wanted.
       if (record.skillPath && resolve(record.skillPath) === harness.skillDir(ctx)) {
         try {
-          removeSkillDir(record.skillPath);
-          ctx.io.out(`${harness.displayName}: removed its own skill folder ${record.skillPath}`);
+          ctx.io.out(`${harness.displayName}: removing its own skill folder ${record.skillPath}`);
+          removeSkillDir(record.skillPath, harness.skillAnchor(ctx));
           delete record.skillPath;
           delete record.skillVersion;
         } catch (error) {
@@ -311,9 +311,17 @@ export async function status(ctx: Context): Promise<number> {
     if (!record.connectionId) {
       connection = "no connection recorded";
     } else {
-      const entry = readMcpEntry(ctx, harness);
-      const server = recordedServer(state, id) ?? serverOfEntry(entry);
-      if (!entry.token || !server) {
+      let entry: McpEntry | undefined;
+      let readError: string | undefined;
+      try {
+        entry = readMcpEntry(ctx, harness);
+      } catch (error) {
+        readError = message(error);
+      }
+      const server = recordedServer(state, id) ?? (entry ? serverOfEntry(entry) : undefined);
+      if (readError !== undefined) {
+        connection = `configuration unreadable (${readError})`;
+      } else if (!entry?.token || !server) {
         connection = `not connected (no AgentDesk entry in ${harness.configPath(ctx)})`;
       } else {
         const check = await checkConnection(ctx, server, entry.token);
@@ -371,7 +379,17 @@ export async function uninstall(ctx: Context): Promise<number> {
     }
 
     if (record.connectionId || record.configPath) {
-      const entry = readMcpEntry(ctx, harness);
+      // An unreadable or malformed configuration is not proof the entry is
+      // gone: keep the record so a later run can revoke and remove it.
+      let entry: McpEntry;
+      try {
+        entry = readMcpEntry(ctx, harness);
+      } catch (error) {
+        failures.push(
+          `${harness.displayName}: ${message(error)} Its connection was not revoked and its record was kept; fix the file, then run agentdesk uninstall again.`,
+        );
+        continue;
+      }
       if (entry.token) {
         const server = recordedServer(state, id) ?? serverOfEntry(entry);
         const result = server
@@ -384,10 +402,15 @@ export async function uninstall(ctx: Context): Promise<number> {
           continue;
         }
         ctx.io.out(`${harness.displayName}: connection revoked.`);
+      } else if (record.connectionId) {
+        ctx.io.out(
+          `${harness.displayName}: no AgentDesk token is in ${configPath}; revoke the connection in the AgentDesk app if it is still listed.`,
+        );
       }
       try {
-        if (await removeMcpEntry(ctx, harness, backups)) {
-          ctx.io.out(`${harness.displayName}: MCP entry removed from ${configPath}`);
+        if (entry.present) {
+          ctx.io.out(`${harness.displayName}: removing the MCP entry from ${configPath}`);
+          await removeMcpEntry(ctx, harness, backups);
         }
       } catch (error) {
         failures.push(
@@ -402,9 +425,8 @@ export async function uninstall(ctx: Context): Promise<number> {
 
     if (record.skillPath) {
       try {
-        if (removeSkillDir(record.skillPath)) {
-          ctx.io.out(`${harness.displayName}: skill folder removed: ${record.skillPath}`);
-        }
+        ctx.io.out(`${harness.displayName}: removing the skill folder ${record.skillPath}`);
+        removeSkillDir(record.skillPath, harness.skillAnchor(ctx));
       } catch (error) {
         failures.push(`${harness.displayName}: ${message(error)}`);
         continue;

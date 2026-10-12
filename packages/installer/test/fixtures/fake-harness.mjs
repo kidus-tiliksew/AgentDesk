@@ -3,6 +3,8 @@
 // AGENTDESK_TEST_LOG. As `claude`, it applies `mcp add` and `mcp remove` to
 // $HOME/.claude.json the way Claude Code does at user scope, and echoes the
 // header it was given so tests can prove the installer never forwards output.
+// FAKE_CLAUDE_FAIL fails `mcp add`; FAKE_CLAUDE_REMOVE_FAIL fails `mcp remove`
+// without a change; FAKE_CLAUDE_REMOVE_CORRUPT fails it after corrupting the file.
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -15,6 +17,14 @@ if (name === "claude" && args[0] === "mcp") {
   const data = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
   data.mcpServers ??= {};
   if (args[1] === "remove") {
+    if (process.env.FAKE_CLAUDE_REMOVE_FAIL === "1") {
+      process.stderr.write("remove failed\n");
+      process.exit(4);
+    }
+    if (process.env.FAKE_CLAUDE_REMOVE_CORRUPT === "1") {
+      writeFileSync(file, "{ broken");
+      process.exit(1);
+    }
     if (!data.mcpServers.agentdesk) {
       process.stderr.write("No user-scoped MCP server found with name: agentdesk\n");
       process.exit(1);

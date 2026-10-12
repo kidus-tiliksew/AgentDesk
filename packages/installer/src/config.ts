@@ -69,6 +69,8 @@ export function mcpUrl(server: string): string {
 }
 
 export interface McpEntry {
+  /** Whether the configuration holds an agentdesk entry at all. */
+  present: boolean;
   url?: string;
   token?: string;
 }
@@ -87,9 +89,18 @@ interface JsonFile {
   indent: string;
 }
 
+/** Reads a file as UTF-8; a read failure is an InstallerError, never confirmed absence. */
+function readText(file: string): string {
+  try {
+    return readFileSync(file, "utf8");
+  } catch {
+    throw new InstallerError(`${file} could not be read; it was not changed.`);
+  }
+}
+
 function readJsonFile(file: string): JsonFile | undefined {
   if (!existsSync(file)) return undefined;
-  const text = readFileSync(file, "utf8");
+  const text = readText(file);
   if (text.trim().length === 0) return { data: {}, indent: "  " };
   let data: unknown;
   try {
@@ -141,18 +152,20 @@ export function removeJsonMcpServer(file: string, backups: BackupRegistry): bool
   return true;
 }
 
+/**
+ * Reads `mcpServers.agentdesk`. A missing file or entry is `{present: false}`;
+ * an unreadable or malformed file throws, so callers never mistake it for
+ * absence.
+ */
 export function readJsonMcpServer(file: string): McpEntry {
-  let current: JsonFile | undefined;
-  try {
-    current = readJsonFile(file);
-  } catch {
-    return {};
-  }
-  if (!current || !isPlainObject(current.data.mcpServers)) return {};
-  const entry = current.data.mcpServers[MCP_ENTRY_NAME];
-  if (!isPlainObject(entry)) return {};
+  const current = readJsonFile(file);
+  if (!current) return { present: false };
+  const servers = mcpServersOf(file, current.data);
+  if (!(MCP_ENTRY_NAME in servers)) return { present: false };
+  const entry = servers[MCP_ENTRY_NAME];
+  if (!isPlainObject(entry)) return { present: true };
   const headers = isPlainObject(entry.headers) ? entry.headers : {};
-  const result: McpEntry = {};
+  const result: McpEntry = { present: true };
   if (typeof entry.url === "string") result.url = entry.url;
   const token = tokenFromHeader(headers.Authorization);
   if (token) result.token = token;
@@ -243,10 +256,10 @@ function parseCodex(file: string, text: string): Record<string, unknown> {
 
 function codexEntryOf(data: Record<string, unknown>): McpEntry {
   const servers = data.mcp_servers;
-  if (!isPlainObject(servers)) return {};
+  if (!isPlainObject(servers) || !(MCP_ENTRY_NAME in servers)) return { present: false };
   const entry = servers[MCP_ENTRY_NAME];
-  if (!isPlainObject(entry)) return {};
-  const result: McpEntry = {};
+  if (!isPlainObject(entry)) return { present: true };
+  const result: McpEntry = { present: true };
   if (typeof entry.url === "string") result.url = entry.url;
   const headers = isPlainObject(entry.http_headers) ? entry.http_headers : {};
   const token = tokenFromHeader(headers.Authorization);
@@ -293,7 +306,7 @@ export function replaceCodexTable(
   const result = next.join("");
   // The edited text must parse and hold exactly the new entry; otherwise the
   // file defines the entry in a form (inline or dotted keys) lines cannot replace.
-  let check: McpEntry = {};
+  let check: McpEntry = { present: false };
   try {
     check = codexEntryOf(parseToml(result) as Record<string, unknown>);
   } catch {
@@ -336,7 +349,7 @@ export function setCodexEntry(
   token: string,
   backups: BackupRegistry,
 ): void {
-  const text = existsSync(file) ? readFileSync(file, "utf8") : "";
+  const text = existsSync(file) ? readText(file) : "";
   const next = replaceCodexTable(file, text, server, token);
   backups.backupOnce(file);
   writeFileAtomic(file, next);
@@ -344,20 +357,27 @@ export function setCodexEntry(
 
 export function removeCodexEntry(file: string, backups: BackupRegistry): boolean {
   if (!existsSync(file)) return false;
-  const next = removeCodexTableText(file, readFileSync(file, "utf8"));
-  if (next === undefined) return false;
+  const text = readText(file);
+  // A file that does not parse cannot confirm the entry is absent.
+  parseCodex(file, text);
+  const next = removeCodexTableText(file, text);
+  if (next === undefined) {
+    if (codexEntryOf(parseCodex(file, text)).present) {
+      throw new InstallerError(
+        `${file} defines mcp_servers.agentdesk in a form the installer cannot remove; it was not changed.`,
+      );
+    }
+    return false;
+  }
   backups.backupOnce(file);
   writeFileAtomic(file, next);
   return true;
 }
 
+/** Reads the Codex entry; an unreadable or malformed file throws. */
 export function readCodexEntry(file: string): McpEntry {
-  if (!existsSync(file)) return {};
-  try {
-    return codexEntryOf(parseToml(readFileSync(file, "utf8")) as Record<string, unknown>);
-  } catch {
-    return {};
-  }
+  if (!existsSync(file)) return { present: false };
+  return codexEntryOf(parseCodex(file, readText(file)));
 }
 
 // ---------------------------------------------------------------------------
@@ -427,12 +447,17 @@ export async function writeMcpEntry(
   }
 }
 
+/** Reads the harness's agentdesk entry; throws when the configuration cannot be read or parsed. */
 export function readMcpEntry(ctx: Context, harness: Harness): McpEntry {
   const file = harness.configPath(ctx);
   return harness.configFormat === "codex-toml" ? readCodexEntry(file) : readJsonMcpServer(file);
 }
 
-/** Removes the harness's agentdesk MCP entry; returns whether one was removed. */
+/**
+ * Removes the harness's agentdesk MCP entry. Returns whether an entry was
+ * removed; throws when the entry may remain, so a failed removal is never
+ * reported as done (AC-9.6).
+ */
 export async function removeMcpEntry(
   ctx: Context,
   harness: Harness,
@@ -441,21 +466,36 @@ export async function removeMcpEntry(
   const file = harness.configPath(ctx);
   switch (harness.configFormat) {
     case "claude": {
+      // Reading first refuses an unreadable or malformed file before any change.
+      if (!readJsonMcpServer(file).present) return false;
       const cli = findExecutable(ctx, "claude");
-      let removed = false;
       if (cli) {
         backups.backupOnce(file);
-        removed =
-          (await runClaude(ctx, cli, ["mcp", "remove", "--scope", "user", MCP_ENTRY_NAME])) === 0;
+        const code = await runClaude(ctx, cli, [
+          "mcp",
+          "remove",
+          "--scope",
+          "user",
+          MCP_ENTRY_NAME,
+        ]);
+        let after: McpEntry;
+        try {
+          after = readJsonMcpServer(file);
+        } catch (error) {
+          const detail =
+            error instanceof InstallerError ? error.message : `${file} could not be read.`;
+          throw new InstallerError(
+            code === 0 ? detail : `claude mcp remove exited with status ${code}. ${detail}`,
+          );
+        }
+        if (!after.present) return true;
       }
       // Without the CLI, or when the CLI left the entry, edit the file directly.
-      if (
-        readJsonMcpServer(file).url !== undefined ||
-        readJsonMcpServer(file).token !== undefined
-      ) {
-        removed = removeJsonMcpServer(file, backups) || removed;
+      if (!removeJsonMcpServer(file, backups)) return false;
+      if (readJsonMcpServer(file).present) {
+        throw new InstallerError(`The agentdesk entry is still in ${file}.`);
       }
-      return removed;
+      return true;
     }
     case "codex-toml":
       return removeCodexEntry(file, backups);

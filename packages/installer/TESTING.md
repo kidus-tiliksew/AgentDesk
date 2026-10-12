@@ -13,6 +13,7 @@
 | `test/config.test.ts` | the `claude mcp remove` and `claude mcp add` arguments, the `~/.claude.json` fallback, byte-preserving Codex table replacement, `~/.cursor/mcp.json` merges, malformed-file refusal, once-per-run backups |
 | `test/signin.test.ts` | approval for several harnesses, the 2-second poll interval on a fake clock, decline, expiry and a new code, invalid approved results, server errors, secrecy of tokens and device secrets |
 | `test/state.test.ts` | state contents and mode 0600, re-runs that keep working connections and refresh the skill, server changes, `status`, `uninstall` with failed revocation and redirected paths |
+| `test/uninstall-safety.test.ts` | refusal of a symlinked skill folder and of a redirected skill parent for each harness; malformed and unreadable configuration and a nonzero `claude mcp remove`, each keeping the record and exiting with status 1 |
 | `test/skill.test.ts` | the Cursor skill rule, `supportsSkills: false`, `skill install` |
 | `test/packaging.test.ts` | the bundle built by `scripts/build.mjs`, packed with `npm pack` and run outside the workspace against a local HTTP gateway |
 | `test/install-script.test.ts` | `install.sh` under `sh` against a `file://` download directory: platform selection, checksum success and mismatch, the `PATH` hint, the placeholder; `scripts/build-binaries.mjs` with a stub Bun |

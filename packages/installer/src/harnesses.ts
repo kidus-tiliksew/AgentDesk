@@ -29,6 +29,8 @@ export interface Harness {
   configPath(ctx: Context): string;
   /** The `agentdesk` skill folder. */
   skillDir(ctx: Context): string;
+  /** The base directory the skill folder must stay inside: the home directory or CODEX_HOME. */
+  skillAnchor(ctx: Context): string;
 }
 
 export function codexHome(ctx: Context): string {
@@ -48,6 +50,7 @@ export const HARNESSES: readonly Harness[] = [
     detectionPath: (ctx) => join(ctx.home, ".claude.json"),
     configPath: (ctx) => join(ctx.home, ".claude.json"),
     skillDir: (ctx) => join(ctx.home, ".claude", "skills", "agentdesk"),
+    skillAnchor: (ctx) => ctx.home,
   },
   {
     id: "codex",
@@ -58,6 +61,7 @@ export const HARNESSES: readonly Harness[] = [
     detectionPath: (ctx) => codexHome(ctx),
     configPath: (ctx) => join(codexHome(ctx), "config.toml"),
     skillDir: (ctx) => join(codexHome(ctx), "skills", "agentdesk"),
+    skillAnchor: (ctx) => codexHome(ctx),
   },
   {
     id: "cursor",
@@ -68,6 +72,7 @@ export const HARNESSES: readonly Harness[] = [
     detectionPath: (ctx) => join(ctx.home, ".cursor"),
     configPath: (ctx) => join(ctx.home, ".cursor", "mcp.json"),
     skillDir: (ctx) => join(ctx.home, ".cursor", "skills", "agentdesk"),
+    skillAnchor: (ctx) => ctx.home,
   },
 ];
 

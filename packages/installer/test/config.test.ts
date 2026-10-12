@@ -263,7 +263,7 @@ describe("MCP entries written by install", () => {
     });
   });
 
-  it("refuses a malformed Cursor mcp.json, leaves it unchanged, and revokes the unused connection", async () => {
+  it("refuses a malformed Cursor mcp.json before sign-in and leaves it unchanged", async () => {
     const sandbox = makeSandbox();
     stubExecutable(sandbox, "cursor-agent");
     const file = join(sandbox.home, ".cursor", "mcp.json");
@@ -272,7 +272,8 @@ describe("MCP entries written by install", () => {
     expect(await h.run(["install", "--yes"])).toBe(1);
     expect(read(file)).toBe("{ broken");
     expect(h.err.join("\n")).toContain("is not valid JSON");
-    expect(h.gateway.revoked).toEqual([h.gateway.tokenFor("cursor")]);
+    expect(h.gateway.requests).toEqual([]);
+    expect(existsSync(`${file}.agentdesk-backup`)).toBe(false);
   });
 
   it("creates new configuration files with mode 0600 and no backup holds a token from the run", async () => {

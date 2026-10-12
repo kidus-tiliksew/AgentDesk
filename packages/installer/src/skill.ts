@@ -1,5 +1,5 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { isAbsolute, join, relative, sep } from "node:path";
 import { writeFileAtomic } from "./config.js";
 import { type Context, InstallerError } from "./context.js";
 import type { Harness } from "./harnesses.js";
@@ -53,15 +53,46 @@ export function writeSkill(dir: string, content: string): void {
   writeFileAtomic(join(dir, SKILL_FILE), content, 0o644);
 }
 
-/** Removes an owned skill folder; returns whether it existed. */
-export function removeSkillDir(dir: string): boolean {
-  if (!existsSync(dir) && !isDanglingLink(dir)) return false;
-  const stat = lstatSync(dir);
-  if (stat.isSymbolicLink() || !stat.isDirectory()) {
-    throw new InstallerError(
-      `${dir} is not a skill folder the installer wrote; it was not removed.`,
+/**
+ * Refuses a removal target that leaves the installer's own location: every
+ * path component below `anchor` must be a real directory, not a symbolic
+ * link, and the resolved target must equal the owned location under the
+ * resolved anchor. A redirected parent such as a symlinked ~/.claude/skills
+ * is refused as well as a symlinked final folder.
+ */
+export function assertOwnedDir(dir: string, anchor: string): void {
+  const refuse = (why: string) =>
+    new InstallerError(
+      `${dir} is not a skill folder the installer owns (${why}); it was not removed.`,
     );
+  const rel = relative(anchor, dir);
+  if (rel.length === 0 || rel.startsWith("..") || isAbsolute(rel))
+    throw refuse(`it is outside ${anchor}`);
+  let current = anchor;
+  for (const part of rel.split(sep)) {
+    current = join(current, part);
+    let stat: ReturnType<typeof lstatSync>;
+    try {
+      stat = lstatSync(current);
+    } catch {
+      throw refuse(`${current} cannot be inspected`);
+    }
+    if (stat.isSymbolicLink()) throw refuse(`${current} is a symbolic link`);
+    if (!stat.isDirectory()) throw refuse(`${current} is not a directory`);
   }
+  if (realpathSync(dir) !== join(realpathSync(anchor), rel)) {
+    throw refuse("it resolves to another location");
+  }
+}
+
+/**
+ * Removes an owned skill folder; returns whether it existed. `anchor` is the
+ * harness's own base directory (the home directory or CODEX_HOME). The caller
+ * reports the path before calling.
+ */
+export function removeSkillDir(dir: string, anchor: string): boolean {
+  if (!existsSync(dir) && !isDanglingLink(dir)) return false;
+  assertOwnedDir(dir, anchor);
   rmSync(dir, { recursive: true });
   return true;
 }
