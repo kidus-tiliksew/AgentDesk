@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { Stack } from "expo-router";
+import { Link, Stack } from "expo-router";
 import { useRef, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { identity } from "../../../../../convex/identity/refs";
@@ -176,6 +176,11 @@ export default function ConnectionsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: "Connections" }} />
+      {/* Outside the query boundary, so a person can add a machine while the
+          list loads, is empty, or failed to load. */}
+      <Link href="/settings/add-machine" style={styles.link}>
+        Add machine
+      </Link>
       <QueryErrorBoundary
         fallback={(_error, retry) => (
           <View style={styles.centered}>
