@@ -12,6 +12,7 @@ import {
   device,
   ensureAccount,
   push,
+  queryCalls,
   registerDevice,
   rotateDeviceToken,
   secureStore,
@@ -519,5 +520,104 @@ describe("tap routing", () => {
     );
 
     expect(screen).toHavePathname("/");
+  });
+});
+
+// component-notifications §Digests: a digest push carries
+// `{ kind: "digest", digestId }` and no eventId.
+describe("digest tap routing", () => {
+  function digestFor(digestId: string) {
+    return {
+      id: digestId,
+      sent_at: "2026-10-12T09:00:00.000Z",
+      events: [],
+      pending_decisions: [
+        {
+          id: "d_1",
+          topic: "acme",
+          title: `Pending in ${digestId}`,
+          priority: "normal",
+          deadline: null,
+          state: "pending",
+          answer: null,
+          answered_at: null,
+          applied_by_default: false,
+          agent_session_id: "a_1",
+          agent_name: "Claude on laptop",
+          created_at: "2026-10-11T22:00:00.000Z",
+        },
+      ],
+    };
+  }
+
+  beforeEach(() => {
+    serveScreens();
+    setQuery("notifications/digests:get", (args: { digestId: string }) => digestFor(args.digestId));
+  });
+
+  test("a digest tap opens the digest", async () => {
+    await openInbox();
+
+    act(() => tap(tapResponse("n_d1", { kind: "digest", digestId: "dg_1" })));
+
+    expect(await screen.findByText("Pending in dg_1")).toBeOnTheScreen();
+    expect(screen).toHavePathname("/digest/dg_1");
+  });
+
+  test("a digest tap with a malformed digest id opens the inbox", async () => {
+    signInAs("sess_a");
+    renderApp("/settings/account");
+    await screen.findByRole("button", { name: "Sign out" });
+
+    act(() => tap(tapResponse("n_d2", { kind: "digest", digestId: "../settings" })));
+
+    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    expect(screen).toHavePathname("/");
+  });
+
+  test("a digest tap that launched the app waits through sign-in and account setup, then opens once", async () => {
+    const launch = tapResponse("n_d3", { kind: "digest", digestId: "dg_7" });
+    push.lastResponse = launch;
+    const pending = deferred<typeof account>();
+    ensureAccount.mockReturnValueOnce(pending.promise);
+
+    renderApp("/");
+    await screen.findByLabelText("Email address");
+    expect(push.lastResponse).toBeNull();
+
+    act(() => signInAs("sess_a"));
+    await screen.findByText("Setting up your account");
+    expect(screen).not.toHavePathname("/digest/dg_7");
+
+    await act(async () => pending.resolve(account));
+
+    expect(await screen.findByText("Pending in dg_7")).toBeOnTheScreen();
+    expect(screen).toHavePathname("/digest/dg_7");
+
+    // The live listener delivering the same launch tap opens nothing more.
+    act(() => router.back());
+    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    act(() => tap(launch));
+    await act(async () => {});
+    expect(screen).toHavePathname("/");
+  });
+
+  test("a digest tap waiting when its session signs out does not open in the next session", async () => {
+    const pending = deferred<typeof account>();
+    ensureAccount.mockReturnValueOnce(pending.promise);
+    signInAs("sess_a");
+    renderApp("/");
+    await screen.findByText("Setting up your account");
+
+    act(() => tap(tapResponse("n_d4", { kind: "digest", digestId: "dg_8" })));
+    act(() => signOutAll());
+    await screen.findByLabelText("Email address");
+
+    act(() => signInAs("sess_b"));
+
+    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    await act(async () => {});
+    expect(screen).toHavePathname("/");
+    expect(queryCalls.map((call) => call.name)).not.toContain("notifications/digests:get");
   });
 });
