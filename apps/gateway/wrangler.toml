@@ -7,13 +7,20 @@ main = "src/index.ts"
 # tests and deployments run with the same date.
 compatibility_date = "2026-08-01"
 
+# `GET /install.sh` bundles packages/installer/install.sh as text
+# (`src/install.ts`), so the installer's file stays the only copy.
+[[rules]]
+type = "Text"
+globs = ["**/*.sh"]
+fallthrough = true
+
 [vars]
 PUBLIC_ORIGIN = "http://localhost:8787"
 CONVEX_SITE_URL = "http://127.0.0.1:3211"
 CLERK_PUBLISHABLE_KEY = ""
 
-# §Sign-in endpoints: 10 `/device/start` calls per minute per client IP. No
-# route uses it until `/device/*` is built.
+# §Sign-in endpoints: 10 `/device/start` calls per minute per client IP
+# (`src/device.ts`).
 [[ratelimits]]
 name = "DEVICE_START_LIMIT"
 namespace_id = "1001"

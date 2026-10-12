@@ -136,3 +136,42 @@ export function decision(overrides: Partial<Decision> = {}): Decision {
     ...overrides,
   };
 }
+
+// A per-key stand-in for the `DEVICE_START_LIMIT` binding: `limit` calls per
+// fixed window of `periodMs` on the given clock. It records every key asked.
+export function fakeLimiter(limit = 10, periodMs = 60_000, now: () => number = Date.now) {
+  const windows = new Map<string, { start: number; count: number }>();
+  const keys: string[] = [];
+  const binding: RateLimit = {
+    async limit({ key }) {
+      keys.push(key);
+      const at = now();
+      const current = windows.get(key);
+      const window =
+        current === undefined || at - current.start >= periodMs ? { start: at, count: 0 } : current;
+      window.count++;
+      windows.set(key, window);
+      return { success: window.count <= limit };
+    },
+  };
+  return { binding, keys };
+}
+
+// A request to a gateway route other than `/mcp`. A JSON body is sent as
+// text, and a string body as it is. A header set to null is left out.
+export function routeRequest(
+  method: string,
+  path: string,
+  body?: unknown,
+  headers: Record<string, string | null> = {},
+): Request {
+  const all: Record<string, string | null> = {
+    "Content-Type": body === undefined ? null : "application/json",
+    ...headers,
+  };
+  return new Request(`https://agentdesk.example${path}`, {
+    method,
+    headers: Object.entries(all).filter((entry): entry is [string, string] => entry[1] !== null),
+    ...(body === undefined ? {} : { body: typeof body === "string" ? body : JSON.stringify(body) }),
+  });
+}

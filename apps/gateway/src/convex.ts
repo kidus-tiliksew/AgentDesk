@@ -9,6 +9,9 @@ export const SERVICE_TIMEOUT_MS = 10_000;
 
 export type ServiceRoute =
   | "identity/resolve-token"
+  | "identity/revoke-self"
+  | "identity/device-start"
+  | "identity/device-collect"
   | "agents/open"
   | "agents/session"
   | "agents/status"

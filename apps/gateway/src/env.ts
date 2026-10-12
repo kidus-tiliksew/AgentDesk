@@ -8,6 +8,7 @@ export interface Env {
   SERVICE_SECRET: string;
   // Clerk OAuth verification is not built yet, so nothing reads it.
   CLERK_SECRET_KEY?: string;
-  // `/device/start` is not built yet, so nothing reads it.
+  // `/device/start` refuses with 503 without it. Optional so `/mcp` tests
+  // need no limiter.
   DEVICE_START_LIMIT?: RateLimit;
 }
