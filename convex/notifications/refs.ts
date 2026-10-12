@@ -1,5 +1,7 @@
 import { type ApiFromModules, anyApi } from "convex/server";
 import type * as devices from "./devices";
+import type * as digest from "./digest";
+import type * as digests from "./digests";
 import type * as route from "./route";
 import type * as rules from "./rules";
 import type * as settings from "./settings";
@@ -10,6 +12,8 @@ import type * as settings from "./settings";
 // The imports are type-only, so this module loads no function code.
 type NotificationsApi = ApiFromModules<{
   "notifications/devices": typeof devices;
+  "notifications/digest": typeof digest;
+  "notifications/digests": typeof digests;
   "notifications/route": typeof route;
   "notifications/rules": typeof rules;
   "notifications/settings": typeof settings;

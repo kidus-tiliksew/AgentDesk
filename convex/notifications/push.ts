@@ -1,7 +1,7 @@
 import { errorCodeSchema } from "@agentdesk/contract";
 import { PushNotifications } from "@convex-dev/expo-push-notifications";
 import { components } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { appError } from "../lib/errors";
 
@@ -19,15 +19,57 @@ type NotificationFields = Parameters<
   PushNotifications<string>["sendPushNotification"]
 >[1]["notification"];
 
-// What a caller supplies for one event. deliverPush adds the routing fields to
-// `data`.
+// What a caller supplies for one push. deliverPush and deliverDigestPush add
+// the routing fields to `data`.
 export type PushMessage = Pick<NotificationFields, "title" | "body" | "categoryId"> & {
   data?: Record<string, unknown>;
 };
 
-// The data fields deliverPush derives from the event, so a tap opens the
-// right screen (req-mobile-app REQ-4).
-const ROUTING_KEYS = new Set(["eventId", "kind", "decisionId", "agentSessionId"]);
+// The data fields a push derives from its event or digest, so a tap opens the
+// right screen (req-mobile-app REQ-4). Caller `data` keeps its other keys and
+// cannot set these.
+const ROUTING_KEYS = new Set(["eventId", "kind", "decisionId", "agentSessionId", "digestId"]);
+
+// The component notification for `message`, with `routing` laid over the
+// caller's data.
+function notificationFor(
+  message: PushMessage,
+  routing: Record<string, unknown>,
+): NotificationFields {
+  const extra = Object.entries(message.data ?? {}).filter(([key]) => !ROUTING_KEYS.has(key));
+  const notification: NotificationFields = {
+    title: message.title,
+    data: { ...Object.fromEntries(extra), ...routing },
+  };
+  if (message.body !== undefined) {
+    notification.body = message.body;
+  }
+  if (message.categoryId !== undefined) {
+    notification.categoryId = message.categoryId;
+  }
+  return notification;
+}
+
+// The account's current installs.
+function devicesOf(ctx: MutationCtx, userId: Id<"users">): Promise<Doc<"devices">[]> {
+  return ctx.db
+    .query("devices")
+    .withIndex("by_user_device", (q) => q.eq("userId", userId))
+    .collect();
+}
+
+// The per-device helper both pushes send through: queues one send to the
+// install in the caller's transaction, keyed by its install id (DEC-7). A send
+// that throws, such as the component's `NoPushToken` for an install without a
+// token, rolls back the caller's transaction. A null result, which the
+// component returns for a paused token, counts as sent.
+async function queueToDevice(
+  ctx: MutationCtx,
+  deviceId: string,
+  notification: NotificationFields,
+): Promise<void> {
+  await pushNotifications.sendPushNotification(ctx, { userId: deviceId, notification });
+}
 
 // Pushes one event to each of its owner's devices that has no delivery row
 // for it, inserting the row and queueing the send in the caller's
@@ -44,31 +86,16 @@ export async function deliverPush(
   if (event === null) {
     throw appError(errorCodeSchema.enum.not_found, "Event not found");
   }
-  const extra = Object.entries(message.data ?? {}).filter(([key]) => !ROUTING_KEYS.has(key));
-  const data: Record<string, unknown> = {
-    ...Object.fromEntries(extra),
-    eventId,
-    kind: event.kind,
-  };
+  const routing: Record<string, unknown> = { eventId, kind: event.kind };
   if (event.decisionId !== undefined) {
-    data.decisionId = event.decisionId;
+    routing.decisionId = event.decisionId;
   }
   if (event.agentSessionId !== undefined) {
-    data.agentSessionId = event.agentSessionId;
+    routing.agentSessionId = event.agentSessionId;
   }
-  const notification: NotificationFields = { title: message.title, data };
-  if (message.body !== undefined) {
-    notification.body = message.body;
-  }
-  if (message.categoryId !== undefined) {
-    notification.categoryId = message.categoryId;
-  }
+  const notification = notificationFor(message, routing);
 
-  const devices = await ctx.db
-    .query("devices")
-    .withIndex("by_user_device", (q) => q.eq("userId", event.userId))
-    .collect();
-  for (const device of devices) {
+  for (const device of await devicesOf(ctx, event.userId)) {
     const delivered = await ctx.db
       .query("pushDeliveries")
       .withIndex("by_event_device", (q) => q.eq("eventId", eventId).eq("deviceId", device.deviceId))
@@ -77,6 +104,24 @@ export async function deliverPush(
       continue;
     }
     await ctx.db.insert("pushDeliveries", { eventId, deviceId: device.deviceId });
-    await pushNotifications.sendPushNotification(ctx, { userId: device.deviceId, notification });
+    await queueToDevice(ctx, device.deviceId, notification);
+  }
+}
+
+// Pushes a digest that the caller inserted in this transaction to each of its
+// owner's current devices, with data `{ kind: "digest", digestId }` and no
+// `eventId` (§Digests). It writes no delivery rows: its only caller,
+// `notifications/digest:dispatchUser`, advances `nextDigestAt` in the same
+// transaction, so a repeated or overlapping run finds the slot taken and sends
+// nothing, and a send that throws rolls back the digest with every queued
+// send (req-notification-rules REQ-7).
+export async function deliverDigestPush(
+  ctx: MutationCtx,
+  digest: Doc<"digests">,
+  message: PushMessage,
+): Promise<void> {
+  const notification = notificationFor(message, { kind: "digest", digestId: digest._id });
+  for (const device of await devicesOf(ctx, digest.userId)) {
+    await queueToDevice(ctx, device.deviceId, notification);
   }
 }
