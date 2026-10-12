@@ -72,6 +72,51 @@ export const liveAgents = query({
   },
 });
 
+// The window of recent agents: an elapsed seven days, the time the purge
+// keeps an ended session (component-agent-presence §Sweep).
+const RECENT_MS = 7 * 24 * 60 * 60_000;
+
+// Latest end first; creation time, newest first, and then the id break ties,
+// so the order is total.
+function byEnd(a: Doc<"agentSessions">, b: Doc<"agentSessions">): number {
+  const aEnd = a.endedAt ?? 0;
+  const bEnd = b.endedAt ?? 0;
+  if (aEnd !== bEnd) {
+    return bEnd - aEnd;
+  }
+  if (a._creationTime !== b._creationTime) {
+    return b._creationTime - a._creationTime;
+  }
+  return a._id < b._id ? -1 : a._id > b._id ? 1 : 0;
+}
+
+// The recent agents the rule editor offers beside liveAgents: the user's
+// activated sessions whose `endedAt` lies in [now - 7 days, now], ended
+// through `done` or `idle`, latest end first, each with its real pending
+// decision count (component-mobile-app §Screens).
+export const recentAgents = query({
+  args: {},
+  handler: async (ctx): Promise<AgentSession[]> => {
+    const user = await requireUser(ctx);
+    const now = Date.now();
+    const sessions = await ctx.db
+      .query("agentSessions")
+      .withIndex("by_user_ended", (q) =>
+        q
+          .eq("userId", user._id)
+          .gte("endedAt", now - RECENT_MS)
+          .lte("endedAt", now),
+      )
+      .collect();
+    const recent = sessions.filter((session) => session.activatedAt !== undefined).sort(byEnd);
+    const result: AgentSession[] = [];
+    for (const session of recent) {
+      result.push(toAgentSession(session, await pendingCountForAgent(ctx, session._id)));
+    }
+    return result;
+  },
+});
+
 // The agent screen: one owned activated session, live or ended. A missing, a
 // foreign, and an only-initialized session are all `not_found`; the last has
 // no topic, so it has no valid card (req-agent-status REQ-2;

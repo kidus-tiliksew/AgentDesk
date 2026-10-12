@@ -3,8 +3,8 @@ import { v } from "convex/values";
 
 // The notifications domain's tables, spread into convex/schema.ts
 // (component-backend-foundation §Composition; component-notifications §Tables).
-// Rules, settings, digests, and webhook tables arrive with the later slices
-// that use them.
+// Settings, digests, and webhook tables arrive with the later slices that use
+// them.
 
 // The five notifiable kinds (req-notification-rules REQ-2) and the two
 // webhook-only kinds, mirrored from webhookEventKindSchema in
@@ -28,6 +28,34 @@ export const actionValidator = v.union(
   v.null(),
 );
 
+// What a rule may match and route: the five notifiable kinds
+// (req-notification-rules REQ-2) and a non-null action (REQ-1). The save
+// handler checks client strings against these lists so a bad value is an
+// `invalid` application error rather than a transport validation error.
+export const RULE_EVENT_KINDS = [
+  "decision.created",
+  "decision.expired",
+  "agent.stale",
+  "agent.status_changed",
+  "agent.done",
+] as const;
+export const RULE_ACTIONS = ["push", "digest", "mute"] as const;
+export const PRIORITIES = ["normal", "urgent"] as const;
+
+export const ruleEventKindValidator = v.union(
+  v.literal("decision.created"),
+  v.literal("decision.expired"),
+  v.literal("agent.stale"),
+  v.literal("agent.status_changed"),
+  v.literal("agent.done"),
+);
+export const ruleActionValidator = v.union(
+  v.literal("push"),
+  v.literal("digest"),
+  v.literal("mute"),
+);
+export const priorityValidator = v.union(v.literal("normal"), v.literal("urgent"));
+
 export const platformValidator = v.union(v.literal("ios"), v.literal("android"));
 
 export const tables = {
@@ -41,12 +69,27 @@ export const tables = {
     decisionId: v.optional(v.id("decisions")),
     agentSessionId: v.optional(v.id("agentSessions")),
     // Decision events only.
-    priority: v.optional(v.union(v.literal("normal"), v.literal("urgent"))),
+    priority: v.optional(priorityValidator),
     // Epoch milliseconds.
     occurredAt: v.number(),
     action: v.optional(actionValidator),
     digestId: v.optional(v.string()),
   }),
+
+  // One row per notification rule (req-notification-rules REQ-3). At least
+  // one of the four match fields is set; `save` refuses a rule with none
+  // (AC-3.3). `topic` is stored normalized. `updatedAt` is the epoch
+  // milliseconds of the latest save and ranks equally specific matches
+  // (AC-3.2).
+  rules: defineTable({
+    userId: v.id("users"),
+    topic: v.optional(v.string()),
+    agentSessionId: v.optional(v.id("agentSessions")),
+    eventKind: v.optional(ruleEventKindValidator),
+    priority: v.optional(priorityValidator),
+    action: ruleActionValidator,
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
 
   // One row per app install. `deviceId` is the stable install id and the push
   // component's user key, so the push token lives only in the component

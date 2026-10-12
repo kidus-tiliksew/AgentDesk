@@ -358,3 +358,82 @@ describe("get", () => {
     );
   });
 });
+
+describe("recentAgents", () => {
+  const DAY = 24 * 60 * MINUTE;
+  const WINDOW = 7 * DAY;
+
+  // component-agent-presence §Reads; component-mobile-app §Screens
+  test("returns owned activated sessions ended within seven days, latest end first", async () => {
+    const { t, open, status, ask, asA, otherUserId } = await setup();
+    const done = await open(undefined, "Codex");
+    await ask(done);
+    await status(done, { state: "done", line: "Finished" });
+    const idle = await open();
+    await status(idle);
+    const atCutoff = await open();
+    await status(atCutoff);
+    const outside = await open();
+    await status(outside);
+    const live = await open();
+    await status(live);
+    const unactivated = await open();
+    const foreign = await open(otherUserId);
+    await status(foreign, {}, otherUserId);
+    vi.advanceTimersByTime(WINDOW);
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.patch("agentSessions", done, { endedAt: now });
+      await ctx.db.patch("agentSessions", idle, { endedAt: now - DAY, endReason: "idle" });
+      await ctx.db.patch("agentSessions", atCutoff, { endedAt: now - WINDOW, endReason: "idle" });
+      await ctx.db.patch("agentSessions", outside, {
+        endedAt: now - WINDOW - 1,
+        endReason: "idle",
+      });
+      await ctx.db.patch("agentSessions", unactivated, { endedAt: now, endReason: "idle" });
+      await ctx.db.patch("agentSessions", foreign, { endedAt: now, endReason: "idle" });
+    });
+
+    const recent = await asA.query(agents.app.recentAgents, {});
+
+    expect(recent.map((s) => s.id)).toEqual([done, idle, atCutoff]);
+    for (const session of recent) {
+      expect(agentSessionSchema.parse(session)).toEqual(session);
+    }
+    expect(recent[0]).toMatchObject({
+      display_name: "Codex · repo/x",
+      state: "done",
+      line: "Finished",
+      pending_decision_count: 1,
+      ended_at: new Date(now).toISOString(),
+    });
+    expect(recent[1]).toMatchObject({ pending_decision_count: 0 });
+    expect((await asA.query(agents.app.liveAgents, {})).map((s) => s.id)).toEqual([live]);
+  });
+
+  test("breaks an end tie by newest creation", async () => {
+    const { t, open, status, asA } = await setup();
+    const first = await open();
+    const second = await open();
+    await status(first);
+    await status(second);
+    await t.run(async (ctx) => {
+      await ctx.db.patch("agentSessions", first, { endedAt: START, endReason: "idle" });
+      await ctx.db.patch("agentSessions", second, { endedAt: START, endReason: "idle" });
+    });
+
+    const recent = await asA.query(agents.app.recentAgents, {});
+
+    expect(recent.map((s) => s.id)).toEqual([second, first]);
+  });
+
+  test("returns an empty list when nothing ended recently", async () => {
+    const { asA } = await setup();
+    expect(await asA.query(agents.app.recentAgents, {})).toEqual([]);
+  });
+
+  test("is unauthenticated without a signed-in person", async () => {
+    const { t } = await setup();
+    await expect(t.query(agents.app.recentAgents, {})).rejects.toMatchObject(unauthenticated);
+  });
+});
