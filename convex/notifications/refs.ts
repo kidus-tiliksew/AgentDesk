@@ -1,6 +1,7 @@
 import { type ApiFromModules, anyApi } from "convex/server";
 import type * as devices from "./devices";
 import type * as route from "./route";
+import type * as rules from "./rules";
 
 // Typed references to this domain's functions, built from the module types
 // rather than convex/_generated/api.d.ts, so adding a function here needs no
@@ -9,6 +10,7 @@ import type * as route from "./route";
 type NotificationsApi = ApiFromModules<{
   "notifications/devices": typeof devices;
   "notifications/route": typeof route;
+  "notifications/rules": typeof rules;
 }>["notifications"];
 
 export const notifications = anyApi.notifications as unknown as NotificationsApi;

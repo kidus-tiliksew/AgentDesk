@@ -100,10 +100,58 @@ async function agentStale(ctx: ReaderCtx, event: Doc<"events">): Promise<PushMes
   return message;
 }
 
+// The applied answer as the person reads it: option labels in answer order,
+// falling back to the option id for an option the decision no longer lists.
+export function answerText(decision: Doc<"decisions">, answer: Answer): string {
+  const label = (optionId: string) =>
+    decision.options?.find((option) => option.id === optionId)?.label ?? optionId;
+  switch (answer.kind) {
+    case "approve":
+      return "Approve";
+    case "reject":
+      return "Reject";
+    case "option":
+      return label(answer.option_id);
+    case "options":
+      return answer.option_ids.map(label).join(", ");
+    case "text":
+      return answer.text;
+  }
+}
+
+// A decision whose deadline passed: "Decided by default" when the default was
+// applied and stored as the answer, otherwise "Expired". The body is the
+// decision title, then the applied answer when there is one.
+async function decisionExpired(ctx: ReaderCtx, event: Doc<"events">): Promise<PushMessage | null> {
+  if (event.decisionId === undefined) {
+    return null;
+  }
+  const decision = await getOwned(ctx, "decisions", event.decisionId, event.userId);
+  if (decision === null) {
+    return null;
+  }
+  if (decision.answer === undefined) {
+    return { title: "Expired", body: decision.title };
+  }
+  return {
+    title: "Decided by default",
+    body: `${decision.title}\n${answerText(decision, decision.answer)}`,
+  };
+}
+
+// `agent.status_changed` and `agent.done`: the card name, then the session's
+// current status line when it has one.
+async function agentStatus(ctx: ReaderCtx, event: Doc<"events">): Promise<PushMessage> {
+  const session = await loadSession(ctx, event);
+  const message: PushMessage = { title: agentName(session) };
+  if (session?.line !== undefined) {
+    message.body = session.line;
+  }
+  return message;
+}
+
 // The message for an event whose action is push, or null when the event's
-// decision no longer exists and there is nothing to show. Under the default
-// actions only `decision.created` and `agent.stale` are pushed; the other
-// kinds' messages arrive with rules, the first slice that can push them.
+// decision no longer exists and there is nothing to show.
 export async function pushMessage(
   ctx: ReaderCtx,
   event: Doc<"events">,
@@ -111,8 +159,13 @@ export async function pushMessage(
   switch (event.kind) {
     case "decision.created":
       return await decisionCreated(ctx, event);
+    case "decision.expired":
+      return await decisionExpired(ctx, event);
     case "agent.stale":
       return await agentStale(ctx, event);
+    case "agent.status_changed":
+    case "agent.done":
+      return await agentStatus(ctx, event);
     default:
       throw new Error(`No push message for ${event.kind}`);
   }
