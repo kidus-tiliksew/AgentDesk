@@ -437,8 +437,8 @@ describe("answer", () => {
     expect((await load(decision.id))?.state).toBe("pending");
   });
 });
-
 // History, removal, and notification answers (component-decisions §History,
+// §Removal, §App functions).
 // §App functions).
 
 type HistoryArgs = {

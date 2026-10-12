@@ -401,7 +401,7 @@ export async function expireDecision(
 // has already been cancelled by its answer or cancellation, or has run, so
 // only a job that could still execute is cancelled. Follow-ups, events, and
 // other rows that name the decision keep its id as a reference and are not
-// deleted (component-decisions §History).
+// deleted (component-decisions §Removal).
 export async function removeDecision(ctx: WriterCtx, doc: Doc<"decisions">): Promise<null> {
   if (doc.state === "pending") {
     throw appError(errorCodeSchema.enum.conflict, "Decision is pending");
