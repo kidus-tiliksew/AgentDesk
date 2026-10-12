@@ -15,8 +15,9 @@ const ENDED_AGENT = "Ended agent";
 
 type ReaderCtx = Pick<QueryCtx, "db">;
 
-// The card name (req-agent-status AC-2.1, AC-2.2).
-function agentName(session: Doc<"agentSessions"> | null): string {
+// The card name (req-agent-status AC-2.1, AC-2.2). The digest read
+// (convex/notifications/digests.ts) shows the same name.
+export function agentName(session: Doc<"agentSessions"> | null): string {
   if (session === null) {
     return ENDED_AGENT;
   }

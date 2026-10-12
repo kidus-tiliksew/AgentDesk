@@ -3,7 +3,7 @@ import { v } from "convex/values";
 
 // The notifications domain's tables, spread into convex/schema.ts
 // (component-backend-foundation §Composition; component-notifications §Tables).
-// Digest and webhook tables arrive with the later slices that use them.
+// Webhook tables arrive with the later slice that uses them.
 
 // The five notifiable kinds (req-notification-rules REQ-2) and the two
 // webhook-only kinds, mirrored from webhookEventKindSchema in
@@ -68,8 +68,9 @@ export const timeZoneSourceValidator = v.union(
 
 export const tables = {
   // One row per emitted event. `action` stays unset until `route` stores it.
-  // `digestId` stays unset until the digest slice stamps it; it is a string so
-  // that slice can adopt a typed id once the `digests` table exists.
+  // `digestId` stays unset until the digest dispatch puts the event in a
+  // digest (§Digests). `by_user_action_digest` finds a person's digest events
+  // that no digest holds yet: action `digest` and no `digestId`.
   events: defineTable({
     userId: v.id("users"),
     kind: eventKindValidator,
@@ -81,8 +82,8 @@ export const tables = {
     // Epoch milliseconds.
     occurredAt: v.number(),
     action: v.optional(actionValidator),
-    digestId: v.optional(v.string()),
-  }),
+    digestId: v.optional(v.id("digests")),
+  }).index("by_user_action_digest", ["userId", "action", "digestId"]),
 
   // One row per notification rule (req-notification-rules REQ-3). At least
   // one of the four match fields is set; `save` refuses a rule with none
@@ -103,7 +104,8 @@ export const tables = {
   // in convex/notifications/settings.ts. `quietStart` and `quietEnd` are local
   // `HH:MM` times, both set or both absent. `digestTime` is a local `HH:MM`.
   // `nextDigestAt` is the epoch milliseconds of the next digest
-  // (req-notification-rules REQ-6).
+  // (req-notification-rules REQ-6). `by_nextDigestAt` lets the digest
+  // dispatch read the due rows, earliest first.
   settings: defineTable({
     userId: v.id("users"),
     timeZone: v.string(),
@@ -114,7 +116,9 @@ export const tables = {
     digestTime: v.string(),
     staleThresholdMinutes: v.number(),
     nextDigestAt: v.number(),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_nextDigestAt", ["nextDigestAt"]),
 
   // One row per app install. `deviceId` is the stable install id and the push
   // component's user key, so the push token lives only in the component
@@ -134,4 +138,15 @@ export const tables = {
     eventId: v.id("events"),
     deviceId: v.string(),
   }).index("by_event_device", ["eventId", "deviceId"]),
+
+  // One row per digest sent (req-notification-rules REQ-6). `eventIds` are
+  // the digest events it holds and `pendingDecisionIds` the decisions pending
+  // when it was sent (AC-6.3), both fixed at send time. `sentAt` is epoch
+  // milliseconds.
+  digests: defineTable({
+    userId: v.id("users"),
+    eventIds: v.array(v.id("events")),
+    pendingDecisionIds: v.array(v.id("decisions")),
+    sentAt: v.number(),
+  }).index("by_user", ["userId"]),
 };

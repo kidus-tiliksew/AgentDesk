@@ -113,7 +113,13 @@ describe("deliverPush", () => {
         title: "Ship it?",
         body: "repo/x · Claude Code",
         categoryId: "decision-approve-reject",
-        data: { eventId: "spoofed", kind: "agent.done", decisionId: "spoofed", extra: 1 },
+        data: {
+          eventId: "spoofed",
+          kind: "agent.done",
+          decisionId: "spoofed",
+          digestId: "spoofed",
+          extra: 1,
+        },
       }),
     );
     await t.run((ctx) =>
