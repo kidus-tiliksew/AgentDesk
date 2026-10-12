@@ -281,7 +281,7 @@ export async function insertDecision(
 // A settled decision refuses every act. The error carries the stored decision
 // for in-process callers; the service-route envelope keeps only `code`,
 // `message`, and `field` (req-decision-requests AC-4.1).
-async function refuseSettled(ctx: ReaderCtx, doc: Doc<"decisions">): Promise<never> {
+export async function refuseSettled(ctx: ReaderCtx, doc: Doc<"decisions">): Promise<never> {
   throw new ConvexError({
     code: errorCodeSchema.enum.conflict,
     message: `Decision is already ${doc.state}`,
@@ -394,4 +394,58 @@ export async function expireDecision(
   const settled = await settle(ctx, doc, patch);
   await emit(ctx, decisionEvent("decision.expired", doc, now));
   return settled;
+}
+
+// `remove`: hard-deletes a settled decision (req-mobile-app AC-6.2). A pending
+// decision is `conflict` and stays unchanged. A settled decision's expiry job
+// has already been cancelled by its answer or cancellation, or has run, so
+// only a job that could still execute is cancelled. Follow-ups, events, and
+// other rows that name the decision keep its id as a reference and are not
+// deleted (component-decisions §Removal).
+export async function removeDecision(ctx: WriterCtx, doc: Doc<"decisions">): Promise<null> {
+  if (doc.state === "pending") {
+    throw appError(errorCodeSchema.enum.conflict, "Decision is pending");
+  }
+  if (doc.expiryJobId !== undefined) {
+    const job = await ctx.db.system.get(doc.expiryJobId);
+    if (job !== null && (job.state.kind === "pending" || job.state.kind === "inProgress")) {
+      await ctx.scheduler.cancel(doc.expiryJobId);
+    }
+  }
+  await ctx.db.delete("decisions", doc._id);
+  return null;
+}
+
+// A notification action button (component-notifications §Push).
+const OPTION_ACTION = /^option-([1-3])$/;
+
+// Maps a notification action to the contract `Answer` it stands for:
+// `approve` and `reject` for an approve-or-reject decision, and `option-<n>`
+// for the `n`th option, in source order, of a single-choice decision with two
+// or three options. Source order is the order of the numbered lines in the
+// push body. Any other action, input type, or option count is `invalid`
+// naming `action`.
+export function answerForAction(doc: Doc<"decisions">, action: unknown): Answer {
+  if (doc.inputType === "approve_reject") {
+    if (action === "approve" || action === "reject") {
+      return { kind: action };
+    }
+  } else if (
+    doc.inputType === "single_choice" &&
+    doc.options !== undefined &&
+    doc.options.length >= 2 &&
+    doc.options.length <= 3 &&
+    typeof action === "string"
+  ) {
+    const match = OPTION_ACTION.exec(action);
+    const option = match === null ? undefined : doc.options[Number(match[1]) - 1];
+    if (option !== undefined) {
+      return { kind: "option", option_id: option.id };
+    }
+  }
+  throw appError(
+    errorCodeSchema.enum.invalid,
+    "action does not answer this decision from a notification",
+    "action",
+  );
 }

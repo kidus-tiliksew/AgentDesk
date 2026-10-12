@@ -75,5 +75,8 @@ export const tables = {
     .index("by_user_idem", ["userId", "idempotencyKey"])
     .index("by_parent", ["parentId"])
     .index("by_agent_state", ["agentSessionId", "state"])
+    // History with no search text: settled decisions, newest settled first.
+    // Pending rows carry no `settledAt`, so `settledAt > 0` skips them.
+    .index("by_user_settled", ["userId", "settledAt"])
     .searchIndex("search_text", { searchField: "searchText", filterFields: ["userId", "state"] }),
 };
