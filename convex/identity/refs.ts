@@ -1,6 +1,7 @@
 import { type ApiFromModules, anyApi } from "convex/server";
 import type * as accounts from "./accounts";
 import type * as connections from "./connections";
+import type * as deviceRequests from "./deviceRequests";
 
 // Typed references to this domain's functions, built from the module types
 // rather than convex/_generated/api.d.ts, so adding a function here needs no
@@ -10,6 +11,7 @@ import type * as connections from "./connections";
 type IdentityApi = ApiFromModules<{
   "identity/accounts": typeof accounts;
   "identity/connections": typeof connections;
+  "identity/deviceRequests": typeof deviceRequests;
 }>["identity"];
 
 export const identity = anyApi.identity as unknown as IdentityApi;

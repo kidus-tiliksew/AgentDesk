@@ -345,3 +345,71 @@ type Ids = {
   apiTokenId: Id<"credentials">;
   deletedId: Id<"credentials">;
 };
+
+// req-accounts-and-connections AC-4.1, AC-6.4: each harness a short-code
+// sign-in connects is its own connection, listed with its display name and
+// machine name and revoked separately.
+describe("connections from short-code sign-in", () => {
+  async function signIn() {
+    const base = convexTest(schema, modules);
+    await base.run((ctx) =>
+      ctx.db.insert("users", { clerkUserId: "user_a", email: "a@example.com" }),
+    );
+    const t = base.withIdentity(asUserA);
+    const { code, deviceSecret } = await base.mutation(
+      internal.identity.deviceRequests.startDeviceRequest,
+      { machineName: "studio", harnesses: ["claude-code", "codex", "cursor"] },
+    );
+    await t.mutation(identity.deviceRequests.approveDeviceRequest, { code });
+    const collected = await base.mutation(internal.identity.deviceRequests.collectDeviceRequest, {
+      deviceSecret,
+    });
+    if (collected.status !== "approved") {
+      throw new Error(`expected approved, got ${collected.status}`);
+    }
+    return { base, t, connections: collected.connections };
+  }
+
+  test("lists each harness with its display name and machine name", async () => {
+    const { t } = await signIn();
+
+    const listed = await t.query(identity.connections.listConnections, {});
+
+    expect(
+      listed
+        .map(({ name, machineName }) => ({ name, machineName }))
+        .sort((x, y) => x.name.localeCompare(y.name)),
+    ).toEqual([
+      { name: "Claude Code", machineName: "studio" },
+      { name: "Codex", machineName: "studio" },
+      { name: "Cursor", machineName: "studio" },
+    ]);
+  });
+
+  test("revokes one harness connection without the others", async () => {
+    const { base, t, connections } = await signIn();
+    const [first, ...rest] = connections;
+    if (first === undefined) {
+      throw new Error("no connections");
+    }
+
+    await t.mutation(identity.connections.revokeConnection, { credentialId: first.connection_id });
+
+    await expect(
+      base.mutation(internal.identity.credentials.resolveToken, {
+        tokenHash: await hashToken(first.token),
+      }),
+    ).rejects.toMatchObject(unauthenticated);
+    for (const connection of rest) {
+      expect(
+        await base.mutation(internal.identity.credentials.resolveToken, {
+          tokenHash: await hashToken(connection.token),
+        }),
+      ).toMatchObject({ credentialId: connection.connection_id });
+    }
+    const listed = (await t.query(identity.connections.listConnections, {})).map(
+      (connection) => connection.credentialId,
+    );
+    expect(listed.sort()).toEqual(rest.map((connection) => connection.connection_id).sort());
+  });
+});
