@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Node 20 types, so the runtime cannot use an API the npm package's
+    // engines range does not promise (component-installer §Build and distribution).
+    "types": ["node"]
+  },
+  "include": ["src", "test", "vitest.config.ts"]
+}
