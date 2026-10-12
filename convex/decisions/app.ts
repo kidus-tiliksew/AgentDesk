@@ -1,10 +1,20 @@
 import { type Decision, errorCodeSchema } from "@agentdesk/contract";
+import { type PaginationResult, paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { requireUser } from "../lib/auth";
 import { appError } from "../lib/errors";
 import { pendingForUser } from "./appReads";
-import { answerDecision, getDecision, loadOwned, parseId } from "./model";
+import { type HistoryItem, historyPage, parseHistoryFilters } from "./history";
+import {
+  answerDecision,
+  answerForAction,
+  getDecision,
+  loadOwned,
+  parseId,
+  refuseSettled,
+  removeDecision,
+} from "./model";
 
 // component-decisions §Reads: the app's functions. The app calls Convex as
 // the signed-in person (DEC-3, DEC-7), so each function resolves the account
@@ -60,6 +70,65 @@ export const answer = mutation({
       args.answer,
       typeof note === "string" ? note : undefined,
       "app",
+      now,
+    );
+  },
+});
+
+// The history screen: the user's answered, expired, and cancelled decisions,
+// searched by text and filtered by state and topic (req-mobile-app AC-6.1).
+// The result is Convex's native `PaginationResult`, so the app pages it with
+// `usePaginatedQuery`; each row carries the decision and its ISO settlement
+// time. The server clamps `paginationOpts.numItems` to 1..50.
+export const searchHistory = query({
+  args: {
+    query: v.optional(v.string()),
+    state: v.optional(v.string()),
+    topic: v.optional(v.string()),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args): Promise<PaginationResult<HistoryItem>> => {
+    const user = await requireUser(ctx);
+    const filters = parseHistoryFilters(args);
+    return await historyPage(ctx, user._id, filters, args.paginationOpts);
+  },
+});
+
+// Deletes one settled decision from every surface (req-mobile-app AC-6.2). A
+// pending decision is `conflict`.
+export const remove = mutation({
+  args: { decisionId: v.string() },
+  handler: async (ctx, args): Promise<null> => {
+    const user = await requireUser(ctx);
+    const decisionId = parseId(ctx, "decisions", args.decisionId, "decisionId");
+    const doc = await loadOwned(ctx, user._id, decisionId);
+    return await removeDecision(ctx, doc);
+  },
+});
+
+// The answer from a notification action button, sent by the app's background
+// notification task (req-mobile-app AC-4.1). The server maps `action` to the
+// answer and fixes the surface to `notification` (req-decision-requests
+// AC-4.3). `action` is taken as any value so a malformed one is `invalid`
+// naming `action`. A settled decision is `conflict` carrying the stored
+// `Decision` whatever the action, as with `answer`. No MCP route reaches this
+// mutation (req-agent-tools AC-7.3).
+export const answerFromNotification = mutation({
+  args: { decisionId: v.string(), action: v.any() },
+  handler: async (ctx, args): Promise<Decision> => {
+    const now = Date.now();
+    const user = await requireUser(ctx);
+    const decisionId = parseId(ctx, "decisions", args.decisionId, "decisionId");
+    const doc = await loadOwned(ctx, user._id, decisionId);
+    if (doc.state !== "pending") {
+      return await refuseSettled(ctx, doc);
+    }
+    return await answerDecision(
+      ctx,
+      doc,
+      answerForAction(doc, args.action),
+      undefined,
+      "notification",
       now,
     );
   },
