@@ -1,5 +1,5 @@
 import { useAuth } from "@clerk/expo";
-import { useMutation } from "convex/react";
+import { useConvex, useMutation } from "convex/react";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
@@ -17,11 +17,13 @@ import { AppState, Platform } from "react-native";
 import { notifications } from "../../../convex/notifications/refs";
 import { ensureInstallId, readInstallId } from "./install-id";
 import { notificationRoute } from "./notification-route";
+import { deviceTimeZone } from "./notification-settings";
 
 // component-mobile-app §Notifications: device registration, tap routing,
-// foreground presentation, and the device half of sign-out (DEC-7,
-// req-mobile-app REQ-4, AC-4.2). Push delivery and per-device deduplication
-// belong to component-notifications; the app only registers and routes.
+// foreground presentation, the device half of sign-out (DEC-7,
+// req-mobile-app REQ-4, AC-4.2), and the first-launch time zone call. Push
+// delivery and per-device deduplication belong to component-notifications;
+// the app only registers, routes, and reports the device's zone.
 
 export type RegisterDevice = (args: {
   deviceId: string;
@@ -354,7 +356,17 @@ class TapInbox {
   }
 }
 
-type NotificationContext = { registration: DeviceRegistration; taps: TapInbox };
+// The Clerk sessions whose first-launch time zone call this app launch has
+// sent. It lives in the root provider, so a remount of the routes or strict
+// mode's repeated effects send nothing more, and a new app launch starts with
+// an empty set.
+type TimeZoneAttempts = Set<string>;
+
+type NotificationContext = {
+  registration: DeviceRegistration;
+  taps: TapInbox;
+  timeZoneAttempts: TimeZoneAttempts;
+};
 
 const Context = createContext<NotificationContext | null>(null);
 
@@ -373,6 +385,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [value] = useState<NotificationContext>(() => ({
     registration: new DeviceRegistration(),
     taps: new TapInbox(),
+    timeZoneAttempts: new Set<string>(),
   }));
   const { sessionId } = useAuth();
   // The last session Clerk reported as established. Clerk reports
@@ -419,15 +432,42 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
+// The first-launch time zone call (component-notifications §Settings). Once
+// the account is ready, it sends the device's zone to
+// `notifications/settings:initializeTimeZone` at most once per Clerk session
+// in this app launch. The session is marked before the call, so strict mode
+// and a remount send nothing more, and a failure waits for the next launch.
+// The backend sets the zone only while nobody has chosen one, so the app
+// never overwrites a zone chosen in settings. A device without a valid zone
+// sends nothing and keeps the backend's UTC fallback. The call uses the
+// existing Convex client instead of a mutation hook, its result changes
+// nothing on screen, and a failure is dropped without blocking any screen.
+function useFirstLaunchTimeZone(sessionId: string | null | undefined, attempts: TimeZoneAttempts) {
+  const convex = useConvex();
+  useEffect(() => {
+    if (sessionId === null || sessionId === undefined || attempts.has(sessionId)) {
+      return;
+    }
+    const timeZone = deviceTimeZone();
+    if (timeZone === null) {
+      return;
+    }
+    attempts.add(sessionId);
+    convex.mutation(notifications.settings.initializeTimeZone, { timeZone }).catch(() => undefined);
+  }, [sessionId, attempts, convex]);
+}
+
 // Mounted inside the account gate, so it runs only after Clerk and Convex
 // accept the session and ensureAccount succeeds. It starts registration for
-// the session and opens a captured tap's screen.
+// the session, sends the first-launch time zone, and opens a captured tap's
+// screen.
 export function NotificationSession() {
-  const { registration, taps } = useNotificationContext();
+  const { registration, taps, timeZoneAttempts } = useNotificationContext();
   const { sessionId } = useAuth();
   const register = useMutation(notifications.devices.registerDevice);
   const router = useRouter();
   const tap = useSyncExternalStore(taps.subscribe, taps.get);
+  useFirstLaunchTimeZone(sessionId, timeZoneAttempts);
 
   useEffect(() => {
     if (sessionId === null || sessionId === undefined) {

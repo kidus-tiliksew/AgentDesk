@@ -1,3 +1,5 @@
+import type { NotificationSettings } from "../../../convex/notifications/settings";
+
 // In-memory stand-ins for Clerk and the Convex client. Tests drive them
 // directly: they set the Clerk session, script the sign-in and sign-up
 // results, and control when ensureAccount settles. No test reaches Clerk or a
@@ -108,6 +110,22 @@ export type RegisterArgs = {
 };
 export const registerDevice = jest.fn<Promise<null>, [RegisterArgs]>();
 export const unregisterDevice = jest.fn<Promise<null>, [{ deviceId: string }]>();
+
+// notifications/settings:initializeTimeZone through the Convex client. By
+// default it resolves with the settings the backend returns after recording a
+// device zone.
+export function deviceZoneSettings(timeZone: string): NotificationSettings {
+  return {
+    time_zone: timeZone,
+    time_zone_source: "device",
+    quiet_start: null,
+    quiet_end: null,
+    urgent_override: true,
+    digest_time: "09:00",
+    stale_threshold_minutes: 30,
+  };
+}
+export const initializeTimeZone = jest.fn<Promise<NotificationSettings>, [{ timeZone: string }]>();
 
 // expo-secure-store as an in-memory map that survives a simulated restart:
 // only resetFakes clears it. `failReads` and `failWrites` make the calls
@@ -285,8 +303,9 @@ export function readQuery(name: string, args: unknown): unknown {
 // Restores the signed-out state and each fake's default behavior: every Clerk
 // step succeeds, finalizing signs a session in, and ensureAccount resolves at
 // once. Notification permission is undetermined and a request grants it, the
-// device registers and unregisters, and secure storage is empty. Each screen query returns an empty list. The answer mutation fails
-// until a test scripts it.
+// device registers and unregisters, the first-launch time zone call
+// resolves, and secure storage is empty. Each screen query returns an empty
+// list. The answer mutation fails until a test scripts it.
 export function resetFakes() {
   clerkState.reset({ isLoaded: true, isSignedIn: false, sessionId: null });
   convexAuthState.reset({ isLoading: false, isAuthenticated: false });
@@ -320,6 +339,9 @@ export function resetFakes() {
   ensureAccount.mockReset().mockResolvedValue(account);
   registerDevice.mockReset().mockResolvedValue(null);
   unregisterDevice.mockReset().mockResolvedValue(null);
+  initializeTimeZone
+    .mockReset()
+    .mockImplementation(async ({ timeZone }) => deviceZoneSettings(timeZone));
   secureStore.values.clear();
   secureStore.failReads = false;
   secureStore.failWrites = false;

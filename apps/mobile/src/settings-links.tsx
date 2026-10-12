@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { styles } from "./styles";
 
 // The inbox header's links to the decision history, the notification rules,
-// and the settings screens.
+// the notification settings, and the other settings screens.
 export function SettingsLinks() {
   return (
     <View style={styles.headerLinks}>
@@ -12,6 +12,9 @@ export function SettingsLinks() {
       </Link>
       <Link href="/settings/rules" style={styles.link}>
         Rules
+      </Link>
+      <Link href="/settings/notifications" style={styles.link}>
+        Notifications
       </Link>
       <Link href="/settings/connections" style={styles.link}>
         Connections

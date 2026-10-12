@@ -28,16 +28,18 @@ describe("route guards", () => {
     expect(ensureAccount).not.toHaveBeenCalled();
   });
 
-  test.each(["/settings/rules", "/settings/rule/new", "/settings/rule/r_1"])(
-    "sends a signed-out person from %s to sign-in",
-    async (url) => {
-      renderApp(url);
+  test.each([
+    "/settings/rules",
+    "/settings/rule/new",
+    "/settings/rule/r_1",
+    "/settings/notifications",
+  ])("sends a signed-out person from %s to sign-in", async (url) => {
+    renderApp(url);
 
-      expect(await screen.findByLabelText("Email address")).toBeOnTheScreen();
-      expect(screen).toHavePathname("/sign-in");
-      expect(ensureAccount).not.toHaveBeenCalled();
-    },
-  );
+    expect(await screen.findByLabelText("Email address")).toBeOnTheScreen();
+    expect(screen).toHavePathname("/sign-in");
+    expect(ensureAccount).not.toHaveBeenCalled();
+  });
 
   test("sends a signed-in person from sign-in to the inbox", async () => {
     signInAs("sess_a");
@@ -67,6 +69,7 @@ describe("navigation", () => {
 
     expect(screen.getByText("History")).toBeOnTheScreen();
     expect(screen.getByText("Rules")).toBeOnTheScreen();
+    expect(screen.getByText("Notifications")).toBeOnTheScreen();
     expect(screen.getByText("Connections")).toBeOnTheScreen();
     expect(screen.getByText("Account")).toBeOnTheScreen();
   });
