@@ -2,7 +2,25 @@
 
 The Cloudflare Worker that serves AgentDesk's public origin (`component-gateway`). It authenticates each request and calls Convex service routes. It stores nothing.
 
-This slice serves the remote MCP server at `POST /mcp`, `GET /mcp`, and `DELETE /mcp`, with the tools `ask`, `await`, `check`, `cancel`, and `status`. Every response is JSON except a `tools/call` for `await`, which answers `text/event-stream`. It sends a `: keepalive` comment every 15 seconds while it polls the decision every 15 seconds, then one `message` event carrying the JSON-RPC response. Clerk OAuth tokens, the `/.well-known` discovery documents, the `/v1` HTTP API, `/device/*`, and `/install.sh` are not built yet. A connection token (`adc_…`) is the only accepted credential.
+This slice serves the remote MCP server at `POST /mcp`, `GET /mcp`, and `DELETE /mcp`, with the tools `ask`, `await`, `check`, `cancel`, and `status`. Every response is JSON except a `tools/call` for `await`, which answers `text/event-stream`. It sends a `: keepalive` comment every 15 seconds while it polls the decision every 15 seconds, then one `message` event carrying the JSON-RPC response. It also serves the [installer endpoints](#installer-endpoints): `/device/*` and `/install.sh`. Clerk OAuth tokens, the `/.well-known` discovery documents, and the `/v1` HTTP API are not built yet. A connection token (`adc_…`) is the only accepted credential.
+
+## Installer endpoints
+
+The `agentdesk` installer (`packages/installer`) signs each harness in by short code and checks or revokes its connection through these routes. Any other method on these paths answers 404. Errors carry `{"error": {"code", "message", "field"}}`, and a Convex outage answers 503 `unavailable`.
+
+| Route | Request | Answers |
+| --- | --- | --- |
+| `POST /device/start` | `{machine_name, harnesses}` | 200 `{user_code, device_secret, interval: 2, expires_in: 600}`, with `user_code` as identity's 8 bare symbols, which the installer displays as `XXXX-XXXX`; 400 `invalid` naming the field; 429 `rate_limited` |
+| `POST /device/poll` | `{device_secret}` | 200 `{status}`, where `status` is `pending`, `declined`, `expired`, `not_found`, or `approved` with `connections: [{harness, connection_id, token}]`; 400 `invalid` |
+| `GET /device/connection` | `Authorization: Bearer adc_…` | 200 `{connection_id, harness}`; 401 `unauthenticated` |
+| `DELETE /device/connection` | `Authorization: Bearer adc_…` | 200 `null` once revoked; 401 `unauthenticated` |
+| `GET /install.sh` | none | 200, the install script as `text/plain` |
+
+- `/device/start` trims `machine_name` and requires 1 to 255 characters. `harnesses` must be a non-empty list of distinct ids from `claude-code`, `codex`, and `cursor`. The `DEVICE_START_LIMIT` binding allows 10 starts a minute per `CF-Connecting-IP`, counted before the body is read. Without the binding or that header, the route answers 503 rather than run unlimited.
+- `/device/poll` passes identity's status through. `not_found` means the secret is unknown or its outcome was already collected: an approved request's tokens are returned once. Both `/device/start` and `/device/poll` answer with `Cache-Control: no-store`, since they carry secrets.
+- `/device/connection` resolves the token on every request, so a revoked connection fails its next check. `DELETE` sends Convex only the token's SHA-256. Its 401, unlike `/mcp`'s, carries no `WWW-Authenticate` challenge, because the challenge starts browser sign-in.
+- `test/installer-compatibility.test.ts` runs the installer's own `signIn` (`packages/installer/src/signin.ts`) through these routes with Convex faked, so a wire-format change on either side fails here.
+- `/install.sh` serves `packages/installer/install.sh`, bundled at build time by the Text module rule in `wrangler.toml`, with `__AGENTDESK_PUBLIC_ORIGIN__` replaced by `PUBLIC_ORIGIN` without trailing slashes. The gateway keeps no copy of the script.
 
 ## Configuration
 
@@ -10,9 +28,11 @@ This slice serves the remote MCP server at `POST /mcp`, `GET /mcp`, and `DELETE 
 
 | Variable | Purpose |
 | --- | --- |
-| `PUBLIC_ORIGIN` | the public URL. It names the 401 challenge's metadata document and is the allowed browser `Origin` |
+| `PUBLIC_ORIGIN` | the public URL. It names the 401 challenge's metadata document, is the allowed browser `Origin`, and is the server `/install.sh` names |
 | `CONVEX_SITE_URL` | the Convex deployment's HTTP actions origin, ending in `.convex.site` |
 | `CLERK_PUBLISHABLE_KEY` | Clerk application key, unused until OAuth verification is built |
+
+It also declares the `DEVICE_START_LIMIT` rate-limit binding, 10 calls per 60 seconds, which `/device/start` keys by client IP.
 
 Secrets are never committed:
 
@@ -121,6 +141,6 @@ Typing a token is a stopgap. This entry does not meet `req-accounts-and-connecti
 | Command | Runs |
 | --- | --- |
 | `pnpm --filter @agentdesk/gateway test` | the Workers-runtime tests in `test/` under `@cloudflare/vitest-pool-workers`, with the Convex client faked |
-| `pnpm --filter @agentdesk/gateway typecheck` | strict TypeScript over `src/` and `test/` with Workers types, and over `scripts/` with Node types |
+| `pnpm --filter @agentdesk/gateway typecheck` | strict TypeScript over `src/` and `test/` with Workers types, over `test/installer-compatibility.test.ts` with Workers and Node types (`tsconfig.compat.json`), and over `scripts/` with Node types |
 | `pnpm --filter @agentdesk/gateway dev` | `wrangler dev` |
 | `pnpm --filter @agentdesk/gateway smoke:mcp` | the [smoke run](#smoke-run) against a running gateway |

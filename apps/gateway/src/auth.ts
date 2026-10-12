@@ -2,9 +2,9 @@ import { z } from "zod";
 import { type ServiceCall, ServiceError } from "./convex.js";
 import type { Env } from "./env.js";
 
-// component-gateway §Authentication. Only connection tokens are accepted on
-// `/mcp` in this slice; Clerk OAuth access tokens arrive with the discovery
-// documents. Every request resolves its credential again and nothing is
+// component-gateway §Authentication. Only connection tokens are accepted, on
+// `/mcp` and `/device/connection`; Clerk OAuth access tokens arrive with the
+// discovery documents. Every request resolves its credential again and nothing is
 // cached, so a revoked connection is refused on its next call (DEC-6;
 // req-accounts-and-connections AC-4.2).
 
@@ -14,11 +14,15 @@ const resolvedSchema = z.object({
   userId: z.string().min(1),
   credentialId: z.string().min(1),
   kind: z.string(),
+  // The harness a connection token was minted for. Only `/device/connection`
+  // reports it, so `/mcp` does not depend on it.
+  harness: z.string().optional(),
 });
 
 export interface Caller {
   userId: string;
   credentialId: string;
+  harness?: string;
 }
 
 // Returns the lowercase SHA-256 hex digest of a presented token, encoded the
@@ -33,9 +37,8 @@ export async function hashToken(token: string): Promise<string> {
 // `unauthenticated`. Any other failure, an outage or another service error
 // code, propagates, so it is never mistaken for a bad credential.
 export async function authenticate(request: Request, svc: ServiceCall): Promise<Caller | null> {
-  const match = /^Bearer +(\S+)$/i.exec(request.headers.get("Authorization") ?? "");
-  const token = match?.[1];
-  if (token === undefined || !CONNECTION_TOKEN.test(token)) {
+  const token = connectionToken(request);
+  if (token === null) {
     return null;
   }
   let resolved: unknown;
@@ -51,7 +54,16 @@ export async function authenticate(request: Request, svc: ServiceCall): Promise<
   if (!credential.success || credential.data.kind !== "connection_token") {
     return null;
   }
-  return { userId: credential.data.userId, credentialId: credential.data.credentialId };
+  const { userId, credentialId, harness } = credential.data;
+  return harness === undefined ? { userId, credentialId } : { userId, credentialId, harness };
+}
+
+// Returns the request's bearer value when it has the form of a connection
+// token, and null otherwise.
+export function connectionToken(request: Request): string | null {
+  const match = /^Bearer +(\S+)$/i.exec(request.headers.get("Authorization") ?? "");
+  const token = match?.[1];
+  return token !== undefined && CONNECTION_TOKEN.test(token) ? token : null;
 }
 
 // The 401 a compliant MCP client answers by starting browser sign-in
