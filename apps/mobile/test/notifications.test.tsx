@@ -378,12 +378,21 @@ describe("tap routing", () => {
     expect(screen).toHavePathname("/agent/a_1");
   });
 
+  test("a done agent tap opens the agent", async () => {
+    await openInbox();
+
+    act(() => tap(tapResponse("n_5", { kind: "agent.done", agentSessionId: "a_1" })));
+
+    expect(await screen.findByText("Running the test suite")).toBeOnTheScreen();
+    expect(screen).toHavePathname("/agent/a_1");
+  });
+
   test("a tap with unknown data opens the inbox", async () => {
     signInAs("sess_a");
     renderApp("/settings/account");
     await screen.findByRole("button", { name: "Sign out" });
 
-    act(() => tap(tapResponse("n_3", { kind: "agent.done", agentSessionId: "a_1" })));
+    act(() => tap(tapResponse("n_3", { kind: "decision.answered", decisionId: "d_1" })));
 
     expect(await screen.findByText(inbox)).toBeOnTheScreen();
     expect(screen).toHavePathname("/");

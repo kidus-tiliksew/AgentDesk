@@ -18,17 +18,29 @@ function idField(data: Record<string, unknown>, field: string): string | null {
   return typeof value === "string" && ID_PATTERN.test(value) ? value : null;
 }
 
+// The pushable kinds that open a decision and those that open an agent. Digest
+// pushes are not listed yet, so they open the inbox.
+const DECISION_KINDS: ReadonlySet<string> = new Set(["decision.created", "decision.expired"]);
+const AGENT_KINDS: ReadonlySet<string> = new Set([
+  "agent.stale",
+  "agent.status_changed",
+  "agent.done",
+]);
+
 // Missing, malformed, or unknown data opens the inbox.
 export function notificationRoute(data: unknown): NotificationRoute {
   if (typeof data !== "object" || data === null || Array.isArray(data)) {
     return "/";
   }
   const fields = data as Record<string, unknown>;
-  if (fields.kind === "decision.created") {
+  if (typeof fields.kind !== "string") {
+    return "/";
+  }
+  if (DECISION_KINDS.has(fields.kind)) {
     const id = idField(fields, "decisionId");
     return id === null ? "/" : { pathname: "/decision/[id]", params: { id } };
   }
-  if (fields.kind === "agent.stale") {
+  if (AGENT_KINDS.has(fields.kind)) {
     const id = idField(fields, "agentSessionId");
     return id === null ? "/" : { pathname: "/agent/[id]", params: { id } };
   }
