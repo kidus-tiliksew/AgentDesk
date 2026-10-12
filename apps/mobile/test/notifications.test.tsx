@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { act, fireEvent, screen, waitFor } from "expo-router/testing-library";
 import { AppState, type AppStateStatus } from "react-native";
+import { startNotificationActions } from "../src/notification-actions";
 import { FOREGROUND_BEHAVIOR } from "../src/notifications";
 import { agent, decision } from "./data";
 import {
@@ -619,5 +620,63 @@ describe("digest tap routing", () => {
     await act(async () => {});
     expect(screen).toHavePathname("/");
     expect(queryCalls.map((call) => call.name)).not.toContain("notifications/digests:get");
+  });
+});
+
+// component-mobile-app §Notifications, notification actions: a press on an
+// action button belongs to the action handler, never to tap routing, and
+// device registration waits for this launch's action categories.
+describe("notification actions alongside taps and registration", () => {
+  beforeEach(() => serveScreens());
+
+  test("an action button press opens no screen", async () => {
+    await openInbox();
+
+    act(() => tap(tapResponse("n_a1", { kind: "decision.created", decisionId: "d_1" }, "approve")));
+    await act(async () => {});
+
+    expect(screen).toHavePathname("/");
+    expect(queryCalls.map((call) => call.name)).not.toContain("decisions/app:get");
+  });
+
+  test("an action press that launched the app opens no screen and a later body tap still routes", async () => {
+    push.lastResponse = tapResponse(
+      "n_a2",
+      { kind: "decision.created", decisionId: "d_2" },
+      "reject",
+    );
+    await openInbox();
+    await act(async () => {});
+    expect(screen).toHavePathname("/");
+
+    act(() => tap(tapResponse("n_a3", { kind: "decision.created", decisionId: "d_3" })));
+
+    expect(await screen.findByText("Decision d_3")).toBeOnTheScreen();
+    expect(screen).toHavePathname("/decision/d_3");
+  });
+
+  // Starting the actions is once per process, so this test starts them last.
+  test("registration requests the Expo token only after the action categories settle", async () => {
+    const categories = deferred<null>();
+    void startNotificationActions(() => ({
+      platform: "ios",
+      setCategory: () => categories.promise,
+      registerTask: async () => undefined,
+      addResponseListener: () => undefined,
+      lastResponse: () => null,
+      handle: async () => undefined,
+      warn: () => undefined,
+    }));
+    await openInbox();
+    await act(async () => {});
+
+    expect(push.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(push.getExpoPushTokenAsync).not.toHaveBeenCalled();
+    expect(registerDevice).not.toHaveBeenCalled();
+
+    await act(async () => categories.resolve(null));
+
+    await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
+    expect(push.getExpoPushTokenAsync).toHaveBeenCalledTimes(1);
   });
 });
