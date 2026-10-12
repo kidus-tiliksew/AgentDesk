@@ -1,0 +1,230 @@
+name: Release
+
+# component-repository §Releases and deployment: a v<semver> tag runs every CI
+# step, publishes the installer binaries and SHA256SUMS on the GitHub Release,
+# publishes packages/installer to npm as agentdesk, then deploys Convex and the
+# gateway to production. Each job needs the previous one, so a failed job skips
+# every later job: a failed npm publish deploys nothing.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+# Releases run one at a time and are never cancelled mid-sequence. This group
+# differs from ci.yml's, so the called CI run cannot cancel this run.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      origin: ${{ steps.check.outputs.origin }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      # AGENTDESK_PUBLIC_ORIGIN is the default server compiled into the binaries
+      # and the npm build, and the gateway's PUBLIC_ORIGIN.
+      - name: Check the tag, the installer version, and the public origin
+        id: check
+        run: node .github/scripts/release-preflight.mjs
+        env:
+          TAG: ${{ github.ref_name }}
+          AGENTDESK_PUBLIC_ORIGIN: ${{ vars.AGENTDESK_PUBLIC_ORIGIN }}
+
+  # Step 1. CI runs outside the production environment with the repository's
+  # CI dev deploy key.
+  ci:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+    secrets:
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+
+  # Step 2. install.sh downloads from releases/latest/download/, so the release
+  # is published as the latest release, never as a draft or a prerelease.
+  github-release:
+    needs: [preflight, ci]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Keep this pin equal to the one in ci.yml.
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Build installer binaries and SHA256SUMS
+        run: pnpm --filter agentdesk build:binaries
+        env:
+          AGENTDESK_SERVER_ORIGIN: ${{ needs.preflight.outputs.origin }}
+
+      - name: Verify the release assets
+        working-directory: packages/installer/dist/release
+        run: |
+          sha256sum --check --strict SHA256SUMS
+          for asset in agentdesk-darwin-arm64 agentdesk-darwin-x64 agentdesk-linux-x64 agentdesk-linux-arm64; do
+            grep -q "  ${asset}\$" SHA256SUMS || { echo "::error::SHA256SUMS has no entry for ${asset}"; exit 1; }
+          done
+          test "$(wc -l < SHA256SUMS)" -eq 4
+
+      - name: Publish the GitHub Release
+        working-directory: packages/installer/dist/release
+        run: >-
+          gh release create "$TAG" --verify-tag --latest --title "$TAG" --generate-notes
+          agentdesk-darwin-arm64 agentdesk-darwin-x64 agentdesk-linux-x64 agentdesk-linux-arm64
+          SHA256SUMS
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+
+  # Step 3. prepack builds dist/agentdesk.mjs with the same default server and
+  # the skill from this tag's checkout.
+  npm:
+    needs: [preflight, github-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish agentdesk to npm
+        working-directory: packages/installer
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          AGENTDESK_SERVER_ORIGIN: ${{ needs.preflight.outputs.origin }}
+
+  # Step 4. The production environment's CONVEX_DEPLOY_KEY overrides the
+  # repository's CI dev key.
+  convex:
+    needs: npm
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      # The gateway job reads these, and checking them here stops the release
+      # before Convex deploys.
+      - name: Check the production gateway configuration
+        run: |
+          for name in CONVEX_SITE_URL CLERK_PUBLISHABLE_KEY CLOUDFLARE_ACCOUNT_ID; do
+            [ -n "${!name}" ] || { echo "::error::The production environment variable ${name} is not set."; exit 1; }
+          done
+        env:
+          CONVEX_SITE_URL: ${{ vars.CONVEX_SITE_URL }}
+          CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy Convex
+        run: npx convex deploy
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+
+  # Step 5. The deploy replaces wrangler.toml's local PUBLIC_ORIGIN,
+  # CONVEX_SITE_URL, and CLERK_PUBLISHABLE_KEY with production values. The
+  # Worker secrets SERVICE_SECRET and CLERK_SECRET_KEY stay in its secret store.
+  gateway:
+    needs: [preflight, convex]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Check the production gateway configuration
+        run: |
+          for name in CONVEX_SITE_URL CLERK_PUBLISHABLE_KEY CLOUDFLARE_ACCOUNT_ID; do
+            [ -n "${!name}" ] || { echo "::error::The production environment variable ${name} is not set."; exit 1; }
+          done
+        env:
+          CONVEX_SITE_URL: ${{ vars.CONVEX_SITE_URL }}
+          CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy the gateway
+        run: >-
+          pnpm --filter @agentdesk/gateway exec wrangler deploy
+          --var "PUBLIC_ORIGIN:$PUBLIC_ORIGIN"
+          --var "CONVEX_SITE_URL:$CONVEX_SITE_URL"
+          --var "CLERK_PUBLISHABLE_KEY:$CLERK_PUBLISHABLE_KEY"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          PUBLIC_ORIGIN: ${{ needs.preflight.outputs.origin }}
+          CONVEX_SITE_URL: ${{ vars.CONVEX_SITE_URL }}
+          CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY }}

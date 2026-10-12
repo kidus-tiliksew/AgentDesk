@@ -4,6 +4,12 @@ on:
   pull_request:
   push:
     branches: [main]
+  # release.yml runs every CI step through this entry point and passes the
+  # repository's CI dev deploy key (component-repository §Releases and deployment).
+  workflow_call:
+    secrets:
+      CONVEX_DEPLOY_KEY:
+        required: true
 
 permissions:
   contents: read
@@ -44,3 +50,42 @@ jobs:
         run: npx convex codegen --typecheck enable
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+
+  # Every pull request proves the installer compiles with the release's pinned
+  # Bun (component-repository §Continuous integration). The origin is a CI
+  # fixture that is never published.
+  installer-binaries:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Keep this pin equal to the one in release.yml.
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Build installer binaries
+        run: pnpm --filter agentdesk build:binaries
+        env:
+          AGENTDESK_SERVER_ORIGIN: https://agentdesk-ci.invalid
+
+      - name: Run the linux-x64 binary
+        run: packages/installer/dist/release/agentdesk-linux-x64 --help
+
+      - name: Verify SHA256SUMS
+        working-directory: packages/installer/dist/release
+        run: sha256sum --check --strict SHA256SUMS
