@@ -65,7 +65,7 @@ async function connectionConvex(
 }
 
 describe("POST /device/start", () => {
-  it("starts a request and returns the code as XXXX-XXXX", async () => {
+  it("starts a request and returns identity's code without a hyphen", async () => {
     const convex = startConvex();
 
     const response = await handle(startRequest(START), withLimiter(), convex.svc);
@@ -73,7 +73,7 @@ describe("POST /device/start", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(await response.json()).toEqual({
-      user_code: "K7Q2-M9XD",
+      user_code: "K7Q2M9XD",
       device_secret: SECRET,
       interval: 2,
       expires_in: 600,

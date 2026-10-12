@@ -10,7 +10,7 @@ The `agentdesk` installer (`packages/installer`) signs each harness in by short 
 
 | Route | Request | Answers |
 | --- | --- | --- |
-| `POST /device/start` | `{machine_name, harnesses}` | 200 `{user_code, device_secret, interval: 2, expires_in: 600}`, with `user_code` as `XXXX-XXXX`; 400 `invalid` naming the field; 429 `rate_limited` |
+| `POST /device/start` | `{machine_name, harnesses}` | 200 `{user_code, device_secret, interval: 2, expires_in: 600}`, with `user_code` as identity's 8 bare symbols, which the installer displays as `XXXX-XXXX`; 400 `invalid` naming the field; 429 `rate_limited` |
 | `POST /device/poll` | `{device_secret}` | 200 `{status}`, where `status` is `pending`, `declined`, `expired`, `not_found`, or `approved` with `connections: [{harness, connection_id, token}]`; 400 `invalid` |
 | `GET /device/connection` | `Authorization: Bearer adc_…` | 200 `{connection_id, harness}`; 401 `unauthenticated` |
 | `DELETE /device/connection` | `Authorization: Bearer adc_…` | 200 `null` once revoked; 401 `unauthenticated` |
@@ -19,6 +19,7 @@ The `agentdesk` installer (`packages/installer`) signs each harness in by short 
 - `/device/start` trims `machine_name` and requires 1 to 255 characters. `harnesses` must be a non-empty list of distinct ids from `claude-code`, `codex`, and `cursor`. The `DEVICE_START_LIMIT` binding allows 10 starts a minute per `CF-Connecting-IP`, counted before the body is read. Without the binding or that header, the route answers 503 rather than run unlimited.
 - `/device/poll` passes identity's status through. `not_found` means the secret is unknown or its outcome was already collected: an approved request's tokens are returned once. Both `/device/start` and `/device/poll` answer with `Cache-Control: no-store`, since they carry secrets.
 - `/device/connection` resolves the token on every request, so a revoked connection fails its next check. `DELETE` sends Convex only the token's SHA-256. Its 401, unlike `/mcp`'s, carries no `WWW-Authenticate` challenge, because the challenge starts browser sign-in.
+- `test/installer-compatibility.test.ts` runs the installer's own `signIn` (`packages/installer/src/signin.ts`) through these routes with Convex faked, so a wire-format change on either side fails here.
 - `/install.sh` serves `packages/installer/install.sh`, bundled at build time by the Text module rule in `wrangler.toml`, with `__AGENTDESK_PUBLIC_ORIGIN__` replaced by `PUBLIC_ORIGIN` without trailing slashes. The gateway keeps no copy of the script.
 
 ## Configuration
@@ -140,6 +141,6 @@ Typing a token is a stopgap. This entry does not meet `req-accounts-and-connecti
 | Command | Runs |
 | --- | --- |
 | `pnpm --filter @agentdesk/gateway test` | the Workers-runtime tests in `test/` under `@cloudflare/vitest-pool-workers`, with the Convex client faked |
-| `pnpm --filter @agentdesk/gateway typecheck` | strict TypeScript over `src/` and `test/` with Workers types, and over `scripts/` with Node types |
+| `pnpm --filter @agentdesk/gateway typecheck` | strict TypeScript over `src/` and `test/` with Workers types, over `test/installer-compatibility.test.ts` with Workers and Node types (`tsconfig.compat.json`), and over `scripts/` with Node types |
 | `pnpm --filter @agentdesk/gateway dev` | `wrangler dev` |
 | `pnpm --filter @agentdesk/gateway smoke:mcp` | the [smoke run](#smoke-run) against a running gateway |

@@ -3,5 +3,7 @@
   "compilerOptions": {
     "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types"]
   },
-  "include": ["src", "test"]
+  "include": ["src", "test"],
+  // Checked by tsconfig.compat.json, which adds the Node types it needs.
+  "exclude": ["test/installer-compatibility.test.ts"]
 }

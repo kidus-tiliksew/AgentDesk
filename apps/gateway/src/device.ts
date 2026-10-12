@@ -93,10 +93,12 @@ export async function deviceStart(request: Request, env: Env, svc: ServiceCall):
   if (!started.success) {
     throw new UpstreamError("Service call identity/device-start returned an invalid result");
   }
+  // The code goes out as identity's 8 bare symbols. The installer validates
+  // that form and alone displays it as `XXXX-XXXX` (AC-6.1).
   const { code, device_secret } = started.data;
   return Response.json(
     {
-      user_code: `${code.slice(0, 4)}-${code.slice(4)}`,
+      user_code: code,
       device_secret,
       interval: POLL_INTERVAL_SECONDS,
       expires_in: CODE_TTL_SECONDS,
