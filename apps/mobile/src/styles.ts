@@ -81,5 +81,9 @@ export const styles = StyleSheet.create({
   },
   textArea: { minHeight: 96, textAlignVertical: "top" },
   counter: { color: "#5f5f5f", fontSize: 13, textAlign: "right" },
+  filters: { gap: 8, paddingHorizontal: 16, paddingTop: 16 },
+  filterRow: { alignItems: "center", flexDirection: "row", gap: 8 },
+  filterInput: { flex: 1 },
+  notice: { color: "#b3261e", fontSize: 15, paddingHorizontal: 16, paddingTop: 8 },
   outcome: { backgroundColor: "#f2f2f2", borderRadius: 8, gap: 6, padding: 12 },
 });
