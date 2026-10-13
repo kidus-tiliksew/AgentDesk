@@ -3,10 +3,12 @@ import type { Id } from "../_generated/dataModel";
 import {
   COMPONENT_PAGE,
   cancelDevicePushes,
-  DRAIN_MAX_ATTEMPTS,
+  DRAIN_FAST_LOOKS,
+  DRAIN_SLOW_RETRY_MS,
+  HISTORY_READ_LIMIT,
   purgeNotifications,
 } from "./accountPurge";
-import { deliverPush, pushNotifications } from "./push";
+import { deliverDigestPush, deliverPush, pushNotifications } from "./push";
 import { notifications } from "./refs";
 import { queued, register, type Setup, setup, tokenStatus } from "./test.setup";
 
@@ -96,6 +98,41 @@ describe("cancelDevicePushes", () => {
     expect(await tokenStatus(t, "install-b")).toMatchObject({ hasToken: true });
   });
 
+  test("cancels a queued digest push in the deletion transaction", async () => {
+    const { t, userA, userB, asA, asB } = await setup();
+    await register(asA, "install-a", "ExponentPushToken[a]");
+    await register(asB, "install-b", "ExponentPushToken[b]");
+    for (const userId of [userA, userB]) {
+      await t.run(async (ctx) => {
+        const digestId = await ctx.db.insert("digests", {
+          userId,
+          eventIds: [],
+          pendingDecisionIds: [],
+          sentAt: Date.now(),
+        });
+        const digest = await ctx.db.get("digests", digestId);
+        if (digest === null) {
+          throw new Error("No digest");
+        }
+        await deliverDigestPush(ctx, digest, { title: "Daily digest" });
+      });
+    }
+    const [digestA] = await queued(t, "install-a");
+    const [digestB] = await queued(t, "install-b");
+    if (digestA === undefined || digestB === undefined) {
+      throw new Error("No queued digest push");
+    }
+
+    await removeAndCancel(t, "install-a");
+
+    expect(await notification(t, digestA.id)).toBeNull();
+    expect(await tokenStatus(t, "install-a")).toMatchObject({ hasToken: false });
+    expect(await notification(t, digestB.id)).toMatchObject({
+      state: "awaiting_delivery",
+      data: { kind: "digest" },
+    });
+  });
+
   test("keeps a send in flight and the token, then drains them once the send settles", async () => {
     const { t, userA, asA } = await setup();
     await register(asA, "install-a", "ExponentPushToken[a]");
@@ -134,7 +171,42 @@ describe("cancelDevicePushes", () => {
     expect(await tokenStatus(t, "install-a")).toMatchObject({ hasToken: false });
   });
 
-  test("a long history is drained page by page", async () => {
+  test("a history longer than one look can check is left alone", async () => {
+    const { t, userA, asA } = await setup();
+    await register(asA, "install-a", "ExponentPushToken[a]");
+    await queuePush(t, userA, "First");
+    const rows = await queued(t, "install-a");
+    const long = Array.from({ length: HISTORY_READ_LIMIT + 1 }, () => rows[0]).filter(
+      (row) => row !== undefined,
+    );
+    await removeAndCancel(t, "install-a");
+    // The deletion transaction saw a short history and finished it, so put
+    // the token back to watch the drain's own look.
+    await register(asA, "install-a", "ExponentPushToken[a]");
+    await t.run(async (ctx) => {
+      const row = await ctx.db
+        .query("devices")
+        .withIndex("by_device", (q) => q.eq("deviceId", "install-a"))
+        .unique();
+      if (row !== null) {
+        await ctx.db.delete("devices", row._id);
+      }
+    });
+    vi.spyOn(pushNotifications, "getNotificationsForUser").mockResolvedValueOnce(long);
+    const deleteSpy = vi.spyOn(pushNotifications, "deleteNotificationsForUser");
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await t.mutation(notifications.accountPurge.drainDevicePushes, {
+      deviceId: "install-a",
+      attempt: 1,
+    });
+
+    expect(deleteSpy).not.toHaveBeenCalled();
+    expect(await tokenStatus(t, "install-a")).toMatchObject({ hasToken: true });
+    expect(await drains(t)).toHaveLength(0);
+  });
+
+  test("a cancellation in the deletion transaction never deletes a long history", async () => {
     const { t, userA, asA } = await setup();
     await register(asA, "install-a", "ExponentPushToken[a]");
     await queuePush(t, userA, "First");
@@ -143,16 +215,13 @@ describe("cancelDevicePushes", () => {
       (row) => row !== undefined,
     );
     vi.spyOn(pushNotifications, "getNotificationsForUser").mockResolvedValueOnce(page);
+    const deleteSpy = vi.spyOn(pushNotifications, "deleteNotificationsForUser");
 
     await removeAndCancel(t, "install-a");
 
+    expect(deleteSpy).not.toHaveBeenCalled();
     expect(await tokenStatus(t, "install-a")).toMatchObject({ hasToken: true });
     expect(await drains(t)).toHaveLength(1);
-    await t.mutation(notifications.accountPurge.drainDevicePushes, {
-      deviceId: "install-a",
-      attempt: 1,
-    });
-    expect(await tokenStatus(t, "install-a")).toMatchObject({ hasToken: false });
   });
 
   test("a drain stops when another account has registered the install", async () => {
@@ -174,24 +243,125 @@ describe("cancelDevicePushes", () => {
     expect(await drains(t)).toHaveLength(1);
   });
 
-  test("a send in flight past the last look is treated as settled", async () => {
+  test("a send still in flight after many looks is waited for, never deleted", async () => {
     const { t, userA, asA } = await setup();
     await register(asA, "install-a", "ExponentPushToken[a]");
     await queuePush(t, userA, "First");
     const rows = await queued(t, "install-a");
-    vi.spyOn(pushNotifications, "getNotificationsForUser").mockResolvedValueOnce(inFlight(rows));
+    vi.spyOn(pushNotifications, "getNotificationsForUser").mockResolvedValue(inFlight(rows));
     await removeAndCancel(t, "install-a");
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     await t.mutation(notifications.accountPurge.drainDevicePushes, {
       deviceId: "install-a",
-      attempt: DRAIN_MAX_ATTEMPTS,
+      attempt: DRAIN_FAST_LOOKS,
     });
 
-    expect(await tokenStatus(t, "install-a")).toMatchObject({ hasToken: false });
     for (const row of rows) {
+      expect(await notification(t, row.id)).not.toBeNull();
+    }
+    expect(await tokenStatus(t, "install-a")).toMatchObject({ hasToken: true });
+    const next = await drains(t);
+    expect(next.map((job) => job.args[0])).toContainEqual({
+      deviceId: "install-a",
+      attempt: DRAIN_FAST_LOOKS + 1,
+    });
+    expect(next.some((job) => job.scheduledTime - Date.now() >= DRAIN_SLOW_RETRY_MS - 1)).toBe(
+      true,
+    );
+  });
+});
+
+// Answers every message of an Expo send request as accepted.
+function accepted(init?: RequestInit) {
+  const messages = JSON.parse(String(init?.body ?? "[]")) as unknown[];
+  return new Response(JSON.stringify({ data: messages.map(() => ({ status: "ok", id: "x" })) }));
+}
+
+// Lets the scheduler run every job due within `ms`, then waits for the jobs
+// it started.
+async function runScheduled(t: Setup["t"], ms: number) {
+  vi.advanceTimersByTime(ms);
+  await t.finishInProgressScheduledFunctions();
+}
+
+// Every component row of the install's current token, newest first.
+function history(t: Setup["t"], deviceId: string) {
+  return t.run((ctx) =>
+    pushNotifications.getNotificationsForUser(ctx, { userId: deviceId, limit: 5000 }),
+  );
+}
+
+// Review round 1, finding 2: cancellation never deletes a row the
+// component's sender owns, whichever page of a long history it is on.
+describe("cancelDevicePushes with a long history and a send in flight", () => {
+  test("keeps every in-flight row, lets a mixed-account batch record its results, then drains", async () => {
+    const { t, userB, asA, asB } = await setup();
+    await register(asA, "install-a", "ExponentPushToken[a]");
+    await register(asB, "install-b", "ExponentPushToken[b]");
+    // Another account's push is queued first, so the sender's first batch
+    // holds both accounts' notifications.
+    await queuePush(t, userB, "Other account");
+    const [otherRow] = await queued(t, "install-b");
+    if (otherRow === undefined) {
+      throw new Error("No queued push for the other account");
+    }
+    // 1,100 distinct notifications for the deleted account's install.
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 1100; i++) {
+        await pushNotifications.sendPushNotification(ctx, {
+          userId: "install-a",
+          notification: { title: `Push ${i}` },
+        });
+      }
+    });
+
+    // The first Expo request hangs, so its batch stays in the sender's hands.
+    let release: (response: Response) => void = () => undefined;
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => accepted(init));
+    fetchMock.mockImplementationOnce(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((resolve) => {
+          release = () => resolve(accepted(init));
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    // The coordinator hands the oldest 100 notifications to a sender.
+    await runScheduled(t, 300);
+    vi.advanceTimersByTime(1);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const inFlightRows = (await history(t, "install-a")).filter(
+      (row) => row.state === "in_progress",
+    );
+    expect(inFlightRows.length).toBeGreaterThan(0);
+    expect(await notification(t, otherRow.id)).toMatchObject({ state: "in_progress" });
+
+    await removeAndCancel(t, "install-a");
+
+    // No row the sender holds is deleted.
+    for (const row of inFlightRows) {
+      expect(await notification(t, row.id)).toMatchObject({ state: "in_progress" });
+    }
+    // The batch records its results, including the other account's.
+    release(new Response());
+    await t.finishInProgressScheduledFunctions();
+    expect(await notification(t, otherRow.id)).toMatchObject({ state: "delivered" });
+    for (const row of inFlightRows) {
+      expect(await notification(t, row.id)).toMatchObject({ state: "delivered" });
+    }
+
+    // Once nothing is left in flight, the drain deletes the whole history
+    // and removes the token.
+    for (let i = 0; i < 200 && (await tokenStatus(t, "install-a")).hasToken; i++) {
+      await runScheduled(t, 1000);
+    }
+    expect(await tokenStatus(t, "install-a")).toMatchObject({ hasToken: false });
+    for (const row of inFlightRows) {
       expect(await notification(t, row.id)).toBeNull();
     }
+    expect(await notification(t, otherRow.id)).toMatchObject({ state: "delivered" });
+    expect(await tokenStatus(t, "install-b")).toMatchObject({ hasToken: true });
+    vi.unstubAllGlobals();
   });
 });
 

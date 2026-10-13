@@ -11,33 +11,88 @@ import { notifications } from "./refs";
 // this domain's part of the purge that `identity/accountDeletion:purgeBatch`
 // drives.
 
-// The most component notifications one call reads or deletes for an install;
-// the component's own `deleteNotificationsForUser` deletes this many per call.
+// The most notifications the component's `deleteNotificationsForUser`
+// deletes in one call. It deletes the install's oldest rows first, and when
+// it fills a page it schedules its own continuation for the next page, which
+// runs later without any check.
 export const COMPONENT_PAGE = 1000;
-// How long a drain waits for a send in flight before it looks again, and how
-// many times it looks. The component marks a send's outcome when Expo
-// answers, or after 10 seconds when it cannot tell, so a send stays in flight
-// for at most about 10 seconds.
+// The most notifications a drain reads to see an install's whole history.
+export const HISTORY_READ_LIMIT = 4000;
+// A drain looks again every DRAIN_RETRY_MS for its first DRAIN_FAST_LOOKS
+// looks, then every DRAIN_SLOW_RETRY_MS. The component's sender records a
+// send's outcome when Expo answers, or after 10 seconds when it cannot tell,
+// and retries a failed send at most five times.
 export const DRAIN_RETRY_MS = 50;
-export const DRAIN_MAX_ATTEMPTS = 400;
+export const DRAIN_FAST_LOOKS = 400;
+export const DRAIN_SLOW_RETRY_MS = 30_000;
+
+// States the component never changes again. A queued (`awaiting_delivery`)
+// or retrying (`needs_retry`) notification can still be handed to the
+// sender, and an `in_progress` one is in the sender's hands.
+const SETTLED_STATES = new Set(["delivered", "failed", "maybe_delivered", "unable_to_deliver"]);
+
+type Notification = Awaited<ReturnType<typeof pushNotifications.getNotificationsForUser>>[number];
+
+// What one look at an install's notifications did.
+type Look =
+  // Every notification and the token are gone.
+  | "done"
+  // Something must settle, or a deletion is still running; look again.
+  | "wait"
+  // The history is longer than one look can check; nothing was deleted.
+  | "too_long";
+
+// One look at an install's notifications, reading at most `limit` of them,
+// newest first. The component's sender records each send's outcome on its
+// row and fails the whole batch, other accounts' notifications included,
+// when a row is missing, so no look ever deletes a row that is
+// `in_progress`, and no look starts a deletion whose rows it has not read:
+//
+// - Fewer than COMPONENT_PAGE rows, none in flight: one call deletes every
+//   row, queued and retrying ones included, and schedules no continuation.
+//   The token goes in the same transaction.
+// - COMPONENT_PAGE rows or more, all settled: the component's own
+//   continuations delete the rest of the history later without a check. That
+//   is safe only because every row is settled and nothing can add a row: the
+//   install's `devices` row is gone, so AgentDesk queues nothing for it.
+// - Anything else waits. In a long history, queued and retrying rows are
+//   sent or settle before the history is deleted.
+async function look(ctx: MutationCtx, deviceId: string, limit: number): Promise<Look> {
+  const rows: Notification[] = await pushNotifications.getNotificationsForUser(ctx, {
+    userId: deviceId,
+    limit,
+  });
+  if (rows.length === 0) {
+    await pushNotifications.removeToken(ctx, { userId: deviceId });
+    return "done";
+  }
+  if (rows.length >= limit) {
+    return limit > COMPONENT_PAGE ? "too_long" : "wait";
+  }
+  if (rows.some((row) => row.state === "in_progress")) {
+    return "wait";
+  }
+  if (rows.length < COMPONENT_PAGE) {
+    await pushNotifications.deleteNotificationsForUser(ctx, { userId: deviceId });
+    await pushNotifications.removeToken(ctx, { userId: deviceId });
+    return "done";
+  }
+  if (rows.every((row) => SETTLED_STATES.has(row.state))) {
+    await pushNotifications.deleteNotificationsForUser(ctx, { userId: deviceId });
+  }
+  return "wait";
+}
 
 // Cancels every send the push component holds for an install and removes the
-// install's token. The component copies the token into each queued
-// notification, so removing the token alone would still send what is queued
-// (§Push). `deleteNotificationsForUser` deletes the install's notifications
-// in every state, which cancels the queued and retrying ones and removes
-// their copied titles and bodies.
-//
-// A notification in state `in_progress` is in the hands of the component's
-// sender, which records the outcome on that row when Expo answers; deleting
-// the row would make that record fail for the whole batch, including other
-// accounts' notifications. So when a send is in flight, or the install holds
-// more notifications than one call deletes, the token stays and
-// `drainDevicePushes` finishes the work in later transactions. The caller has
-// already deleted the install's `devices` row, so nothing in AgentDesk queues
-// a new send to it.
+// install's token. It runs in the deletion transaction, after the caller
+// deleted the install's `devices` row. The component copies the token into
+// each queued notification, so removing the token alone would still send
+// what is queued (§Push). When the install holds fewer than COMPONENT_PAGE
+// notifications and none is in flight, every queued and retrying send is
+// deleted in this transaction. Otherwise the token stays and
+// `drainDevicePushes` finishes the work in later transactions.
 export async function cancelDevicePushes(ctx: MutationCtx, deviceId: string): Promise<void> {
-  if (await deleteSettledPushes(ctx, deviceId)) {
+  if ((await look(ctx, deviceId, COMPONENT_PAGE)) === "done") {
     return;
   }
   await ctx.scheduler.runAfter(0, notifications.accountPurge.drainDevicePushes, {
@@ -46,32 +101,14 @@ export async function cancelDevicePushes(ctx: MutationCtx, deviceId: string): Pr
   });
 }
 
-// One step of the cancellation. Returns true when the install's
-// notifications and token are gone, and false when a send is in flight or
-// more notifications remain, without deleting anything in flight.
-async function deleteSettledPushes(ctx: MutationCtx, deviceId: string): Promise<boolean> {
-  const rows = await pushNotifications.getNotificationsForUser(ctx, {
-    userId: deviceId,
-    limit: COMPONENT_PAGE,
-  });
-  if (rows.some((row) => row.state === "in_progress")) {
-    return false;
-  }
-  if (rows.length > 0) {
-    await pushNotifications.deleteNotificationsForUser(ctx, { userId: deviceId });
-  }
-  if (rows.length >= COMPONENT_PAGE) {
-    return false;
-  }
-  await pushNotifications.removeToken(ctx, { userId: deviceId });
-  return true;
-}
-
-// Finishes `cancelDevicePushes` for an install that had a send in flight or a
-// long notification history. It stops when another account has registered
-// the install since, because the component's token then belongs to that
-// account. A send still in flight after DRAIN_MAX_ATTEMPTS looks is treated as
-// settled.
+// Finishes `cancelDevicePushes` for an install that had a send in flight or
+// a long notification history. It reads the whole history, up to
+// HISTORY_READ_LIMIT notifications, on every look and never deletes a row in
+// flight; it waits instead, without a limit on the number of looks. It
+// stops when another account has registered the install since, because the
+// component's token then belongs to that account. A history longer than
+// HISTORY_READ_LIMIT cannot be checked, so the drain logs it and stops,
+// leaving the history and the token in the component.
 export const drainDevicePushes = internalMutation({
   args: { deviceId: v.string(), attempt: v.number() },
   returns: v.null(),
@@ -83,19 +120,24 @@ export const drainDevicePushes = internalMutation({
     if (owner !== null) {
       return null;
     }
-    if (attempt >= DRAIN_MAX_ATTEMPTS) {
-      await pushNotifications.deleteNotificationsForUser(ctx, { userId: deviceId });
-      await pushNotifications.removeToken(ctx, { userId: deviceId });
-      console.error(`Push drain for an install gave up waiting after ${attempt} looks`);
+    const result = await look(ctx, deviceId, HISTORY_READ_LIMIT + 1);
+    if (result === "done") {
       return null;
     }
-    if (await deleteSettledPushes(ctx, deviceId)) {
+    if (result === "too_long") {
+      console.error(
+        `Push drain stopped: an install holds more than ${HISTORY_READ_LIMIT} notifications`,
+      );
       return null;
     }
-    await ctx.scheduler.runAfter(DRAIN_RETRY_MS, notifications.accountPurge.drainDevicePushes, {
-      deviceId,
-      attempt: attempt + 1,
-    });
+    if (attempt === DRAIN_FAST_LOOKS) {
+      console.error(`Push drain for an install is still waiting after ${attempt} looks`);
+    }
+    await ctx.scheduler.runAfter(
+      attempt < DRAIN_FAST_LOOKS ? DRAIN_RETRY_MS : DRAIN_SLOW_RETRY_MS,
+      notifications.accountPurge.drainDevicePushes,
+      { deviceId, attempt: attempt + 1 },
+    );
     return null;
   },
 });
