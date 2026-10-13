@@ -4,7 +4,7 @@ import { agents } from "../agents/refs";
 import { touch } from "../agents/sessions";
 import { modules } from "../lib/test.modules";
 import schema from "../schema";
-import { pushNotifications } from "./push";
+import { deliverPush, pushNotifications } from "./push";
 import { notifications } from "./refs";
 
 // The push component's test entry is TypeScript source that references
@@ -91,4 +91,80 @@ export async function scheduledRoutes(t: Setup["t"]) {
   return jobs
     .filter((job) => job.name.startsWith("notifications/route"))
     .map((job) => (job.args[0] as { eventId: Id<"events"> }).eventId);
+}
+
+// Queues one event push to every current install of the account, through
+// AgentDesk's own delivery path, and returns the event id.
+export async function queuePush(t: Setup["t"], userId: Id<"users">, title: string) {
+  return t.run(async (ctx) => {
+    const eventId = await ctx.db.insert("events", {
+      userId,
+      kind: "agent.stale",
+      occurredAt: Date.now(),
+      action: "push",
+    });
+    await deliverPush(ctx, eventId, { title });
+    return eventId;
+  });
+}
+
+// Queues `count` notifications to the install the way `queueToDevice` in
+// ./push.ts does, through the component's send and the account's `pushSends`
+// record, without the event rows a purge would also have to delete.
+export async function queueHistory(
+  t: Setup["t"],
+  userId: Id<"users">,
+  deviceId: string,
+  count: number,
+) {
+  await t.run(async (ctx) => {
+    for (let i = 0; i < count; i++) {
+      const notificationId = await pushNotifications.sendPushNotification(ctx, {
+        userId: deviceId,
+        notification: { title: `History ${i}` },
+      });
+      if (notificationId !== null) {
+        await ctx.db.insert("pushSends", { userId, notificationId });
+      }
+    }
+  });
+}
+
+// One component notification by id, or null once it is deleted.
+export function notification(t: Setup["t"], id: string) {
+  return t.run((ctx) => pushNotifications.getNotification(ctx, { id }));
+}
+
+// The account's token records, registration records and cancellations alike.
+export function tokenRecords(t: Setup["t"], userId: Id<"users">) {
+  return t.run((ctx) =>
+    ctx.db
+      .query("deviceTokens")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect(),
+  );
+}
+
+// The pending runs of `drainTokenPushes`.
+export function pendingDrains(t: Setup["t"]) {
+  return t.run(async (ctx) =>
+    (await ctx.db.system.query("_scheduled_functions").collect()).filter(
+      (job) =>
+        job.name.startsWith("notifications/accountPurge:drainTokenPushes") &&
+        job.state.kind === "pending",
+    ),
+  );
+}
+
+// Every component notification under an Expo token, newest first, whichever
+// install holds the token now. The test reads through a key of its own and
+// removes it in the same transaction.
+export function tokenHistory(t: Setup["t"], token: string) {
+  return t.run(async (ctx) => {
+    const key = "test-reader";
+    await pushNotifications.recordToken(ctx, { userId: key, pushToken: token });
+    const rows = await pushNotifications.getNotificationsForUser(ctx, { userId: key, limit: 5000 });
+    await pushNotifications.removeToken(ctx, { userId: key });
+    return rows;
+  });
 }

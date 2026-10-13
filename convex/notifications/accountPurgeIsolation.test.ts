@@ -3,7 +3,15 @@ import type { Id } from "../_generated/dataModel";
 import { identity } from "../identity/refs";
 import { deliverPush, pushNotifications } from "./push";
 import { notifications } from "./refs";
-import { queued, register, type Setup, setup, tokenStatus } from "./test.setup";
+import {
+  pendingDrains,
+  queued,
+  register,
+  type Setup,
+  setup,
+  tokenHistory,
+  tokenStatus,
+} from "./test.setup";
 
 // component-notifications §Account deletion, review round 2. Push component
 // 0.3.1 copies an install's token into each notification and finds and
@@ -206,4 +214,237 @@ describe("account deletion and the push component", () => {
     expect(sent.some((message) => message.to === "ExponentPushToken[a1]")).toBe(false);
     expect(await notification(t, forB.id)).toMatchObject({ state: "delivered" });
   });
+});
+
+// Holds the next Expo request open until `release` runs, so the batch it
+// carries stays in the sender's hands.
+function holdNextSend() {
+  let release: () => void = () => undefined;
+  const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => accepted(init));
+  fetchMock.mockImplementationOnce(
+    (_url: string, init?: RequestInit) =>
+      new Promise<Response>((resolve) => {
+        release = () => resolve(accepted(init));
+      }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  return { fetchMock, release: () => release() };
+}
+
+// Lets the coordinator hand the queued notifications to a sender whose Expo
+// request is held open.
+async function startHeldSend(t: Setup["t"], fetchMock: ReturnType<typeof vi.fn>) {
+  await runScheduled(t, 300);
+  vi.advanceTimersByTime(1);
+  await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+}
+
+// Runs the scheduler until `done` holds, for at most `rounds` seconds.
+async function runUntil(t: Setup["t"], done: () => Promise<boolean>, rounds = 200) {
+  for (let i = 0; i < rounds && !(await done()); i++) {
+    await runScheduled(t, 1000);
+  }
+}
+
+// component-notifications §Devices: the sign-out cutoff and the handoff of an
+// install between accounts, against the component's real sender.
+describe("sign-out and the push component's sender", () => {
+  test("a notification queued before sign-out never reaches Expo", async () => {
+    const { t, userA, userB, asA, asB } = await setup();
+    await register(asA, "install-a", "ExponentPushToken[a]");
+    await register(asB, "install-b", "ExponentPushToken[b]");
+    await queuePush(t, userA, "First");
+    await queuePush(t, userA, "Second");
+    await queuePush(t, userB, "For B");
+
+    await asA.mutation(notifications.devices.unregisterDevice, { deviceId: "install-a" });
+    await runUntil(t, async () => sent.length > 0, 20);
+    await runScheduled(t, 5000);
+
+    expect(sent.filter((message) => message.to === "ExponentPushToken[a]")).toHaveLength(0);
+    expect(sent.filter((message) => message.title === "For B")).toHaveLength(1);
+    expect(await tokenHistory(t, "ExponentPushToken[a]")).toHaveLength(0);
+  });
+
+  test("finished notifications are deleted at sign-out", async () => {
+    const { t, userA, asA } = await setup();
+    await register(asA, "install-a", "ExponentPushToken[a]");
+    await queuePush(t, userA, "First");
+    const [row] = await queued(t, "install-a");
+    if (row === undefined) {
+      throw new Error("No queued push");
+    }
+    await runUntil(t, async () => (await notification(t, row.id))?.state === "delivered", 20);
+    expect(await notification(t, row.id)).toMatchObject({ state: "delivered" });
+
+    await asA.mutation(notifications.devices.unregisterDevice, { deviceId: "install-a" });
+
+    expect(await notification(t, row.id)).toBeNull();
+    expect(await tokenRecords(t, userA)).toHaveLength(0);
+    expect(await pendingDrains(t)).toHaveLength(0);
+  });
+
+  test("a send in flight at sign-out settles with another account's batch, then drains", async () => {
+    const { t, userA, userB, asA, asB } = await setup();
+    await register(asA, "install-a", "ExponentPushToken[a]");
+    await register(asB, "install-b", "ExponentPushToken[b]");
+    // The other account's push is queued first, so the batch holds both.
+    await queuePush(t, userB, "For B");
+    await queuePush(t, userA, "First");
+    await queuePush(t, userA, "Second");
+    const [forB] = await queued(t, "install-b");
+    const rowsA = await queued(t, "install-a");
+    if (forB === undefined) {
+      throw new Error("No queued push for B");
+    }
+    const { fetchMock, release } = holdNextSend();
+    await startHeldSend(t, fetchMock);
+    for (const row of rowsA) {
+      expect(await notification(t, row.id)).toMatchObject({ state: "in_progress" });
+    }
+
+    await asA.mutation(notifications.devices.unregisterDevice, { deviceId: "install-a" });
+
+    // Nothing the sender holds is deleted; the install already has no token.
+    for (const row of rowsA) {
+      expect(await notification(t, row.id)).toMatchObject({ state: "in_progress" });
+    }
+    expect(await tokenStatus(t, "install-a")).toMatchObject({ hasToken: false });
+    expect(await pendingDrains(t)).toHaveLength(1);
+
+    release();
+    await t.finishInProgressScheduledFunctions();
+    expect(await notification(t, forB.id)).toMatchObject({ state: "delivered" });
+
+    await runUntil(t, async () => (await tokenRecords(t, userA)).length === 0);
+    expect(await tokenRecords(t, userA)).toHaveLength(0);
+    expect(await tokenHistory(t, "ExponentPushToken[a]")).toHaveLength(0);
+    expect(await notification(t, forB.id)).toMatchObject({ state: "delivered" });
+    expect(await tokenStatus(t, "install-b")).toMatchObject({ hasToken: true });
+  });
+});
+
+describe("an install moving between accounts and the push component's sender", () => {
+  test(
+    "a settled history of more than a page under a shared token is gone before the new owner's push",
+    async () => {
+      const { t, userA, userB, asA, asB } = await setup();
+      await register(asA, "install-x", "ExponentPushToken[shared]");
+      await queueHistory(t, userA, "install-x", 1100);
+      await runUntil(t, async () => sent.length >= 1100, 100);
+      expect(sent).toHaveLength(1100);
+
+      await register(asB, "install-x", "ExponentPushToken[shared]");
+      await queuePush(t, userB, "For B");
+      const [forB] = await queued(t, "install-x");
+      await runUntil(t, async () => (await notification(t, forB?.id ?? ""))?.state === "delivered");
+
+      expect((await tokenHistory(t, "ExponentPushToken[shared]")).map((row) => row.title)).toEqual([
+        "For B",
+      ]);
+      expect(await notification(t, forB?.id ?? "")).toMatchObject({ state: "delivered" });
+      expect(sent.filter((message) => message.title === "For B")).toHaveLength(1);
+      expect(await tokenRecords(t, userA)).toHaveLength(0);
+    },
+    HEAVY_TEST_TIMEOUT_MS,
+  );
+
+  test("account deletion after a handoff leaves the new owner's token, notification, and send", async () => {
+    const { t, userA, userB, asA, asB } = await setup();
+    await register(asA, "install-x", "ExponentPushToken[shared]");
+    await queuePush(t, userA, "For A");
+    await register(asB, "install-x", "ExponentPushToken[shared]");
+    await queuePush(t, userB, "For B");
+    const [forB] = await queued(t, "install-x");
+    if (forB === undefined) {
+      throw new Error("No queued push for B");
+    }
+
+    await asA.mutation(identity.accountDeletion.deleteAccount, {});
+    await runUntil(t, async () => (await notification(t, forB.id))?.state === "delivered");
+
+    expect(await tokenStatus(t, "install-x")).toMatchObject({ hasToken: true });
+    expect((await tokenHistory(t, "ExponentPushToken[shared]")).map((row) => row.title)).toEqual([
+      "For B",
+    ]);
+    expect(sent.filter((message) => message.title === "For A")).toHaveLength(0);
+    expect(sent.filter((message) => message.title === "For B")).toHaveLength(1);
+    const sendsB = await t.run((ctx) =>
+      ctx.db
+        .query("pushSends")
+        .withIndex("by_user", (q) => q.eq("userId", userB))
+        .collect(),
+    );
+    expect(sendsB.map((row) => row.notificationId)).toEqual([forB.id]);
+  });
+
+  // The documented limit, accepted by operator decision on 2026-10-13
+  // (option A): the former owner's send is still at Expo when the install
+  // takes the same Expo token for another account, and the new owner's push
+  // lands on the token before the cleanup finishes. The token's oldest page
+  // then holds both accounts' notifications, and push component 0.3.1 can
+  // delete only whole pages, so the cleanup stops and logs. It deletes
+  // nothing of the new owner's and leaves the former owner's notification.
+  for (const path of ["handoff", "sign-out, then handoff"] as const) {
+    test(`${path} on a shared token while the former owner's send is in flight stops and keeps the new owner's push`, async () => {
+      const { t, userA, userB, asA, asB } = await setup();
+      const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      await register(asA, "install-x", "ExponentPushToken[shared]");
+      await queuePush(t, userA, "For A");
+      const [forA] = await queued(t, "install-x");
+      if (forA === undefined) {
+        throw new Error("No queued push for A");
+      }
+      const { fetchMock, release } = holdNextSend();
+      await startHeldSend(t, fetchMock);
+      expect(await notification(t, forA.id)).toMatchObject({ state: "in_progress" });
+
+      if (path === "sign-out, then handoff") {
+        await asA.mutation(notifications.devices.unregisterDevice, { deviceId: "install-x" });
+      }
+      await register(asB, "install-x", "ExponentPushToken[shared]");
+      // The send is still in flight, so the former owner's row waits for a
+      // drain.
+      expect(await notification(t, forA.id)).toMatchObject({ state: "in_progress" });
+      expect(await pendingDrains(t)).toHaveLength(1);
+      await queuePush(t, userB, "For B");
+      const [forB] = await queued(t, "install-x");
+      if (forB === undefined) {
+        throw new Error("No queued push for B");
+      }
+      release();
+      await t.finishInProgressScheduledFunctions();
+      await runUntil(
+        t,
+        async () =>
+          (await tokenRecords(t, userA)).length === 0 &&
+          (await notification(t, forB.id))?.state === "delivered",
+      );
+
+      // The cleanup stopped and logged.
+      expect(await tokenRecords(t, userA)).toHaveLength(0);
+      expect(await pendingDrains(t)).toHaveLength(0);
+      expect(errors).toHaveBeenCalledWith(expect.stringContaining("stopped"));
+      // Nothing of the new owner's is deleted: its notification, send, token,
+      // and token record survive, and the push reached Expo once.
+      expect(await notification(t, forB.id)).toMatchObject({ state: "delivered" });
+      expect(sent.filter((message) => message.title === "For B")).toHaveLength(1);
+      expect(await tokenStatus(t, "install-x")).toMatchObject({ hasToken: true });
+      expect(await tokenRecords(t, userB)).toHaveLength(1);
+      const sendsB = await t.run((ctx) =>
+        ctx.db
+          .query("pushSends")
+          .withIndex("by_user", (q) => q.eq("userId", userB))
+          .collect(),
+      );
+      expect(sendsB.map((row) => row.notificationId)).toEqual([forB.id]);
+      // The former owner's notification, handed to the sender before the
+      // handoff, stays on the shared token.
+      expect(await notification(t, forA.id)).toMatchObject({ state: "delivered" });
+      expect((await tokenHistory(t, "ExponentPushToken[shared]")).map((row) => row.title)).toEqual([
+        "For B",
+        "For A",
+      ]);
+    });
+  }
 });
