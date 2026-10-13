@@ -25,6 +25,8 @@ describe("public exports", () => {
       "decisionInputFieldsSchema",
       "decisionInputSchema",
       "validateDecisionInput",
+      "chatMessageSchema",
+      "resolveInputSchema",
       "statusInputSchema",
       "decisionSchema",
       "agentSessionSchema",

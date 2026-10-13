@@ -96,6 +96,8 @@ function surface(via: AnsweredVia): string {
       return "By you from a notification";
     case "api":
       return "Through the API";
+    case "chat":
+      return "Answered in chat";
     case "default":
       return "Applied at the deadline";
   }

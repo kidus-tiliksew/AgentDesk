@@ -1,5 +1,14 @@
 import { describe, expect, test } from "vitest";
-import { decisionInputSchema, type InputType, validateDecisionInput } from "../src/index.js";
+import { z } from "zod";
+import {
+  answerSubmissionSchema,
+  chatMessageSchema,
+  decisionInputFieldsSchema,
+  decisionInputSchema,
+  type InputType,
+  resolveInputSchema,
+  validateDecisionInput,
+} from "../src/index.js";
 
 // component-contract §Decision input and answers; req-decision-requests
 // REQ-1, AC-2.1, AC-3.1, AC-5.3. Every case passes `now` explicitly.
@@ -268,5 +277,152 @@ describe.each(["recommendation", "default"])("%s", (field) => {
   test("a field error and a cross-field error are both reported", () => {
     const input = withDeadline(base({ title: "", [field]: { kind: "text", text: "yes" } }));
     expect(paths(input)).toEqual([["title"], [field, "kind"]]);
+  });
+});
+
+// component-contract §Decision input and answers, the interactive row
+// (req-agent-tools REQ-10, AC-10.1).
+describe("interactive", () => {
+  test("defaults to false", () => {
+    expect(validateDecisionInput(base(), NOW).data?.interactive).toBe(false);
+  });
+
+  test.each([true, false])("keeps an explicit %j", (interactive) => {
+    expect(validateDecisionInput(base({ interactive }), NOW).data?.interactive).toBe(interactive);
+  });
+
+  test.each(["true", 1, null, {}])("refuses the non-boolean %j", (interactive) => {
+    expect(paths(base({ interactive }))).toEqual([["interactive"]]);
+  });
+
+  test("publishes its description and default in the input JSON Schema", () => {
+    // biome-ignore lint/suspicious/noExplicitAny: reading a generated JSON Schema.
+    const json = z.toJSONSchema(decisionInputFieldsSchema, { io: "input" }) as any;
+    expect(json.properties.interactive).toEqual({
+      type: "boolean",
+      default: false,
+      description: "True when the user may be watching this session and can answer in its chat",
+    });
+    expect(json.required).not.toContain("interactive");
+  });
+});
+
+// component-contract §Relayed answers (req-agent-tools REQ-9;
+// req-decision-requests AC-8.2).
+const MAX_MESSAGE = `  \n${"x".repeat(3993)}\r\n \t`;
+
+describe("chatMessageSchema", () => {
+  test("the boundary message is exactly 4,000 characters", () => {
+    expect(MAX_MESSAGE).toHaveLength(4000);
+  });
+
+  test.each([
+    ["one character", "y"],
+    ["4,000 characters with surrounding whitespace and line breaks", MAX_MESSAGE],
+    ["inner line breaks and repeated spaces", "Use B.\n\n  Then   ship."],
+    ["non-ASCII text", "  Oui, vas-y \u2014 d\u00e9ploie.  "],
+  ])("returns %s unchanged", (_name, message) => {
+    expect(chatMessageSchema.parse(message)).toBe(message);
+  });
+
+  test.each([
+    ["an empty message", ""],
+    ["a whitespace-only message", " \n\t\r\n "],
+    ["a 4,001-character message", "x".repeat(4001)],
+    ["a 4,001-character message of padded text", ` ${MAX_MESSAGE}`],
+    ["a non-string", 42],
+    ["null", null],
+  ])("refuses %s", (_name, message) => {
+    expect(chatMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("resolveInputSchema", () => {
+  const RESOLVE = {
+    decision_id: "d1",
+    answer: { kind: "approve" },
+    chat_message: "yes, ship it",
+  };
+
+  function resolvePaths(input: unknown) {
+    const result = resolveInputSchema.safeParse(input);
+    // An empty message fails both the length and the content check on one
+    // field, so the distinct paths are compared.
+    const found = result.success ? [] : result.error.issues.map((issue) => issue.path);
+    return [...new Map(found.map((path) => [JSON.stringify(path), path])).values()];
+  }
+
+  test("accepts a decision id, an answer, and a chat message", () => {
+    expect(resolveInputSchema.parse(RESOLVE)).toEqual(RESOLVE);
+  });
+
+  test("returns a 4,000-character message with surrounding whitespace unchanged", () => {
+    const parsed = resolveInputSchema.parse({ ...RESOLVE, chat_message: MAX_MESSAGE });
+    expect(parsed.chat_message).toBe(MAX_MESSAGE);
+  });
+
+  test.each(["decision_id", "answer", "chat_message"])("refuses input without %s", (field) => {
+    const { [field]: _omitted, ...rest } = RESOLVE as Record<string, unknown>;
+    expect(resolvePaths(rest)).toEqual([[field]]);
+  });
+
+  test.each([
+    ["decision_id", ""],
+    ["decision_id", 7],
+    ["chat_message", ""],
+    ["chat_message", "   \n  "],
+    ["chat_message", "x".repeat(4001)],
+  ])("refuses %s %j", (field, value) => {
+    expect(resolvePaths({ ...RESOLVE, [field]: value })).toEqual([[field]]);
+  });
+
+  test.each([
+    { kind: "maybe" },
+    { kind: "option" },
+    { kind: "text", text: "" },
+    { kind: "options", option_ids: [] },
+    { kind: "approve", note: "extra" },
+    "approve",
+  ])("refuses the malformed answer %j", (answer) => {
+    const issues = resolvePaths({ ...RESOLVE, answer });
+    expect(issues.length).toBeGreaterThan(0);
+    expect(issues.every((path) => path[0] === "answer")).toBe(true);
+  });
+
+  // Shape only: the answer is checked against the decision by
+  // component-decisions with validateAnswer, so any well-formed kind passes.
+  test.each([
+    { kind: "reject" },
+    { kind: "option", option_id: "not-an-option-of-any-decision" },
+    { kind: "options", option_ids: ["a", "a"] },
+    { kind: "text", text: "Neither." },
+  ])("accepts the shape-valid answer %j without decision checks", (answer) => {
+    expect(resolveInputSchema.safeParse({ ...RESOLVE, answer }).success).toBe(true);
+  });
+
+  test("carries no note", () => {
+    expect(Object.keys(resolveInputSchema.shape)).toEqual([
+      "decision_id",
+      "answer",
+      "chat_message",
+    ]);
+    expect(resolveInputSchema.parse({ ...RESOLVE, note: "dropped" })).toEqual(RESOLVE);
+  });
+});
+
+// No other contract input accepts a chat message (req-agent-tools AC-7.3).
+describe("chat message placement", () => {
+  test("the decision input drops a chat_message", () => {
+    const parsed = validateDecisionInput(base({ chat_message: "yes" }), NOW);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data).not.toHaveProperty("chat_message");
+  });
+
+  test("an answer submission drops a chat_message", () => {
+    const parsed = answerSubmissionSchema.parse({
+      answer: { kind: "approve" },
+      chat_message: "yes",
+    });
+    expect(parsed).toEqual({ answer: { kind: "approve" } });
   });
 });

@@ -1,18 +1,27 @@
 import { z } from "zod";
 import { answerSchema, inputTypeSchema, optionSchema } from "./answers.js";
-import { bodySchema, instantSchema, prioritySchema, titleSchema } from "./decisions.js";
+import {
+  bodySchema,
+  chatMessageSchema,
+  instantSchema,
+  interactiveSchema,
+  prioritySchema,
+  titleSchema,
+} from "./decisions.js";
 import { statusLineSchema, statusLinkSchema, statusStateSchema } from "./status.js";
 import { topicSchema } from "./topics.js";
 
 // component-contract §Read shapes and webhook events. Read shapes carry no
 // defaults, transforms, or clock checks, so stored values pass through
 // unchanged and every shape converts with z.toJSONSchema. An absent value is
-// null.
+// null. The relay fields are null unless answered_via is chat, and
+// agent_session_id stays the asking session (req-decision-requests AC-4.3,
+// AC-8.3).
 
 export const decisionStateSchema = z.enum(["pending", "answered", "expired", "cancelled"]);
 export type DecisionState = z.infer<typeof decisionStateSchema>;
 
-export const answeredViaSchema = z.enum(["app", "notification", "api", "default"]);
+export const answeredViaSchema = z.enum(["app", "notification", "api", "chat", "default"]);
 export type AnsweredVia = z.infer<typeof answeredViaSchema>;
 
 export const decisionSchema = z.object({
@@ -24,6 +33,7 @@ export const decisionSchema = z.object({
   options: z.array(optionSchema).nullable(),
   recommendation: answerSchema.nullable(),
   priority: prioritySchema,
+  interactive: interactiveSchema,
   deadline: instantSchema.nullable(),
   default: answerSchema.nullable(),
   state: decisionStateSchema,
@@ -31,6 +41,15 @@ export const decisionSchema = z.object({
   note: z.string().nullable(),
   answered_at: instantSchema.nullable(),
   answered_via: answeredViaSchema.nullable(),
+  chat_message: chatMessageSchema
+    .nullable()
+    .describe("The user's chat message, word for word, when answered_via is chat; null otherwise."),
+  relayed_by_agent_session_id: z
+    .string()
+    .nullable()
+    .describe(
+      "The agent session that relayed the chat answer when answered_via is chat; null otherwise.",
+    ),
   applied_by_default: z.boolean(),
   parent_id: z.string().nullable(),
   follow_up_ids: z.array(z.string()),

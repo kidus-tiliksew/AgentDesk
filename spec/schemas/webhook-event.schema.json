@@ -117,7 +117,7 @@
             "answered_via": {
               "anyOf": [
                 {
-                  "enum": ["app", "notification", "api", "default"],
+                  "enum": ["app", "notification", "api", "chat", "default"],
                   "type": "string"
                 },
                 {
@@ -138,6 +138,19 @@
                   "type": "null"
                 }
               ]
+            },
+            "chat_message": {
+              "anyOf": [
+                {
+                  "maxLength": 4000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The user's chat message, word for word, when answered_via is chat; null otherwise."
             },
             "created_at": {
               "format": "date-time",
@@ -256,6 +269,10 @@
               ],
               "type": "string"
             },
+            "interactive": {
+              "description": "True when the user may be watching this session and can answer in its chat",
+              "type": "boolean"
+            },
             "note": {
               "type": ["string", "null"]
             },
@@ -372,6 +389,10 @@
                 }
               ]
             },
+            "relayed_by_agent_session_id": {
+              "description": "The agent session that relayed the chat answer when answered_via is chat; null otherwise.",
+              "type": ["string", "null"]
+            },
             "state": {
               "enum": ["pending", "answered", "expired", "cancelled"],
               "type": "string"
@@ -395,6 +416,7 @@
             "options",
             "recommendation",
             "priority",
+            "interactive",
             "deadline",
             "default",
             "state",
@@ -402,6 +424,8 @@
             "note",
             "answered_at",
             "answered_via",
+            "chat_message",
+            "relayed_by_agent_session_id",
             "applied_by_default",
             "parent_id",
             "follow_up_ids",

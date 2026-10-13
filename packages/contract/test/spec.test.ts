@@ -247,6 +247,73 @@ describe("standalone payload schemas", () => {
   });
 });
 
+// component-contract §Read shapes and webhook events: the published Decision
+// carries interactive, the chat surface, and the described relay fields in
+// every document that publishes it.
+describe("decision relay fields", () => {
+  const INTERACTIVE = {
+    type: "boolean",
+    description: "True when the user may be watching this session and can answer in its chat",
+  };
+  const decisionSchemas = (): [string, Doc][] => [
+    ["openapi.json", parse("openapi.json").components.schemas.Decision],
+    ["decision", parse("schemas/decision.schema.json")],
+    ["webhook-event", parse("schemas/webhook-event.schema.json").anyOf[0].properties.data],
+  ];
+
+  test("publish interactive, chat, chat_message, and relayed_by_agent_session_id", () => {
+    for (const [where, decision] of decisionSchemas()) {
+      const { properties, required } = decision;
+      expect(required, where).toEqual(
+        expect.arrayContaining(["interactive", "chat_message", "relayed_by_agent_session_id"]),
+      );
+      expect(properties.interactive, where).toEqual(INTERACTIVE);
+      expect(properties.answered_via, where).toEqual({
+        anyOf: [
+          { type: "string", enum: ["app", "notification", "api", "chat", "default"] },
+          { type: "null" },
+        ],
+      });
+      expect(properties.chat_message, where).toEqual({
+        anyOf: [{ type: "string", minLength: 1, maxLength: 4000 }, { type: "null" }],
+        description: decisionSchema.shape.chat_message.description,
+      });
+      expect(properties.relayed_by_agent_session_id, where).toEqual({
+        type: ["string", "null"],
+        description: decisionSchema.shape.relayed_by_agent_session_id.description,
+      });
+      expect(properties.chat_message.description, where).toMatch(
+        /answered_via is chat; null otherwise/,
+      );
+      expect(properties.relayed_by_agent_session_id.description, where).toMatch(
+        /answered_via is chat; null otherwise/,
+      );
+    }
+  });
+
+  test("the resolve input is not published and the request bodies are unchanged", () => {
+    const doc = parse("openapi.json");
+    expect(Object.keys(doc.components.schemas).sort()).toEqual([
+      "AgentSession",
+      "AgentSessionPage",
+      "AnswerSubmission",
+      "Decision",
+      "DecisionPage",
+      "ErrorBody",
+    ]);
+    expect(Object.keys(doc.components.schemas.AnswerSubmission.properties)).toEqual([
+      "answer",
+      "note",
+    ]);
+    for (const [path, text] of rendered) {
+      if (path === "openapi.json") continue;
+      expect(text, path).not.toContain("decision_id");
+    }
+    const bodies = operations(doc).filter(([method, path]) => doc.paths[path][method].requestBody);
+    expect(bodies.map(([, , id]) => id)).toEqual(["decisions.answer"]);
+  });
+});
+
 describe("agent session link", () => {
   const linkSchemas = (): [string, Doc][] => [
     ["openapi.json", parse("openapi.json").components.schemas.AgentSession.properties.link],

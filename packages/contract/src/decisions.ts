@@ -21,6 +21,9 @@ export type Priority = z.infer<typeof prioritySchema>;
 export const deadlineSchema = instantSchema;
 export const parentIdSchema = z.string();
 export const idempotencyKeySchema = z.string().min(1).max(128);
+export const interactiveSchema = z
+  .boolean()
+  .describe("True when the user may be watching this session and can answer in its chat");
 
 // The decision input fields without cross-field rules. It needs no clock, so
 // route tables and JSON Schema generation can use it.
@@ -31,6 +34,7 @@ export const decisionInputFieldsSchema = z.object({
   options: optionsSchema.optional(),
   topic: topicInputSchema,
   priority: prioritySchema.default("normal"),
+  interactive: interactiveSchema.default(false),
   recommendation: answerSchema.optional(),
   deadline: deadlineSchema.optional(),
   default: answerSchema.optional(),
@@ -90,3 +94,25 @@ export function validateDecisionInput(
 ): z.ZodSafeParseResult<DecisionInput> {
   return decisionInputSchema(now).safeParse(input);
 }
+
+// component-contract §Relayed answers. A chat message the user typed, kept
+// word for word: a message with no non-whitespace character is refused, and
+// an accepted message is returned without trimming or normalization
+// (req-decision-requests AC-8.2).
+export const chatMessageSchema = z
+  .string()
+  .min(1)
+  .max(4000)
+  .refine((message) => /\S/.test(message), {
+    message: "chat_message must contain a non-whitespace character",
+  });
+
+// The resolve tool's input (req-agent-tools REQ-9). The answer is checked for
+// shape only; component-decisions validates it against the decision with
+// validateAnswer. A relayed answer carries no note.
+export const resolveInputSchema = z.object({
+  decision_id: z.string().min(1),
+  answer: answerSchema,
+  chat_message: chatMessageSchema,
+});
+export type ResolveInput = z.output<typeof resolveInputSchema>;

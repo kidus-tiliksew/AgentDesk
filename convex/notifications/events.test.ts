@@ -70,7 +70,13 @@ describe("emit", () => {
           ctx,
           userA,
           agentSessionId,
-          { title: "Ship it?", input_type: "approve_reject", topic: "repo/x", priority: "normal" },
+          {
+            title: "Ship it?",
+            input_type: "approve_reject",
+            topic: "repo/x",
+            priority: "normal",
+            interactive: false,
+          },
           START,
         );
         throw new Error("emitter failed");

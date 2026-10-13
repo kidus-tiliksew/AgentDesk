@@ -19,6 +19,7 @@ const PENDING: Decision = {
   options: null,
   recommendation: null,
   priority: "normal",
+  interactive: false,
   deadline: null,
   default: null,
   state: "pending",
@@ -26,6 +27,8 @@ const PENDING: Decision = {
   note: null,
   answered_at: null,
   answered_via: null,
+  chat_message: null,
+  relayed_by_agent_session_id: null,
   applied_by_default: false,
   parent_id: null,
   follow_up_ids: [],
@@ -53,6 +56,20 @@ const ANSWERED: Decision = {
   parent_id: "d0",
   follow_up_ids: ["d2", "d3"],
   agent_session_id: "s1",
+};
+
+// An answer relayed from the asking session's chat by another session: the
+// relay fields carry the message word for word and the relaying session, and
+// agent_session_id stays the asking session (req-decision-requests AC-4.3,
+// AC-8.3).
+const CHAT_MESSAGE = "  Go with alpha,\n  but keep beta behind a flag.\n";
+const ANSWERED_IN_CHAT: Decision = {
+  ...ANSWERED,
+  interactive: true,
+  note: null,
+  answered_via: "chat",
+  chat_message: CHAT_MESSAGE,
+  relayed_by_agent_session_id: "s2",
 };
 
 const SESSION: AgentSession = {
@@ -89,6 +106,7 @@ describe("Decision", () => {
       "options",
       "recommendation",
       "priority",
+      "interactive",
       "deadline",
       "default",
       "state",
@@ -96,6 +114,8 @@ describe("Decision", () => {
       "note",
       "answered_at",
       "answered_via",
+      "chat_message",
+      "relayed_by_agent_session_id",
       "applied_by_default",
       "parent_id",
       "follow_up_ids",
@@ -104,7 +124,7 @@ describe("Decision", () => {
     ]);
   });
 
-  test.each([PENDING, ANSWERED])("round-trips %#", (decision) => {
+  test.each([PENDING, ANSWERED, ANSWERED_IN_CHAT])("round-trips %#", (decision) => {
     expect(decisionSchema.parse(decision)).toEqual(decision);
   });
 
@@ -112,9 +132,33 @@ describe("Decision", () => {
     expect(decisionSchema.safeParse({ ...PENDING, state }).success).toBe(true);
   });
 
-  test.each(["app", "notification", "api", "default"])("accepts answered_via %s", (via) => {
+  test.each(["app", "notification", "api", "chat", "default"])("accepts answered_via %s", (via) => {
     expect(decisionSchema.safeParse({ ...ANSWERED, answered_via: via }).success).toBe(true);
   });
+
+  test("an answer relayed from chat keeps the message unchanged and the asking session", () => {
+    const parsed = decisionSchema.parse(ANSWERED_IN_CHAT);
+    expect(parsed).toEqual(ANSWERED_IN_CHAT);
+    expect(parsed.chat_message).toBe(CHAT_MESSAGE);
+    expect(parsed.relayed_by_agent_session_id).toBe("s2");
+    expect(parsed.agent_session_id).toBe("s1");
+    expect(parsed.interactive).toBe(true);
+  });
+
+  test("an answer given otherwise carries both relay fields as null", () => {
+    const parsed = decisionSchema.parse(ANSWERED);
+    expect(parsed.answered_via).toBe("app");
+    expect(parsed.chat_message).toBeNull();
+    expect(parsed.relayed_by_agent_session_id).toBeNull();
+  });
+
+  test.each(["interactive", "chat_message", "relayed_by_agent_session_id"])(
+    "requires %s and supplies no default",
+    (field) => {
+      const { [field]: _omitted, ...rest } = PENDING as Record<string, unknown>;
+      expect(decisionSchema.safeParse(rest).success).toBe(false);
+    },
+  );
 
   test("records a default applied at expiry", () => {
     const expired = {
@@ -141,6 +185,10 @@ describe("Decision", () => {
     ["answered_via", "email"],
     ["follow_up_ids", null],
     ["created_at", null],
+    ["interactive", null],
+    ["interactive", "false"],
+    ["chat_message", 1],
+    ["relayed_by_agent_session_id", 1],
   ])("rejects %s %j", (field, value) => {
     expect(decisionSchema.safeParse({ ...PENDING, [field]: value }).success).toBe(false);
   });
@@ -200,6 +248,17 @@ describe("WebhookEvent", () => {
     },
   );
 
+  test("a decision.answered event for a relayed answer carries the relay fields", () => {
+    const answered = { ...event, kind: "decision.answered", data: ANSWERED_IN_CHAT };
+    const parsed = webhookEventSchema.parse(answered);
+    expect(parsed).toEqual(answered);
+    expect(parsed.data).toMatchObject({
+      answered_via: "chat",
+      chat_message: CHAT_MESSAGE,
+      relayed_by_agent_session_id: "s2",
+    });
+  });
+
   test.each(["push", "digest", "mute", null])("accepts action %j", (action) => {
     const parsed = { ...event, action, kind: "decision.created", data: PENDING };
     expect(webhookEventSchema.parse(parsed)).toEqual(parsed);
@@ -254,5 +313,29 @@ describe("JSON Schema conversion", () => {
   test("Decision lists every field as required", () => {
     const json = z.toJSONSchema(decisionSchema);
     expect(json.required).toEqual(Object.keys(decisionSchema.shape));
+  });
+
+  test("Decision publishes interactive, the chat surface, and the described relay fields", () => {
+    // biome-ignore lint/suspicious/noExplicitAny: walking a generated JSON Schema.
+    const properties = z.toJSONSchema(decisionSchema).properties as any;
+    expect(properties.interactive).toEqual({
+      type: "boolean",
+      description: "True when the user may be watching this session and can answer in its chat",
+    });
+    expect(properties.answered_via.anyOf[0].enum).toEqual([
+      "app",
+      "notification",
+      "api",
+      "chat",
+      "default",
+    ]);
+    expect(properties.chat_message.description).toMatch(
+      /word for word, when answered_via is chat; null otherwise/,
+    );
+    expect(properties.chat_message.anyOf).toContainEqual({ type: "null" });
+    expect(properties.relayed_by_agent_session_id.description).toMatch(
+      /relayed the chat answer when answered_via is chat; null otherwise/,
+    );
+    expect(properties.relayed_by_agent_session_id.type).toEqual(["string", "null"]);
   });
 });
