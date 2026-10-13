@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "../_generated/server";
-import { finishIfComplete } from "./accountDeletion";
+import { refusalEnd } from "./accountDeletion";
 import { identity } from "./refs";
 
 // component-identity §Account deletion: deleting the person's Clerk user
@@ -115,10 +115,11 @@ export const recordClerkOutcome = internalMutation({
     const now = Date.now();
     if (outcome.kind === "deleted") {
       const clerk = { state: "done" as const, attempt, nextAttemptAt: record.clerk.nextAttemptAt };
-      const done = { ...record, clerk: { ...clerk, doneAt: now } };
-      if (!(await finishIfComplete(ctx, done))) {
-        await ctx.db.patch("accountDeletions", deletionId, { clerk: { ...clerk, doneAt: now } });
-      }
+      const refuseUntil = refusalEnd({ ...record, clerk: { ...clerk, doneAt: now } });
+      await ctx.db.patch("accountDeletions", deletionId, {
+        clerk: { ...clerk, doneAt: now },
+        ...(refuseUntil === undefined ? {} : { refuseUntil }),
+      });
       return null;
     }
     const backoff = Math.min(RETRY_BASE_MS * 2 ** (attempt - 1), RETRY_MAX_MS);

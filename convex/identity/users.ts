@@ -13,9 +13,9 @@ export async function findUser(ctx: Pick<QueryCtx, "db">, clerkUserId: string) {
     .unique();
 }
 
-// Returns the running deletion of a Clerk user's account, or null. The record
-// outlives the `users` row while the Clerk user's deletion is retried
-// (§Account deletion).
+// Returns the deletion record of a Clerk user's account, or null. The record
+// outlives the `users` row while the Clerk user's deletion is retried and for
+// the refusal window after both steps finish (§Account deletion).
 export async function findDeletion(ctx: Pick<QueryCtx, "db">, clerkUserId: string) {
   return await ctx.db
     .query("accountDeletions")
@@ -37,8 +37,8 @@ export async function getUserByClerkId(
 // (req-accounts-and-connections AC-2.1). The lookup reads the raw row, so a
 // deleting account is refused instead of being recreated while its purge runs.
 // A subject whose deletion record remains after the purge deleted its row is
-// refused too, so a Clerk session that outlives the purge, while the Clerk
-// user's deletion is retried, cannot create a new account.
+// refused too, so a Convex token Clerk issued before the deletion, which still
+// authenticates until it expires, cannot create a new account.
 // Lookup and insert share the caller's mutation transaction, so concurrent
 // first calls cannot create two rows for one subject.
 export async function ensureUser(ctx: Pick<MutationCtx, "auth" | "db">): Promise<Doc<"users">> {

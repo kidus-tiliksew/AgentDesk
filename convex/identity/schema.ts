@@ -65,11 +65,11 @@ export const tables = {
     at: v.number(),
   }).index("by_user_at", ["userId", "at"]),
 
-  // One running account deletion (component-identity §Account deletion). It
-  // drives the purge and the Clerk deletion, and it outlives the `users` row
-  // while the Clerk deletion is retried, so the Clerk subject cannot create a
-  // new account in the meantime. It holds no email, token, decision, or device
-  // data, and it is deleted once both the purge and the Clerk deletion finish.
+  // One account deletion (component-identity §Account deletion). It drives
+  // the purge and the Clerk deletion, and it outlives the `users` row, so the
+  // Clerk subject cannot create a new account: while the Clerk deletion is
+  // retried, and for REFUSAL_WINDOW_MS after both steps finish. It holds no
+  // email, token, decision, or device data.
   accountDeletions: defineTable({
     userId: v.id("users"),
     clerkUserId: v.string(),
@@ -97,6 +97,10 @@ export const tables = {
     purgedAt: v.optional(v.number()),
     // Set when the deletion first ran past its 24-hour deadline unfinished.
     overdueAt: v.optional(v.number()),
+    // Set once both the purge and the Clerk deletion are done: the record
+    // keeps refusing the Clerk subject until then, because a Convex token
+    // Clerk issued before the deletion still authenticates until it expires.
+    refuseUntil: v.optional(v.number()),
     clerk: v.object({
       state: v.union(v.literal("pending"), v.literal("done")),
       // The current attempt number. An outcome for another attempt is ignored.
@@ -110,5 +114,7 @@ export const tables = {
     }),
   })
     .index("by_clerk", ["clerkUserId"])
-    .index("by_updated", ["updatedAt"]),
+    // Recovery reads deletions still running: no `refuseUntil` yet.
+    .index("by_refuse_updated", ["refuseUntil", "updatedAt"])
+    .index("by_refuse_until", ["refuseUntil"]),
 };

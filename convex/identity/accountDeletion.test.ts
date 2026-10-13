@@ -14,7 +14,13 @@ import {
   setup,
   tokenStatus,
 } from "../notifications/test.setup";
-import { CLERK_FIRST_DELAY_MS, DELETION_WINDOW_MS, PURGE_BATCH, STALL_MS } from "./accountDeletion";
+import {
+  CLERK_FIRST_DELAY_MS,
+  DELETION_WINDOW_MS,
+  PURGE_BATCH,
+  REFUSAL_WINDOW_MS,
+  STALL_MS,
+} from "./accountDeletion";
 import { identity } from "./refs";
 import { hashToken } from "./tokens";
 
@@ -577,12 +583,96 @@ describe("purge", () => {
     }
 
     expect(Object.values(await owned(t, userA, a)).every((count) => count === 0)).toBe(true);
-    expect(await deletionOf(t, "user_a")).toBeNull();
+    // Both steps are done; the record keeps refusing the subject for the
+    // refusal window.
+    expect(await deletionOf(t, "user_a")).toMatchObject({ refuseUntil: expect.any(Number) });
     vi.unstubAllEnvs();
   });
 });
 
 describe("refusals while an account is being deleted", () => {
+  // Review round 3: Convex accepts any unexpired Clerk-signed token, and
+  // deleting the Clerk user does not withdraw tokens already issued.
+  test("a still-valid token of the deleted subject cannot recreate the account after the purge and the Clerk deletion", async () => {
+    const { t, userB } = await seedBoth();
+    const asA = t.withIdentity({ subject: "user_a", email: "a@example.com" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 200 })),
+    );
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test");
+    await asA.mutation(identity.accountDeletion.deleteAccount, {});
+    await runPurge(t, "user_a");
+    const record = await deletionOf(t, "user_a");
+    if (record === null) {
+      throw new Error("No deletion record");
+    }
+    await t.action(identity.clerkDeletion.deleteClerkUser, {
+      deletionId: record._id,
+      attempt: 1,
+    });
+    vi.unstubAllEnvs();
+
+    // The same token, replayed after both steps finished.
+    await expect(asA.mutation(identity.accounts.ensureAccount, {})).rejects.toMatchObject(
+      unauthenticated,
+    );
+    await expect(register(asA, "install-new", "ExponentPushToken[new]")).rejects.toMatchObject(
+      unauthenticated,
+    );
+    await expect(
+      asA.mutation(identity.deviceRequests.approveDeviceRequest, { code: "ABCDEFGH" }),
+    ).rejects.toMatchObject(unauthenticated);
+
+    const left = await t.run(async (ctx) => ({
+      users: await ctx.db.query("users").collect(),
+      devices: await ctx.db.query("devices").collect(),
+      credentials: await ctx.db.query("credentials").collect(),
+    }));
+    expect(left.users.map((user) => user.clerkUserId)).toEqual(["user_b"]);
+    expect(left.devices.every((device) => device.userId === userB)).toBe(true);
+    expect(left.credentials.every((credential) => credential.userId === userB)).toBe(true);
+  });
+
+  test("the refusal record goes once its window has passed, and only then", async () => {
+    const { t } = await seedBoth();
+    const asA = t.withIdentity({ subject: "user_a", email: "a@example.com" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 200 })),
+    );
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test");
+    await asA.mutation(identity.accountDeletion.deleteAccount, {});
+    await runPurge(t, "user_a");
+    const record = await deletionOf(t, "user_a");
+    if (record === null) {
+      throw new Error("No deletion record");
+    }
+    await t.action(identity.clerkDeletion.deleteClerkUser, {
+      deletionId: record._id,
+      attempt: 1,
+    });
+    vi.unstubAllEnvs();
+    const refuseUntil = (await deletionOf(t, "user_a"))?.refuseUntil;
+    expect(refuseUntil).toBe(START + REFUSAL_WINDOW_MS);
+
+    // One minute before the window ends, recovery keeps the record.
+    vi.setSystemTime((refuseUntil ?? 0) - MINUTE);
+    await t.mutation(identity.accountDeletion.resumePurges, {});
+    expect(await deletionOf(t, "user_a")).not.toBeNull();
+    await expect(asA.mutation(identity.accounts.ensureAccount, {})).rejects.toMatchObject(
+      unauthenticated,
+    );
+
+    // Once it has passed, every token issued before the Clerk deletion has
+    // expired, and recovery deletes the record.
+    vi.setSystemTime(refuseUntil ?? 0);
+    await t.mutation(identity.accountDeletion.resumePurges, {});
+    expect(await deletionOf(t, "user_a")).toBeNull();
+    const deletions = await t.run((ctx) => ctx.db.query("accountDeletions").collect());
+    expect(deletions).toHaveLength(0);
+  });
+
   test("the Clerk subject cannot create an account while the record remains, and others can", async () => {
     const { t, asA } = await seedBoth();
     const first = await asA.mutation(identity.accountDeletion.deleteAccount, {});

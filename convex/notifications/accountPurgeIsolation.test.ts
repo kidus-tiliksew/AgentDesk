@@ -16,6 +16,42 @@ import { queued, register, type Setup, setup, tokenStatus } from "./test.setup";
 
 const START = Date.UTC(2026, 9, 13, 12, 0, 0);
 
+// The heavy tests drive the real component through more than 1,000
+// notifications. CI run 38402284935 measured 5,537 ms for the reassigned
+// install test before its setup was cut, against Vitest's 5,000 ms default,
+// and about 1.6 times the local duration in general. After the cut the test
+// takes about 2 s locally, so 30 s leaves more than five times the slowest
+// CI measurement while a hang still fails within a minute.
+const HEAVY_TEST_TIMEOUT_MS = 30_000;
+
+// Queues `count` notifications to the account's install the way
+// `queueToDevice` in ./push.ts does, through the component's send and the
+// account's `pushSends` record, without the event rows that the deletion's
+// purge would also have to delete.
+async function queueHistory(t: Setup["t"], userId: Id<"users">, deviceId: string, count: number) {
+  await t.run(async (ctx) => {
+    for (let i = 0; i < count; i++) {
+      const notificationId = await pushNotifications.sendPushNotification(ctx, {
+        userId: deviceId,
+        notification: { title: `History ${i}` },
+      });
+      if (notificationId !== null) {
+        await ctx.db.insert("pushSends", { userId, notificationId });
+      }
+    }
+  });
+}
+
+// The account's token records that still wait for their cancellation.
+function tokenRecords(t: Setup["t"], userId: Id<"users">) {
+  return t.run((ctx) =>
+    ctx.db
+      .query("deviceTokens")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect(),
+  );
+}
+
 // Every message body Expo received, as parsed JSON.
 let sent: { to: string; title?: string }[] = [];
 
@@ -76,48 +112,48 @@ describe("account deletion and the push component", () => {
   // Finding 1: the component's deletion continuation looks the install up
   // again, so it must never be able to reach an install that another
   // account registers before it runs.
-  test("a reassigned install keeps the new account's notification, token, and send", async () => {
-    const { t, userA, userB, asA, asB } = await setup();
-    await register(asA, "install-x", "ExponentPushToken[a]");
-    await t.run(async (ctx) => {
-      for (let i = 0; i < 1100; i++) {
-        const eventId = await ctx.db.insert("events", {
-          userId: userA,
-          kind: "agent.done",
-          occurredAt: START,
-          action: "push",
-        });
-        await deliverPush(ctx, eventId, { title: `A ${i}` });
+  test(
+    "a reassigned install keeps the new account's notification, token, and send",
+    async () => {
+      const { t, userA, userB, asA, asB } = await setup();
+      await register(asA, "install-x", "ExponentPushToken[a]");
+      await queueHistory(t, userA, "install-x", 1100);
+      // Expo accepts all 1,100 sends, so every row of A's history is settled.
+      for (let i = 0; i < 100 && sent.length < 1100; i++) {
+        await runScheduled(t, 300);
       }
-    });
-    // Expo accepts all 1,100 sends, so every row of A's history is settled.
-    for (let i = 0; i < 100 && sent.length < 1100; i++) {
-      await runScheduled(t, 300);
-    }
-    expect(sent).toHaveLength(1100);
+      expect(sent).toHaveLength(1100);
 
-    await asA.mutation(identity.accountDeletion.deleteAccount, {});
-    // The cancellation's first step runs and deletes the first page.
-    await runScheduled(t, 1);
+      await asA.mutation(identity.accountDeletion.deleteAccount, {});
+      // The cancellation's first step runs and deletes the first page.
+      await runScheduled(t, 1);
 
-    // Before anything else runs, B registers the same install and queues a
-    // push to it.
-    await register(asB, "install-x", "ExponentPushToken[b]");
-    await queuePush(t, userB, "For B");
-    const [forB] = await queued(t, "install-x");
-    if (forB === undefined) {
-      throw new Error("No queued push for B");
-    }
+      // Before anything else runs, B registers the same install and queues a
+      // push to it.
+      await register(asB, "install-x", "ExponentPushToken[b]");
+      await queuePush(t, userB, "For B");
+      const [forB] = await queued(t, "install-x");
+      if (forB === undefined) {
+        throw new Error("No queued push for B");
+      }
 
-    // Everything scheduled runs to the end.
-    for (let i = 0; i < 200; i++) {
-      await runScheduled(t, 1000);
-    }
+      // Everything scheduled runs until A's cancellation has finished and B's
+      // push went out.
+      for (let i = 0; i < 200; i++) {
+        await runScheduled(t, 1000);
+        const settled = (await notification(t, forB.id))?.state === "delivered";
+        if (settled && (await tokenRecords(t, userA)).length === 0) {
+          break;
+        }
+      }
 
-    expect(await tokenStatus(t, "install-x")).toMatchObject({ hasToken: true });
-    expect(await notification(t, forB.id)).toMatchObject({ state: "delivered" });
-    expect(sent.filter((message) => message.title === "For B")).toHaveLength(1);
-  });
+      expect(await tokenRecords(t, userA)).toHaveLength(0);
+      expect(await tokenStatus(t, "install-x")).toMatchObject({ hasToken: true });
+      expect(await notification(t, forB.id)).toMatchObject({ state: "delivered" });
+      expect(sent.filter((message) => message.title === "For B")).toHaveLength(1);
+    },
+    HEAVY_TEST_TIMEOUT_MS,
+  );
 
   // Finding 2: a token the account registered earlier for the same install
   // still holds its queued notifications.

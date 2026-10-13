@@ -37,6 +37,15 @@ export const RESUME_PAGE = 50;
 // A batch that deleted nothing because a domain is waiting, such as the push
 // cancellation, schedules the next batch this much later instead of at once.
 export const PURGE_WAIT_MS = 30_000;
+// How long the record keeps refusing the Clerk subject after both the purge
+// and the Clerk deletion are done. Convex accepts any unexpired token signed
+// by the Clerk issuer and does not ask Clerk whether the user still exists,
+// so a token issued before the Clerk deletion keeps authenticating until it
+// expires. Clerk session tokens, which the app sends through the Convex
+// integration, live 60 seconds; a `convex` JWT template sets its own
+// lifetime. Thirty days covers both, provided no template issues Convex tokens
+// valid for longer (component-identity §Account deletion).
+export const REFUSAL_WINDOW_MS = 30 * 24 * 60 * 60_000;
 // The first Clerk attempt waits this long, so the app's sign-out of the
 // deleting session finishes before Clerk deletes the user.
 export const CLERK_FIRST_DELAY_MS = 60_000;
@@ -194,17 +203,15 @@ export const deleteAccount = mutation({
   },
 });
 
-// Deletes the record once both the purge and the Clerk deletion are done;
-// until then it stays and refuses the Clerk subject.
-export async function finishIfComplete(
-  ctx: Pick<MutationCtx, "db">,
-  record: Doc<"accountDeletions">,
-): Promise<boolean> {
-  if (record.purgedAt !== undefined && record.clerk.state === "done") {
-    await ctx.db.delete("accountDeletions", record._id);
-    return true;
+// When the record may stop refusing the Clerk subject: REFUSAL_WINDOW_MS
+// after the later of the purge and the Clerk deletion, once both are done.
+// Until then the record stays, and every `ensureUser` and development mint for
+// the subject is refused.
+export function refusalEnd(record: Doc<"accountDeletions">): number | undefined {
+  if (record.purgedAt === undefined || record.clerk.state !== "done") {
+    return undefined;
   }
-  return false;
+  return Math.max(record.purgedAt, record.clerk.doneAt ?? record.purgedAt) + REFUSAL_WINDOW_MS;
 }
 
 // Marks a deletion past its 24-hour deadline once, and logs it without the
@@ -259,15 +266,14 @@ export const purgeBatch = internalMutation({
       if (user !== null) {
         await ctx.db.delete("users", user._id);
       }
-      const done = { ...record, phase, purgedAt: now, updatedAt: now };
-      if (!(await finishIfComplete(ctx, done))) {
-        await ctx.db.patch("accountDeletions", deletionId, {
-          phase,
-          purgedAt: now,
-          updatedAt: now,
-          ...overdue(record, now),
-        });
-      }
+      const refuseUntil = refusalEnd({ ...record, purgedAt: now });
+      await ctx.db.patch("accountDeletions", deletionId, {
+        phase,
+        purgedAt: now,
+        updatedAt: now,
+        ...overdue(record, now),
+        ...(refuseUntil === undefined ? {} : { refuseUntil }),
+      });
       return null;
     }
 
@@ -286,8 +292,9 @@ export const purgeBatch = internalMutation({
   },
 });
 
-// Hourly recovery from convex/crons.ts. It restarts each deletion with no
-// progress for STALL_MS: a purge that is not finished gets a new chain under
+// Hourly recovery from convex/crons.ts. It deletes each finished record whose
+// refusal window has passed, and it restarts each deletion with no progress
+// for STALL_MS: a purge that is not finished gets a new chain under
 // a new generation, which stops the old one, and a Clerk deletion whose
 // attempt is overdue by STALL_MS gets a new attempt. A purge batch that
 // failed, for example, left its chain without a successor; this run picks it
@@ -299,7 +306,9 @@ export const resumePurges = internalMutation({
     const now = Date.now();
     const stalled = await ctx.db
       .query("accountDeletions")
-      .withIndex("by_updated", (q) => q.lt("updatedAt", now - STALL_MS))
+      .withIndex("by_refuse_updated", (q) =>
+        q.eq("refuseUntil", undefined).lt("updatedAt", now - STALL_MS),
+      )
       .take(RESUME_PAGE);
     for (const record of stalled) {
       const patch: Partial<Doc<"accountDeletions">> = { updatedAt: now, ...overdue(record, now) };
@@ -321,7 +330,16 @@ export const resumePurges = internalMutation({
       }
       await ctx.db.patch("accountDeletions", record._id, patch);
     }
-    if (stalled.length === RESUME_PAGE) {
+    // Finished deletions whose refusal window has passed: any token issued
+    // before the Clerk deletion has expired, so the record goes.
+    const expired = await ctx.db
+      .query("accountDeletions")
+      .withIndex("by_refuse_until", (q) => q.gt("refuseUntil", 0).lte("refuseUntil", now))
+      .take(RESUME_PAGE);
+    for (const record of expired) {
+      await ctx.db.delete("accountDeletions", record._id);
+    }
+    if (stalled.length === RESUME_PAGE || expired.length === RESUME_PAGE) {
       await ctx.scheduler.runAfter(0, identity.accountDeletion.resumePurges, {});
     }
     return stalled.length;

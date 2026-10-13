@@ -284,6 +284,13 @@ describe("cancelDevicePushes", () => {
   });
 });
 
+// The mixed-batch test drives the real component through more than 1,000
+// notifications. CI run 38402284935 measured 3,231 ms for it, about 1.5 times
+// its local duration, against Vitest's 5,000 ms default. Its setup now skips
+// the event rows, and 30 s leaves several times the slowest CI measurement
+// while a hang still fails within a minute.
+const HEAVY_TEST_TIMEOUT_MS = 30_000;
+
 // Answers every message of an Expo send request as accepted.
 function accepted(init?: RequestInit) {
   const messages = JSON.parse(String(init?.body ?? "[]")) as unknown[];
@@ -307,78 +314,83 @@ function history(t: Setup["t"], deviceId: string) {
 // Review round 1, finding 2: cancellation never deletes a row the
 // component's sender owns, whichever page of a long history it is on.
 describe("cancelDevicePushes with a long history and a send in flight", () => {
-  test("keeps every in-flight row, lets a mixed-account batch record its results, then drains", async () => {
-    const { t, userA, userB, asA, asB } = await setup();
-    await register(asA, "install-a", "ExponentPushToken[a]");
-    await register(asB, "install-b", "ExponentPushToken[b]");
-    // Another account's push is queued first, so the sender's first batch
-    // holds both accounts' notifications.
-    await queuePush(t, userB, "Other account");
-    const [otherRow] = await queued(t, "install-b");
-    if (otherRow === undefined) {
-      throw new Error("No queued push for the other account");
-    }
-    // 1,100 distinct notifications for the deleted account's install, queued
-    // through AgentDesk's own delivery path.
-    await t.run(async (ctx) => {
-      for (let i = 0; i < 1100; i++) {
-        const eventId = await ctx.db.insert("events", {
-          userId: userA,
-          kind: "agent.done",
-          occurredAt: 0,
-          action: "push",
-        });
-        await deliverPush(ctx, eventId, { title: `Push ${i}` });
+  test(
+    "keeps every in-flight row, lets a mixed-account batch record its results, then drains",
+    async () => {
+      const { t, userA, userB, asA, asB } = await setup();
+      await register(asA, "install-a", "ExponentPushToken[a]");
+      await register(asB, "install-b", "ExponentPushToken[b]");
+      // Another account's push is queued first, so the sender's first batch
+      // holds both accounts' notifications.
+      await queuePush(t, userB, "Other account");
+      const [otherRow] = await queued(t, "install-b");
+      if (otherRow === undefined) {
+        throw new Error("No queued push for the other account");
       }
-    });
+      // 1,100 distinct notifications for the deleted account's install, queued
+      // the way `queueToDevice` queues them: the component's send and the
+      // account's `pushSends` record.
+      await t.run(async (ctx) => {
+        for (let i = 0; i < 1100; i++) {
+          const notificationId = await pushNotifications.sendPushNotification(ctx, {
+            userId: "install-a",
+            notification: { title: `Push ${i}` },
+          });
+          if (notificationId !== null) {
+            await ctx.db.insert("pushSends", { userId: userA, notificationId });
+          }
+        }
+      });
 
-    // The first Expo request hangs, so its batch stays in the sender's hands.
-    let release: (response: Response) => void = () => undefined;
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => accepted(init));
-    fetchMock.mockImplementationOnce(
-      (_url: string, init?: RequestInit) =>
-        new Promise<Response>((resolve) => {
-          release = () => resolve(accepted(init));
-        }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    // The coordinator hands the oldest 100 notifications to a sender.
-    await runScheduled(t, 300);
-    vi.advanceTimersByTime(1);
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    const inFlightRows = (await history(t, "install-a")).filter(
-      (row) => row.state === "in_progress",
-    );
-    expect(inFlightRows.length).toBeGreaterThan(0);
-    expect(await notification(t, otherRow.id)).toMatchObject({ state: "in_progress" });
+      // The first Expo request hangs, so its batch stays in the sender's hands.
+      let release: (response: Response) => void = () => undefined;
+      const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => accepted(init));
+      fetchMock.mockImplementationOnce(
+        (_url: string, init?: RequestInit) =>
+          new Promise<Response>((resolve) => {
+            release = () => resolve(accepted(init));
+          }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      // The coordinator hands the oldest 100 notifications to a sender.
+      await runScheduled(t, 300);
+      vi.advanceTimersByTime(1);
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      const inFlightRows = (await history(t, "install-a")).filter(
+        (row) => row.state === "in_progress",
+      );
+      expect(inFlightRows.length).toBeGreaterThan(0);
+      expect(await notification(t, otherRow.id)).toMatchObject({ state: "in_progress" });
 
-    await removeAndCancel(t, "install-a");
+      await removeAndCancel(t, "install-a");
 
-    // No row the sender holds is deleted.
-    for (const row of inFlightRows) {
-      expect(await notification(t, row.id)).toMatchObject({ state: "in_progress" });
-    }
-    // The batch records its results, including the other account's.
-    release(new Response());
-    await t.finishInProgressScheduledFunctions();
-    expect(await notification(t, otherRow.id)).toMatchObject({ state: "delivered" });
-    for (const row of inFlightRows) {
-      expect(await notification(t, row.id)).toMatchObject({ state: "delivered" });
-    }
+      // No row the sender holds is deleted.
+      for (const row of inFlightRows) {
+        expect(await notification(t, row.id)).toMatchObject({ state: "in_progress" });
+      }
+      // The batch records its results, including the other account's.
+      release(new Response());
+      await t.finishInProgressScheduledFunctions();
+      expect(await notification(t, otherRow.id)).toMatchObject({ state: "delivered" });
+      for (const row of inFlightRows) {
+        expect(await notification(t, row.id)).toMatchObject({ state: "delivered" });
+      }
 
-    // Once nothing is left in flight, the drain deletes the whole history
-    // and removes the token.
-    for (let i = 0; i < 200 && (await tokenRecords(t, userA)).length > 0; i++) {
-      await runScheduled(t, 1000);
-    }
-    expect(await tokenStatus(t, "install-a")).toMatchObject({ hasToken: false });
-    for (const row of inFlightRows) {
-      expect(await notification(t, row.id)).toBeNull();
-    }
-    expect(await notification(t, otherRow.id)).toMatchObject({ state: "delivered" });
-    expect(await tokenStatus(t, "install-b")).toMatchObject({ hasToken: true });
-    vi.unstubAllGlobals();
-  });
+      // Once nothing is left in flight, the drain deletes the whole history
+      // and removes the token.
+      for (let i = 0; i < 200 && (await tokenRecords(t, userA)).length > 0; i++) {
+        await runScheduled(t, 1000);
+      }
+      expect(await tokenStatus(t, "install-a")).toMatchObject({ hasToken: false });
+      for (const row of inFlightRows) {
+        expect(await notification(t, row.id)).toBeNull();
+      }
+      expect(await notification(t, otherRow.id)).toMatchObject({ state: "delivered" });
+      expect(await tokenStatus(t, "install-b")).toMatchObject({ hasToken: true });
+      vi.unstubAllGlobals();
+    },
+    HEAVY_TEST_TIMEOUT_MS,
+  );
 });
 
 describe("purgeNotifications", () => {

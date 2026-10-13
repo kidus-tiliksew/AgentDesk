@@ -2,7 +2,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { modules } from "../lib/test.modules";
 import schema from "../schema";
-import { STALL_MS } from "./accountDeletion";
+import { REFUSAL_WINDOW_MS, STALL_MS } from "./accountDeletion";
 import { CLERK_API, RETRY_BASE_MS, RETRY_MAX_MS } from "./clerkDeletion";
 import { identity } from "./refs";
 
@@ -96,13 +96,16 @@ describe("deleteClerkUser", () => {
     expect(await record()).toMatchObject({ clerk: { state: "done" } });
   });
 
-  test("deletes the record once the purge has also finished", async () => {
+  test("starts the refusal window once the purge has also finished", async () => {
     const { attempt, record } = await setup(true);
     respond(200);
 
     await attempt(1);
 
-    expect(await record()).toBeNull();
+    expect(await record()).toMatchObject({
+      clerk: { state: "done", doneAt: START },
+      refuseUntil: START + REFUSAL_WINDOW_MS,
+    });
   });
 
   test("a server error retries with a doubling delay, then succeeds", async () => {
