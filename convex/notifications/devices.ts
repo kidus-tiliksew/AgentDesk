@@ -4,6 +4,7 @@ import type { Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation, type QueryCtx } from "../_generated/server";
 import { requireUser } from "../lib/auth";
 import { appError } from "../lib/errors";
+import { cancelDevicePushes } from "./accountPurge";
 import { pushNotifications } from "./push";
 import { platformValidator } from "./schema";
 
@@ -86,7 +87,10 @@ export const unregisterDevice = mutation({
   },
 });
 
-// Account deletion: removes every device of the account and its token.
+// Account deletion: removes every device of the account and its token, and
+// cancels every send the push component still holds for it, so no further
+// push goes out (req-accounts-and-connections AC-5.1). A send already in the
+// component's sender is drained after it settles (§Account deletion).
 export async function removeAllDevices(ctx: MutationCtx, userId: Id<"users">): Promise<void> {
   const devices = await ctx.db
     .query("devices")
@@ -94,6 +98,6 @@ export async function removeAllDevices(ctx: MutationCtx, userId: Id<"users">): P
     .collect();
   for (const device of devices) {
     await ctx.db.delete("devices", device._id);
-    await pushNotifications.removeToken(ctx, { userId: device.deviceId });
+    await cancelDevicePushes(ctx, device.deviceId);
   }
 }

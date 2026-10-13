@@ -54,7 +54,9 @@ export const tables = {
     expiresAt: v.number(),
   })
     .index("by_code", ["userCode"])
-    .index("by_secret", ["deviceSecretHash"]),
+    .index("by_secret", ["deviceSecretHash"])
+    // Account deletion finds the requests an account approved.
+    .index("by_user", ["userId"]),
 
   // One wrong code entered by an account, for the code-entry lock
   // (req-accounts-and-connections AC-6.5).
@@ -62,4 +64,51 @@ export const tables = {
     userId: v.id("users"),
     at: v.number(),
   }).index("by_user_at", ["userId", "at"]),
+
+  // One running account deletion (component-identity §Account deletion). It
+  // drives the purge and the Clerk deletion, and it outlives the `users` row
+  // while the Clerk deletion is retried, so the Clerk subject cannot create a
+  // new account in the meantime. It holds no email, token, decision, or device
+  // data, and it is deleted once both the purge and the Clerk deletion finish.
+  accountDeletions: defineTable({
+    userId: v.id("users"),
+    clerkUserId: v.string(),
+    // The `users.deletingAt` the deletion started at; the purge finishes by
+    // `startedAt` plus 24 hours.
+    startedAt: v.number(),
+    // The purge's current phase. `verify` re-checks every domain before the
+    // `users` row is deleted.
+    phase: v.union(
+      v.literal("decisions"),
+      v.literal("agents"),
+      v.literal("notifications"),
+      v.literal("identity"),
+      v.literal("verify"),
+    ),
+    // The purge chain's current batch number. A batch whose number is not
+    // the current one does nothing, so a duplicate or superseded chain stops.
+    generation: v.number(),
+    // The time of the latest purge or Clerk progress; recovery restarts a
+    // deletion whose `updatedAt` is stale.
+    updatedAt: v.number(),
+    // How many times recovery restarted a stalled purge.
+    restarts: v.number(),
+    // Set when the purge has deleted the `users` row.
+    purgedAt: v.optional(v.number()),
+    // Set when the deletion first ran past its 24-hour deadline unfinished.
+    overdueAt: v.optional(v.number()),
+    clerk: v.object({
+      state: v.union(v.literal("pending"), v.literal("done")),
+      // The current attempt number. An outcome for another attempt is ignored.
+      attempt: v.number(),
+      // When the current attempt is due.
+      nextAttemptAt: v.number(),
+      // A short failure code such as `network`, `http_503`, or
+      // `missing_secret`; never a response body or a credential.
+      lastError: v.optional(v.string()),
+      doneAt: v.optional(v.number()),
+    }),
+  })
+    .index("by_clerk", ["clerkUserId"])
+    .index("by_updated", ["updatedAt"]),
 };
