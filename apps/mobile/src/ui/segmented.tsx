@@ -42,6 +42,9 @@ export function SegmentedControl<T extends string>({
             accessibilityRole="tab"
             accessibilityLabel={option.accessibilityLabel ?? option.label}
             accessibilityState={{ selected }}
+            // Segments draw about 32 pt tall, like the system control; the
+            // slop makes each hit region 44 pt (Apple HIG Buttons).
+            hitSlop={{ top: 6, bottom: 6 }}
             onPress={() => {
               if (!selected) {
                 haptic.selection();

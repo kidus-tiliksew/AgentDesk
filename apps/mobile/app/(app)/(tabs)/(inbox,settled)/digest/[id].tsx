@@ -181,7 +181,9 @@ function outcome(
       return {
         label: decision.applied_by_default ? "Answered by default" : "Answered",
         icon: "checkmark-circle",
-        color: theme.green,
+        // A default applied at the deadline is accent, as on the decision
+        // screen and in History; an answer the person gave is green.
+        color: decision.applied_by_default ? theme.accent : theme.green,
       };
     case "expired":
       return { label: "Expired", icon: "time-outline", color: theme.grey };
@@ -359,7 +361,7 @@ function DigestDetail({ id }: { id: string }) {
         <Stat
           count={settled.length - answered}
           label="Closed"
-          color={theme.grey}
+          color={theme.textSecondary}
           stacked={stacked}
         />
       </View>

@@ -60,7 +60,7 @@ const useStyles = makeStyles((theme) => ({
     marginHorizontal: 16,
     paddingHorizontal: 10,
   },
-  searchInput: { color: theme.text, flex: 1, fontSize: 17, minHeight: 38 },
+  searchInput: { color: theme.text, flex: 1, fontSize: 17, minHeight: 44 },
   zone: {
     alignItems: "center",
     flexDirection: "row",

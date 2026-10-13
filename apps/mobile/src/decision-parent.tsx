@@ -107,7 +107,7 @@ function Retry({
         accessibilityRole="button"
         accessibilityLabel={label}
         // Apple HIG Buttons: a text link keeps a 44 pt hit region.
-        hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+        hitSlop={{ top: 16, bottom: 16, left: 8, right: 8 }}
         onPress={onPress}
       >
         <AppText variant="subhead" tone="accent" weight="600">

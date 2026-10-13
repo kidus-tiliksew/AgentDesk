@@ -24,8 +24,9 @@ const useStyles = makeStyles(() => ({
 // Apple HIG Accessibility: color is never the only carrier of state, so the
 // dot's state is also written after the name. The dot uses the shared status
 // colors: grey for an ended session (its name says "ended") and one with no
-// status yet, amber for a stale one, and otherwise the agent's state. Blocked
-// and stale are written in their own color as well.
+// status yet, amber for a stale or blocked one (both need a look; red stays
+// for urgent and destructive, DEC-9(3)), and otherwise the agent's state.
+// Blocked and stale are written in amber as well.
 function agentState(session: AgentSession): {
   dot: DotTone;
   label: string | null;
@@ -45,14 +46,14 @@ function agentState(session: AgentSession): {
     case "waiting":
       return { dot: "accent", label: stateLabel(session.state), tone: "secondary" };
     case "blocked":
-      return { dot: "red", label: stateLabel(session.state), tone: "red" };
+      return { dot: "amber", label: stateLabel(session.state), tone: "amber" };
     case "done":
       return { dot: "grey", label: stateLabel(session.state), tone: "secondary" };
   }
 }
 
 // Apple HIG Buttons: a text link keeps a 44 pt hit region.
-const LINK_HIT_SLOP = { top: 12, bottom: 12, left: 8, right: 8 };
+const LINK_HIT_SLOP = { top: 16, bottom: 16, left: 8, right: 8 };
 
 function Line({ tone, children }: { tone: DotTone; children: ReactNode }) {
   const styles = useStyles();

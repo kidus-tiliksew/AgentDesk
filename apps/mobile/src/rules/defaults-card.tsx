@@ -12,12 +12,12 @@ const useStyles = makeStyles((theme) => ({
   label: { paddingBottom: 7, paddingHorizontal: 32, paddingTop: 22 },
 }));
 
-// Push reads red and the digest amber, as the actions' tiles do. Mute reads
-// in the secondary text color: the tiles' grey is under 4.5:1 as text (Apple
-// HIG Accessibility: color contrast). The words carry the action either way.
+// The words carry the action, so they stay out of the status colors, which
+// mean urgent, stale, and answered (DEC-9(3)). Mute reads in the secondary
+// text color.
 const ACTION_TONE: Record<RuleAction, TextTone> = {
-  push: "red",
-  digest: "amber",
+  push: "primary",
+  digest: "primary",
   mute: "secondary",
 };
 

@@ -18,6 +18,8 @@ const announce = jest.mocked(AccessibilityInfo.announceForAccessibility);
 
 // Apple HIG Buttons: text links reach 44 pt through their hit slop.
 const LINK_HIT_SLOP = { top: 12, bottom: 12, left: 8, right: 8 };
+// The agent and parent links are 13 pt text, so they take a taller slop.
+const SMALL_LINK_HIT_SLOP = { top: 16, bottom: 16, left: 8, right: 8 };
 
 beforeEach(() => {
   announce.mockClear();
@@ -113,6 +115,14 @@ function expectNoControls() {
 }
 
 describe("display", () => {
+  test("VoiceOver hears the priority even when only urgency is drawn (AC-3.1)", async () => {
+    serve(decision({ id: "d_normal", title: "Normal one", priority: "normal" }));
+    openDecision("d_normal");
+    const normal = await screen.findByRole("header", { name: "Normal one" });
+    expect(normal.props.accessibilityValue).toEqual({ text: "Normal priority" });
+    expect(screen.queryByText("Urgent")).not.toBeOnTheScreen();
+  });
+
   test("renders the body as Markdown with every field of AC-3.1", async () => {
     const deadline = new Date(Date.now() + 2 * 3_600_000 + 5 * 60_000 + 30_000).toISOString();
     setQuery(agentGet, (args: { agentSessionId: string }) => ({
@@ -295,8 +305,8 @@ describe("agent", () => {
     await open(decision({ id: "d_1", title: "Ask", agent_session_id: "a_7" }));
 
     const link = await screen.findByRole("link", { name: "Agent: Reviewer" });
-    expect(link.props.hitSlop).toEqual(LINK_HIT_SLOP);
-    expect(screen.getByText("· Blocked")).toHaveStyle({ color: themes.light.red });
+    expect(link.props.hitSlop).toEqual(SMALL_LINK_HIT_SLOP);
+    expect(screen.getByText("· Blocked")).toHaveStyle({ color: themes.light.amber });
 
     act(() =>
       setQuery(agentGet, (args: { agentSessionId: string }) =>
@@ -353,7 +363,7 @@ describe("agent", () => {
 
     setQuery(agentGet, (args: { agentSessionId: string }) => detail(args.agentSessionId));
     const retry = screen.getByRole("button", { name: "Retry agent" });
-    expect(retry.props.hitSlop).toEqual(LINK_HIT_SLOP);
+    expect(retry.props.hitSlop).toEqual(SMALL_LINK_HIT_SLOP);
     fireEvent.press(retry);
 
     expect(await screen.findByRole("link", { name: "Agent: Reviewer" })).toBeOnTheScreen();
@@ -503,7 +513,7 @@ describe("removed decisions", () => {
 
     serve(child, decision({ id: "d_parent", title: "Parent question" }));
     const retry = screen.getByRole("button", { name: "Retry parent" });
-    expect(retry.props.hitSlop).toEqual(LINK_HIT_SLOP);
+    expect(retry.props.hitSlop).toEqual(SMALL_LINK_HIT_SLOP);
     fireEvent.press(retry);
 
     expect(
