@@ -85,6 +85,8 @@ A coordinator that runs several tasks may call `check` with `decision_ids` betwe
 
 When a pending question no longer matters, call `cancel` with its `decision_id`.
 
+If the user answers in this chat instead, call `resolve` with the `decision_id`, their `answer`, and their message word for word. Never record an answer the user did not write.
+
 ## Status
 
 Call `status` with `topic`, `state`, and `line`:

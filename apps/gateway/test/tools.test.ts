@@ -1,11 +1,12 @@
 import {
   decisionInputFieldsSchema,
+  resolveInputSchema,
   statusInputSchema,
   topicInputSchema,
 } from "@agentdesk/contract";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { ServiceError } from "../src/convex.js";
+import { ServiceError, UpstreamError } from "../src/convex.js";
 import { handle } from "../src/index.js";
 import {
   AGENT_SESSION,
@@ -62,7 +63,7 @@ function input(schema: z.ZodType) {
 }
 
 describe("tools/list", () => {
-  it("lists exactly ask, await, check, cancel, and status", async () => {
+  it("lists exactly ask, await, check, cancel, resolve, and status", async () => {
     const response = await handle(mcpRequest(rpc("tools/list")), env, fakeConvex().svc);
     const { result } = (await response.json()) as {
       result: { tools: { name: string; description: string; inputSchema: unknown }[] };
@@ -73,6 +74,7 @@ describe("tools/list", () => {
       "await",
       "check",
       "cancel",
+      "resolve",
       "status",
     ]);
     for (const tool of result.tools) {
@@ -88,6 +90,13 @@ describe("tools/list", () => {
     const schemas = Object.fromEntries(result.tools.map((tool) => [tool.name, tool.inputSchema]));
 
     expect(schemas.ask).toEqual(input(decisionInputFieldsSchema));
+    expect(schemas.ask?.properties).toHaveProperty("interactive", {
+      type: "boolean",
+      default: false,
+      description: "True when the user may be watching this session and can answer in its chat",
+    });
+    expect(schemas.resolve).toEqual(input(resolveInputSchema));
+    expect(schemas.resolve?.required).toEqual(["decision_id", "answer", "chat_message"]);
     expect(schemas.status).toEqual(input(statusInputSchema.extend({ topic: topicInputSchema })));
     expect(schemas.status?.required).toEqual(["state", "line", "topic"]);
     expect(schemas.await).toEqual({
@@ -116,11 +125,23 @@ describe("tools/list", () => {
       required: ["decision_id"],
     });
   });
+
+  it("tells the agent to relay the user's own words with resolve", async () => {
+    const response = await handle(mcpRequest(rpc("tools/list")), env, fakeConvex().svc);
+    const { result } = (await response.json()) as {
+      result: { tools: { name: string; description: string }[] };
+    };
+
+    expect(result.tools.find((tool) => tool.name === "resolve")?.description).toBe(
+      "Record an answer the user gave in this chat to a pending decision. Pass the user's message word for word as chat_message. Never record an answer the user did not write.",
+    );
+  });
 });
 
 describe("argument validation", () => {
   const ask = { title: "Ship it?", input_type: "approve_reject", topic: "repo/main" };
   const status = { topic: "repo/main", state: "working", line: "Running tests" };
+  const resolve = { decision_id: "d", answer: { kind: "approve" }, chat_message: "yes" };
 
   it.each([
     ["ask without a title", "ask", { input_type: "approve_reject", topic: "repo/main" }, "title"],
@@ -162,6 +183,62 @@ describe("argument validation", () => {
       "decision_ids",
     ],
     ["cancel without a decision_id", "cancel", {}, "decision_id"],
+    ["ask with a string interactive", "ask", { ...ask, interactive: "true" }, "interactive"],
+    [
+      "resolve without a decision_id",
+      "resolve",
+      { answer: resolve.answer, chat_message: "yes" },
+      "decision_id",
+    ],
+    [
+      "resolve with an empty decision_id",
+      "resolve",
+      { ...resolve, decision_id: "" },
+      "decision_id",
+    ],
+    ["resolve without an answer", "resolve", { decision_id: "d", chat_message: "yes" }, "answer"],
+    [
+      "resolve with an answer of unknown kind",
+      "resolve",
+      { ...resolve, answer: { kind: "maybe" } },
+      "answer.kind",
+    ],
+    [
+      "resolve with an option answer without option_id",
+      "resolve",
+      { ...resolve, answer: { kind: "option" } },
+      "answer.option_id",
+    ],
+    [
+      "resolve without a chat_message",
+      "resolve",
+      { decision_id: "d", answer: resolve.answer },
+      "chat_message",
+    ],
+    [
+      "resolve with an empty chat_message",
+      "resolve",
+      { ...resolve, chat_message: "" },
+      "chat_message",
+    ],
+    [
+      "resolve with a whitespace-only chat_message",
+      "resolve",
+      { ...resolve, chat_message: " \n\t " },
+      "chat_message",
+    ],
+    [
+      "resolve with a 4,001-character chat_message",
+      "resolve",
+      { ...resolve, chat_message: "a".repeat(4001) },
+      "chat_message",
+    ],
+    [
+      "resolve with a numeric chat_message",
+      "resolve",
+      { ...resolve, chat_message: 7 },
+      "chat_message",
+    ],
     [
       "await with timeout_seconds 0",
       "await",
@@ -266,6 +343,219 @@ describe("ask", () => {
       userId: USER,
       agentSessionId: AGENT_SESSION,
     });
+  });
+});
+
+describe("ask interactive", () => {
+  const ask = { title: "Ship it?", input_type: "approve_reject", topic: "repo/main" };
+
+  it.each([
+    ["true", { interactive: true }, true],
+    ["false", { interactive: false }, false],
+    ["omitted, defaulting to false", {}, false],
+  ])("forwards interactive %s", async (_name, extra, interactive) => {
+    const convex = fakeConvex({ "decisions/create": () => decision({ interactive }) });
+
+    const { result, calls } = await call("ask", { ...ask, ...extra }, convex);
+
+    expect(result.isError).toBe(false);
+    expect(calls[2]?.route).toBe("decisions/create");
+    expect(calls[2]?.body).toHaveProperty("interactive", interactive);
+  });
+});
+
+describe("resolve", () => {
+  const answered = decision({
+    state: "answered",
+    interactive: true,
+    answer: { kind: "approve" },
+    answered_at: "2026-10-13T00:01:00.000Z",
+    answered_via: "chat",
+    chat_message: "  Yes, ship it.\r\n  Then tag the release 🚀 ",
+    relayed_by_agent_session_id: AGENT_SESSION,
+  });
+
+  it("relays the answer and the message byte for byte with the caller's session", async () => {
+    const convex = fakeConvex({ "decisions/resolve": () => answered });
+    const message = "  Yes, ship it.\r\n  Then tag the release 🚀 ";
+
+    const { result, payload, calls } = await call(
+      "resolve",
+      {
+        decision_id: "decision_1",
+        answer: { kind: "approve" },
+        chat_message: message,
+        // Identity, aliased, and unknown arguments are dropped
+        // (req-agent-tools AC-7.2).
+        userId: "user_b",
+        agentSessionId: "agent_session_b",
+        decisionId: "decision_other",
+        chatMessage: "something the user never wrote",
+        note: "a note",
+      },
+      convex,
+    );
+
+    expect(result.isError).toBe(false);
+    expect(payload).toEqual(answered);
+    expect(calls.map((c) => c.route)).toEqual([...TRANSPORT_ROUTES, "decisions/resolve"]);
+    expect(calls[2]?.body).toEqual({
+      userId: USER,
+      agentSessionId: AGENT_SESSION,
+      decisionId: "decision_1",
+      answer: { kind: "approve" },
+      chatMessage: message,
+    });
+  });
+
+  it("accepts a 4,000-character message", async () => {
+    const convex = fakeConvex({ "decisions/resolve": () => answered });
+    const message = "a".repeat(4000);
+
+    const { result, calls } = await call(
+      "resolve",
+      { decision_id: "decision_1", answer: { kind: "approve" }, chat_message: message },
+      convex,
+    );
+
+    expect(result.isError).toBe(false);
+    expect(calls[2]?.body.chatMessage).toBe(message);
+  });
+
+  it.each([
+    ["invalid", new ServiceError("invalid", "Answer kind does not match approve_reject", "answer")],
+    ["not_found", new ServiceError("not_found", "Not found")],
+  ])("passes %s through without reading the decision", async (_name, failure) => {
+    const convex = fakeConvex({
+      "decisions/resolve": () => {
+        throw failure;
+      },
+    });
+
+    const { result, payload, calls } = await call(
+      "resolve",
+      { decision_id: "decision_1", answer: { kind: "text", text: "yes" }, chat_message: "yes" },
+      convex,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(payload).toEqual({
+      error:
+        failure.field === undefined
+          ? { code: failure.code, message: failure.message }
+          : { code: failure.code, message: failure.message, field: failure.field },
+    });
+    expect(calls.map((c) => c.route)).toEqual([...TRANSPORT_ROUTES, "decisions/resolve"]);
+  });
+
+  it.each([
+    [
+      "answered",
+      decision({
+        state: "answered",
+        answer: { kind: "approve" },
+        answered_via: "app",
+        answered_at: "2026-10-13T00:01:00.000Z",
+      }),
+    ],
+    [
+      "expired",
+      decision({
+        state: "expired",
+        answer: { kind: "reject" },
+        answered_via: "default",
+        applied_by_default: true,
+      }),
+    ],
+    ["cancelled", decision({ state: "cancelled" })],
+  ])("reads a %s decision once on conflict and returns it", async (state, stored) => {
+    const convex = fakeConvex({
+      "decisions/resolve": () => {
+        throw new ServiceError("conflict", "Decision is not pending");
+      },
+      "decisions/poll": () => stored,
+    });
+
+    const { result, payload, calls } = await call(
+      "resolve",
+      { decision_id: "decision_1", answer: { kind: "reject" }, chat_message: "no", userId: "x" },
+      convex,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(payload).toEqual({
+      error: { code: "conflict", message: `Decision is already ${state}` },
+      decision: stored,
+    });
+    expect(calls.slice(2).map(({ route, body }) => ({ route, body }))).toEqual([
+      {
+        route: "decisions/resolve",
+        body: {
+          userId: USER,
+          agentSessionId: AGENT_SESSION,
+          decisionId: "decision_1",
+          answer: { kind: "reject" },
+          chatMessage: "no",
+        },
+      },
+      {
+        route: "decisions/poll",
+        body: { userId: USER, agentSessionId: AGENT_SESSION, decisionId: "decision_1" },
+      },
+    ]);
+  });
+
+  it("passes not_found from the conflict read through instead", async () => {
+    const convex = fakeConvex({
+      "decisions/resolve": () => {
+        throw new ServiceError("conflict", "Decision is not pending");
+      },
+      "decisions/poll": () => {
+        throw new ServiceError("not_found", "Not found");
+      },
+    });
+
+    const { result, payload, calls } = await call(
+      "resolve",
+      { decision_id: "decision_1", answer: { kind: "approve" }, chat_message: "yes" },
+      convex,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(payload).toEqual({ error: { code: "not_found", message: "Not found" } });
+    expect(calls.map((c) => c.route)).toEqual([
+      ...TRANSPORT_ROUTES,
+      "decisions/resolve",
+      "decisions/poll",
+    ]);
+  });
+
+  it("answers a Convex outage during the conflict read with 503", async () => {
+    const convex = fakeConvex({
+      "decisions/resolve": () => {
+        throw new ServiceError("conflict", "Decision is not pending");
+      },
+      "decisions/poll": () => {
+        throw new UpstreamError("Service call decisions/poll failed");
+      },
+    });
+
+    const response = await handle(
+      mcpRequest(
+        rpc("tools/call", {
+          name: "resolve",
+          arguments: {
+            decision_id: "decision_1",
+            answer: { kind: "approve" },
+            chat_message: "yes",
+          },
+        }),
+      ),
+      env,
+      convex.svc,
+    );
+
+    expect(response.status).toBe(503);
   });
 });
 
