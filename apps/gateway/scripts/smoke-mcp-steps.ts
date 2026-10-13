@@ -4,9 +4,13 @@
 // Convex answer helper.
 
 export const PROTOCOL_VERSION = "2025-11-25";
-export const TOOL_NAMES = ["ask", "await", "check", "cancel", "status"] as const;
+export const TOOL_NAMES = ["ask", "await", "check", "cancel", "resolve", "status"] as const;
 export const SMOKE_TOPIC = "smoke/mcp";
 export const SMOKE_NOTE = "Smoke answer";
+// The relayed leg's chat messages. Leading space, a line break, and a
+// non-ASCII character show the message is kept word for word.
+export const SMOKE_CHAT_MESSAGE = " Smoke relay: yes, approve it ✓\n(typed in the agent's chat)";
+export const SMOKE_CONFLICT_MESSAGE = "Smoke relay: no, reject it";
 
 // The gateway writes `: keepalive` every 15 seconds (component-gateway §MCP
 // transport). A gap of up to two intervals between consecutive arrivals,
@@ -29,6 +33,9 @@ export type Step =
   | "initialize"
   | "tools/list"
   | "status"
+  | "relayed: ask"
+  | "relayed: resolve"
+  | "relayed: conflict"
   | "answered: ask"
   | "answered: await"
   | "answered: answer helper"
@@ -266,6 +273,13 @@ export class McpClient {
     return toolJson(step, await this.result(step, response, id));
   }
 
+  // Calls a tool that must answer with a tool error and decodes the error's
+  // text content as JSON. A successful result is a failure.
+  async callToolExpectingError(step: Step, name: string, args: Json): Promise<Json> {
+    const { response, id } = await this.post(step, "tools/call", { name, arguments: args });
+    return toolJson(step, await this.result(step, response, id), true);
+  }
+
   // Opens an `await` stream. Once the gateway answers with the stream's
   // headers, `opened` runs while the stream is read, so a settlement it causes
   // happens during the wait. The first of the two to fail aborts the signal
@@ -464,19 +478,26 @@ function rpcResult(step: Step, message: unknown, id: number): unknown {
   return body.result;
 }
 
-// Decodes a tool result's first text content as JSON. A result with
-// `isError: true` is a failure.
-function toolJson(step: Step, result: unknown): Json {
+// Decodes a tool result's first text content as JSON. Unless `expectError`,
+// a result with `isError: true` is a failure; with it, any other result is.
+function toolJson(step: Step, result: unknown, expectError = false): Json {
   const body = asObject(step, "tool result", result);
   const first = Array.isArray(body.content) ? body.content[0] : undefined;
   const text = asObject(step, "tool content", first).text;
   if (typeof text !== "string") {
     throw new SmokeError(step, "tool result has no text content");
   }
-  if (body.isError !== false) {
+  if (expectError && body.isError !== true) {
+    throw new SmokeError(step, `expected a tool error, got: ${text.slice(0, 300)}`);
+  }
+  if (!expectError && body.isError !== false) {
     throw new SmokeError(step, `tool error: ${text.slice(0, 300)}`);
   }
-  return asObject(step, "tool result JSON", parseJson(step, text));
+  return asObject(
+    step,
+    expectError ? "tool error JSON" : "tool result JSON",
+    parseJson(step, text),
+  );
 }
 
 function describe(error: unknown): string {
@@ -518,6 +539,7 @@ export interface SmokeOptions {
 
 export interface SmokeReport {
   sessionId: string;
+  relayed: { decisionId: string };
   answered: { decisionId: string; settleLatencyMs: number };
   defaulted: { decisionId: string; keepalive: KeepaliveEvidence } | null;
 }
@@ -539,7 +561,18 @@ export async function runSmoke(options: SmokeOptions): Promise<SmokeReport> {
     line: `Smoke run ${options.runId}`,
   });
   expectEqual("status", "state", session.state, "working");
+  // The agent session the gateway resolved from Mcp-Session-Id, which the
+  // relayed leg requires as the relaying session.
+  if (typeof session.id !== "string" || session.id === "") {
+    throw new SmokeError("status", "status returned no agent session id");
+  }
   log("ok status: working");
+
+  const relayed = await relayedLeg(options, session.id);
+  log(
+    `ok relayed leg: ${relayed.decisionId} answered in chat by agent session ${session.id}; ` +
+      "a second resolve got conflict with the first answer",
+  );
 
   const answered = await answeredLeg(options);
   log(
@@ -548,7 +581,7 @@ export async function runSmoke(options: SmokeOptions): Promise<SmokeReport> {
 
   if (options.quick) {
     log("skipped default leg (--quick): the five-minute keepalive wait is unverified");
-    return { sessionId: init.sessionId, answered, defaulted: null };
+    return { sessionId: init.sessionId, relayed, answered, defaulted: null };
   }
   const defaulted = await defaultLeg(options);
   const k = defaulted.keepalive;
@@ -557,7 +590,71 @@ export async function runSmoke(options: SmokeOptions): Promise<SmokeReport> {
       `${k.comments} keepalives, first at ${k.firstAtMs} ms, last at ${k.lastAtMs} ms, ` +
       `largest gap ${k.maxGapMs} ms`,
   );
-  return { sessionId: init.sessionId, answered, defaulted };
+  return { sessionId: init.sessionId, relayed, answered, defaulted };
+}
+
+// `ask` an interactive decision, `resolve` it with the user's chat message,
+// then `resolve` it again, which must conflict and carry the first answer
+// (req-agent-tools REQ-9, AC-9.2).
+async function relayedLeg(
+  options: SmokeOptions,
+  agentSessionId: string,
+): Promise<{ decisionId: string }> {
+  const { client } = options;
+  const decisionId = await ask(options, "relayed: ask", {
+    title: "Smoke: approve this decision in chat",
+    input_type: "approve_reject",
+    topic: SMOKE_TOPIC,
+    interactive: true,
+    idempotency_key: `smoke-${options.runId}-relayed`,
+  });
+
+  let step: Step = "relayed: resolve";
+  const resolved = await client.callTool(step, "resolve", {
+    decision_id: decisionId,
+    answer: { kind: "approve" },
+    chat_message: SMOKE_CHAT_MESSAGE,
+  });
+  expectRelayed(step, resolved, decisionId, agentSessionId);
+
+  step = "relayed: conflict";
+  const conflict = await client.callToolExpectingError(step, "resolve", {
+    decision_id: decisionId,
+    answer: { kind: "reject" },
+    chat_message: SMOKE_CONFLICT_MESSAGE,
+  });
+  expectEqual(step, "error", conflict.error, {
+    code: "conflict",
+    message: "Decision is already answered",
+  });
+  expectRelayed(
+    step,
+    asObject(step, "conflict decision", conflict.decision),
+    decisionId,
+    agentSessionId,
+  );
+  return { decisionId };
+}
+
+// The decision answered by the relayed leg's first `resolve`.
+function expectRelayed(
+  step: Step,
+  decision: Json,
+  decisionId: string,
+  agentSessionId: string,
+): void {
+  expectEqual(step, "decision id", decision.id, decisionId);
+  expectEqual(step, "state", decision.state, "answered");
+  expectEqual(step, "answer", decision.answer, { kind: "approve" });
+  expectEqual(step, "answered_via", decision.answered_via, "chat");
+  expectEqual(step, "interactive", decision.interactive, true);
+  expectEqual(step, "chat_message", decision.chat_message, SMOKE_CHAT_MESSAGE);
+  expectEqual(
+    step,
+    "relayed_by_agent_session_id",
+    decision.relayed_by_agent_session_id,
+    agentSessionId,
+  );
 }
 
 // `ask` with no deadline, then `await`, answered through the helper once the

@@ -24,7 +24,7 @@ const SECTIONS = ["Topic", "When to ask", "How to ask", "Waiting", "Status"] as 
 // The body stays under 120 lines: 119 passes and 120 fails.
 const MAX_BODY_LINES = 119;
 
-const EXPECTED_TOOL_COUNT = 5;
+const EXPECTED_TOOL_COUNT = 6;
 
 // Identifiers the skill may write as standalone inline code without naming a
 // tool: the gateway's argument and result fields, the topic environment
@@ -458,8 +458,15 @@ function withBody(extra: string): string {
 }
 
 describe("gateway tool names", () => {
-  it("reads the five tools from the gateway TOOLS declaration", () => {
-    expect([...TOOL_NAMES].sort()).toEqual(["ask", "await", "cancel", "check", "status"]);
+  it("reads the six tools from the gateway TOOLS declaration", () => {
+    expect([...TOOL_NAMES].sort()).toEqual([
+      "ask",
+      "await",
+      "cancel",
+      "check",
+      "resolve",
+      "status",
+    ]);
   });
 
   it.each([
@@ -474,23 +481,37 @@ describe("gateway tool names", () => {
     ["a missing name", 'const TOOLS = [{ title: "ask" }];', /TOOLS\[0\] has 0 name properties/],
     [
       "a duplicate name",
-      'const TOOLS = [{ name: "ask" }, { name: "ask" }, { name: "await" }, { name: "check" }, { name: "status" }];',
+      'const TOOLS = [{ name: "ask" }, { name: "ask" }, { name: "await" }, { name: "check" }, { name: "resolve" }, { name: "status" }];',
       /duplicate names: ask/,
     ],
     [
-      "four tools",
-      'const TOOLS = [{ name: "ask" }, { name: "await" }, { name: "check" }, { name: "status" }];',
-      /declares 4 tools, expected 5/,
+      "five tools",
+      'const TOOLS = [{ name: "ask" }, { name: "await" }, { name: "check" }, { name: "cancel" }, { name: "status" }];',
+      /declares 5 tools, expected 6/,
     ],
   ])("fails visibly on %s", (_label, source, message) => {
     expect(() => extractToolNames(source)).toThrow(message);
   });
 
-  it("accepts a typed array literal of five string names", () => {
-    const source = `const TOOLS: Tool[] = [${["ask", "await", "check", "cancel", "status"]
+  it("accepts a typed array literal of six string names", () => {
+    const source = `const TOOLS: Tool[] = [${[
+      "ask",
+      "await",
+      "check",
+      "cancel",
+      "resolve",
+      "status",
+    ]
       .map((name) => `{ name: "${name}", run() {} }`)
       .join(", ")}];`;
-    expect(extractToolNames(source)).toEqual(["ask", "await", "check", "cancel", "status"]);
+    expect(extractToolNames(source)).toEqual([
+      "ask",
+      "await",
+      "check",
+      "cancel",
+      "resolve",
+      "status",
+    ]);
   });
 });
 

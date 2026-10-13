@@ -3,6 +3,7 @@ import {
   type Decision,
   decisionInputFieldsSchema,
   type ErrorCode,
+  resolveInputSchema,
   statusInputSchema,
   topicInputSchema,
   validateDecisionInput,
@@ -150,6 +151,38 @@ const TOOLS: Tool[] = [
     },
   },
   {
+    name: "resolve",
+    description:
+      "Record an answer the user gave in this chat to a pending decision. Pass the user's message word for word as chat_message. Never record an answer the user did not write.",
+    schema: resolveInputSchema,
+    async run(svc, caller, args) {
+      const input = parse(resolveInputSchema.safeParse(args));
+      try {
+        // The message goes as received, untrimmed (req-decision-requests
+        // AC-8.2).
+        const decision = (await svc("decisions/resolve", {
+          ...caller,
+          decisionId: input.decision_id,
+          answer: input.answer,
+          chatMessage: input.chat_message,
+        })) as Decision;
+        return result(decision);
+      } catch (caught) {
+        if (!(caught instanceof ServiceError) || caught.code !== "conflict") {
+          throw caught;
+        }
+      }
+      // The decision is no longer pending. One read gives the agent the
+      // recorded state and answer (req-agent-tools AC-9.2); a `not_found`
+      // from it passes through instead.
+      const decision = (await svc("decisions/poll", {
+        ...caller,
+        decisionId: input.decision_id,
+      })) as Decision;
+      return error("conflict", `Decision is already ${decision.state}`, undefined, { decision });
+    },
+  },
+  {
     name: "status",
     description: "Set this agent session's current status line, shown to the user.",
     schema: statusToolInputSchema,
@@ -165,8 +198,8 @@ export const AWAIT_AGAIN = "Call await again with the same decision_id";
 
 const BY_NAME = new Map(TOOLS.map((tool) => [tool.name, tool]));
 
-// The `tools/list` result: exactly ask, await, check, cancel, and status
-// (req-agent-tools AC-1.2), with input schemas generated from the contract.
+// The `tools/list` result: exactly ask, await, check, cancel, resolve, and
+// status (req-agent-tools AC-1.2), with input schemas generated from the contract.
 export function listTools() {
   return TOOLS.map((tool) => {
     const { $schema: _, ...inputSchema } = z.toJSONSchema(tool.schema, { io: "input" });
@@ -210,7 +243,17 @@ function result(value: unknown): ToolResult {
   return { content: [{ type: "text", text: JSON.stringify(value) }], isError: false };
 }
 
-function error(code: ErrorCode, message: string, field?: string): ToolResult {
-  const body = { error: field === undefined ? { code, message } : { code, message, field } };
+// `extra` adds top-level fields beside the error, such as the stored decision
+// a `resolve` conflict carries.
+function error(
+  code: ErrorCode,
+  message: string,
+  field?: string,
+  extra: Record<string, unknown> = {},
+): ToolResult {
+  const body = {
+    error: field === undefined ? { code, message } : { code, message, field },
+    ...extra,
+  };
   return { content: [{ type: "text", text: JSON.stringify(body) }], isError: true };
 }
