@@ -8,7 +8,7 @@ import { decisions } from "../../../../../../convex/decisions/refs";
 import { AgentList } from "../../../../src/agent-card";
 import { Button } from "../../../../src/button";
 import { DecisionCard } from "../../../../src/decision-row";
-import { InboxEmpty } from "../../../../src/inbox-empty";
+import { InboxEmpty, InboxLoading } from "../../../../src/inbox-empty";
 import { QuickAnswerScope, useQuickAnswers } from "../../../../src/inbox-undo";
 import { QueryErrorBoundary } from "../../../../src/query-error-boundary";
 import { makeStyles } from "../../../../src/theme";
@@ -55,47 +55,45 @@ function Inbox() {
   const [selected, setSelected] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
-  const loaded = pending !== undefined && live !== undefined;
+  // The inbox waits for both lists, so it never shows one section's empty
+  // note while the other is still loading.
+  if (pending === undefined || live === undefined) {
+    return <InboxLoading />;
+  }
   const topics = new Set([
-    ...(pending ?? []).map((decision) => decision.topic),
-    ...(live ?? []).map((agent) => agent.topic),
+    ...pending.map((decision) => decision.topic),
+    ...live.map((agent) => agent.topic),
   ]);
   // With one topic a filter could only show the same items, so the chips
   // appear from two topics on.
   const chips = topics.size > 1 ? topicChips(topics) : [];
   // A selected topic that no longer appears in either list falls back to All
   // topics.
-  if (loaded && selected !== null && !chips.includes(selected)) {
+  if (selected !== null && !chips.includes(selected)) {
     setSelected(null);
   }
-  if (loaded && pending.length === 0 && live.length === 0) {
+  if (pending.length === 0 && live.length === 0) {
     return <InboxEmpty />;
   }
   // The topic filter applies to both sections with the rule notification
   // rules use (AC-2.4).
   const matches = (topic: string) => selected === null || topicMatches(selected, topic);
   const suffix = selected === null ? "." : ` in ${selected}.`;
-  const shownDecisions = pending?.filter(
+  const shownDecisions = pending.filter(
     (decision) => matches(decision.topic) && !answered.has(decision.id),
   );
-  const shownAgents = live?.filter((agent) => matches(agent.topic));
+  const shownAgents = live.filter((agent) => matches(agent.topic));
   // A decision names its agent when that agent is live.
-  const agentNames = new Map((live ?? []).map((agent) => [agent.id, agent.display_name]));
-  const hidden =
-    shownDecisions === undefined || expanded ? 0 : shownDecisions.length - FIRST_DECISIONS;
+  const agentNames = new Map(live.map((agent) => [agent.id, agent.display_name]));
+  const hidden = expanded ? 0 : shownDecisions.length - FIRST_DECISIONS;
 
   return (
     <>
       {chips.length > 0 ? (
         <TopicFilter chips={chips} selected={selected} onSelect={setSelected} />
       ) : null}
-      <SectionHeader
-        title="Needs you"
-        detail={shownDecisions === undefined ? undefined : String(shownDecisions.length)}
-      />
-      {shownDecisions === undefined ? (
-        <Note>Loading decisions</Note>
-      ) : shownDecisions.length === 0 ? (
+      <SectionHeader title="Needs you" detail={String(shownDecisions.length)} />
+      {shownDecisions.length === 0 ? (
         <Note>{`No pending decisions${suffix}`}</Note>
       ) : (
         <View style={styles.cards}>
@@ -123,13 +121,8 @@ function Inbox() {
           ) : null}
         </View>
       )}
-      <SectionHeader
-        title="Agents"
-        detail={shownAgents === undefined ? undefined : `${shownAgents.length} live`}
-      />
-      {shownAgents === undefined ? (
-        <Note>Loading agents</Note>
-      ) : shownAgents.length === 0 ? (
+      <SectionHeader title="Agents" detail={`${shownAgents.length} live`} />
+      {shownAgents.length === 0 ? (
         <Note>{`No live agents${suffix}`}</Note>
       ) : (
         <AgentList agents={shownAgents} now={now} />
