@@ -128,6 +128,12 @@ export const run = internalMutation({
     if (!NOTIFIABLE_KINDS.includes(event.kind)) {
       return null;
     }
+    // An owner that is gone or being deleted gets no settings row and no
+    // push; the account purge deletes the event (§Account deletion).
+    const owner = await ctx.db.get("users", event.userId);
+    if (owner === null || owner.deletingAt !== undefined) {
+      return null;
+    }
     // Steps 1 and 2 (REQ-3, REQ-4): the most specific matching rule, else the
     // default.
     const action = (await ruleAction(ctx, event)) ?? DEFAULT_ACTIONS[event.kind];

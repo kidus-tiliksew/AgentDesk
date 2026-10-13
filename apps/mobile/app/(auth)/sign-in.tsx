@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { deletionNoticeText, useDeletionNotice } from "../../src/account-deletion";
 import { Button } from "../../src/button";
 import {
   clerkMessage,
@@ -31,7 +32,9 @@ import { AppText } from "../../src/ui/text";
 // code verified but that Clerk still holds incomplete cannot go on, so the
 // screen offers a fresh sign-up for the same address instead of the code step.
 // Design "Sign in: email" and "Sign in: code": the app mark over a centered
-// form, then six code boxes that submit on the last digit.
+// form, then six code boxes that submit on the last digit. After this device
+// deleted an account, the email step says the account is being deleted and
+// when its data will be gone (component-mobile-app §Account deletion).
 
 type Flow = "signIn" | "signUp";
 type Step =
@@ -111,6 +114,7 @@ export default function SignInScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const cooldown = useResendCooldown();
+  const notice = useDeletionNotice();
   // Guards against a second press that lands before the disabled state renders.
   const inFlight = useRef(false);
   // Set once the current attempt's code has verified, so a retry after a
@@ -274,6 +278,11 @@ export default function SignInScreen() {
           <>
             <Brand />
             <View style={styles.form}>
+              {notice === null ? null : (
+                <AppText accessibilityRole="alert" variant="subhead" style={styles.center}>
+                  {deletionNoticeText(notice.completeBy)}
+                </AppText>
+              )}
               <TextInput
                 accessibilityLabel="Email address"
                 autoCapitalize="none"

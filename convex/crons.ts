@@ -17,4 +17,13 @@ crons.daily(
   {},
 );
 
+// component-identity §Account deletion: restarts stalled account purges and
+// overdue Clerk user deletions.
+crons.hourly(
+  "account deletion recovery",
+  { minuteUTC: 20 },
+  identity.accountDeletion.resumePurges,
+  {},
+);
+
 export default crons;

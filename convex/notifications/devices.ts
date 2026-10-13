@@ -4,6 +4,7 @@ import type { Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation, type QueryCtx } from "../_generated/server";
 import { requireUser } from "../lib/auth";
 import { appError } from "../lib/errors";
+import { cancelAccountPushes } from "./accountPurge";
 import { pushNotifications } from "./push";
 import { platformValidator } from "./schema";
 
@@ -64,6 +65,21 @@ export const registerDevice = mutation({
       await ctx.db.patch("devices", own._id, { name: args.name, platform: args.platform });
     }
     await pushNotifications.recordToken(ctx, { userId: args.deviceId, pushToken: args.pushToken });
+    // Every token the account registers for an install is kept until account
+    // deletion has cancelled its notifications (§Account deletion).
+    const known = await ctx.db
+      .query("deviceTokens")
+      .withIndex("by_user_device_token", (q) =>
+        q.eq("userId", user._id).eq("deviceId", args.deviceId).eq("token", args.pushToken),
+      )
+      .first();
+    if (known === null) {
+      await ctx.db.insert("deviceTokens", {
+        userId: user._id,
+        deviceId: args.deviceId,
+        token: args.pushToken,
+      });
+    }
     return null;
   },
 });
@@ -86,7 +102,10 @@ export const unregisterDevice = mutation({
   },
 });
 
-// Account deletion: removes every device of the account and its token.
+// Account deletion: removes every device of the account and its token, so
+// nothing queues a new push for the account, then cancels every push the
+// component still holds under any token the account registered
+// (§Account deletion).
 export async function removeAllDevices(ctx: MutationCtx, userId: Id<"users">): Promise<void> {
   const devices = await ctx.db
     .query("devices")
@@ -96,4 +115,5 @@ export async function removeAllDevices(ctx: MutationCtx, userId: Id<"users">): P
     await ctx.db.delete("devices", device._id);
     await pushNotifications.removeToken(ctx, { userId: device.deviceId });
   }
+  await cancelAccountPushes(ctx, userId);
 }

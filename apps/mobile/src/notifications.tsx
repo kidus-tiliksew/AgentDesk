@@ -389,6 +389,28 @@ export class DeviceRegistration {
       }
     });
   }
+
+  // The device half of account deletion. Like sign-out, it stops new
+  // registration for `session` and lets a registration already sent settle.
+  // It then runs `remove`, the account deletion, which removes every device
+  // of the account, this install's included, on the backend. No
+  // unregistration is sent: the backend refuses it once the account is being
+  // deleted, and the deletion already removed the install. Registration
+  // stays stopped for the session whatever the outcome, and the install id
+  // stays stored.
+  async stopForDeletion<T>(session: string, remove: () => Promise<T>): Promise<T> {
+    if (this.session === session) {
+      this.signingOut = true;
+      this.rerun = null;
+    }
+    return await this.enqueue(async () => {
+      const result = await remove();
+      if (this.session === session) {
+        this.registered = null;
+      }
+      return result;
+    });
+  }
 }
 
 // A captured tap waiting for the routes to be ready.
@@ -603,4 +625,11 @@ export function useSignOutDevice() {
   const { registration } = useNotificationContext();
   const unregister = useMutation(notifications.devices.unregisterDevice);
   return (session: string) => registration.stopForSignOut(session, unregister);
+}
+
+// Account deletion's device half: see DeviceRegistration.stopForDeletion.
+export function useStopForDeletion() {
+  const { registration } = useNotificationContext();
+  return <T,>(session: string, remove: () => Promise<T>) =>
+    registration.stopForDeletion(session, remove);
 }

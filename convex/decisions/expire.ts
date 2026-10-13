@@ -14,6 +14,12 @@ export const run = internalMutation({
     if (doc === null) {
       return;
     }
+    // An owner being deleted gets no expiry and no event; the account purge
+    // deletes the decision (§Account deletion).
+    const owner = await ctx.db.get("users", doc.userId);
+    if (owner === null || owner.deletingAt !== undefined) {
+      return;
+    }
     await expireDecision(ctx, doc, Date.now());
   },
 });

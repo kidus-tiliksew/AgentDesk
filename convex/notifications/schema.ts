@@ -133,6 +133,33 @@ export const tables = {
     .index("by_device", ["deviceId"])
     .index("by_user_device", ["userId", "deviceId"]),
 
+  // One push token an account registered for an install (§Account
+  // deletion). The push component copies the install's token into every
+  // notification it queues and finds notifications only by token, so account
+  // deletion needs every token the account ever registered, including tokens
+  // a later registration replaced and tokens of installs unregistered since.
+  // `drainScheduledAt` is the time the latest cancellation drain for the
+  // token was scheduled.
+  deviceTokens: defineTable({
+    userId: v.id("users"),
+    deviceId: v.string(),
+    token: v.string(),
+    drainScheduledAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_device_token", ["userId", "deviceId", "token"]),
+
+  // One notification the push component queued for an account, by the id the
+  // component returned (§Account deletion). Account deletion deletes a page of
+  // a token's notifications only when every notification on it is the
+  // account's own.
+  pushSends: defineTable({
+    userId: v.id("users"),
+    notificationId: v.string(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_notification", ["notificationId"]),
+
   // One row per event pushed to one install (req-notification-rules REQ-7).
   pushDeliveries: defineTable({
     eventId: v.id("events"),

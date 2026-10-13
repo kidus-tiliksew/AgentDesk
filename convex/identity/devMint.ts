@@ -4,7 +4,7 @@ import type { Id } from "../_generated/dataModel";
 import { internalMutation } from "../_generated/server";
 import { appError } from "../lib/errors";
 import { insertConnectionToken } from "./credentials";
-import { findUser } from "./users";
+import { findDeletion, findUser } from "./users";
 
 // Development-only connection-token mint. No sign-in surface exists before
 // Phase 2, and the Phase 1 demo needs a token on a dev deployment. Being
@@ -28,7 +28,7 @@ export const mintConnectionToken = internalMutation({
     { clerkUserId, email, harness, name, machineName },
   ): Promise<{ token: string; userId: Id<"users">; credentialId: Id<"credentials"> }> => {
     const existing = await findUser(ctx, clerkUserId);
-    if (existing?.deletingAt !== undefined) {
+    if (existing?.deletingAt !== undefined || (await findDeletion(ctx, clerkUserId)) !== null) {
       throw appError(errorCodeSchema.enum.unauthenticated, "Account is being deleted");
     }
     const userId = existing?._id ?? (await ctx.db.insert("users", { clerkUserId, email }));
