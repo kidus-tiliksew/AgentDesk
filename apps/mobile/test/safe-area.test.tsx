@@ -1,6 +1,7 @@
 import { ConvexError } from "convex/values";
 import { act, screen } from "expo-router/testing-library";
 import { StyleSheet } from "react-native";
+import { AUTH_WAIT_MS } from "../src/account-bootstrap";
 import {
   account,
   clerkState,
@@ -124,6 +125,8 @@ describe("safe areas on screens without a header", () => {
     convexAuthState.set({ isLoading: false, isAuthenticated: false });
 
     renderApp("/");
+    // A new session reaches the rejection once its wait for Convex runs out.
+    act(() => jest.advanceTimersByTime(AUTH_WAIT_MS));
 
     const message = screen.getByText("The AgentDesk backend did not accept this sign-in.");
     expect(screenOf(message)).toMatchObject(inset);
