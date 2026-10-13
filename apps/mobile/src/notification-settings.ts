@@ -100,6 +100,32 @@ export function parseTime(value: string): number | null {
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
+// The window quiet hours start with when the person turns them on and no
+// window is saved, so the From and To pickers always hold a time.
+export const DEFAULT_QUIET_START = "22:00";
+export const DEFAULT_QUIET_END = "07:00";
+
+// The native time pickers work on a Date; the form keeps `HH:MM`. The Date
+// is the wall-clock time on 1 January 2000 in the device's zone, a day with
+// no daylight-saving change, so every minute of it exists. `fallback` stands
+// in for a value that is not a time.
+export function timeAsDate(value: string, fallback: string): Date {
+  const minutes = parseTime(value) ?? parseTime(fallback) ?? 0;
+  return new Date(2000, 0, 1, Math.floor(minutes / 60), minutes % 60);
+}
+
+export function dateAsTime(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+// A zone's short name for the settings row: its city with spaces, such as
+// "Addis Ababa" for Africa/Addis_Ababa, or the whole name when it has no
+// region, such as UTC.
+export function zoneName(zone: string): string {
+  return (zone.split("/").pop() ?? zone).replace(/_/g, " ");
+}
+
 // True when this runtime's Intl accepts `timeZone`. The backend runs the same
 // check in its own runtime, and its answer is the one that counts.
 export function isValidTimeZone(timeZone: string): boolean {

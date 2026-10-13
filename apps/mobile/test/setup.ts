@@ -68,6 +68,25 @@ jest.mock("convex/react", () => {
       }
       return fakes.readQuery(getFunctionName(reference), args);
     },
+    // As in Convex, a failed query's error comes back as its value instead of
+    // being thrown. A query no test scripted still throws, so a screen that
+    // calls an unexpected query fails the test.
+    useQueries: (requests: Record<string, { query: unknown; args: unknown }>) => {
+      useSyncExternalStore(fakes.queries.subscribe, fakes.queries.get);
+      const results: Record<string, unknown> = {};
+      for (const [key, { query, args }] of Object.entries(requests)) {
+        const name = getFunctionName(query);
+        if (!(name in fakes.queries.get())) {
+          throw new Error(`Unexpected query ${name}`);
+        }
+        try {
+          results[key] = fakes.readQuery(name, args);
+        } catch (error) {
+          results[key] = error;
+        }
+      }
+      return results;
+    },
   };
 });
 

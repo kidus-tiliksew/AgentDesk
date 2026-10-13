@@ -5,10 +5,26 @@ import {
   type Decision,
   validateAnswer,
 } from "@agentdesk/contract";
-import { type ReactNode, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { HeaderHeightContext } from "expo-router/react-navigation";
+import { type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import {
+  AccessibilityInfo,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Button } from "./button";
-import { styles } from "./styles";
+import { formatAnswer } from "./decision-outcome";
+import { makeStyles, radius, spacing, useTheme } from "./theme";
+import { Dock } from "./ui/dock";
+import { Icon } from "./ui/icon";
+import { Pill } from "./ui/pill";
+import { AppText } from "./ui/text";
 
 // The contract's limits (packages/contract/src/answers.ts): an answer text of
 // at most 4,000 characters and a note of at most 2,000
@@ -18,11 +34,11 @@ export const NOTE_LIMIT = 2000;
 
 type Choice = "approve" | "reject";
 
-// The answer being composed. `mode` matters only for single_choice_or_text,
-// where the user answers with one option or with text, never both
-// (req-decision-requests AC-2.4).
+// The answer being composed. Approve or reject is not part of it: each is
+// its own button that sends at once. `mode` matters only for
+// single_choice_or_text, where the user answers with one option or with
+// text, never both (req-decision-requests AC-2.4).
 type Draft = {
-  choice: Choice | null;
   optionId: string | null;
   optionIds: string[];
   text: string;
@@ -32,20 +48,11 @@ type Draft = {
 
 // The first draft for a decision, from its recommendation: the recommended
 // value is preselected, and the user may change it before submitting
-// (req-mobile-app AC-3.3).
+// (req-mobile-app AC-3.3). An approve or reject recommendation is the
+// highlighted button instead.
 function initialDraft(recommendation: Answer | null): Draft {
-  const draft: Draft = {
-    choice: null,
-    optionId: null,
-    optionIds: [],
-    text: "",
-    mode: "option",
-    note: "",
-  };
+  const draft: Draft = { optionId: null, optionIds: [], text: "", mode: "option", note: "" };
   switch (recommendation?.kind) {
-    case "approve":
-    case "reject":
-      return { ...draft, choice: recommendation.kind };
     case "option":
       return { ...draft, optionId: recommendation.option_id };
     case "options":
@@ -59,10 +66,10 @@ function initialDraft(recommendation: Answer | null): Draft {
 
 // The answer the draft stands for, unvalidated. A missing selection is null,
 // which the contract's validateAnswer refuses.
-function candidate(decision: Decision, draft: Draft): unknown {
+function candidate(decision: Decision, draft: Draft, choice: Choice | null): unknown {
   switch (decision.input_type) {
     case "approve_reject":
-      return draft.choice === null ? null : { kind: draft.choice };
+      return choice === null ? null : { kind: choice };
     case "single_choice":
       return draft.optionId === null ? null : { kind: "option", option_id: draft.optionId };
     case "multiple_choice":
@@ -103,11 +110,12 @@ function issueMessage(issue: { path: PropertyKey[]; message: string }, fallback:
 function validate(
   decision: Decision,
   draft: Draft,
+  choice: Choice | null,
 ): { submission: AnswerSubmission } | { errors: string[] } {
   const answer = validateAnswer(
     decision.input_type,
     decision.options ?? undefined,
-    candidate(decision, draft),
+    candidate(decision, draft, choice),
   );
   const errors = answer.success
     ? []
@@ -129,15 +137,88 @@ function validate(
   return { submission: submission.data };
 }
 
-// One selectable answer. Selection is the accessibility `checked` state and
-// the filled style; the recommendation is a separate "Recommended" label and
-// hint, so changing the selection never hides it.
-function ChoiceControl({
+// Apple HIG Typography: past this text size the two answer buttons and the
+// dock's recommendation line stack vertically instead of truncating.
+const STACK_FONT_SCALE = 1.35;
+
+// Apple HIG Buttons: a text link keeps a 44 pt hit region.
+const LINK_HIT_SLOP = { top: 12, bottom: 12, left: 8, right: 8 };
+
+const useStyles = makeStyles((theme) => ({
+  flex: { flex: 1 },
+  body: { backgroundColor: theme.background, flex: 1 },
+  bodyContent: { paddingBottom: 24, paddingTop: 4 },
+  controls: { gap: 8, paddingTop: 6 },
+  option: {
+    alignItems: "center",
+    backgroundColor: theme.card,
+    borderColor: "transparent",
+    borderRadius: radius.card - 2,
+    borderWidth: 2,
+    flexDirection: "row",
+    gap: 12,
+    marginHorizontal: spacing.screen,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  optionSelected: { borderColor: theme.accent },
+  optionText: { flex: 1, gap: 6 },
+  radio: {
+    alignItems: "center",
+    borderColor: theme.textSecondary,
+    borderRadius: 11,
+    borderWidth: 2,
+    height: 22,
+    justifyContent: "center",
+    width: 22,
+  },
+  checkbox: { borderRadius: 6 },
+  indicatorOn: { backgroundColor: theme.accent, borderColor: theme.accent },
+  radioDot: { backgroundColor: theme.onAccent, borderRadius: 4, height: 8, width: 8 },
+  inputWrap: { gap: 4, marginHorizontal: spacing.screen },
+  inputWrapDocked: { marginHorizontal: 0 },
+  input: {
+    backgroundColor: theme.card,
+    borderRadius: radius.control,
+    color: theme.text,
+    fontSize: 17,
+    minHeight: 110,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+    textAlignVertical: "top",
+  },
+  noteInput: { backgroundColor: theme.fill, minHeight: 72 },
+  counter: { alignSelf: "flex-end" },
+  prefilled: { marginHorizontal: spacing.screen },
+  dockLine: { alignItems: "center", flexDirection: "row", gap: 12 },
+  dockLineStacked: { alignItems: "stretch", flexDirection: "column", gap: 4 },
+  recommendation: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexGrow: 1,
+    flexShrink: 1,
+    gap: 5,
+  },
+  addNote: { alignSelf: "flex-start" },
+  buttons: { flexDirection: "row", gap: 8 },
+  buttonsStacked: { flexDirection: "column" },
+  pressed: { opacity: 0.7 },
+}));
+
+// One selectable answer as a large row. Selection is the accessibility
+// `checked` state, the filled indicator, and the accent border; the
+// recommendation is a separate "Recommended" pill, so changing the selection
+// never hides it (req-mobile-app AC-3.3). Apple HIG VoiceOver: the row is one
+// element whose value carries "Recommended" after its checked state, so the
+// marker is read whether or not hints are on.
+function OptionRow({
   role,
   label,
   selected,
   recommended,
   disabled,
+  muted = false,
   onPress,
 }: {
   role: "radio" | "checkbox";
@@ -145,20 +226,46 @@ function ChoiceControl({
   selected: boolean;
   recommended: boolean;
   disabled: boolean;
+  muted?: boolean;
   onPress: () => void;
 }) {
+  const styles = useStyles();
+  const theme = useTheme();
   return (
     <Pressable
       accessibilityRole={role}
       accessibilityLabel={label}
-      accessibilityHint={recommended ? "Recommended by the agent" : undefined}
+      accessibilityValue={recommended ? { text: "Recommended" } : undefined}
       accessibilityState={{ checked: selected, disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={[styles.choice, selected && styles.choiceSelected]}
+      style={({ pressed }) => [
+        styles.option,
+        selected && styles.optionSelected,
+        pressed && styles.pressed,
+      ]}
     >
-      <Text style={selected ? styles.choiceTextSelected : styles.choiceText}>{label}</Text>
-      {recommended ? <Text style={styles.recommended}>Recommended</Text> : null}
+      <View
+        style={[
+          styles.radio,
+          role === "checkbox" && styles.checkbox,
+          selected && styles.indicatorOn,
+        ]}
+      >
+        {selected ? (
+          role === "radio" ? (
+            <View style={styles.radioDot} />
+          ) : (
+            <Icon name="checkmark" size={15} color={theme.onAccent} />
+          )
+        ) : null}
+      </View>
+      <View style={styles.optionText}>
+        <AppText weight="600" tone={muted && !selected ? "secondary" : "primary"}>
+          {label}
+        </AppText>
+        {recommended ? <Pill label="Recommended" icon="sparkles" tone="accent" /> : null}
+      </View>
     </Pressable>
   );
 }
@@ -169,52 +276,101 @@ function LimitedInput({
   value,
   limit,
   editable,
+  compact = false,
   onChange,
+  onFocus,
+  onBlur,
 }: {
   label: string;
   placeholder: string;
   value: string;
   limit: number;
   editable: boolean;
+  compact?: boolean;
   onChange: (value: string) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }) {
+  const styles = useStyles();
+  const theme = useTheme();
   return (
-    <View style={styles.field}>
+    <View style={[styles.inputWrap, compact && styles.inputWrapDocked]}>
       <TextInput
         accessibilityLabel={label}
         editable={editable}
         maxLength={limit}
         multiline
+        onBlur={onBlur}
         onChangeText={onChange}
+        onFocus={onFocus}
         placeholder={placeholder}
-        style={[styles.input, styles.textArea]}
+        // Apple HIG Accessibility: text, a placeholder and the counter
+        // included, meets 4.5:1, which the tertiary color does not.
+        placeholderTextColor={theme.textSecondary}
+        style={[styles.input, compact && styles.noteInput]}
         value={value}
       />
-      <Text style={value.length > limit ? styles.error : styles.counter}>
+      <AppText
+        variant="caption"
+        tone={value.length > limit ? "red" : "secondary"}
+        style={styles.counter}
+      >
         {`${value.length}/${limit}`}
-      </Text>
+      </AppText>
     </View>
   );
 }
 
-// The answer controls for a pending decision: one control per input type,
-// an optional note, and one Submit action (req-mobile-app REQ-3). The parent
-// mounts it once per decision id, so the draft survives reactive updates to
-// the same decision and never carries over to another one. While
+// The answer controls for a pending decision, laid out as the screen: the
+// decision (`children`) and any option rows or text field scroll, and a dock
+// pinned to the bottom holds the recommendation, an optional note behind
+// "Add note", and the send action (prototype "Decision: approve / reject"
+// and "Decision: multiple choice"; req-mobile-app REQ-3). Approve and Reject
+// are two buttons that each send at once; the recommended one is filled and
+// marked with sparkles. Every other type sends with "Send answer". The dock
+// sits below the scrolling body rather than over it, so at any text size the
+// body's last line scrolls clear of the dock.
+//
+// The parent mounts it once per decision id, so the draft survives reactive
+// updates to the same decision and never carries over to another one. While
 // `submitting` is set every control is disabled.
 export function AnswerForm({
   decision,
   submitting,
   failure,
   onSubmit,
+  children,
 }: {
   decision: Decision;
   submitting: boolean;
   failure: string | null;
   onSubmit: (submission: AnswerSubmission) => void;
+  children: ReactNode;
 }) {
+  const styles = useStyles();
+  const theme = useTheme();
+  const headerHeight = useContext(HeaderHeightContext) ?? 0;
+  const stacked = useWindowDimensions().fontScale > STACK_FONT_SCALE;
+  const scroll = useRef<ScrollView>(null);
+  // Whether the answer text field has focus. The keyboard avoider shrinks
+  // the body once the keyboard is up, which can leave the field under the
+  // dock; the field is the body's last control, so the body scrolls to its
+  // end (Apple HIG Entering data: keep the field being edited visible).
+  const textFocused = useRef(false);
+  useEffect(() => {
+    const shown = Keyboard.addListener("keyboardDidShow", () => {
+      if (textFocused.current) {
+        scroll.current?.scrollToEnd();
+      }
+    });
+    return () => shown.remove();
+  }, []);
   const [draft, setDraft] = useState(() => initialDraft(decision.recommendation));
   const [errors, setErrors] = useState<string[]>([]);
+  const [noteOpen, setNoteOpen] = useState(false);
+  // The approve or reject button last pressed, which reads "Sending" while
+  // its request runs.
+  const [sent, setSent] = useState<Choice | null>(null);
   const { recommendation } = decision;
   const options = decision.options ?? [];
 
@@ -226,15 +382,18 @@ export function AnswerForm({
     (recommendation?.kind === "option" && recommendation.option_id === id) ||
     (recommendation?.kind === "options" && recommendation.option_ids.includes(id));
 
-  const submit = () => {
+  const submit = (choice: Choice | null) => {
     if (submitting) {
       return;
     }
-    const result = validate(decision, draft);
+    const result = validate(decision, draft, choice);
     if ("errors" in result) {
       setErrors(result.errors);
+      // Apple HIG VoiceOver: errors that appear are announced.
+      AccessibilityInfo.announceForAccessibility(result.errors.join(" "));
       return;
     }
+    setSent(choice);
     onSubmit(result.submission);
   };
 
@@ -246,27 +405,23 @@ export function AnswerForm({
       limit={TEXT_LIMIT}
       editable={!submitting}
       onChange={(text) => edit({ text })}
+      onFocus={() => {
+        textFocused.current = true;
+        scroll.current?.scrollToEnd();
+      }}
+      onBlur={() => {
+        textFocused.current = false;
+      }}
     />
   );
 
-  let controls: ReactNode;
+  let controls: ReactNode = null;
   switch (decision.input_type) {
     case "approve_reject":
-      controls = (["approve", "reject"] as const).map((choice) => (
-        <ChoiceControl
-          key={choice}
-          role="radio"
-          label={choice === "approve" ? "Approve" : "Reject"}
-          selected={draft.choice === choice}
-          recommended={recommendation?.kind === choice}
-          disabled={submitting}
-          onPress={() => edit({ choice })}
-        />
-      ));
       break;
     case "single_choice":
       controls = options.map((option) => (
-        <ChoiceControl
+        <OptionRow
           key={option.id}
           role="radio"
           label={option.label}
@@ -279,7 +434,7 @@ export function AnswerForm({
       break;
     case "multiple_choice":
       controls = options.map((option) => (
-        <ChoiceControl
+        <OptionRow
           key={option.id}
           role="checkbox"
           label={option.label}
@@ -300,7 +455,9 @@ export function AnswerForm({
       controls = (
         <>
           {recommendation?.kind === "text" ? (
-            <Text style={styles.recommended}>Recommended answer prefilled</Text>
+            <View style={styles.prefilled}>
+              <Pill label="Recommended answer prefilled" icon="sparkles" tone="accent" />
+            </View>
           ) : null}
           {textInput}
         </>
@@ -312,7 +469,7 @@ export function AnswerForm({
       controls = (
         <>
           {options.map((option) => (
-            <ChoiceControl
+            <OptionRow
               key={option.id}
               role="radio"
               label={option.label}
@@ -322,9 +479,10 @@ export function AnswerForm({
               onPress={() => edit({ mode: "option", optionId: option.id, text: "" })}
             />
           ))}
-          <ChoiceControl
+          <OptionRow
             role="radio"
             label="Other answer"
+            muted
             selected={draft.mode === "text"}
             recommended={recommendation?.kind === "text"}
             disabled={submitting}
@@ -336,31 +494,118 @@ export function AnswerForm({
       break;
   }
 
-  return (
-    <View style={styles.list}>
-      <Text accessibilityRole="header" style={styles.heading}>
-        Your answer
-      </Text>
-      {controls}
-      <LimitedInput
-        label="Note"
-        placeholder="Optional note"
-        value={draft.note}
-        limit={NOTE_LIMIT}
-        editable={!submitting}
-        onChange={(note) => edit({ note })}
-      />
-      {errors.map((message) => (
-        <Text key={message} style={styles.error}>
-          {message}
-        </Text>
-      ))}
-      {failure === null ? null : <Text style={styles.error}>{failure}</Text>}
+  // Approve and Reject: one filled primary button, the recommended one with
+  // sparkles, or Approve when there is no recommendation; the other is
+  // secondary. Reject is an answer, not a destructive action, so it is never
+  // red (Apple HIG Buttons: destructive style is for actions that destroy
+  // data). Side by side they read Reject, Approve; stacked at large text
+  // sizes the primary one comes first.
+  const prominent: Choice = recommendation?.kind === "reject" ? "reject" : "approve";
+  const choiceButton = (choice: Choice) => {
+    const recommended = recommendation?.kind === choice;
+    const label = choice === "approve" ? "Approve" : "Reject";
+    return (
       <Button
-        label={submitting ? "Submitting" : "Submit answer"}
+        key={choice}
+        label={submitting && sent === choice ? "Sending" : label}
+        accessibilityHint={recommended ? "Recommended by the agent" : undefined}
+        icon={recommended ? "sparkles" : undefined}
+        variant={choice === prominent ? "primary" : "secondary"}
         disabled={submitting}
-        onPress={submit}
+        grow={!stacked}
+        onPress={() => submit(choice)}
       />
-    </View>
+    );
+  };
+  const choiceOrder: Choice[] = stacked
+    ? [prominent, prominent === "approve" ? "reject" : "approve"]
+    : ["reject", "approve"];
+
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={headerHeight}
+      style={styles.flex}
+    >
+      <ScrollView
+        ref={scroll}
+        style={styles.body}
+        contentContainerStyle={styles.bodyContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {children}
+        {controls === null ? null : <View style={styles.controls}>{controls}</View>}
+      </ScrollView>
+      <Dock>
+        <View style={[styles.dockLine, stacked && styles.dockLineStacked]}>
+          <View style={styles.recommendation}>
+            <Icon name="sparkles" size={15} color={theme.textSecondary} />
+            {recommendation === null ? (
+              <AppText variant="footnote" tone="secondary">
+                No recommendation
+              </AppText>
+            ) : (
+              <AppText
+                variant="footnote"
+                tone="secondary"
+                numberOfLines={stacked ? 3 : 1}
+                style={styles.flex}
+              >
+                {"Recommended: "}
+                <AppText variant="footnote" weight="600">
+                  {formatAnswer(recommendation, decision.options)}
+                </AppText>
+              </AppText>
+            )}
+          </View>
+          {noteOpen ? null : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add note"
+              disabled={submitting}
+              hitSlop={LINK_HIT_SLOP}
+              onPress={() => setNoteOpen(true)}
+              style={stacked ? styles.addNote : undefined}
+            >
+              <AppText variant="subhead" tone="accent">
+                Add note
+              </AppText>
+            </Pressable>
+          )}
+        </View>
+        {noteOpen ? (
+          <LimitedInput
+            label="Note"
+            placeholder="Optional note"
+            value={draft.note}
+            limit={NOTE_LIMIT}
+            editable={!submitting}
+            compact
+            onChange={(note) => edit({ note })}
+          />
+        ) : null}
+        {errors.map((message) => (
+          <AppText key={message} variant="footnote" tone="red">
+            {message}
+          </AppText>
+        ))}
+        {failure === null ? null : (
+          <AppText variant="footnote" tone="red">
+            {failure}
+          </AppText>
+        )}
+        {decision.input_type === "approve_reject" ? (
+          <View style={[styles.buttons, stacked && styles.buttonsStacked]}>
+            {choiceOrder.map(choiceButton)}
+          </View>
+        ) : (
+          <Button
+            label={submitting ? "Sending" : "Send answer"}
+            disabled={submitting}
+            onPress={() => submit(null)}
+          />
+        )}
+      </Dock>
+    </KeyboardAvoidingView>
   );
 }

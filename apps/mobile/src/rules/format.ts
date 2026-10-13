@@ -1,5 +1,6 @@
 import type { AgentSession } from "@agentdesk/contract";
 import type { NotificationRule } from "../../../../convex/notifications/rules";
+import type { IconName } from "../ui/icon";
 
 // component-mobile-app §Screens, rules: the labels the rules list and editor
 // show for a rule's match fields and action (req-notification-rules REQ-2,
@@ -29,6 +30,15 @@ export const ACTIONS: { value: RuleAction; label: string }[] = [
   { value: "mute", label: "Mute" },
 ];
 
+// Each action's icon and tile color, after the iOS system colors the
+// prototype's rules list uses: red bell for push, orange page for the digest,
+// grey crossed-out bell for mute.
+export const ACTION_LOOK: Record<RuleAction, { icon: IconName; color: string }> = {
+  push: { icon: "notifications", color: "#ff3b30" },
+  digest: { icon: "document-text", color: "#ff9500" },
+  mute: { icon: "notifications-off", color: "#8e8e93" },
+};
+
 export const ANY = "Any";
 
 // The name for a session that neither agents/app:liveAgents nor
@@ -36,13 +46,25 @@ export const ANY = "Any";
 // purged. The backend's push messages use the same name.
 export const ENDED_AGENT = "Ended agent";
 
-// What a rule matches when no rule is set (req-notification-rules REQ-4).
-export const DEFAULTS_EXPLANATION =
-  "Without a rule, decision created and agent stale events push, decision expired and agent done events go to the daily digest, and agent status changes are muted.";
+// What an event of each kind does when no rule matches it, push first, then
+// digest, then mute (req-notification-rules REQ-4; DEFAULT_ACTIONS in
+// convex/notifications/route.ts).
+export const DEFAULT_ROUTING: { kind: RuleEventKind; action: RuleAction }[] = [
+  { kind: "decision.created", action: "push" },
+  { kind: "agent.stale", action: "push" },
+  { kind: "decision.expired", action: "digest" },
+  { kind: "agent.done", action: "digest" },
+  { kind: "agent.status_changed", action: "mute" },
+];
 
 // How the backend picks among matching rules (req-notification-rules AC-3.2).
 export const PRECEDENCE_EXPLANATION =
-  "When several rules match an event, the rule with the most match fields set wins. Among rules with as many fields set, the most recently saved rule wins.";
+  "When several rules match an event, the most specific wins: the rule with the most match fields set, then the most recently saved.";
+
+// The rule editor's hint under the sentence, and the priority caveat.
+export const SUBTOPIC_HINT = "A topic also matches its subtopics.";
+export const PRIORITY_HINT = "Only decision events carry a priority.";
+export const NO_MATCH = "Set at least one of topic, agent, event, or priority.";
 
 export function eventKindLabel(kind: RuleEventKind | null): string {
   return EVENT_KINDS.find((choice) => choice.value === kind)?.label ?? ANY;
@@ -83,6 +105,24 @@ export function agentLabel(agentSessionId: string | null, agents: AgentSession[]
   }
   const agent = agents.find((candidate) => candidate.id === agentSessionId);
   return agent === undefined ? ENDED_AGENT : agentChoiceLabel(agent);
+}
+
+// Where a rule applies, the bold line of its row: its topic and agent, or
+// Everything when it names neither.
+export function ruleWhere(rule: NotificationRule, agents: AgentSession[]): string {
+  const parts = [
+    ...(rule.topic === null ? [] : [rule.topic]),
+    ...(rule.agent_session_id === null ? [] : [agentLabel(rule.agent_session_id, agents)]),
+  ];
+  return parts.length === 0 ? "Everything" : parts.join(" · ");
+}
+
+// What a rule does, the second line of its row: "Urgent · Decision created →
+// Push", or "Any event → Mute" when it names no event kind.
+export function ruleWhat(rule: NotificationRule): string {
+  const event = rule.event_kind === null ? "Any event" : eventKindLabel(rule.event_kind);
+  const priority = rule.priority === null ? "" : `${priorityLabel(rule.priority)} · `;
+  return `${priority}${event} → ${actionLabel(rule.action)}`;
 }
 
 // The row's one-line description, also its accessibility label.

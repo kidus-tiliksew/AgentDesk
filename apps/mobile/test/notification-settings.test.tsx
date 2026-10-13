@@ -2,9 +2,12 @@ import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { router } from "expo-router";
 import { act, fireEvent, screen } from "expo-router/testing-library";
+import { AccessibilityInfo, ActionSheetIOS, Keyboard, Linking } from "react-native";
 import type { NotificationSettings } from "../../../convex/notifications/settings";
+import { haptic } from "../src/haptics";
 import {
   type Draft,
+  dateAsTime,
   deviceTimeZone,
   draftOf,
   EQUAL_TIMES,
@@ -19,18 +22,42 @@ import {
   supportedTimeZones,
   THRESHOLD_RULE,
   TIME_RULE,
+  timeAsDate,
   type UpdateArgs,
   validateDraft,
   ZONE_RULE,
   zoneChoices,
+  zoneName,
 } from "../src/notification-settings";
-import { deferred, loading, queryCalls, setQuery, signInAs, signOutAll } from "./fakes";
-import { renderApp } from "./render";
+import {
+  deferred,
+  loading,
+  push,
+  queryCalls,
+  secureStore,
+  setQuery,
+  signInAs,
+  signOutAll,
+} from "./fakes";
+import { findInbox, renderApp } from "./render";
 
 // component-mobile-app §Screens, notification settings: settings/notifications
 // shows and saves quiet hours, urgent override, digest time, time zone, and
 // stale threshold (req-mobile-app REQ-5; req-notification-rules REQ-5, REQ-6;
-// req-agent-status AC-3.1).
+// req-agent-status AC-3.1), under this device's push status.
+
+// The native time picker as a plain view that keeps its props, so a test
+// reads the picker's `value` and fires its `valueChange` as a person turning
+// the wheel would.
+jest.mock("@react-native-community/datetimepicker", () => {
+  const { createElement } = require("react");
+  const { View } = require("react-native");
+  return {
+    __esModule: true,
+    default: (props: object) => createElement(View, props),
+    DateTimePickerAndroid: { open: jest.fn() },
+  };
+});
 
 const getName = "notifications/settings:getSettings";
 const updateName = "notifications/settings:updateSettings";
@@ -41,6 +68,8 @@ const REFUSED = "AgentDesk refused these settings. Check the fields and save aga
 const SAVED = "Settings saved.";
 const LOAD_FAILED = "Could not load your notification settings.";
 const FALLBACK_NOTE = "No time zone has been recorded from this device yet, so AgentDesk uses UTC.";
+const URGENT_ON = "Urgent decisions still push during quiet hours.";
+const URGENT_OFF = "Urgent decisions go to the digest during quiet hours, like everything else.";
 
 const DEFAULTS: NotificationSettings = {
   time_zone: "UTC",
@@ -88,12 +117,27 @@ function serve(settings: NotificationSettings) {
   setQuery(getName, settings);
 }
 
+// The system action sheet, which asks before unsaved edits are discarded.
+// `chooseInSheet` picks one of its options as the person would.
+let sheet: jest.SpyInstance;
+let announce: jest.SpyInstance;
+
+function chooseInSheet(option: string) {
+  const [options, callback] = sheet.mock.lastCall as [
+    { options: string[] },
+    (index: number) => void,
+  ];
+  act(() => callback(options.options.indexOf(option)));
+}
+
 // The zone this file's device reports.
 let deviceZone: string | undefined;
 const realResolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
 
 beforeEach(() => {
   binds = 0;
+  sheet = jest.spyOn(ActionSheetIOS, "showActionSheetWithOptions").mockImplementation(() => {});
+  announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
   deviceZone = "Africa/Addis_Ababa";
   jest.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockImplementation(function (
     this: Intl.DateTimeFormat,
@@ -142,6 +186,41 @@ function type(label: string, text: string) {
   fireEvent.changeText(input(label), text);
 }
 
+// The `HH:MM` a time picker shows.
+function timeOf(label: string) {
+  return dateAsTime(input(label).props.value as Date);
+}
+
+// Sets a time picker to `HH:MM`.
+function pickTime(label: string, time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+  const date = new Date(2000, 0, 1, hours, minutes);
+  fireEvent(input(label), "valueChange", { nativeEvent: { timestamp: date.getTime() } }, date);
+}
+
+function isOn(label: string) {
+  return input(label).props.value === true;
+}
+
+async function toggle(label: string, value: boolean) {
+  await act(async () => {
+    fireEvent(input(label), "valueChange", value);
+  });
+}
+
+// The time zone row reads "Time zone, <IANA name>".
+function zoneRow() {
+  return screen.getByRole("button", { name: /^Time zone, / });
+}
+
+function selectedZone() {
+  return zoneRow().props.accessibilityLabel.replace(/^Time zone, /, "");
+}
+
+function openZones() {
+  fireEvent.press(zoneRow());
+}
+
 function choice(name: string) {
   return screen.getByRole("button", { name });
 }
@@ -166,12 +245,11 @@ async function pressSave() {
 }
 
 describe("opening the screen", () => {
-  test("the inbox header opens it, and it binds the update hook only with the loaded form", async () => {
+  test("the settings tab opens it, and it binds the update hook only with the loaded form", async () => {
     setQuery(getName, loading);
-    await open("/");
-    await screen.findByText("No pending decisions.");
+    await open("/settings");
 
-    fireEvent.press(screen.getByText("Notifications"));
+    fireEvent.press(screen.getByRole("button", { name: "Notifications" }));
     await settle();
     expect(screen).toHavePathname(url);
     expect(screen.getByText("Loading notification settings")).toBeOnTheScreen();
@@ -179,7 +257,7 @@ describe("opening the screen", () => {
 
     act(() => serve(DEFAULTS));
     await settle();
-    expect(input("Digest time").props.value).toBe("09:00");
+    expect(timeOf("Digest time")).toBe("09:00");
     expect(binds).toBeGreaterThan(0);
     expect(mockUpdate).not.toHaveBeenCalled();
   });
@@ -202,21 +280,20 @@ describe("opening the screen", () => {
     setQuery(getName, DEFAULTS);
     await press(screen.getByRole("button", { name: "Try again" }));
     expect(screen.queryByText(LOAD_FAILED)).not.toBeOnTheScreen();
-    expect(input("Digest time").props.value).toBe("09:00");
+    expect(timeOf("Digest time")).toBe("09:00");
   });
 
   test("shows the backend defaults for every field", async () => {
     await open();
 
-    expect(isSelected("Quiet hours: Off")).toBe(true);
-    expect(input("Quiet hours start").props.value).toBe("");
-    expect(input("Quiet hours end").props.value).toBe("");
-    expect(input("Quiet hours start").props.editable).toBe(false);
-    expect(input("Quiet hours end").props.editable).toBe(false);
-    expect(isSelected("Urgent override: On")).toBe(true);
-    expect(screen.getByText("Urgent decisions still push during quiet hours.")).toBeOnTheScreen();
-    expect(input("Digest time").props.value).toBe("09:00");
-    expect(screen.getByText("Selected: UTC")).toBeOnTheScreen();
+    expect(isOn("Quiet hours")).toBe(false);
+    // Off quiet hours hide their From and To pickers.
+    expect(screen.queryByLabelText("Quiet hours start")).not.toBeOnTheScreen();
+    expect(screen.queryByLabelText("Quiet hours end")).not.toBeOnTheScreen();
+    expect(isOn("Urgent decisions still push")).toBe(true);
+    expect(screen.getByText(URGENT_ON)).toBeOnTheScreen();
+    expect(timeOf("Digest time")).toBe("09:00");
+    expect(selectedZone()).toBe("UTC");
     expect(screen.getByText(FALLBACK_NOTE)).toBeOnTheScreen();
     expect(input("Stale threshold in minutes").props.value).toBe("30");
   });
@@ -225,21 +302,17 @@ describe("opening the screen", () => {
     serve(STORED);
     await open();
 
-    expect(isSelected("Quiet hours: On")).toBe(true);
-    expect(input("Quiet hours start").props.value).toBe("22:00");
-    expect(input("Quiet hours end").props.value).toBe("07:00");
-    expect(input("Quiet hours start").props.editable).toBe(true);
+    expect(isOn("Quiet hours")).toBe(true);
+    expect(timeOf("Quiet hours start")).toBe("22:00");
+    expect(timeOf("Quiet hours end")).toBe("07:00");
     expect(
       screen.getByText("Quiet hours run overnight: from 22:00 until 07:00 the next day."),
     ).toBeOnTheScreen();
-    expect(isSelected("Urgent override: Off")).toBe(true);
-    expect(
-      screen.getByText(
-        "Urgent decisions go to the digest during quiet hours, like everything else.",
-      ),
-    ).toBeOnTheScreen();
-    expect(input("Digest time").props.value).toBe("18:30");
-    expect(screen.getByText("Selected: Europe/Berlin")).toBeOnTheScreen();
+    expect(isOn("Urgent decisions still push")).toBe(false);
+    expect(screen.getByText(URGENT_OFF)).toBeOnTheScreen();
+    expect(timeOf("Digest time")).toBe("18:30");
+    expect(selectedZone()).toBe("Europe/Berlin");
+    expect(screen.getByText("Berlin")).toBeOnTheScreen();
     expect(screen.queryByText(FALLBACK_NOTE)).not.toBeOnTheScreen();
     expect(input("Stale threshold in minutes").props.value).toBe("45");
   });
@@ -252,18 +325,62 @@ describe("opening the screen", () => {
   });
 });
 
+describe("push status", () => {
+  test("says push is on once this device is registered", async () => {
+    await open();
+
+    expect(await screen.findByText("Push is on for this device")).toBeOnTheScreen();
+  });
+
+  test("a denied permission reads as push off and opens the system settings", async () => {
+    push.requestResult = { granted: false, canAskAgain: false, status: "denied" };
+    const openSettings = jest.spyOn(Linking, "openSettings").mockResolvedValue(undefined);
+    await open();
+
+    expect(await screen.findByText("Push is off for this device")).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole("button", { name: "Open Settings" }));
+    expect(openSettings).toHaveBeenCalledTimes(1);
+  });
+
+  test("a failed setup names the failure and offers another attempt", async () => {
+    push.getExpoPushTokenAsync.mockRejectedValueOnce(new Error("no token"));
+    await open();
+
+    expect(
+      await screen.findByText("Could not get a push token for this device."),
+    ).toBeOnTheScreen();
+    await press(screen.getByRole("button", { name: "Set up push again" }));
+    expect(await screen.findByText("Push is on for this device")).toBeOnTheScreen();
+  });
+
+  test("Not now on the push explanation reads as push off and offers to turn push on", async () => {
+    secureStore.values.set("agentdesk.pushIntro", "not-now");
+    await open();
+
+    expect(await screen.findByText("Push is off for this device")).toBeOnTheScreen();
+    expect(push.requestPermissionsAsync).not.toHaveBeenCalled();
+
+    await press(screen.getByRole("button", { name: "Turn on push" }));
+
+    expect(push.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("Push is on for this device")).toBeOnTheScreen();
+  });
+});
+
 describe("saving", () => {
   test("sends every field with the arguments updateSettings takes", async () => {
     await open();
 
-    await press(choice("Quiet hours: On"));
-    type("Quiet hours start", "23:15");
-    type("Quiet hours end", "06:45");
+    await toggle("Quiet hours", true);
+    pickTime("Quiet hours start", "23:15");
+    pickTime("Quiet hours end", "06:45");
     expect(
       screen.getByText("Quiet hours run overnight: from 23:15 until 06:45 the next day."),
     ).toBeOnTheScreen();
-    await press(choice("Urgent override: Off"));
-    type("Digest time", "08:15");
+    await toggle("Urgent decisions still push", false);
+    expect(screen.getByText(URGENT_OFF)).toBeOnTheScreen();
+    pickTime("Digest time", "08:15");
+    openZones();
     type("Search time zones", "tokyo");
     await press(choice("Time zone: Asia/Tokyo"));
     type("Stale threshold in minutes", "60");
@@ -279,15 +396,26 @@ describe("saving", () => {
       staleThresholdMinutes: 60,
     });
     expect(screen.getByText(SAVED)).toBeOnTheScreen();
-    expect(screen.getByText("Selected: Asia/Tokyo")).toBeOnTheScreen();
-    expect(input("Digest time").props.value).toBe("08:15");
+    expect(selectedZone()).toBe("Asia/Tokyo");
+    expect(timeOf("Digest time")).toBe("08:15");
     expect(screen.queryByText(FALLBACK_NOTE)).not.toBeOnTheScreen();
+  });
+
+  test("turning quiet hours on with no saved window starts from 22:00 to 07:00", async () => {
+    await open();
+
+    await toggle("Quiet hours", true);
+    expect(timeOf("Quiet hours start")).toBe("22:00");
+    expect(timeOf("Quiet hours end")).toBe("07:00");
+    await pressSave();
+
+    expect(mockUpdate.mock.calls[0]?.[0]).toMatchObject({ quietStart: "22:00", quietEnd: "07:00" });
   });
 
   test("an unchosen time zone is not sent, so the saved zone keeps its source", async () => {
     await open();
 
-    type("Digest time", "07:30");
+    pickTime("Digest time", "07:30");
     await pressSave();
 
     expect(mockUpdate).toHaveBeenCalledWith({
@@ -299,8 +427,9 @@ describe("saving", () => {
     });
   });
 
-  test("the device zone is offered first and marked, and is not selected for the person", async () => {
+  test("the zone sheet suggests the device zone and UTC, and marks the selected zone", async () => {
     await open();
+    openZones();
 
     const zones = screen
       .getAllByRole("button", { name: /^Time zone: / })
@@ -310,8 +439,15 @@ describe("saving", () => {
     expect(new Set(zones).size).toBe(zones.length);
     expect(isSelected("Time zone: UTC")).toBe(true);
     expect(isSelected("Time zone: Africa/Addis_Ababa (this device)")).toBe(false);
+    expect(
+      screen.getByText(/^Showing 50 of \d+ time zones\. Search to narrow the list\.$/),
+    ).toBeOnTheScreen();
 
     await press(choice("Time zone: Africa/Addis_Ababa (this device)"));
+    // Choosing closes the sheet.
+    expect(screen.queryByLabelText("Search time zones")).not.toBeOnTheScreen();
+    expect(selectedZone()).toBe("Africa/Addis_Ababa");
+    expect(screen.getByText("Addis Ababa")).toBeOnTheScreen();
     await pressSave();
     expect(mockUpdate.mock.calls[0]?.[0].timeZone).toBe("Africa/Addis_Ababa");
   });
@@ -319,18 +455,30 @@ describe("saving", () => {
   test("choosing the zone already saved sends it as the person's choice", async () => {
     await open();
 
+    openZones();
     await press(choice("Time zone: UTC"));
     await pressSave();
 
     expect(mockUpdate.mock.calls[0]?.[0].timeZone).toBe("UTC");
   });
 
+  test("Cancel closes the zone sheet without choosing", async () => {
+    await open();
+
+    openZones();
+    await press(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByLabelText("Search time zones")).not.toBeOnTheScreen();
+    await pressSave();
+
+    expect(mockUpdate.mock.calls[0]?.[0].timeZone).toBeUndefined();
+  });
+
   test("turning quiet hours off clears both ends", async () => {
     serve(STORED);
     await open();
 
-    await press(choice("Quiet hours: Off"));
-    expect(input("Quiet hours start").props.editable).toBe(false);
+    await toggle("Quiet hours", false);
+    expect(screen.queryByLabelText("Quiet hours start")).not.toBeOnTheScreen();
     expect(screen.queryByText(/the next day/)).not.toBeOnTheScreen();
     await pressSave();
 
@@ -341,22 +489,23 @@ describe("saving", () => {
       digestTime: "18:30",
       staleThresholdMinutes: 45,
     });
-    expect(isSelected("Quiet hours: Off")).toBe(true);
-    expect(input("Quiet hours start").props.value).toBe("");
+    expect(isOn("Quiet hours")).toBe(false);
   });
 
   test("a zone outside the list can be entered and is checked with Intl", async () => {
     await open();
+    openZones();
 
     type("Other time zone", "Mars/Olympus_Mons");
     await press(choice("Use time zone"));
     expect(screen.getByText(ZONE_RULE)).toBeOnTheScreen();
-    expect(screen.getByText("Selected: UTC")).toBeOnTheScreen();
+    expect(announce).toHaveBeenCalledWith(ZONE_RULE);
+    expect(selectedZone()).toBe("UTC");
 
     type("Other time zone", "America/Bogota");
     expect(screen.queryByText(ZONE_RULE)).not.toBeOnTheScreen();
     await press(choice("Use time zone"));
-    expect(screen.getByText("Selected: America/Bogota")).toBeOnTheScreen();
+    expect(selectedZone()).toBe("America/Bogota");
     await pressSave();
 
     expect(mockUpdate.mock.calls[0]?.[0].timeZone).toBe("America/Bogota");
@@ -364,6 +513,7 @@ describe("saving", () => {
 
   test("the search narrows the zones and reports when nothing matches", async () => {
     await open();
+    openZones();
 
     type("Search time zones", "new york");
     expect(choice("Time zone: America/New_York")).toBeOnTheScreen();
@@ -372,6 +522,10 @@ describe("saving", () => {
     // A zone that only the runtime's own list holds.
     type("Search time zones", "honolulu");
     expect(choice("Time zone: Pacific/Honolulu")).toBeOnTheScreen();
+
+    // A search finds the device zone too, still marked.
+    type("Search time zones", "addis");
+    expect(choice("Time zone: Africa/Addis_Ababa (this device)")).toBeOnTheScreen();
 
     type("Search time zones", "zzzz");
     expect(screen.getByText("No matching time zones.")).toBeOnTheScreen();
@@ -405,71 +559,32 @@ describe("checks before saving", () => {
     },
   );
 
-  test.each(["", "9:00", "24:00", "12:60", "1200", "ab:cd", "09:00:00"])(
-    "the digest time %p is refused before any call",
-    async (text) => {
-      await open();
-
-      type("Digest time", text);
-      await pressSave();
-
-      expect(screen.getByText(TIME_RULE)).toBeOnTheScreen();
-      expect(mockUpdate).not.toHaveBeenCalled();
-    },
-  );
-
-  test.each([
-    ["Quiet hours start", "7:00"],
-    ["Quiet hours start", "25:00"],
-    ["Quiet hours end", "23:61"],
-    ["Quiet hours end", "noon"],
-  ])("%s %p is refused before any call", async (label, text) => {
-    serve(STORED);
-    await open();
-
-    type(label, text);
-    await pressSave();
-
-    expect(screen.getByText(TIME_RULE)).toBeOnTheScreen();
-    expect(mockUpdate).not.toHaveBeenCalled();
-  });
-
-  test("quiet hours with only a start or only an end are refused", async () => {
-    await open();
-    await press(choice("Quiet hours: On"));
-
-    type("Quiet hours start", "22:00");
-    await pressSave();
-    expect(screen.getByText(MISSING_END)).toBeOnTheScreen();
-
-    type("Quiet hours start", "");
-    type("Quiet hours end", "07:00");
-    await pressSave();
-    expect(screen.getByText(MISSING_START)).toBeOnTheScreen();
-    expect(mockUpdate).not.toHaveBeenCalled();
-  });
-
   test("quiet hours that start and end at the same time are refused", async () => {
     serve(STORED);
     await open();
 
-    type("Quiet hours end", "22:00");
+    pickTime("Quiet hours end", "22:00");
     await pressSave();
 
     expect(screen.getByText(EQUAL_TIMES)).toBeOnTheScreen();
     expect(mockUpdate).not.toHaveBeenCalled();
+
+    pickTime("Quiet hours end", "06:00");
+    expect(screen.queryByText(EQUAL_TIMES)).not.toBeOnTheScreen();
   });
 
   test("editing a field clears its message and keeps the others", async () => {
+    serve(STORED);
     await open();
-    type("Digest time", "9");
+    pickTime("Quiet hours end", "22:00");
     type("Stale threshold in minutes", "4");
     await pressSave();
-    expect(screen.getByText(TIME_RULE)).toBeOnTheScreen();
+    expect(screen.getByText(EQUAL_TIMES)).toBeOnTheScreen();
     expect(screen.getByText(THRESHOLD_RULE)).toBeOnTheScreen();
+    expect(announce).toHaveBeenLastCalledWith(`${EQUAL_TIMES} ${THRESHOLD_RULE}`);
 
-    type("Digest time", "09:30");
-    expect(screen.queryByText(TIME_RULE)).not.toBeOnTheScreen();
+    pickTime("Quiet hours start", "21:00");
+    expect(screen.queryByText(EQUAL_TIMES)).not.toBeOnTheScreen();
     expect(screen.getByText(THRESHOLD_RULE)).toBeOnTheScreen();
   });
 });
@@ -489,11 +604,11 @@ describe("refusals and failures", () => {
       mockUpdate.mockRejectedValueOnce(invalid(field));
       await open();
 
-      type("Digest time", "06:00");
+      pickTime("Digest time", "06:00");
       await pressSave();
 
       expect(screen.getByText(refusalMessage(field))).toBeOnTheScreen();
-      expect(input("Digest time").props.value).toBe("06:00");
+      expect(timeOf("Digest time")).toBe("06:00");
       expect(screen.queryByText(SAVED)).not.toBeOnTheScreen();
       expect(screen.queryByText(REFUSED)).not.toBeOnTheScreen();
     },
@@ -513,13 +628,14 @@ describe("refusals and failures", () => {
     mockUpdate.mockRejectedValueOnce(new Error("offline"));
     await open();
 
-    type("Digest time", "07:00");
+    pickTime("Digest time", "07:00");
     type("Stale threshold in minutes", "15");
     await pressSave();
 
     expect(screen.getByText(SAVE_FAILED)).toBeOnTheScreen();
+    expect(announce).toHaveBeenLastCalledWith(SAVE_FAILED);
     expect(screen.queryByText(SAVED)).not.toBeOnTheScreen();
-    expect(input("Digest time").props.value).toBe("07:00");
+    expect(timeOf("Digest time")).toBe("07:00");
     expect(input("Stale threshold in minutes").props.value).toBe("15");
     expect(saveButton()).toHaveTextContent("Retry");
 
@@ -528,6 +644,7 @@ describe("refusals and failures", () => {
     expect(mockUpdate).toHaveBeenCalledTimes(2);
     expect(mockUpdate.mock.calls[1]?.[0]).toEqual(mockUpdate.mock.calls[0]?.[0]);
     expect(screen.getByText(SAVED)).toBeOnTheScreen();
+    expect(announce).toHaveBeenLastCalledWith(SAVED);
     expect(screen.queryByText(SAVE_FAILED)).not.toBeOnTheScreen();
   });
 
@@ -556,7 +673,9 @@ describe("one call at a time", () => {
   test("repeated Save presses send one call and the controls are disabled while it runs", async () => {
     const pending = deferred<NotificationSettings>();
     mockUpdate.mockReturnValueOnce(pending.promise);
+    serve(STORED);
     await open();
+    openZones();
 
     await act(async () => {
       fireEvent.press(saveButton());
@@ -567,15 +686,18 @@ describe("one call at a time", () => {
     expect(mockUpdate).toHaveBeenCalledTimes(1);
     expect(saveButton()).toHaveTextContent("Saving...");
     expect(saveButton().props.accessibilityState?.disabled).toBe(true);
-    expect(input("Digest time").props.editable).toBe(false);
+    expect(input("Quiet hours").props.disabled).toBe(true);
+    expect(input("Urgent decisions still push").props.disabled).toBe(true);
+    expect(input("Quiet hours start").props.disabled).toBe(true);
+    expect(input("Digest time").props.disabled).toBe(true);
     expect(input("Stale threshold in minutes").props.editable).toBe(false);
+    expect(zoneRow()).toBeDisabled();
     expect(input("Search time zones").props.editable).toBe(false);
     expect(input("Other time zone").props.editable).toBe(false);
-    expect(choice("Quiet hours: On").props.accessibilityState?.disabled).toBe(true);
-    expect(choice("Urgent override: Off").props.accessibilityState?.disabled).toBe(true);
-    expect(choice("Time zone: UTC").props.accessibilityState?.disabled).toBe(true);
+    expect(choice("Time zone: UTC")).toBeDisabled();
+    expect(choice("Use time zone")).toBeDisabled();
 
-    await act(async () => pending.resolve(DEFAULTS));
+    await act(async () => pending.resolve(STORED));
     await settle();
     expect(saveButton()).toHaveTextContent("Save settings");
     expect(screen.getByText(SAVED)).toBeOnTheScreen();
@@ -601,6 +723,102 @@ describe("one call at a time", () => {
   });
 });
 
+describe("feedback", () => {
+  test("a save plays the success haptic and a failure the error haptic", async () => {
+    const success = jest.spyOn(haptic, "success");
+    const error = jest.spyOn(haptic, "error");
+    mockUpdate.mockRejectedValueOnce(new Error("offline"));
+    await open();
+
+    await pressSave();
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(success).not.toHaveBeenCalled();
+
+    await pressSave();
+    expect(success).toHaveBeenCalledTimes(1);
+  });
+
+  test("a refusal is read out to VoiceOver", async () => {
+    mockUpdate.mockRejectedValueOnce(
+      new ConvexError({ code: "invalid", message: "Invalid", field: "digestTime" }),
+    );
+    await open();
+
+    await pressSave();
+
+    expect(announce).toHaveBeenCalledWith(refusalMessage("digestTime"));
+  });
+
+  test("the stale threshold's number pad has a Done button that closes the keyboard", async () => {
+    const dismiss = jest.spyOn(Keyboard, "dismiss");
+    await open();
+
+    const toolbar = input("Stale threshold in minutes").props.inputAccessoryViewID;
+    expect(toolbar).toEqual(expect.any(String));
+    fireEvent.press(screen.getByRole("button", { name: "Done" }));
+
+    expect(dismiss).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("leaving with unsaved edits", () => {
+  async function openFromSettings() {
+    await open("/settings");
+    fireEvent.press(screen.getByRole("button", { name: "Notifications" }));
+    await settle();
+    expect(screen).toHavePathname(url);
+  }
+
+  test("an unchanged form leaves without asking", async () => {
+    await openFromSettings();
+
+    act(() => router.back());
+    await settle();
+
+    expect(sheet).not.toHaveBeenCalled();
+    expect(screen).toHavePathname("/settings");
+  });
+
+  test("an edit asks first; Keep Editing stays and Discard Changes leaves", async () => {
+    await openFromSettings();
+    pickTime("Digest time", "06:00");
+
+    act(() => router.back());
+    await settle();
+
+    expect(sheet).toHaveBeenCalledTimes(1);
+    expect(sheet.mock.lastCall?.[0]).toMatchObject({
+      options: ["Discard Changes", "Keep Editing"],
+      destructiveButtonIndex: 0,
+      cancelButtonIndex: 1,
+    });
+    chooseInSheet("Keep Editing");
+    await settle();
+    expect(screen).toHavePathname(url);
+    expect(timeOf("Digest time")).toBe("06:00");
+
+    act(() => router.back());
+    await settle();
+    chooseInSheet("Discard Changes");
+    await settle();
+
+    expect(screen).toHavePathname("/settings");
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  test("a saved edit leaves without asking", async () => {
+    await openFromSettings();
+    pickTime("Digest time", "06:00");
+    await pressSave();
+
+    act(() => router.back());
+    await settle();
+
+    expect(sheet).not.toHaveBeenCalled();
+    expect(screen).toHavePathname("/settings");
+  });
+});
+
 describe("live changes and late results", () => {
   test("a live change replaces an unedited form", async () => {
     await open();
@@ -608,18 +826,18 @@ describe("live changes and late results", () => {
     act(() => serve({ ...DEFAULTS, time_zone: "Europe/Paris", time_zone_source: "device" }));
     await settle();
 
-    expect(screen.getByText("Selected: Europe/Paris")).toBeOnTheScreen();
+    expect(selectedZone()).toBe("Europe/Paris");
     expect(screen.queryByText(FALLBACK_NOTE)).not.toBeOnTheScreen();
   });
 
   test("a live change never erases an edit", async () => {
     await open();
-    type("Digest time", "10:00");
+    pickTime("Digest time", "10:00");
 
     act(() => serve({ ...DEFAULTS, stale_threshold_minutes: 90, digest_time: "11:00" }));
     await settle();
 
-    expect(input("Digest time").props.value).toBe("10:00");
+    expect(timeOf("Digest time")).toBe("10:00");
     expect(input("Stale threshold in minutes").props.value).toBe("30");
   });
 
@@ -632,7 +850,7 @@ describe("live changes and late results", () => {
     act(() => serve({ ...DEFAULTS, digest_time: "11:00" }));
     await settle();
 
-    expect(input("Digest time").props.value).toBe("09:00");
+    expect(timeOf("Digest time")).toBe("09:00");
     expect(screen.getByText(SAVE_FAILED)).toBeOnTheScreen();
   });
 
@@ -640,7 +858,7 @@ describe("live changes and late results", () => {
     const pending = deferred<NotificationSettings>();
     mockUpdate.mockReturnValueOnce(pending.promise);
     await open("/");
-    await screen.findByText("No pending decisions.");
+    await findInbox();
     act(() => router.push(url));
     await settle();
     await pressSave();
@@ -651,14 +869,14 @@ describe("live changes and late results", () => {
 
     await act(async () => pending.resolve({ ...DEFAULTS, digest_time: "05:00" }));
     await settle();
-    expect(screen.getByText("No pending decisions.")).toBeOnTheScreen();
+    expect(await findInbox()).toBeOnTheScreen();
   });
 
   test("a save from an ended session does not update the next session's form", async () => {
     const pending = deferred<NotificationSettings>();
     mockUpdate.mockReturnValueOnce(pending.promise);
     await open();
-    type("Digest time", "05:00");
+    pickTime("Digest time", "05:00");
     await pressSave();
     expect(mockUpdate).toHaveBeenCalledTimes(1);
 
@@ -666,15 +884,15 @@ describe("live changes and late results", () => {
     await screen.findByLabelText("Email address");
     serve(STORED);
     act(() => signInAs("sess_b"));
-    await screen.findByText("No pending decisions.");
+    await findInbox();
     act(() => router.push(url));
     await settle();
-    expect(input("Digest time").props.value).toBe("18:30");
+    expect(timeOf("Digest time")).toBe("18:30");
 
     await act(async () => pending.resolve({ ...DEFAULTS, digest_time: "05:00" }));
     await settle();
 
-    expect(input("Digest time").props.value).toBe("18:30");
+    expect(timeOf("Digest time")).toBe("18:30");
     expect(screen.queryByText(SAVED)).not.toBeOnTheScreen();
   });
 });
@@ -690,6 +908,20 @@ describe("form helpers", () => {
     }
   });
 
+  test("timeAsDate and dateAsTime carry HH:MM through the native picker's Date", () => {
+    for (const time of ["00:00", "07:05", "12:30", "23:59"]) {
+      expect(dateAsTime(timeAsDate(time, "09:00"))).toBe(time);
+    }
+    expect(dateAsTime(timeAsDate("", "22:00"))).toBe("22:00");
+    expect(dateAsTime(timeAsDate("bad", "bad"))).toBe("00:00");
+  });
+
+  test("zoneName shows a zone's city, or the whole name without a region", () => {
+    expect(zoneName("Africa/Addis_Ababa")).toBe("Addis Ababa");
+    expect(zoneName("America/Argentina/Buenos_Aires")).toBe("Buenos Aires");
+    expect(zoneName("UTC")).toBe("UTC");
+  });
+
   test("parseThreshold accepts whole numbers from 5 to 240", () => {
     expect(parseThreshold("4")).toBeNull();
     expect(parseThreshold("5")).toBe(5);
@@ -698,6 +930,42 @@ describe("form helpers", () => {
     for (const value of ["", " ", "30.0", "30.5", "1e2", "0x1f", "-30", "+30", "3 0"]) {
       expect(parseThreshold(value)).toBeNull();
     }
+  });
+
+  // The pickers only produce valid times; the checks still guard the draft
+  // the form sends.
+  test.each(["", "9:00", "24:00", "12:60", "1200", "ab:cd", "09:00:00"])(
+    "validateDraft refuses the digest time %p",
+    (digestTime) => {
+      expect(validateDraft({ ...base, digestTime })).toEqual({
+        ok: false,
+        errors: { digestTime: TIME_RULE },
+      });
+    },
+  );
+
+  test("validateDraft refuses malformed, missing, and equal quiet hours", () => {
+    const quiet = { ...base, quietEnabled: true, quietStart: "22:00", quietEnd: "07:00" };
+    expect(validateDraft({ ...quiet, quietStart: "7:00" })).toMatchObject({
+      ok: false,
+      errors: { quietStart: TIME_RULE },
+    });
+    expect(validateDraft({ ...quiet, quietEnd: "23:61" })).toMatchObject({
+      ok: false,
+      errors: { quietEnd: TIME_RULE },
+    });
+    expect(validateDraft({ ...quiet, quietStart: "" })).toMatchObject({
+      ok: false,
+      errors: { quietStart: MISSING_START },
+    });
+    expect(validateDraft({ ...quiet, quietEnd: " " })).toMatchObject({
+      ok: false,
+      errors: { quietEnd: MISSING_END },
+    });
+    expect(validateDraft({ ...quiet, quietEnd: "22:00" })).toMatchObject({
+      ok: false,
+      errors: { quietEnd: EQUAL_TIMES },
+    });
   });
 
   test("validateDraft checks a chosen zone with Intl and maps disabled quiet hours to null", () => {
@@ -799,6 +1067,7 @@ describe("the picker without Intl.supportedValuesOf", () => {
 
   test("offers the fallback zones and still accepts any zone Intl knows", async () => {
     await open();
+    openZones();
 
     type("Search time zones", "kathmandu");
     expect(screen.getByText("No matching time zones.")).toBeOnTheScreen();

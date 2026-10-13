@@ -11,14 +11,12 @@ import {
   signInAs,
   signOutAll,
 } from "./fakes";
-import { renderApp } from "./render";
+import { findInbox, queryLargeTitle, renderApp } from "./render";
 
 // component-mobile-app §Notifications, first-launch time zone: once the
 // account is ready, the app sends the device's zone to
 // `notifications/settings:initializeTimeZone` at most once per Clerk session
 // in each app launch (component-notifications §Settings).
-
-const inbox = "No pending decisions.";
 
 // The zone this file's device reports: a zone name, undefined for a runtime
 // that reports none, or an error that resolvedOptions throws.
@@ -52,7 +50,7 @@ async function settle() {
 async function openInbox(session = "sess_a", options: { strict?: boolean } = {}) {
   signInAs(session);
   const view = renderApp("/", options);
-  await screen.findByText(inbox);
+  await findInbox();
   await settle();
   return view;
 }
@@ -103,7 +101,7 @@ describe("first-launch time zone", () => {
     expect(initializeTimeZone).not.toHaveBeenCalled();
 
     await act(async () => pending.resolve(account));
-    await screen.findByText(inbox);
+    await findInbox();
     await settle();
 
     expect(initializeTimeZone).toHaveBeenCalledTimes(1);
@@ -138,7 +136,7 @@ describe("first-launch time zone", () => {
     act(() => convexAuthState.set({ isLoading: true }));
     expect(await screen.findByText("Reconnecting")).toBeOnTheScreen();
     act(() => convexAuthState.set({ isLoading: false }));
-    await screen.findByText(inbox);
+    await findInbox();
     await settle();
 
     expect(initializeTimeZone).toHaveBeenCalledTimes(1);
@@ -153,7 +151,7 @@ describe("first-launch time zone", () => {
     act(() => signOutAll());
     await screen.findByLabelText("Email address");
     act(() => signInAs("sess_b"));
-    await screen.findByText(inbox);
+    await findInbox();
     await settle();
 
     expect(initializeTimeZone).toHaveBeenCalledTimes(2);
@@ -181,7 +179,7 @@ describe("first-launch time zone", () => {
     await openInbox("sess_a");
 
     expect(initializeTimeZone).not.toHaveBeenCalled();
-    expect(screen.getByText(inbox)).toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).toBeOnTheScreen();
   });
 
   test.each([
@@ -199,7 +197,7 @@ describe("first-launch time zone", () => {
 
     expect(initializeTimeZone).toHaveBeenCalledTimes(1);
     expect(reasons).toEqual([]);
-    expect(screen.getByText(inbox)).toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).toBeOnTheScreen();
     expect(screen.queryByText(/time zone/i)).not.toBeOnTheScreen();
   });
 
@@ -221,7 +219,7 @@ describe("first-launch time zone", () => {
     // would refuse an updateSettings call.
     expect(initializeTimeZone).toHaveBeenCalledTimes(1);
     expect(initializeTimeZone).toHaveBeenCalledWith({ timeZone: "Europe/Berlin" });
-    expect(screen.getByText(inbox)).toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).toBeOnTheScreen();
   });
 
   test("a call that settles after its session ended changes nothing", async () => {

@@ -2,16 +2,27 @@ import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { router } from "expo-router";
 import { act, fireEvent, screen, within } from "expo-router/testing-library";
+import { AccessibilityInfo, ActionSheetIOS, Dimensions } from "react-native";
 import type { NotificationRule } from "../../../convex/notifications/rules";
+import { haptic } from "../src/haptics";
 import { INVALID_TOPIC } from "../src/history-filters";
-import { DEFAULTS_EXPLANATION, PRECEDENCE_EXPLANATION } from "../src/rules/format";
+import {
+  DEFAULT_ROUTING,
+  NO_MATCH,
+  PRECEDENCE_EXPLANATION,
+  PRIORITY_HINT,
+  SUBTOPIC_HINT,
+} from "../src/rules/format";
+import { rulePreview } from "../src/rules/sentence";
 import { agent } from "./data";
 import { account, deferred, ensureAccount, loading, queryCalls, setQuery, signInAs } from "./fakes";
 import { renderApp } from "./render";
 
 // component-mobile-app §Screens, rules: settings/rules lists the person's
 // notification rules and settings/rule/[id] creates, edits, and deletes one
-// (req-mobile-app REQ-5; req-notification-rules REQ-2 to REQ-4).
+// (req-mobile-app REQ-5; req-notification-rules REQ-2 to REQ-4). The editor
+// shows the rule as a sentence whose highlighted parts open each match
+// field's choices, so the helpers below open a field before using it.
 
 const listName = "notifications/rules:list";
 const saveName = "notifications/rules:save";
@@ -35,6 +46,19 @@ type SaveArgs = {
 const mockSave = jest.fn<Promise<NotificationRule>, [SaveArgs]>();
 const mockRemove = jest.fn<Promise<null>, [{ ruleId: string }]>();
 let binds: string[] = [];
+// The system action sheet that confirms a deletion or a discard.
+// `chooseInSheet` picks one of its options as the person would.
+let sheet: jest.SpyInstance;
+let announce: jest.SpyInstance;
+
+function chooseInSheet(option: string) {
+  const [options, callback] = sheet.mock.lastCall as [
+    { options: string[] },
+    (index: number) => void,
+  ];
+  expect(options.options).toContain(option);
+  callback(options.options.indexOf(option));
+}
 
 function rule(
   overrides: Partial<NotificationRule> & Pick<NotificationRule, "id">,
@@ -51,6 +75,8 @@ function rule(
 }
 
 beforeEach(() => {
+  sheet = jest.spyOn(ActionSheetIOS, "showActionSheetWithOptions").mockImplementation(() => {});
+  announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
   mockSave.mockReset().mockImplementation(async (args) => rule({ id: args.ruleId ?? "r_new" }));
   mockRemove.mockReset().mockResolvedValue(null);
   binds = [];
@@ -120,7 +146,30 @@ function rowLabels() {
     .map((row) => row.props.accessibilityLabel.replace(/^Rule: /, ""));
 }
 
+// The sentence part that opens a match field's choices, e.g. "Agent, any
+// agent".
+function token(group: string) {
+  return screen.getByRole("button", { name: new RegExp(`^${group}, `) });
+}
+
+// Opens a match field's choices unless they already show. The action
+// buttons always show.
+function reveal(group: string) {
+  if (group === "Action") {
+    return;
+  }
+  const showing =
+    group === "Topic"
+      ? screen.queryByLabelText("Topic") !== null
+      : screen.queryAllByRole("button", { name: new RegExp(`^${group}: `) }).length > 0;
+  if (!showing) {
+    fireEvent.press(token(group));
+  }
+}
+
+// A choice such as "Event: Agent stale", with its field opened first.
 function choice(name: string) {
+  reveal(name.slice(0, name.indexOf(":")));
   return screen.getByRole("button", { name });
 }
 
@@ -128,8 +177,13 @@ function isSelected(name: string) {
   return choice(name).props.accessibilityState?.selected === true;
 }
 
+function topicInput() {
+  reveal("Topic");
+  return screen.getByLabelText("Topic");
+}
+
 function saveButton() {
-  return screen.getByRole("button", { name: /^(Save rule|Saving\.\.\.)$/ });
+  return screen.getByRole("button", { name: /^(Save|Saving\.\.\.)$/ });
 }
 
 async function pressSave() {
@@ -139,21 +193,21 @@ async function pressSave() {
   act(() => jest.advanceTimersByTime(0));
 }
 
-// Inbox, then Rules, then New rule, so a finished editor goes back to the
-// list and a second back would reach the inbox.
-async function openNewFromInbox() {
-  await open("/");
+// Settings, then Rules, then New rule, so a finished editor goes back to the
+// list and a second back would reach the settings tab.
+async function openNewFromSettings() {
+  await open("/settings");
   fireEvent.press(screen.getByText("Rules"));
   await settle();
-  fireEvent.press(screen.getByText("New rule"));
+  fireEvent.press(screen.getByRole("button", { name: "New rule" }));
   await settle();
   expect(screen).toHavePathname("/settings/rule/new");
 }
 
 describe("navigation", () => {
-  test("the inbox header opens the rules list", async () => {
+  test("the settings tab opens the rules list", async () => {
     setQuery(listName, [acmeUrgent]);
-    await open("/");
+    await open("/settings");
 
     fireEvent.press(screen.getByText("Rules"));
     await settle();
@@ -162,22 +216,26 @@ describe("navigation", () => {
     expect(rowLabels()).toHaveLength(1);
   });
 
-  test("New rule opens an empty editor at settings/rule/new", async () => {
+  test("the header's + opens an empty editor at settings/rule/new", async () => {
     await open("/settings/rules");
 
-    fireEvent.press(screen.getByText("New rule"));
+    fireEvent.press(screen.getByRole("button", { name: "New rule" }));
     await settle();
 
     expect(screen).toHavePathname("/settings/rule/new");
-    expect(screen.getByLabelText("Topic").props.value).toBe("");
+    expect(token("Event")).toHaveTextContent("any event");
+    expect(token("Agent")).toHaveTextContent("any agent");
+    expect(token("Topic")).toHaveTextContent("any topic");
+    expect(token("Priority")).toHaveTextContent("any");
+    expect(topicInput().props.value).toBe("");
     expect(isSelected("Agent: Any agent")).toBe(true);
     expect(isSelected("Event: Any event")).toBe(true);
     expect(isSelected("Priority: Any priority")).toBe(true);
     expect(isSelected("Action: Push")).toBe(true);
-    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Delete rule" })).toBeNull();
   });
 
-  test("a row opens its rule in the editor", async () => {
+  test("a row opens its rule in the editor, read as a sentence", async () => {
     setQuery(listName, [acmeUrgent, endedMute]);
     await open("/settings/rules");
 
@@ -185,11 +243,113 @@ describe("navigation", () => {
     await settle();
 
     expect(screen).toHavePathname("/settings/rule/r_acme");
-    expect(screen.getByLabelText("Topic").props.value).toBe("acme");
+    expect(token("Event")).toHaveTextContent("a decision is created");
+    expect(token("Agent")).toHaveTextContent("Claude on laptop");
+    expect(token("Topic")).toHaveTextContent("acme");
+    expect(token("Priority")).toHaveTextContent("urgent");
+    expect(
+      screen.getByText(
+        "New urgent decisions from Claude on laptop in acme and its subtopics will push to this phone. Quiet hours still apply.",
+      ),
+    ).toBeOnTheScreen();
+    expect(topicInput().props.value).toBe("acme");
     expect(isSelected("Agent: Claude on laptop")).toBe(true);
     expect(isSelected("Event: Decision created")).toBe(true);
     expect(isSelected("Priority: Urgent")).toBe(true);
     expect(isSelected("Action: Push")).toBe(true);
+  });
+
+  test("a sentence part opens its field's choices and a choice closes them", async () => {
+    await open("/settings/rule/new");
+
+    expect(screen.queryByRole("button", { name: "Event: Agent done" })).toBeNull();
+    fireEvent.press(token("Event"));
+    expect(token("Event").props.accessibilityState?.expanded).toBe(true);
+    fireEvent.press(screen.getByRole("button", { name: "Event: Agent done" }));
+
+    expect(screen.queryByRole("button", { name: "Event: Agent done" })).toBeNull();
+    expect(token("Event")).toHaveTextContent("an agent is done");
+
+    fireEvent.press(token("Priority"));
+    expect(screen.getByText(PRIORITY_HINT)).toBeOnTheScreen();
+    fireEvent.press(token("Topic"));
+    expect(screen.queryByText(PRIORITY_HINT)).toBeNull();
+    expect(screen.getByText(SUBTOPIC_HINT)).toBeOnTheScreen();
+    fireEvent.press(token("Topic"));
+    expect(screen.queryByLabelText("Topic")).toBeNull();
+  });
+
+  test("the editor is a sheet", async () => {
+    await openNewFromSettings();
+
+    // react-native-screens renders a modal presentation as its own host.
+    const sheets = screen.UNSAFE_queryAllByType("RNSModalScreen" as never);
+    expect(sheets).toHaveLength(1);
+    expect(sheets[0]?.props.stackPresentation).toBe("modal");
+    expect(within(sheets[0] as never).getByRole("button", { name: "Action: Push" })).toBeTruthy();
+  });
+
+  test("Cancel with no edit leaves without asking", async () => {
+    await openNewFromSettings();
+
+    fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+    await settle();
+
+    expect(sheet).not.toHaveBeenCalled();
+    expect(screen).toHavePathname("/settings/rules");
+  });
+
+  test("Cancel after an edit asks; Keep Editing stays and Discard Changes leaves without saving", async () => {
+    await openNewFromSettings();
+    fireEvent.changeText(topicInput(), "acme");
+
+    fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+    await settle();
+
+    expect(sheet).toHaveBeenCalledTimes(1);
+    expect(sheet.mock.lastCall?.[0]).toMatchObject({
+      options: ["Discard Changes", "Keep Editing"],
+      destructiveButtonIndex: 0,
+      cancelButtonIndex: 1,
+    });
+    act(() => chooseInSheet("Keep Editing"));
+    await settle();
+    expect(screen).toHavePathname("/settings/rule/new");
+    expect(topicInput().props.value).toBe("acme");
+
+    fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+    await settle();
+    act(() => chooseInSheet("Discard Changes"));
+    await settle();
+
+    expect(screen).toHavePathname("/settings/rules");
+    expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  test("a swipe down or back gesture after an edit asks too", async () => {
+    await openNewFromSettings();
+    fireEvent.press(choice("Action: Mute"));
+
+    act(() => router.back());
+    await settle();
+
+    expect(sheet).toHaveBeenCalledTimes(1);
+    expect(screen).toHavePathname("/settings/rule/new");
+  });
+
+  test("an edit put back as it was leaves without asking", async () => {
+    setQuery(listName, [acmeUrgent]);
+    await open("/settings/rules");
+    fireEvent.press(screen.getByRole("button", { name: /^Rule: Topic acme,/ }));
+    await settle();
+    fireEvent.changeText(topicInput(), "billing");
+    fireEvent.changeText(topicInput(), "acme ");
+
+    fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+    await settle();
+
+    expect(sheet).not.toHaveBeenCalled();
+    expect(screen).toHavePathname("/settings/rules");
   });
 
   test("account setup finishes before the rules queries run", async () => {
@@ -211,7 +371,7 @@ describe("navigation", () => {
 });
 
 describe("list", () => {
-  test("keeps the query's order and summarizes each rule, including an ended agent", async () => {
+  test("keeps the query's order and reads each rule as where and what, including an ended agent", async () => {
     setQuery(listName, [serverDone, acmeUrgent, endedMute]);
     await open("/settings/rules");
 
@@ -221,15 +381,32 @@ describe("list", () => {
       "Topic Any, Agent Ended agent, Event Any, Priority Any, Action Mute",
     ]);
     const first = within(screen.getByRole("button", { name: /^Rule: Topic acme,/ }));
-    expect(first.getByText("Push")).toBeOnTheScreen();
-    expect(first.getByText("Topic: acme")).toBeOnTheScreen();
-    expect(first.getByText("Agent: Claude on laptop")).toBeOnTheScreen();
-    expect(first.getByText("Event: Decision created")).toBeOnTheScreen();
-    expect(first.getByText("Priority: Urgent")).toBeOnTheScreen();
+    expect(first.getByText("acme · Claude on laptop")).toBeOnTheScreen();
+    expect(first.getByText("Urgent · Decision created → Push")).toBeOnTheScreen();
+    const server = within(screen.getByRole("button", { name: /Agent Codex on server/ }));
+    expect(server.getByText("Codex on server (ended)")).toBeOnTheScreen();
+    expect(server.getByText("Agent done → Digest")).toBeOnTheScreen();
     const ended = within(screen.getByRole("button", { name: /Agent Ended agent/ }));
-    expect(ended.getByText("Mute")).toBeOnTheScreen();
-    expect(ended.getByText("Agent: Ended agent")).toBeOnTheScreen();
-    expect(ended.getByText("Topic: Any")).toBeOnTheScreen();
+    expect(ended.getByText("Ended agent")).toBeOnTheScreen();
+    expect(ended.getByText("Any event → Mute")).toBeOnTheScreen();
+  });
+
+  test("a rule naming no topic or agent applies to everything", async () => {
+    setQuery(listName, [rule({ id: "r_all", event_kind: "agent.stale", action: "mute" })]);
+    await open("/settings/rules");
+
+    const row = within(screen.getByRole("button", { name: /^Rule: / }));
+    expect(row.getByText("Everything")).toBeOnTheScreen();
+    expect(row.getByText("Agent stale → Mute")).toBeOnTheScreen();
+  });
+
+  test("explains precedence under the rules", async () => {
+    setQuery(listName, [acmeUrgent]);
+    await open("/settings/rules");
+
+    expect(screen.getByText(PRECEDENCE_EXPLANATION)).toBeOnTheScreen();
+    expect(PRECEDENCE_EXPLANATION).toMatch(/most match fields set/);
+    expect(PRECEDENCE_EXPLANATION).toMatch(/then the most recently saved/);
   });
 
   test("follows live changes to the rules", async () => {
@@ -247,24 +424,44 @@ describe("list", () => {
     await open("/settings/rules");
 
     expect(screen.getByText("Loading rules")).toBeOnTheScreen();
-    expect(screen.getByText("New rule")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "New rule" })).toBeOnTheScreen();
 
     act(() => setQuery(recentName, []));
 
     expect(screen.queryByText("Loading rules")).toBeNull();
-    expect(screen.getByText("No rules yet.")).toBeOnTheScreen();
+    expect(screen.getByText("No rules yet")).toBeOnTheScreen();
   });
 
-  test("an empty list explains the defaults", async () => {
+  test("an empty list shows the default routing as a table", async () => {
     await open("/settings/rules");
 
-    expect(screen.getByText("No rules yet.")).toBeOnTheScreen();
-    expect(screen.getByText(DEFAULTS_EXPLANATION)).toBeOnTheScreen();
-    expect(DEFAULTS_EXPLANATION).toMatch(/decision created and agent stale events push/);
-    expect(DEFAULTS_EXPLANATION).toMatch(
-      /decision expired and agent done events go to the daily digest/,
-    );
-    expect(DEFAULTS_EXPLANATION).toMatch(/agent status changes are muted/);
+    expect(screen.getByText("No rules yet")).toBeOnTheScreen();
+    expect(screen.getByText("Without a rule")).toBeOnTheScreen();
+    for (const label of [
+      "Decision created: Push",
+      "Agent stale: Push",
+      "Decision expired: Digest",
+      "Agent done: Digest",
+      "Agent status changed: Mute",
+    ]) {
+      expect(screen.getByLabelText(label)).toBeOnTheScreen();
+    }
+    // The table matches the backend's defaults (convex/notifications/route.ts).
+    expect(Object.fromEntries(DEFAULT_ROUTING.map(({ kind, action }) => [kind, action]))).toEqual({
+      "decision.created": "push",
+      "agent.stale": "push",
+      "decision.expired": "digest",
+      "agent.done": "digest",
+      "agent.status_changed": "mute",
+    });
+  });
+
+  test("the default routing also shows under a list of rules", async () => {
+    setQuery(listName, [acmeUrgent]);
+    await open("/settings/rules");
+
+    expect(screen.queryByText("No rules yet")).toBeNull();
+    expect(screen.getByLabelText("Agent status changed: Mute")).toBeOnTheScreen();
   });
 
   test("a failed query shows a failure with a retry, never an empty list", async () => {
@@ -272,8 +469,8 @@ describe("list", () => {
     await open("/settings/rules");
 
     expect(screen.getByText("Could not load your rules.")).toBeOnTheScreen();
-    expect(screen.queryByText("No rules yet.")).toBeNull();
-    expect(screen.getByText("New rule")).toBeOnTheScreen();
+    expect(screen.queryByText("No rules yet")).toBeNull();
+    expect(screen.getByRole("button", { name: "New rule" })).toBeOnTheScreen();
 
     setQuery(listName, [acmeUrgent]);
     fireEvent.press(screen.getByRole("button", { name: "Try again" }));
@@ -305,13 +502,11 @@ describe("create", () => {
     expect(saveButton()).toBeDisabled();
     fireEvent.press(choice("Action: Mute"));
     expect(saveButton()).toBeDisabled();
-    fireEvent.changeText(screen.getByLabelText("Topic"), "   ");
+    fireEvent.changeText(topicInput(), "   ");
     expect(saveButton()).toBeDisabled();
     await pressSave();
     expect(mockSave).not.toHaveBeenCalled();
-    expect(
-      screen.getByText("Set at least one of topic, agent, event, or priority."),
-    ).toBeOnTheScreen();
+    expect(screen.getByText(NO_MATCH)).toBeOnTheScreen();
 
     fireEvent.press(choice("Event: Agent stale"));
     expect(saveButton()).toBeEnabled();
@@ -319,10 +514,10 @@ describe("create", () => {
     expect(saveButton()).toBeDisabled();
   });
 
-  test.each<[string, (s: typeof screen) => void, SaveArgs]>([
+  test.each<[string, () => void, SaveArgs]>([
     [
       "a topic",
-      (s) => fireEvent.changeText(s.getByLabelText("Topic"), "  Acme/Billing "),
+      () => fireEvent.changeText(topicInput(), "  Acme/Billing "),
       { topic: "Acme/Billing", action: "push" },
     ],
     [
@@ -352,9 +547,9 @@ describe("create", () => {
       { priority: "normal", action: "digest" },
     ],
   ])("creates a rule with %s and returns to the list", async (_label, fill, args) => {
-    await openNewFromInbox();
+    await openNewFromSettings();
 
-    fill(screen);
+    fill();
     await pressSave();
 
     expect(mockSave).toHaveBeenCalledTimes(1);
@@ -362,12 +557,9 @@ describe("create", () => {
     expect(screen).toHavePathname("/settings/rules");
   });
 
-  test("creates a rule with every match field and explains precedence", async () => {
+  test("creates a rule with every match field", async () => {
     await open("/settings/rule/new");
 
-    expect(screen.getByText(PRECEDENCE_EXPLANATION)).toBeOnTheScreen();
-    expect(PRECEDENCE_EXPLANATION).toMatch(/most match fields set wins/);
-    expect(PRECEDENCE_EXPLANATION).toMatch(/most recently saved rule wins/);
     for (const label of [
       "Event: Decision created",
       "Event: Decision expired",
@@ -383,7 +575,7 @@ describe("create", () => {
       expect(choice(label)).toBeOnTheScreen();
     }
 
-    fireEvent.changeText(screen.getByLabelText("Topic"), "acme");
+    fireEvent.changeText(topicInput(), "acme");
     fireEvent.press(choice("Agent: Claude on laptop"));
     fireEvent.press(choice("Event: Decision expired"));
     fireEvent.press(choice("Priority: Urgent"));
@@ -409,7 +601,7 @@ describe("edit", () => {
     fireEvent.press(screen.getByRole("button", { name: /^Rule: Topic acme,/ }));
     await settle();
 
-    fireEvent.changeText(screen.getByLabelText("Topic"), "acme/ops");
+    fireEvent.changeText(topicInput(), "acme/ops");
     fireEvent.press(choice("Event: Any event"));
     fireEvent.press(choice("Priority: Any priority"));
     fireEvent.press(choice("Action: Digest"));
@@ -428,7 +620,7 @@ describe("edit", () => {
     setQuery(listName, [acmeUrgent]);
     await open("/settings/rule/r_acme");
 
-    fireEvent.changeText(screen.getByLabelText("Topic"), "");
+    fireEvent.changeText(topicInput(), "");
     fireEvent.press(choice("Agent: Any agent"));
     await pressSave();
 
@@ -459,14 +651,14 @@ describe("edit", () => {
     setQuery(listName, [acmeUrgent]);
     await open("/settings/rule/r_acme");
 
-    fireEvent.changeText(screen.getByLabelText("Topic"), "acme/draft");
+    fireEvent.changeText(topicInput(), "acme/draft");
     fireEvent.press(choice("Action: Mute"));
     act(() => {
       setQuery(listName, [{ ...acmeUrgent, topic: "elsewhere", action: "digest" }]);
       setQuery(liveName, [laptop, agent({ id: "a_new", display_name: "New agent" })]);
     });
 
-    expect(screen.getByLabelText("Topic").props.value).toBe("acme/draft");
+    expect(topicInput().props.value).toBe("acme/draft");
     expect(isSelected("Action: Mute")).toBe(true);
     expect(choice("Agent: New agent")).toBeOnTheScreen();
   });
@@ -476,7 +668,7 @@ describe("edit", () => {
     await open("/settings/rule/r_missing");
 
     expect(screen.getByText("Rule not found")).toBeOnTheScreen();
-    expect(screen.queryByRole("button", { name: "Save rule" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 
   test("a malformed id reads nothing and shows the not-found state", async () => {
@@ -496,7 +688,7 @@ describe("edit", () => {
     setQuery(listName, [acmeUrgent]);
     fireEvent.press(screen.getByRole("button", { name: "Try again" }));
 
-    expect(screen.getByLabelText("Topic").props.value).toBe("acme");
+    expect(topicInput().props.value).toBe("acme");
   });
 });
 
@@ -527,13 +719,13 @@ describe("refusals and failures", () => {
       new ConvexError({ code: "invalid", message: "Invalid topic", field: "topic" }),
     );
     await open("/settings/rule/new");
-    fireEvent.changeText(screen.getByLabelText("Topic"), "Bad Topic!");
+    fireEvent.changeText(topicInput(), "Bad Topic!");
     await pressSave();
 
     expect(screen.getByText(INVALID_TOPIC)).toBeOnTheScreen();
-    expect(screen.getByLabelText("Topic").props.value).toBe("Bad Topic!");
+    expect(topicInput().props.value).toBe("Bad Topic!");
 
-    fireEvent.changeText(screen.getByLabelText("Topic"), "acme");
+    fireEvent.changeText(topicInput(), "acme");
 
     expect(screen.queryByText(INVALID_TOPIC)).toBeNull();
   });
@@ -575,14 +767,15 @@ describe("refusals and failures", () => {
 
   test("a failed save keeps the form and its retry sends the same rule", async () => {
     mockSave.mockRejectedValueOnce(new Error("Network request failed"));
-    await openNewFromInbox();
-    fireEvent.changeText(screen.getByLabelText("Topic"), "acme");
+    await openNewFromSettings();
+    fireEvent.changeText(topicInput(), "acme");
     fireEvent.press(choice("Action: Mute"));
 
     await pressSave();
 
     expect(screen.getByText("Could not save the rule. Try again.")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Topic").props.value).toBe("acme");
+    expect(announce).toHaveBeenCalledWith("Could not save the rule. Try again.");
+    expect(topicInput().props.value).toBe("acme");
     expect(isSelected("Action: Mute")).toBe(true);
     expect(screen).toHavePathname("/settings/rule/new");
 
@@ -600,19 +793,22 @@ describe("one call at a time", () => {
     mockSave.mockReturnValueOnce(pending.promise);
     setQuery(listName, [acmeUrgent]);
     await open("/settings/rule/r_acme");
+    reveal("Agent");
 
     fireEvent.press(saveButton());
     fireEvent.press(saveButton());
 
     expect(mockSave).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete rule" })).toBeDisabled();
     expect(choice("Action: Mute")).toBeDisabled();
     expect(choice("Agent: Any agent")).toBeDisabled();
-    expect(screen.getByLabelText("Topic").props.editable).toBe(false);
+    for (const group of ["Event", "Agent", "Topic", "Priority"]) {
+      expect(token(group)).toBeDisabled();
+    }
 
-    fireEvent.press(screen.getByRole("button", { name: "Delete" }));
-    expect(screen.queryByRole("button", { name: "Delete rule" })).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Delete rule" }));
+    expect(sheet).not.toHaveBeenCalled();
 
     await act(async () => {
       pending.resolve(acmeUrgent);
@@ -622,21 +818,37 @@ describe("one call at a time", () => {
     expect(mockRemove).not.toHaveBeenCalled();
   });
 
+  test("the topic field is read-only while a save runs", async () => {
+    const pending = deferred<NotificationRule>();
+    mockSave.mockReturnValueOnce(pending.promise);
+    setQuery(listName, [acmeUrgent]);
+    await open("/settings/rule/r_acme");
+    reveal("Topic");
+
+    fireEvent.press(saveButton());
+
+    expect(screen.getByLabelText("Topic").props.editable).toBe(false);
+    await act(async () => {
+      pending.resolve(acmeUrgent);
+    });
+  });
+
   test("a running deletion refuses a save and a second deletion", async () => {
     const pending = deferred<null>();
     mockRemove.mockReturnValueOnce(pending.promise);
     setQuery(listName, [acmeUrgent]);
     await open("/settings/rule/r_acme");
-    fireEvent.press(screen.getByRole("button", { name: "Delete" }));
-
     fireEvent.press(screen.getByRole("button", { name: "Delete rule" }));
+
+    act(() => chooseInSheet("Delete Rule"));
+    expect(screen.getByRole("button", { name: "Deleting..." })).toBeDisabled();
     fireEvent.press(screen.getByRole("button", { name: "Deleting..." }));
     fireEvent.press(saveButton());
 
+    expect(sheet).toHaveBeenCalledTimes(1);
     expect(mockRemove).toHaveBeenCalledTimes(1);
     expect(mockSave).not.toHaveBeenCalled();
     expect(saveButton()).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
 
     await act(async () => {
       pending.resolve(null);
@@ -646,8 +858,8 @@ describe("one call at a time", () => {
   test("a result that settles after the editor closes changes nothing", async () => {
     const pending = deferred<NotificationRule>();
     mockSave.mockReturnValueOnce(pending.promise);
-    await openNewFromInbox();
-    fireEvent.changeText(screen.getByLabelText("Topic"), "acme");
+    await openNewFromSettings();
+    fireEvent.changeText(topicInput(), "acme");
     fireEvent.press(saveButton());
 
     act(() => router.back());
@@ -671,20 +883,25 @@ describe("delete", () => {
     fireEvent.press(screen.getByRole("button", { name: /^Rule: Topic acme,/ }));
     await settle();
 
-    fireEvent.press(screen.getByRole("button", { name: "Delete" }));
+    const success = jest.spyOn(haptic, "success");
+    fireEvent.press(screen.getByRole("button", { name: "Delete rule" }));
 
-    expect(
-      screen.getByText(
-        "Delete this rule? Events it matched follow your other rules or the defaults.",
-      ),
-    ).toBeOnTheScreen();
+    expect(sheet).toHaveBeenCalledTimes(1);
+    expect(sheet.mock.lastCall?.[0]).toEqual({
+      title: "Delete this rule?",
+      message: "Events it matched follow your other rules or the defaults.",
+      options: ["Delete Rule", "Cancel"],
+      destructiveButtonIndex: 0,
+      cancelButtonIndex: 1,
+    });
     expect(mockRemove).not.toHaveBeenCalled();
 
     await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Delete rule" }));
+      chooseInSheet("Delete Rule");
     });
     act(() => jest.advanceTimersByTime(0));
 
+    expect(success).toHaveBeenCalledTimes(1);
     expect(mockRemove).toHaveBeenCalledTimes(1);
     expect(mockRemove).toHaveBeenCalledWith({ ruleId: "r_acme" });
     expect(screen).toHavePathname("/settings/rules");
@@ -700,30 +917,34 @@ describe("delete", () => {
     setQuery(listName, [acmeUrgent]);
     await open("/settings/rule/r_acme");
 
-    fireEvent.press(screen.getByRole("button", { name: "Delete" }));
-    fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.press(screen.getByRole("button", { name: "Delete rule" }));
+    act(() => chooseInSheet("Cancel"));
 
-    expect(screen.queryByRole("button", { name: "Delete rule" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Delete rule" })).toBeEnabled();
     expect(mockRemove).not.toHaveBeenCalled();
     expect(screen).toHavePathname("/settings/rule/r_acme");
   });
 
-  test("a failed deletion keeps the confirmation and allows a retry", async () => {
+  test("a failed deletion shows and reads out its error and allows a retry", async () => {
     mockRemove.mockRejectedValueOnce(new Error("Network request failed"));
+    const error = jest.spyOn(haptic, "error");
     setQuery(listName, [acmeUrgent]);
     await open("/settings/rule/r_acme");
-    fireEvent.press(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.press(screen.getByRole("button", { name: "Delete rule" }));
 
     await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Delete rule" }));
+      chooseInSheet("Delete Rule");
     });
 
     expect(screen.getByText("Could not delete the rule. Try again.")).toBeOnTheScreen();
+    expect(announce).toHaveBeenCalledWith("Could not delete the rule. Try again.");
+    expect(error).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Delete rule" })).toBeEnabled();
     expect(screen).toHavePathname("/settings/rule/r_acme");
 
+    fireEvent.press(screen.getByRole("button", { name: "Delete rule" }));
     await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Delete rule" }));
+      chooseInSheet("Delete Rule");
     });
     act(() => jest.advanceTimersByTime(0));
 
@@ -738,13 +959,102 @@ describe("delete", () => {
     );
     setQuery(listName, [acmeUrgent]);
     await open("/settings/rule/r_acme");
-    fireEvent.press(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.press(screen.getByRole("button", { name: "Delete rule" }));
 
     await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Delete rule" }));
+      chooseInSheet("Delete Rule");
     });
     act(() => jest.advanceTimersByTime(0));
 
     expect(screen).toHavePathname("/settings/rules");
+  });
+});
+
+describe("feedback and layout", () => {
+  test("a save plays the success haptic and a refusal the error haptic, read out", async () => {
+    const success = jest.spyOn(haptic, "success");
+    const error = jest.spyOn(haptic, "error");
+    mockSave.mockRejectedValueOnce(
+      new ConvexError({ code: "invalid", message: "Invalid", field: "priority" }),
+    );
+    setQuery(listName, [acmeUrgent]);
+    await open("/settings/rule/r_acme");
+
+    await pressSave();
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(announce).toHaveBeenCalledWith("Choose another priority.");
+    expect(success).not.toHaveBeenCalled();
+
+    await pressSave();
+    expect(success).toHaveBeenCalledTimes(1);
+    expect(screen).toHavePathname("/settings/rules");
+  });
+
+  test("the action buttons grow with the text and stack at the largest sizes", async () => {
+    const window = Dimensions.get("window");
+    try {
+      act(() => Dimensions.set({ window: { ...window, fontScale: 1 } }));
+      await open("/settings/rule/new");
+      expect(choice("Action: Push")).toHaveStyle({ minHeight: 74, flex: 1 });
+      expect(choice("Action: Push")).not.toHaveStyle({ height: 74 });
+
+      act(() => Dimensions.set({ window: { ...window, fontScale: 2 } }));
+
+      expect(choice("Action: Push")).toHaveStyle({ flexDirection: "row", flex: 0 });
+    } finally {
+      act(() => Dimensions.set({ window }));
+    }
+  });
+});
+
+describe("preview", () => {
+  const blank = {
+    topic: "",
+    agent: null,
+    eventKind: null,
+    priority: null,
+    action: "push",
+  } as const;
+
+  test("says nothing until a match field is set, and the editor shows why", async () => {
+    expect(rulePreview(blank)).toBeNull();
+    expect(rulePreview({ ...blank, topic: "  " })).toBeNull();
+
+    await open("/settings/rule/new");
+    expect(screen.getByText(NO_MATCH)).toBeOnTheScreen();
+    fireEvent.press(choice("Action: Digest"));
+    fireEvent.press(choice("Event: Decision expired"));
+    expect(screen.queryByText(NO_MATCH)).toBeNull();
+    expect(screen.getByText("Expired decisions will wait for the daily digest.")).toBeOnTheScreen();
+  });
+
+  test.each<[string, Parameters<typeof rulePreview>[0], string]>([
+    [
+      "a topic",
+      { ...blank, topic: "acme" },
+      "Every event in acme and its subtopics will push to this phone. Quiet hours still apply.",
+    ],
+    [
+      "a priority",
+      { ...blank, priority: "urgent", action: "mute" },
+      "Every urgent decision event will not notify you.",
+    ],
+    [
+      "an agent and an event",
+      { ...blank, eventKind: "agent.stale", agent: "Codex", action: "digest" },
+      "Stale agent alerts from Codex will wait for the daily digest.",
+    ],
+    [
+      "a decision event with a priority",
+      { ...blank, eventKind: "decision.created", priority: "normal" },
+      "New normal decisions will push to this phone. Quiet hours still apply.",
+    ],
+    [
+      "an agent event with a priority",
+      { ...blank, eventKind: "agent.done", priority: "urgent" },
+      "This rule never matches: agent events carry no priority.",
+    ],
+  ])("reads a rule with %s in plain words", (_label, rule, words) => {
+    expect(rulePreview(rule)).toBe(words);
   });
 });

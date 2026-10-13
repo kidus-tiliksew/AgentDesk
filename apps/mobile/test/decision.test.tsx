@@ -1,12 +1,35 @@
 import type { Decision } from "@agentdesk/contract";
 import { ConvexError } from "convex/values";
 import { act, fireEvent, screen, within } from "expo-router/testing-library";
-import { TextInput } from "react-native";
+import { AccessibilityInfo, Dimensions, ScrollView, TextInput } from "react-native";
+import { haptic } from "../src/haptics";
+import { themes } from "../src/theme";
 import { agent, decision } from "./data";
 import { answerDecision, deferred, loading, queryCalls, setQuery, signInAs } from "./fakes";
 import { renderApp } from "./render";
 
 // component-mobile-app §Screens, decision/[id] (req-mobile-app REQ-3).
+
+jest.mock("../src/haptics", () => ({
+  haptic: { success: jest.fn(), warning: jest.fn(), error: jest.fn(), selection: jest.fn() },
+}));
+
+const announce = jest.mocked(AccessibilityInfo.announceForAccessibility);
+
+// Apple HIG Buttons: text links reach 44 pt through their hit slop.
+const LINK_HIT_SLOP = { top: 12, bottom: 12, left: 8, right: 8 };
+
+beforeEach(() => {
+  announce.mockClear();
+  for (const fn of Object.values(haptic)) {
+    jest.mocked(fn).mockClear();
+  }
+});
+
+// The settled outcome banner: one header element whose label reads it all.
+function banner(title: string) {
+  return screen.getByRole("header", { name: new RegExp(`^${title}(\\.|$)`) });
+}
 
 const get = "decisions/app:get";
 const agentGet = "agents/app:get";
@@ -39,8 +62,20 @@ async function open(item: Decision) {
   await screen.findByText(item.title);
 }
 
+// Sends the draft of a choice or text decision.
 function submit() {
-  fireEvent.press(screen.getByRole("button", { name: "Submit answer" }));
+  fireEvent.press(screen.getByRole("button", { name: "Send answer" }));
+}
+
+// Approve and Reject each send at once.
+function choose(name: "Approve" | "Reject") {
+  fireEvent.press(screen.getByRole("button", { name }));
+}
+
+// The note sits behind "Add note" in the dock.
+function addNote(text: string) {
+  fireEvent.press(screen.getByRole("button", { name: "Add note" }));
+  fireEvent.changeText(screen.getByLabelText("Note"), text);
 }
 
 // Lets a resolved or rejected mutation promise settle and re-render.
@@ -50,6 +85,11 @@ async function flush() {
 
 function lastAnswer() {
   return answerDecision.mock.calls.at(-1)?.[0];
+}
+
+// The clock time the settled banner shows for `iso`.
+function clockTime(iso: string) {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
 function answered(overrides: Partial<Decision> & Pick<Decision, "id">): Decision {
@@ -63,7 +103,10 @@ function answered(overrides: Partial<Decision> & Pick<Decision, "id">): Decision
 }
 
 function expectNoControls() {
-  expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Send answer" })).not.toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Approve" })).not.toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Reject" })).not.toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Add note" })).not.toBeOnTheScreen();
   expect(screen.queryAllByRole("radio")).toHaveLength(0);
   expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
   expect(screen.UNSAFE_queryAllByType(TextInput)).toHaveLength(0);
@@ -91,12 +134,14 @@ describe("display", () => {
       agent_session_id: "a_1",
       parent_id: "d_parent",
       follow_up_ids: ["d_f1", "d_f2"],
+      created_at: new Date(Date.now() - 3 * 60_000 - 10_000).toISOString(),
     });
     serve(item, decision({ id: "d_parent", title: "Parent question" }));
     openDecision("d_1");
     await screen.findByText("Pick a plan");
 
     expect(queryCalls).toContainEqual({ name: get, args: { decisionId: "d_1" } });
+    expect(screen.getByRole("header", { name: "Pick a plan" })).toBeOnTheScreen();
     // Markdown: a heading, bold text, and list items render as their own
     // text nodes, not as the raw source.
     expect(screen.getByText("Context")).toBeOnTheScreen();
@@ -104,16 +149,23 @@ describe("display", () => {
     expect(screen.getByText("keep old")).toBeOnTheScreen();
     expect(screen.queryByText(/\*\*refund\*\*/)).not.toBeOnTheScreen();
 
-    expect(screen.getByText("Recommendation")).toBeOnTheScreen();
-    expect(screen.getAllByText("Beta").length).toBeGreaterThan(0);
-    expect(screen.getByText(`Due ${new Date(deadline).toLocaleString()}`)).toBeOnTheScreen();
+    // The recommendation: in the dock and on its option.
+    expect(screen.getByText("Recommended: Beta")).toBeOnTheScreen();
+    expect(
+      within(screen.getByRole("radio", { name: "Beta" })).getByText("Recommended"),
+    ).toBeOnTheScreen();
+    // The deadline: a live countdown pill that names the due time.
     expect(screen.getByText(/^2h 5m left$/)).toBeOnTheScreen();
-    expect(screen.getByText("Default")).toBeOnTheScreen();
-    expect(screen.getAllByText("Alpha").length).toBeGreaterThan(0);
+    expect(
+      screen.getByLabelText(`Deadline ${new Date(deadline).toLocaleString()}, 2h 5m left`),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Default: Alpha")).toBeOnTheScreen();
     expect(screen.getByText("Urgent")).toBeOnTheScreen();
     expect(screen.getByText("acme/billing")).toBeOnTheScreen();
+    expect(screen.getByText("· 3m ago")).toBeOnTheScreen();
     expect(await screen.findByRole("link", { name: "Agent: Claude on laptop" })).toBeOnTheScreen();
-    expect(screen.getByRole("link", { name: "Parent decision" })).toBeOnTheScreen();
+    expect(screen.getByRole("link", { name: "Follow-up to Parent question" })).toBeOnTheScreen();
+    // Unreadable follow-ups stay reachable by position.
     expect(screen.getByRole("link", { name: "Follow-up decision 1" })).toBeOnTheScreen();
     expect(screen.getByRole("link", { name: "Follow-up decision 2" })).toBeOnTheScreen();
   });
@@ -124,8 +176,9 @@ describe("display", () => {
     expect(screen.getByText("No recommendation")).toBeOnTheScreen();
     expect(screen.getByText("No deadline")).toBeOnTheScreen();
     expect(screen.getByText("No default")).toBeOnTheScreen();
-    expect(screen.getByText("Normal")).toBeOnTheScreen();
-    expect(screen.queryByRole("link", { name: "Parent decision" })).not.toBeOnTheScreen();
+    // A normal priority has no pill; only Urgent is marked.
+    expect(screen.queryByText("Urgent")).not.toBeOnTheScreen();
+    expect(screen.queryByRole("link", { name: /^Follow-up to/ })).not.toBeOnTheScreen();
     expect(screen.queryByRole("link", { name: /^Follow-up/ })).not.toBeOnTheScreen();
   });
 
@@ -139,8 +192,9 @@ describe("display", () => {
     );
 
     expect(screen.getByText("Deadline passed")).toBeOnTheScreen();
+    expect(screen.getByLabelText(/^Deadline passed, /)).toBeOnTheScreen();
     // Only the backend expires a decision, so the controls stay.
-    expect(screen.getByRole("button", { name: "Submit answer" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeOnTheScreen();
   });
 
   test("shows loading until the query returns", async () => {
@@ -177,6 +231,42 @@ describe("deadline countdown", () => {
 
     expect(await screen.findByText("1s left", {}, { timeout: 3_000 })).toBeOnTheScreen();
   });
+
+  test("the countdown turns red under five minutes and stays neutral before", async () => {
+    await open(
+      decision({
+        id: "d_1",
+        title: "Later",
+        deadline: new Date(Date.now() + 2 * 3_600_000).toISOString(),
+      }),
+    );
+    expect(screen.getByText(/left$/)).toHaveStyle({ color: themes.light.pillNeutral });
+
+    act(() =>
+      serve(
+        decision({
+          id: "d_1",
+          title: "Later",
+          deadline: new Date(Date.now() + 4 * 60_000).toISOString(),
+        }),
+      ),
+    );
+
+    expect(screen.getByText(/left$/)).toHaveStyle({ color: themes.light.red });
+  });
+
+  test("an urgent decision's countdown is red however far the deadline", async () => {
+    await open(
+      decision({
+        id: "d_1",
+        title: "Urgent later",
+        priority: "urgent",
+        deadline: new Date(Date.now() + 2 * 3_600_000).toISOString(),
+      }),
+    );
+
+    expect(screen.getByText(/left$/)).toHaveStyle({ color: themes.light.red });
+  });
 });
 
 describe("agent", () => {
@@ -198,6 +288,31 @@ describe("agent", () => {
     expect(queryCalls).toContainEqual({ name: agentGet, args: { agentSessionId: "a_7" } });
   });
 
+  test("the agent's state is written after its name, not shown by the dot alone", async () => {
+    setQuery(agentGet, (args: { agentSessionId: string }) =>
+      detail(args.agentSessionId, { state: "blocked" }),
+    );
+    await open(decision({ id: "d_1", title: "Ask", agent_session_id: "a_7" }));
+
+    const link = await screen.findByRole("link", { name: "Agent: Reviewer" });
+    expect(link.props.hitSlop).toEqual(LINK_HIT_SLOP);
+    expect(screen.getByText("· Blocked")).toHaveStyle({ color: themes.light.red });
+
+    act(() =>
+      setQuery(agentGet, (args: { agentSessionId: string }) =>
+        detail(args.agentSessionId, { state: "blocked", stale: true }),
+      ),
+    );
+    expect(screen.getByText("· Stale")).toHaveStyle({ color: themes.light.amber });
+
+    act(() =>
+      setQuery(agentGet, (args: { agentSessionId: string }) =>
+        detail(args.agentSessionId, { state: "working" }),
+      ),
+    );
+    expect(screen.getByText("· Working")).toHaveStyle({ color: themes.light.textSecondary });
+  });
+
   test("an ended session is labelled ended", async () => {
     setQuery(agentGet, (args: { agentSessionId: string }) =>
       detail(args.agentSessionId, { ended_at: "2026-10-11T08:00:00.000Z", state: "done" }),
@@ -215,12 +330,11 @@ describe("agent", () => {
     expect(await screen.findByText("Agent session ended")).toBeOnTheScreen();
     expect(screen.queryByRole("link", { name: /^Agent: / })).not.toBeOnTheScreen();
 
-    fireEvent.press(screen.getByRole("radio", { name: "Approve" }));
-    submit();
+    choose("Approve");
     await flush();
 
     expect(lastAnswer()).toEqual({ decisionId: "d_1", answer: { kind: "approve" } });
-    expect(screen.getByText("Answered")).toBeOnTheScreen();
+    expect(screen.getByText("Approved")).toBeOnTheScreen();
   });
 
   test("a decision with no agent session shows the agent as ended", async () => {
@@ -235,10 +349,12 @@ describe("agent", () => {
     await open(decision({ id: "d_1", title: "Ask", agent_session_id: "a_7" }));
 
     expect(await screen.findByText("Could not load the agent.")).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "Submit answer" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeOnTheScreen();
 
     setQuery(agentGet, (args: { agentSessionId: string }) => detail(args.agentSessionId));
-    fireEvent.press(screen.getByRole("button", { name: "Retry agent" }));
+    const retry = screen.getByRole("button", { name: "Retry agent" });
+    expect(retry.props.hitSlop).toEqual(LINK_HIT_SLOP);
+    fireEvent.press(retry);
 
     expect(await screen.findByRole("link", { name: "Agent: Reviewer" })).toBeOnTheScreen();
   });
@@ -253,46 +369,71 @@ describe("related decisions", () => {
     follow_up_ids: ["d_f1", "d_f2"],
   });
   const first = decision({ id: "d_f1", title: "First follow-up", parent_id: "d_1" });
-  const second = decision({ id: "d_f2", title: "Second follow-up", parent_id: "d_1" });
+  const second = answered({
+    id: "d_f2",
+    title: "Second follow-up",
+    parent_id: "d_1",
+    answer: { kind: "reject" },
+  });
 
-  test("the parent link opens the parent decision", async () => {
+  test("the parent link names the parent and opens it", async () => {
     serve(parent, child, first, second);
     openDecision("d_1");
     await screen.findByText("Child question");
 
-    fireEvent.press(screen.getByRole("link", { name: "Parent decision" }));
+    fireEvent.press(await screen.findByRole("link", { name: "Follow-up to Parent question" }));
 
-    expect(await screen.findByText("Parent question")).toBeOnTheScreen();
+    expect(await screen.findByRole("header", { name: "Parent question" })).toBeOnTheScreen();
     expect(screen).toHavePathname("/decision/d_parent");
   });
 
-  test("each follow-up link opens its decision", async () => {
+  test("each follow-up reads as a thread row with its state and opens its decision", async () => {
     serve(parent, child, first, second);
     openDecision("d_1");
     await screen.findByText("Child question");
 
-    fireEvent.press(screen.getByRole("link", { name: "Follow-up decision 2" }));
+    expect(
+      await screen.findByRole("link", { name: "Follow-up: First follow-up, Pending" }),
+    ).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole("link", { name: "Follow-up: Second follow-up, Rejected" }));
 
-    expect(await screen.findByText("Second follow-up")).toBeOnTheScreen();
+    expect(await screen.findByRole("header", { name: "Second follow-up" })).toBeOnTheScreen();
     expect(screen).toHavePathname("/decision/d_f2");
     expect(queryCalls).toContainEqual({ name: get, args: { decisionId: "d_f2" } });
   });
 
   test("another decision opens with its own draft, not the previous one's", async () => {
     serve(
-      decision({ id: "d_1", title: "Child question", follow_up_ids: ["d_f1"] }),
-      decision({ id: "d_f1", title: "First follow-up", parent_id: "d_1" }),
+      decision({
+        id: "d_1",
+        title: "Child question",
+        input_type: "single_choice",
+        options: choices,
+        follow_up_ids: ["d_f1"],
+      }),
+      decision({
+        id: "d_f1",
+        title: "First follow-up",
+        input_type: "single_choice",
+        options: choices,
+        parent_id: "d_1",
+      }),
     );
     openDecision("d_1");
     await screen.findByText("Child question");
-    fireEvent.press(screen.getByRole("radio", { name: "Reject" }));
-    fireEvent.changeText(screen.getByLabelText("Note"), "Draft note");
+    fireEvent.press(screen.getByRole("radio", { name: "Gamma" }));
+    addNote("Draft note");
 
-    fireEvent.press(screen.getByRole("link", { name: "Follow-up decision 1" }));
-    await screen.findByText("First follow-up");
+    fireEvent.press(
+      await screen.findByRole("link", { name: "Follow-up: First follow-up, Pending" }),
+    );
+    await screen.findByRole("header", { name: "First follow-up" });
 
-    expect(screen.getByRole("radio", { name: "Reject" })).not.toBeChecked();
-    expect(screen.getByRole("radio", { name: "Approve" })).not.toBeChecked();
+    for (const name of ["Alpha", "Beta", "Gamma"]) {
+      expect(screen.getByRole("radio", { name })).not.toBeChecked();
+    }
+    expect(screen.queryByLabelText("Note")).not.toBeOnTheScreen();
+    fireEvent.press(screen.getByRole("button", { name: "Add note" }));
     expect(screen.getByLabelText("Note")).toHaveDisplayValue("");
   });
 });
@@ -307,16 +448,15 @@ describe("removed decisions", () => {
     openDecision("d_1");
 
     expect(await screen.findByText("Parent decision unavailable")).toBeOnTheScreen();
-    expect(screen.queryByRole("link", { name: "Parent decision" })).not.toBeOnTheScreen();
+    expect(screen.queryByRole("link", { name: /^Follow-up to/ })).not.toBeOnTheScreen();
     expect(screen.getByText("Child question")).toBeOnTheScreen();
     expect(queryCalls).toContainEqual({ name: get, args: { decisionId: "d_parent" } });
 
-    fireEvent.press(screen.getByRole("radio", { name: "Approve" }));
-    submit();
+    choose("Approve");
     await flush();
 
     expect(lastAnswer()).toEqual({ decisionId: "d_1", answer: { kind: "approve" } });
-    expect(screen.getByText("Answered")).toBeOnTheScreen();
+    expect(screen.getByText("Approved")).toBeOnTheScreen();
   });
 
   test("a malformed parent id shows the parent as unavailable", async () => {
@@ -342,12 +482,12 @@ describe("removed decisions", () => {
     openDecision("d_1");
 
     expect(await screen.findByText("Loading parent")).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "Submit answer" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeOnTheScreen();
 
     parentReady = true;
     act(() => serve(child, decision({ id: "d_parent", title: "Parent question" })));
 
-    expect(screen.getByRole("link", { name: "Parent decision" })).toBeOnTheScreen();
+    expect(screen.getByRole("link", { name: "Follow-up to Parent question" })).toBeOnTheScreen();
     expect(screen.queryByText("Loading parent")).not.toBeOnTheScreen();
   });
 
@@ -359,12 +499,16 @@ describe("removed decisions", () => {
 
     expect(await screen.findByText("Could not load the parent decision.")).toBeOnTheScreen();
     expect(screen.getByText("Child question")).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "Submit answer" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeOnTheScreen();
 
     serve(child, decision({ id: "d_parent", title: "Parent question" }));
-    fireEvent.press(screen.getByRole("button", { name: "Retry parent" }));
+    const retry = screen.getByRole("button", { name: "Retry parent" });
+    expect(retry.props.hitSlop).toEqual(LINK_HIT_SLOP);
+    fireEvent.press(retry);
 
-    expect(await screen.findByRole("link", { name: "Parent decision" })).toBeOnTheScreen();
+    expect(
+      await screen.findByRole("link", { name: "Follow-up to Parent question" }),
+    ).toBeOnTheScreen();
   });
 
   test("a decision removed while open shows the not-found state", async () => {
@@ -384,6 +528,7 @@ describe("not found and failures", () => {
     renderApp("/decision/d_foreign");
 
     expect(await screen.findByText("Decision not found")).toBeOnTheScreen();
+    expect(screen.getByText("This decision does not exist or is not yours.")).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeOnTheScreen();
     expectNoControls();
   });
@@ -430,18 +575,25 @@ describe("answer controls", () => {
     );
   });
 
-  test("approve or reject submits approve or reject", async () => {
+  test("Reject sends reject in one tap", async () => {
     await open(decision({ id: "d_1", title: "Ship?", input_type: "approve_reject" }));
 
-    fireEvent.press(screen.getByRole("radio", { name: "Approve" }));
-    fireEvent.press(screen.getByRole("radio", { name: "Reject" }));
-    expect(screen.getByRole("radio", { name: "Reject" })).toBeChecked();
-    expect(screen.getByRole("radio", { name: "Approve" })).not.toBeChecked();
-    submit();
+    expect(screen.queryByRole("button", { name: "Send answer" })).not.toBeOnTheScreen();
+    choose("Reject");
     await flush();
 
     expect(answerDecision).toHaveBeenCalledTimes(1);
     expect(lastAnswer()).toEqual({ decisionId: "d_1", answer: { kind: "reject" } });
+  });
+
+  test("Approve sends approve in one tap", async () => {
+    await open(decision({ id: "d_1", title: "Ship?", input_type: "approve_reject" }));
+
+    choose("Approve");
+    await flush();
+
+    expect(answerDecision).toHaveBeenCalledTimes(1);
+    expect(lastAnswer()).toEqual({ decisionId: "d_1", answer: { kind: "approve" } });
   });
 
   test("single choice submits one option", async () => {
@@ -451,6 +603,8 @@ describe("answer controls", () => {
 
     fireEvent.press(screen.getByRole("radio", { name: "Alpha" }));
     fireEvent.press(screen.getByRole("radio", { name: "Gamma" }));
+    expect(screen.getByRole("radio", { name: "Gamma" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Alpha" })).not.toBeChecked();
     submit();
     await flush();
 
@@ -546,12 +700,72 @@ describe("answer controls", () => {
     });
   });
 
+  test("without a recommendation Approve is the primary button and Reject is never red", async () => {
+    await open(decision({ id: "d_1", title: "Ship?", input_type: "approve_reject" }));
+
+    const approve = screen.getByRole("button", { name: "Approve" });
+    const reject = screen.getByRole("button", { name: "Reject" });
+    expect(within(approve).getByText("Approve")).toHaveStyle({ color: themes.light.onAccent });
+    // Reject is an answer, not a destructive action: a secondary button.
+    expect(within(reject).getByText("Reject")).toHaveStyle({ color: themes.light.text });
+  });
+
+  test("at large text sizes the answer buttons stack with the primary one first", async () => {
+    const window = Dimensions.get("window");
+    const names = () =>
+      screen
+        .getAllByRole("button")
+        .map(
+          (button) =>
+            button.props.accessibilityLabel ?? within(button).queryByText(/./)?.props.children,
+        )
+        .filter((name) => name === "Approve" || name === "Reject");
+    try {
+      // React Native's Jest setup reports a font scale of 2; start at 1.
+      Dimensions.set({ window: { ...window, fontScale: 1 }, screen: window });
+      await open(decision({ id: "d_1", title: "Ship?", recommendation: { kind: "approve" } }));
+      expect(names()).toEqual(["Reject", "Approve"]);
+      // Side by side, each button takes half the row.
+      expect(screen.getByRole("button", { name: "Reject" })).toHaveStyle({ flex: 1 });
+
+      act(() => Dimensions.set({ window: { ...window, fontScale: 2 }, screen: window }));
+
+      // Stacked, each button takes the full width, the recommended one first.
+      expect(screen.getByRole("button", { name: "Reject" })).not.toHaveStyle({ flex: 1 });
+      expect(names()).toEqual(["Approve", "Reject"]);
+      act(() => serve(decision({ id: "d_1", title: "Ship?", recommendation: { kind: "reject" } })));
+      expect(names()).toEqual(["Reject", "Approve"]);
+    } finally {
+      act(() => Dimensions.set({ window, screen: window }));
+    }
+  });
+
+  test("focusing the answer text scrolls the body so the field stays in view", async () => {
+    const scrollToEnd = jest.mocked(ScrollView.prototype.scrollToEnd);
+    await open(decision({ id: "d_1", title: "Name it", input_type: "free_text" }));
+    scrollToEnd.mockClear();
+
+    fireEvent(screen.getByLabelText("Answer text"), "focus");
+
+    expect(scrollToEnd).toHaveBeenCalled();
+  });
+
+  test("the note stays tucked behind Add note until asked for", async () => {
+    await open(decision({ id: "d_1", title: "Ship?" }));
+
+    expect(screen.queryByLabelText("Note")).not.toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Add note" }).props.hitSlop).toEqual(LINK_HIT_SLOP);
+    fireEvent.press(screen.getByRole("button", { name: "Add note" }));
+
+    expect(screen.getByLabelText("Note")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Add note" })).not.toBeOnTheScreen();
+  });
+
   test("an optional note is sent with the answer", async () => {
     await open(decision({ id: "d_1", title: "Ship?" }));
 
-    fireEvent.press(screen.getByRole("radio", { name: "Approve" }));
-    fireEvent.changeText(screen.getByLabelText("Note"), "Ship after the freeze");
-    submit();
+    addNote("Ship after the freeze");
+    choose("Approve");
     await flush();
 
     expect(lastAnswer()).toEqual({
@@ -572,10 +786,10 @@ describe("limits and validation", () => {
   test("a note of 2,000 characters is sent", async () => {
     await open(decision({ id: "d_1", title: "Ship?" }));
 
-    fireEvent.press(screen.getByRole("radio", { name: "Approve" }));
-    fireEvent.changeText(screen.getByLabelText("Note"), "n".repeat(2000));
-    expect(screen.getByText("2000/2000")).toBeOnTheScreen();
-    submit();
+    addNote("n".repeat(2000));
+    // The counter meets 4.5:1 in the secondary color.
+    expect(screen.getByText("2000/2000")).toHaveStyle({ color: themes.light.textSecondary });
+    choose("Approve");
     await flush();
 
     expect(lastAnswer()?.note).toHaveLength(2000);
@@ -584,10 +798,9 @@ describe("limits and validation", () => {
   test("a note of 2,001 characters shows the contract message and sends nothing", async () => {
     await open(decision({ id: "d_1", title: "Ship?" }));
 
-    fireEvent.press(screen.getByRole("radio", { name: "Approve" }));
-    fireEvent.changeText(screen.getByLabelText("Note"), "n".repeat(2001));
-    expect(screen.getByText("2001/2000")).toBeOnTheScreen();
-    submit();
+    addNote("n".repeat(2001));
+    expect(screen.getByText("2001/2000")).toHaveStyle({ color: themes.light.red });
+    choose("Approve");
     await flush();
 
     expect(
@@ -615,7 +828,9 @@ describe("limits and validation", () => {
   });
 
   test("submitting with nothing chosen shows the contract message and sends nothing", async () => {
-    await open(decision({ id: "d_1", title: "Ship?", input_type: "approve_reject" }));
+    await open(
+      decision({ id: "d_1", title: "Pick", input_type: "single_choice", options: choices }),
+    );
 
     submit();
     await flush();
@@ -623,6 +838,7 @@ describe("limits and validation", () => {
     expect(
       screen.getByText("Answer: Invalid input: expected object, received null"),
     ).toBeOnTheScreen();
+    expect(announce).toHaveBeenCalledWith("Answer: Invalid input: expected object, received null");
     expect(answerDecision).not.toHaveBeenCalled();
   });
 
@@ -674,7 +890,11 @@ describe("recommendation", () => {
     const beta = screen.getByRole("radio", { name: "Beta" });
     expect(beta).toBeChecked();
     expect(within(beta).getByText("Recommended")).toBeOnTheScreen();
-    expect(beta.props.accessibilityHint).toBe("Recommended by the agent");
+    // VoiceOver reads the marker as the row's value, after its checked state.
+    expect(beta).toHaveAccessibilityValue({ text: "Recommended" });
+    expect(screen.getByRole("radio", { name: "Alpha" })).not.toHaveAccessibilityValue({
+      text: "Recommended",
+    });
     expect(screen.getAllByText("Recommended")).toHaveLength(1);
   });
 
@@ -717,6 +937,7 @@ describe("recommendation", () => {
       expect(within(box).getByText("Recommended")).toBeOnTheScreen();
     }
     expect(screen.getByRole("checkbox", { name: "Beta" })).not.toBeChecked();
+    expect(screen.getByText("Recommended: Alpha, Gamma")).toBeOnTheScreen();
 
     fireEvent.press(screen.getByRole("checkbox", { name: "Alpha" }));
     expect(
@@ -727,15 +948,30 @@ describe("recommendation", () => {
     expect(lastAnswer()?.answer).toEqual({ kind: "options", option_ids: ["c"] });
   });
 
-  test("an approve recommendation is preselected and submits as is", async () => {
+  test("an approve recommendation marks Approve and submits as is", async () => {
     await open(decision({ id: "d_1", title: "Ship?", recommendation: { kind: "approve" } }));
 
-    const approve = screen.getByRole("radio", { name: "Approve" });
-    expect(approve).toBeChecked();
-    expect(within(approve).getByText("Recommended")).toBeOnTheScreen();
-    submit();
+    const approve = screen.getByRole("button", { name: "Approve" });
+    expect(approve.props.accessibilityHint).toBe("Recommended by the agent");
+    expect(screen.getByRole("button", { name: "Reject" }).props.accessibilityHint).toBeUndefined();
+    expect(screen.getByText("Recommended: Approve")).toBeOnTheScreen();
+    // The recommended button is the filled primary one.
+    expect(within(approve).getByText("Approve")).toHaveStyle({ color: themes.light.onAccent });
+    choose("Approve");
     await flush();
     expect(lastAnswer()?.answer).toEqual({ kind: "approve" });
+  });
+
+  test("a reject recommendation marks Reject as the primary button", async () => {
+    await open(decision({ id: "d_1", title: "Ship?", recommendation: { kind: "reject" } }));
+
+    const reject = screen.getByRole("button", { name: "Reject" });
+    expect(reject.props.accessibilityHint).toBe("Recommended by the agent");
+    expect(within(reject).getByText("Reject")).toHaveStyle({ color: themes.light.onAccent });
+    const approve = screen.getByRole("button", { name: "Approve" });
+    expect(approve.props.accessibilityHint).toBeUndefined();
+    expect(within(approve).getByText("Approve")).toHaveStyle({ color: themes.light.text });
+    expect(screen.getByText("Recommended: Reject")).toBeOnTheScreen();
   });
 
   test("a text recommendation prefills the text and selects Other answer", async () => {
@@ -755,6 +991,20 @@ describe("recommendation", () => {
     expect(screen.getByLabelText("Answer text")).toHaveDisplayValue("Use Delta");
   });
 
+  test("a free-text recommendation is prefilled and says so", async () => {
+    await open(
+      decision({
+        id: "d_1",
+        title: "Name it",
+        input_type: "free_text",
+        recommendation: { kind: "text", text: "Atlas" },
+      }),
+    );
+
+    expect(screen.getByText("Recommended answer prefilled")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Answer text")).toHaveDisplayValue("Atlas");
+  });
+
   test("a pending update to the same decision keeps the user's edits", async () => {
     const original = decision({
       id: "d_1",
@@ -765,7 +1015,7 @@ describe("recommendation", () => {
     });
     await open(original);
     fireEvent.press(screen.getByRole("radio", { name: "Alpha" }));
-    fireEvent.changeText(screen.getByLabelText("Note"), "My reason");
+    addNote("My reason");
 
     act(() => serve({ ...original, title: "Pick (edited)", follow_up_ids: ["d_9"] }));
 
@@ -782,14 +1032,14 @@ describe("submission", () => {
     answerDecision.mockReturnValue(reply.promise);
     await open(decision({ id: "d_1", title: "Ship?" }));
 
-    fireEvent.press(screen.getByRole("radio", { name: "Reject" }));
-    submit();
-    fireEvent.press(screen.getByRole("button", { name: "Submitting" }));
-    fireEvent.press(screen.getByRole("button", { name: "Submitting" }));
+    choose("Reject");
+    fireEvent.press(screen.getByRole("button", { name: "Sending" }));
+    fireEvent.press(screen.getByRole("button", { name: "Sending" }));
+    fireEvent.press(screen.getByRole("button", { name: "Approve" }));
 
     expect(answerDecision).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "Submitting" })).toBeDisabled();
-    expect(screen.getByRole("radio", { name: "Approve" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Sending" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
 
     await act(async () => {
       reply.resolve(
@@ -803,11 +1053,44 @@ describe("submission", () => {
     });
 
     // The subscription still reports pending; the returned outcome stands.
-    expect(screen.getByText("Answered")).toBeOnTheScreen();
-    expect(screen.getByText("Reject")).toBeOnTheScreen();
-    expect(screen.getByText("Via app")).toBeOnTheScreen();
+    expect(screen.getByText("Rejected")).toBeOnTheScreen();
+    expect(haptic.success).toHaveBeenCalledTimes(1);
+    expect(haptic.error).not.toHaveBeenCalled();
+    expect(screen.getByText(/^By you in the app · /)).toBeOnTheScreen();
     expectNoControls();
     expect(answerDecision).toHaveBeenCalledTimes(1);
+  });
+
+  test("Send answer reads Sending and disables the options while the request runs", async () => {
+    const reply = deferred<unknown>();
+    answerDecision.mockReturnValue(reply.promise);
+    await open(
+      decision({ id: "d_1", title: "Pick", input_type: "single_choice", options: choices }),
+    );
+
+    fireEvent.press(screen.getByRole("radio", { name: "Beta" }));
+    submit();
+    fireEvent.press(screen.getByRole("button", { name: "Sending" }));
+
+    expect(answerDecision).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Sending" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Alpha" })).toBeDisabled();
+
+    await act(async () => {
+      reply.resolve(
+        answered({
+          id: "d_1",
+          title: "Pick",
+          input_type: "single_choice",
+          options: choices,
+          answer: { kind: "option", option_id: "b" },
+        }),
+      );
+    });
+
+    expect(screen.getByText("Answered")).toBeOnTheScreen();
+    expect(screen.getByText("Beta")).toBeOnTheScreen();
+    expectNoControls();
   });
 
   test("a conflict shows the stored outcome, discards the attempt, and does not retry", async () => {
@@ -829,7 +1112,7 @@ describe("submission", () => {
     await open(decision({ id: "d_1", title: "Name it", input_type: "free_text" }));
 
     fireEvent.changeText(screen.getByLabelText("Answer text"), "My attempted answer");
-    fireEvent.changeText(screen.getByLabelText("Note"), "My attempted note");
+    addNote("My attempted note");
     submit();
     await flush();
 
@@ -840,7 +1123,13 @@ describe("submission", () => {
     ).toBeOnTheScreen();
     expect(screen.getByText("Atlas from the phone")).toBeOnTheScreen();
     expect(screen.getByText("Answered on the lock screen")).toBeOnTheScreen();
-    expect(screen.getByText("Via notification")).toBeOnTheScreen();
+    expect(screen.getByText(/^By you from a notification · /)).toBeOnTheScreen();
+    expect(haptic.error).toHaveBeenCalledTimes(1);
+    expect(announce).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^This decision was settled before your answer arrived\. Your answer was not recorded\. Recorded outcome: Answered\. Atlas from the phone\. By you from a notification, /,
+      ),
+    );
     expect(screen.queryByText("My attempted answer")).not.toBeOnTheScreen();
     expect(screen.queryByText("My attempted note")).not.toBeOnTheScreen();
     expectNoControls();
@@ -856,8 +1145,7 @@ describe("submission", () => {
     const pending = decision({ id: "d_1", title: "Ship?" });
     await open(pending);
 
-    fireEvent.press(screen.getByRole("radio", { name: "Approve" }));
-    submit();
+    choose("Approve");
     await flush();
 
     expect(
@@ -865,7 +1153,11 @@ describe("submission", () => {
         "This decision was settled elsewhere. Its recorded outcome appears here once it loads.",
       ),
     ).toBeOnTheScreen();
-    expect(screen.queryByText("Answered")).not.toBeOnTheScreen();
+    expect(announce).toHaveBeenCalledWith(
+      "This decision was settled elsewhere. Its recorded outcome appears here once it loads.",
+    );
+    expect(screen.queryByText("Approved")).not.toBeOnTheScreen();
+    expect(screen.queryByRole("header", { name: /^Approved/ })).not.toBeOnTheScreen();
     expectNoControls();
 
     act(() =>
@@ -874,8 +1166,8 @@ describe("submission", () => {
       ),
     );
 
-    expect(screen.getByText("Answered")).toBeOnTheScreen();
-    expect(screen.getByText("Reject")).toBeOnTheScreen();
+    expect(screen.getByText("Rejected")).toBeOnTheScreen();
+    expect(screen.getByText(/^Through the API · /)).toBeOnTheScreen();
     expect(answerDecision).toHaveBeenCalledTimes(1);
   });
 
@@ -886,24 +1178,26 @@ describe("submission", () => {
     );
     await open(decision({ id: "d_1", title: "Ship?" }));
 
-    fireEvent.press(screen.getByRole("radio", { name: "Reject" }));
-    fireEvent.changeText(screen.getByLabelText("Note"), "Kept");
-    submit();
+    addNote("Kept");
+    choose("Reject");
     await flush();
 
     expect(
       screen.getByText("Could not send your answer. Check your connection."),
     ).toBeOnTheScreen();
-    expect(screen.getByRole("radio", { name: "Reject" })).toBeChecked();
+    expect(haptic.error).toHaveBeenCalledTimes(1);
+    expect(haptic.success).not.toHaveBeenCalled();
+    expect(announce).toHaveBeenCalledWith("Could not send your answer. Check your connection.");
+    expect(screen.getByRole("button", { name: "Reject" })).toBeEnabled();
     expect(screen.getByLabelText("Note")).toHaveDisplayValue("Kept");
     expect(answerDecision).toHaveBeenCalledTimes(1);
 
-    submit();
+    choose("Reject");
     await flush();
 
     expect(answerDecision).toHaveBeenCalledTimes(2);
     expect(lastAnswer()).toEqual({ decisionId: "d_1", answer: { kind: "reject" }, note: "Kept" });
-    expect(screen.getByText("Answered")).toBeOnTheScreen();
+    expect(screen.getByText("Rejected")).toBeOnTheScreen();
   });
 
   test("a backend refusal shows the backend's message", async () => {
@@ -912,12 +1206,11 @@ describe("submission", () => {
     );
     await open(decision({ id: "d_1", title: "Ship?" }));
 
-    fireEvent.press(screen.getByRole("radio", { name: "Approve" }));
-    submit();
+    choose("Approve");
     await flush();
 
     expect(screen.getByText("option_id names no option")).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "Submit answer" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeOnTheScreen();
   });
 
   test("a settlement arriving while editing removes the draft and shows the outcome", async () => {
@@ -949,18 +1242,42 @@ describe("settled decisions", () => {
         input_type: "multiple_choice",
         options: choices,
         answer: { kind: "options", option_ids: ["a", "c"] },
+        recommendation: { kind: "options", option_ids: ["a"] },
         note: "Both are needed",
         answered_at: at,
         answered_via: "api",
       }),
     );
 
-    expect(screen.getByText("Answered")).toBeOnTheScreen();
+    expect(banner("Answered")).toHaveAccessibleName(
+      new RegExp(`^Answered\\. Alpha, Gamma\\. Through the API, .*${clockTime(at)}$`),
+    );
     expect(screen.getByText("Alpha, Gamma")).toBeOnTheScreen();
     expect(screen.getByText("Both are needed")).toBeOnTheScreen();
-    expect(screen.getByText(`Answered ${new Date(at).toLocaleString()}`)).toBeOnTheScreen();
-    expect(screen.getByText("Via api")).toBeOnTheScreen();
+    expect(
+      screen.getByText(new RegExp(`^Through the API · .*${clockTime(at)}$`)),
+    ).toBeOnTheScreen();
+    // The rest of the decision stays below, recommendation included.
+    expect(screen.getByText("Recommended: Alpha")).toBeOnTheScreen();
+    expect(screen.getByText("acme")).toBeOnTheScreen();
     expectNoControls();
+  });
+
+  test("an approval from a notification today reads as the prototype's banner", async () => {
+    const at = new Date().toISOString();
+    await open(
+      answered({ id: "d_1", title: "Ship?", answered_at: at, answered_via: "notification" }),
+    );
+
+    // VoiceOver reads the banner as one header: title, then how and when.
+    expect(
+      screen.getByRole("header", {
+        name: `Approved. By you from a notification, Today ${clockTime(at)}`,
+      }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText(`By you from a notification · Today ${clockTime(at)}`),
+    ).toBeOnTheScreen();
   });
 
   test("an expired decision shows its applied default", async () => {
@@ -978,9 +1295,13 @@ describe("settled decisions", () => {
       }),
     );
 
-    expect(screen.getByText("Expired")).toBeOnTheScreen();
-    expect(screen.getByText("Default applied")).toBeOnTheScreen();
-    expect(screen.getByText("Via default")).toBeOnTheScreen();
+    expect(banner("Default applied")).toBeOnTheScreen();
+    expect(screen.getByText("Reject")).toBeOnTheScreen();
+    expect(screen.getByText(/^Applied at the deadline · /)).toBeOnTheScreen();
+    expect(screen.getByText("Default: Reject")).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText(`Deadline ${new Date("2026-10-11T09:30:00.000Z").toLocaleString()}`),
+    ).toBeOnTheScreen();
     expect(screen.queryByText(/left$/)).not.toBeOnTheScreen();
     expectNoControls();
   });
@@ -995,7 +1316,9 @@ describe("settled decisions", () => {
       }),
     );
 
-    expect(screen.getByText("Expired")).toBeOnTheScreen();
+    expect(
+      screen.getByRole("header", { name: "Expired. Expired without an answer" }),
+    ).toBeOnTheScreen();
     expect(screen.getByText("Expired without an answer")).toBeOnTheScreen();
     expectNoControls();
   });
@@ -1003,7 +1326,9 @@ describe("settled decisions", () => {
   test("a cancelled decision shows no answer", async () => {
     await open(decision({ id: "d_1", title: "Ship?", state: "cancelled" }));
 
-    expect(screen.getByText("Cancelled")).toBeOnTheScreen();
+    expect(
+      screen.getByRole("header", { name: "Cancelled. No answer was recorded" }),
+    ).toBeOnTheScreen();
     expect(screen.getByText("No answer was recorded.")).toBeOnTheScreen();
     expectNoControls();
   });

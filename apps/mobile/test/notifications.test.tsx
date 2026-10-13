@@ -1,8 +1,8 @@
 import { router } from "expo-router";
 import { act, fireEvent, screen, waitFor } from "expo-router/testing-library";
-import { AppState, type AppStateStatus } from "react-native";
+import { AccessibilityInfo, AppState, type AppStateStatus } from "react-native";
 import { startNotificationActions } from "../src/notification-actions";
-import { FOREGROUND_BEHAVIOR } from "../src/notifications";
+import { DeviceRegistration, FOREGROUND_BEHAVIOR } from "../src/notifications";
 import { agent, decision } from "./data";
 import {
   account,
@@ -23,13 +23,31 @@ import {
   tap,
   tapResponse,
 } from "./fakes";
-import { renderApp } from "./render";
+import { findInbox, pressTab, queryLargeTitle, renderApp } from "./render";
 
-// component-mobile-app §Notifications: registration, token changes, failure
-// states, foreground presentation, and tap routing (req-mobile-app REQ-4).
+// component-mobile-app §Notifications: registration, the push explanation,
+// token changes, failure states, foreground presentation, and tap routing
+// (req-mobile-app REQ-4).
 
-const inbox = "No pending decisions.";
 const installId = "00000000-0000-4000-8000-000000000001";
+const INTRO_TITLE = "Get a buzz when an agent needs you";
+const GRANTED = { granted: true, canAskAgain: true, status: "granted" };
+const DENIED = { granted: false, canAskAgain: false, status: "denied" };
+
+// The push explanation's Continue, which goes on to the system prompt.
+async function continueIntro() {
+  fireEvent.press(await screen.findByRole("button", { name: "Continue" }));
+}
+
+// The install id's writes, apart from the explanation's stored answer.
+function installIdWrites() {
+  return secureStore.setItemAsync.mock.calls.filter(([key]) => key === "agentdesk.installId")
+    .length;
+}
+
+function introShown() {
+  return screen.queryByRole("header", { name: INTRO_TITLE }) !== null;
+}
 
 function serveScreens() {
   setQuery("decisions/app:get", (args: { decisionId: string }) =>
@@ -45,7 +63,7 @@ function serveScreens() {
 async function openInbox(session = "sess_a", options: { strict?: boolean } = {}) {
   signInAs(session);
   const view = renderApp("/", options);
-  await screen.findByText(inbox);
+  await findInbox();
   return view;
 }
 
@@ -60,6 +78,9 @@ function returnToForeground() {
 }
 
 beforeEach(() => {
+  // This file opts into the push explanation: the shared fakes start with
+  // it answered.
+  secureStore.values.delete("agentdesk.pushIntro");
   appStateListeners = [];
   jest.spyOn(AppState, "addEventListener").mockImplementation((_type, listener) => {
     appStateListeners.push(listener as (state: AppStateStatus) => void);
@@ -87,6 +108,7 @@ describe("device registration", () => {
     expect(registerDevice).not.toHaveBeenCalled();
 
     await act(async () => pending.resolve(account));
+    await continueIntro();
 
     await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
     expect(push.requestPermissionsAsync).toHaveBeenCalledTimes(1);
@@ -103,12 +125,14 @@ describe("device registration", () => {
   test("falls back to the model name and then the platform for the device name", async () => {
     device.deviceName = null;
     await openInbox();
+    await continueIntro();
     await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
     expect(registerDevice.mock.calls[0]?.[0].name).toBe("iPhone 17");
   });
 
   test("keeps one install id across restarts, sign-out, and another sign-in", async () => {
     const first = await openInbox("sess_a");
+    await continueIntro();
     await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
 
     // A restart: the app unmounts and mounts again with the same storage.
@@ -119,36 +143,40 @@ describe("device registration", () => {
     act(() => signOutAll());
     await screen.findByLabelText("Email address");
     act(() => signInAs("sess_b"));
-    await screen.findByText(inbox);
+    await findInbox();
     await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(3));
 
     const ids = registerDevice.mock.calls.map(([args]) => args.deviceId);
     expect(ids).toEqual([installId, installId, installId]);
-    expect(secureStore.setItemAsync).toHaveBeenCalledTimes(1);
+    expect(installIdWrites()).toBe(1);
   });
 
   test("runs once under strict mode's repeated effects", async () => {
     await openInbox("sess_a", { strict: true });
+    // One explanation, so one Continue button.
+    await continueIntro();
     await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
     await act(async () => {});
 
     expect(registerDevice).toHaveBeenCalledTimes(1);
     expect(push.requestPermissionsAsync).toHaveBeenCalledTimes(1);
-    expect(secureStore.setItemAsync).toHaveBeenCalledTimes(1);
+    expect(installIdWrites()).toBe(1);
   });
 
   test("a denied permission registers nothing and leaves the screens usable", async () => {
-    push.requestResult = { granted: false, canAskAgain: false, status: "denied" };
+    push.requestResult = DENIED;
     serveScreens();
     await openInbox();
+    await continueIntro();
     await waitFor(() => expect(push.requestPermissionsAsync).toHaveBeenCalledTimes(1));
     await act(async () => {});
 
     expect(registerDevice).not.toHaveBeenCalled();
     expect(push.getExpoPushTokenAsync).not.toHaveBeenCalled();
-    expect(secureStore.setItemAsync).not.toHaveBeenCalled();
+    expect(installIdWrites()).toBe(0);
 
-    fireEvent.press(screen.getByText("Account"));
+    pressTab("Settings");
+    fireEvent.press(await screen.findByRole("button", { name: "Account" }));
     expect(
       await screen.findByText(
         "Notifications are off for this device. Allow them in system settings to get pushes.",
@@ -157,24 +185,35 @@ describe("device registration", () => {
     expect(screen.getByRole("button", { name: "Sign out" })).toBeOnTheScreen();
   });
 
-  test("does not prompt again when the permission cannot be asked again", async () => {
-    push.permission = { granted: false, canAskAgain: false, status: "denied" };
+  test("does not explain or prompt again when the permission cannot be asked again", async () => {
+    push.permission = DENIED;
     await openInbox();
     await waitFor(() => expect(push.getPermissionsAsync).toHaveBeenCalled());
     await act(async () => {});
 
+    expect(introShown()).toBe(false);
     expect(push.requestPermissionsAsync).not.toHaveBeenCalled();
     expect(registerDevice).not.toHaveBeenCalled();
   });
 
-  test("registers when the person allows notifications in settings and returns", async () => {
-    push.requestResult = { granted: false, canAskAgain: false, status: "denied" };
+  test("a permission granted earlier registers without the explanation or a prompt", async () => {
+    push.permission = GRANTED;
     await openInbox();
+    await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
+
+    expect(introShown()).toBe(false);
+    expect(push.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  test("registers when the person allows notifications in settings and returns", async () => {
+    push.requestResult = DENIED;
+    await openInbox();
+    await continueIntro();
     await waitFor(() => expect(push.requestPermissionsAsync).toHaveBeenCalledTimes(1));
     await act(async () => {});
     expect(registerDevice).not.toHaveBeenCalled();
 
-    push.permission = { granted: true, canAskAgain: true, status: "granted" };
+    push.permission = GRANTED;
     returnToForeground();
 
     await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
@@ -183,6 +222,7 @@ describe("device registration", () => {
 
   test("a native token change gets a new Expo token and registers again", async () => {
     await openInbox();
+    await continueIntro();
     await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
 
     push.expoToken = "ExponentPushToken[bbbb]";
@@ -203,6 +243,7 @@ describe("device registration", () => {
 
   test("a return to the foreground with an unchanged token sends nothing more", async () => {
     await openInbox();
+    await continueIntro();
     await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
 
     returnToForeground();
@@ -214,6 +255,7 @@ describe("device registration", () => {
 
   test("a sign-out removes the token and app-state listeners", async () => {
     await openInbox();
+    await continueIntro();
     await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
     expect(push.tokenListeners.size).toBe(1);
 
@@ -231,10 +273,11 @@ describe("device registration", () => {
     const slowToken = deferred<{ type: string; data: string }>();
     push.getExpoPushTokenAsync.mockReturnValueOnce(slowToken.promise);
     await openInbox("sess_a");
+    await continueIntro();
     await waitFor(() => expect(push.getExpoPushTokenAsync).toHaveBeenCalledTimes(1));
 
     act(() => signInAs("sess_b"));
-    await screen.findByText(inbox);
+    await findInbox();
     await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
 
     await act(async () => slowToken.resolve({ type: "expo", data: "ExponentPushToken[old]" }));
@@ -244,6 +287,12 @@ describe("device registration", () => {
   });
 
   describe("setup failures stay off the screens and offer a retry", () => {
+    // These failures come after the permission, so notifications were
+    // allowed earlier and no explanation shows.
+    beforeEach(() => {
+      push.permission = GRANTED;
+    });
+
     async function openAccount() {
       signInAs("sess_a");
       renderApp("/settings/account");
@@ -271,11 +320,13 @@ describe("device registration", () => {
 
     test("an unsupported runtime such as a simulator", async () => {
       device.isDevice = false;
+      push.permission = { granted: false, canAskAgain: true, status: "undetermined" };
       await openAccount();
 
       expect(
         await screen.findByText("Notifications need a physical iPhone or Android phone."),
       ).toBeOnTheScreen();
+      expect(introShown()).toBe(false);
       expect(push.requestPermissionsAsync).not.toHaveBeenCalled();
       expect(registerDevice).not.toHaveBeenCalled();
     });
@@ -333,9 +384,116 @@ describe("device registration", () => {
   });
 });
 
+// Apple HIG Privacy: a permission never asked is explained before the system
+// prompt, and the person can decline without being asked.
+describe("push explanation", () => {
+  test("an undetermined permission explains first, then Continue prompts and registers", async () => {
+    const focus = jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent");
+    await openInbox();
+
+    expect(await screen.findByRole("header", { name: INTRO_TITLE })).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        "AgentDesk notifies you when an agent asks for a decision or finishes its work, and you can answer right from the notification.",
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Your rules and quiet hours decide what buzzes.")).toBeOnTheScreen();
+    // VoiceOver starts on the title.
+    expect(focus).toHaveBeenCalledWith(expect.anything(), "focus");
+    await act(async () => {});
+    expect(push.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(registerDevice).not.toHaveBeenCalled();
+
+    await continueIntro();
+
+    await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
+    expect(push.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(introShown()).toBe(false);
+    expect(secureStore.values.get("agentdesk.pushIntro")).toBe("continue");
+  });
+
+  test("a Continue from an earlier launch whose prompt never showed asks directly", async () => {
+    secureStore.values.set("agentdesk.pushIntro", "continue");
+    await openInbox();
+
+    await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
+    expect(push.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(introShown()).toBe(false);
+  });
+
+  test("Continue then a denial registers nothing and shows the explanation no more", async () => {
+    push.requestResult = DENIED;
+    await openInbox();
+    await continueIntro();
+    await waitFor(() => expect(push.requestPermissionsAsync).toHaveBeenCalledTimes(1));
+
+    returnToForeground();
+    await act(async () => {});
+
+    expect(introShown()).toBe(false);
+    expect(push.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(registerDevice).not.toHaveBeenCalled();
+  });
+
+  test("Not now asks nothing, and later returns and launches remember it", async () => {
+    const first = await openInbox();
+    fireEvent.press(await screen.findByRole("button", { name: "Not now" }));
+    await act(async () => {});
+
+    expect(introShown()).toBe(false);
+    expect(push.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(registerDevice).not.toHaveBeenCalled();
+    expect(secureStore.values.get("agentdesk.pushIntro")).toBe("not-now");
+
+    // A return to the foreground in the same launch.
+    returnToForeground();
+    await act(async () => {});
+    expect(introShown()).toBe(false);
+
+    // A restart: the app mounts again with the same storage.
+    first.unmount();
+    const checks = push.getPermissionsAsync.mock.calls.length;
+    await openInbox();
+    await waitFor(() => expect(push.getPermissionsAsync.mock.calls.length).toBeGreaterThan(checks));
+    await act(async () => {});
+
+    expect(introShown()).toBe(false);
+    expect(push.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(registerDevice).not.toHaveBeenCalled();
+    expect(queryLargeTitle("Inbox")).toBeOnTheScreen();
+  });
+
+  // The settings screens' "turn push on" buttons call the registration
+  // status hook's retry, which is this method.
+  test("a retry after Not now prompts directly, without the explanation, and registers", async () => {
+    secureStore.values.set("agentdesk.pushIntro", "not-now");
+    const registration = new DeviceRegistration();
+    const register = jest.fn(async () => null);
+    const stop = registration.start("sess_a", register);
+
+    await waitFor(() => expect(registration.getStatus()).toEqual({ kind: "not-asked" }));
+    expect(registration.getIntro()).toBe(false);
+    expect(push.requestPermissionsAsync).not.toHaveBeenCalled();
+
+    registration.retry();
+
+    await waitFor(() => expect(registration.getStatus()).toEqual({ kind: "registered" }));
+    expect(registration.getIntro()).toBe(false);
+    expect(push.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(register).toHaveBeenCalledWith({
+      deviceId: installId,
+      pushToken: "ExponentPushToken[aaaa]",
+      platform: "ios",
+      name: "Kidus's iPhone",
+    });
+    stop();
+  });
+});
+
 describe("foreground presentation", () => {
   test("shows a banner and list entry without sound or badge, and stays on the screen", async () => {
     await openInbox();
+    await continueIntro();
     await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
     expect(push.handler).not.toBeNull();
 
@@ -353,7 +511,7 @@ describe("foreground presentation", () => {
       shouldSetBadge: false,
     });
     expect(screen).toHavePathname("/");
-    expect(screen.getByText(inbox)).toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).toBeOnTheScreen();
     expect(push.scheduleNotificationAsync).not.toHaveBeenCalled();
     expect(push.setBadgeCountAsync).not.toHaveBeenCalled();
   });
@@ -396,7 +554,7 @@ describe("tap routing", () => {
 
     act(() => tap(tapResponse("n_3", { kind: "decision.answered", decisionId: "d_1" })));
 
-    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    expect(await findInbox()).toBeOnTheScreen();
     expect(screen).toHavePathname("/");
   });
 
@@ -407,7 +565,7 @@ describe("tap routing", () => {
 
     act(() => tap(tapResponse("n_4", { kind: "decision.created", decisionId: "../settings" })));
 
-    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    expect(await findInbox()).toBeOnTheScreen();
     expect(screen).toHavePathname("/");
   });
 
@@ -433,7 +591,7 @@ describe("tap routing", () => {
 
     // The live listener delivering the same launch tap opens nothing more.
     act(() => router.back());
-    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    expect(await findInbox()).toBeOnTheScreen();
     act(() => tap(launch));
     await act(async () => {});
     expect(screen).toHavePathname("/");
@@ -456,7 +614,7 @@ describe("tap routing", () => {
       expect(await screen.findByText("Decision d_9")).toBeOnTheScreen();
       expect(screen).toHavePathname("/decision/d_9");
       act(() => router.back());
-      expect(await screen.findByText(inbox)).toBeOnTheScreen();
+      expect(await findInbox()).toBeOnTheScreen();
       act(() => tap(launch));
       await act(async () => {});
       expect(screen).toHavePathname("/");
@@ -506,7 +664,7 @@ describe("tap routing", () => {
 
     act(() => signInAs("sess_b"));
 
-    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    expect(await findInbox()).toBeOnTheScreen();
     await act(async () => {});
     expect(screen).toHavePathname("/");
   });
@@ -572,7 +730,7 @@ describe("digest tap routing", () => {
 
     act(() => tap(tapResponse("n_d2", { kind: "digest", digestId: "../settings" })));
 
-    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    expect(await findInbox()).toBeOnTheScreen();
     expect(screen).toHavePathname("/");
   });
 
@@ -597,7 +755,7 @@ describe("digest tap routing", () => {
 
     // The live listener delivering the same launch tap opens nothing more.
     act(() => router.back());
-    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    expect(await findInbox()).toBeOnTheScreen();
     act(() => tap(launch));
     await act(async () => {});
     expect(screen).toHavePathname("/");
@@ -616,7 +774,7 @@ describe("digest tap routing", () => {
 
     act(() => signInAs("sess_b"));
 
-    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    expect(await findInbox()).toBeOnTheScreen();
     await act(async () => {});
     expect(screen).toHavePathname("/");
     expect(queryCalls.map((call) => call.name)).not.toContain("notifications/digests:get");
@@ -668,6 +826,7 @@ describe("notification actions alongside taps and registration", () => {
       warn: () => undefined,
     }));
     await openInbox();
+    await continueIntro();
     await act(async () => {});
 
     expect(push.requestPermissionsAsync).toHaveBeenCalledTimes(1);

@@ -3,10 +3,20 @@ import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { act, fireEvent, screen, within } from "expo-router/testing-library";
 import { useState, useSyncExternalStore } from "react";
+import {
+  AccessibilityInfo,
+  ActionSheetIOS,
+  Alert,
+  type AlertButton,
+  Platform,
+  StyleSheet,
+} from "react-native";
+import { haptic } from "../src/haptics";
 import { INVALID_TOPIC } from "../src/history-filters";
+import { DELETE_ACTION, formatSettledTime, LOAD_FAILURE, settledDay } from "../src/history-list";
 import { decision } from "./data";
 import { deferred, loading, queries, queryCalls, readQuery, setQuery, signInAs } from "./fakes";
-import { renderApp } from "./render";
+import { findInbox, pressTab, queryLargeTitle, renderApp } from "./render";
 
 // component-mobile-app §Screens, history: search over settled decisions with
 // state and topic filters, cursor pagination, and deletion after a
@@ -74,9 +84,8 @@ function useFakePaginatedQuery(
 
 // The shared convex/react fake refuses mutations it does not know. This file
 // wraps its useMutation, so `remove` gets a local mock and every other
-// mutation keeps the shared fake. `removeBinds` counts renders that bound it.
+// mutation keeps the shared fake.
 const mockRemove = jest.fn<Promise<null>, [{ decisionId: string }]>();
-let removeBinds = 0;
 type ConvexReactMock = {
   useMutation: (reference: unknown) => unknown;
   usePaginatedQuery?: unknown;
@@ -84,17 +93,21 @@ type ConvexReactMock = {
 
 beforeEach(() => {
   mockRemove.mockReset().mockResolvedValue(null);
-  removeBinds = 0;
   const convexReact = jest.requireMock<ConvexReactMock>("convex/react");
   const sharedUseMutation = convexReact.useMutation;
   jest.spyOn(convexReact, "useMutation").mockImplementation((reference: unknown) => {
     if (getFunctionName(reference as never) === removeName) {
-      removeBinds += 1;
       return mockRemove;
     }
     return sharedUseMutation(reference);
   });
   convexReact.usePaginatedQuery = useFakePaginatedQuery;
+  jest.spyOn(ActionSheetIOS, "showActionSheetWithOptions").mockImplementation(() => {});
+  // React Native's preset already mocks this function, so the spy is that
+  // mock and keeps earlier tests' calls until cleared.
+  jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockClear();
+  jest.spyOn(haptic, "success");
+  jest.spyOn(haptic, "error");
 });
 
 afterEach(() => {
@@ -156,6 +169,55 @@ function rowTitles() {
     .map((row) => row.props.accessibilityLabel.replace(/^Decision: /, ""));
 }
 
+// The swipe row around a decision's row, which carries its Delete action, or
+// null when the row offers none.
+function swipeRowOf(title: string) {
+  let node = screen.getByRole("button", { name: `Decision: ${title}` }).parent;
+  while (node !== null) {
+    if (typeof node.type === "string" && node.props.accessibilityActions !== undefined) {
+      return node;
+    }
+    node = node.parent;
+  }
+  return null;
+}
+
+// Runs a row's Delete action, as a swipe's revealed button or VoiceOver's
+// action does.
+function deleteRow(title: string) {
+  const row = swipeRowOf(title);
+  if (row === null) {
+    throw new Error(`The row "${title}" offers no Delete action`);
+  }
+  fireEvent(row, "accessibilityAction", { nativeEvent: { actionName: "Delete" } });
+}
+
+// The action sheets shown so far, in order.
+function sheets() {
+  return jest.mocked(ActionSheetIOS.showActionSheetWithOptions).mock.calls;
+}
+
+// Picks a button of the last action sheet by its label.
+async function chooseInSheet(label: string) {
+  const [options, callback] = sheets().at(-1) ?? [];
+  const index = options?.options.indexOf(label) ?? -1;
+  if (callback === undefined || index === -1) {
+    throw new Error(`No action sheet offers "${label}"`);
+  }
+  await act(async () => callback(index));
+}
+
+function announced() {
+  return jest.mocked(AccessibilityInfo.announceForAccessibility).mock.calls.map(([text]) => text);
+}
+
+// Opens the "Other topic" field and applies the typed topic.
+function applyOtherTopic(text: string) {
+  fireEvent.press(screen.getByRole("button", { name: "Other topic" }));
+  fireEvent.changeText(screen.getByLabelText("Topic"), text);
+  fireEvent.press(screen.getByRole("button", { name: "Apply topic" }));
+}
+
 async function openHistory() {
   signInAs("sess_a");
   renderApp("/history");
@@ -168,15 +230,16 @@ const billing = settled({ id: "d_billing", title: "Refund policy?", topic: "acme
 const corp = settled({ id: "d_corp", title: "Rename the corp?", topic: "acmecorp" });
 
 describe("navigation", () => {
-  test("the inbox header opens history", async () => {
+  test("the History tab opens history under a large title", async () => {
     serveHistory([ship]);
     signInAs("sess_a");
     renderApp("/");
-    await screen.findByText("No pending decisions.");
+    await findInbox();
 
-    fireEvent.press(screen.getByText("History"));
+    pressTab("History");
 
     expect(await screen.findByText("Ship the release?")).toBeOnTheScreen();
+    expect(queryLargeTitle("History")).toBeOnTheScreen();
     expect(screen).toHavePathname("/history");
   });
 
@@ -191,17 +254,27 @@ describe("navigation", () => {
 
     fireEvent.press(screen.getByRole("button", { name: "Decision: Refund policy?" }));
 
-    expect(await screen.findByLabelText("Recorded outcome")).toBeOnTheScreen();
+    // The decision screen's title is a header; the history row is a button.
+    expect(await screen.findByRole("header", { name: "Refund policy?" })).toBeOnTheScreen();
     expect(screen).toHavePathname("/decision/d_billing");
   });
 });
 
 describe("rows", () => {
-  test("each row shows title, topic, state, settlement time, and the answer summary", async () => {
+  // An instant `daysAgo` local days before now, at the given local time.
+  function localAt(daysAgo: number, hours: number, minutes: number) {
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    date.setHours(hours, minutes, 0, 0);
+    return date.toISOString();
+  }
+
+  test("each row shows its outcome, title, topic and time, grouped by settlement day", async () => {
     const options = [
       { id: "a", label: "Alpha" },
       { id: "b", label: "Beta" },
     ];
+    const answeredAt = localAt(0, 8, 15);
     const answered = settled(
       {
         id: "d_1",
@@ -211,8 +284,9 @@ describe("rows", () => {
         options,
         answer: { kind: "option", option_id: "b" },
       },
-      "2026-10-10T08:15:00.000Z",
+      answeredAt,
     );
+    const defaultedAt = localAt(1, 7, 0);
     const defaulted = settled(
       {
         id: "d_2",
@@ -222,44 +296,77 @@ describe("rows", () => {
         applied_by_default: true,
         answered_via: null,
       },
-      "2026-10-09T07:00:00.000Z",
+      defaultedAt,
     );
+    const lapsedAt = localAt(1, 6, 0);
     const lapsed = settled(
       { id: "d_3", title: "Lapsed", state: "expired", answer: null, answered_at: null },
-      "2026-10-08T06:00:00.000Z",
+      lapsedAt,
     );
+    const cancelledAt = localAt(3, 5, 0);
     const cancelled = settled(
       { id: "d_4", title: "Withdrawn", state: "cancelled", answer: null, answered_at: null },
-      "2026-10-07T05:00:00.000Z",
+      cancelledAt,
     );
     serveHistory([answered, defaulted, lapsed, cancelled]);
 
     await openHistory();
 
     expect(rowTitles()).toEqual(["Pick one", "Defaulted", "Lapsed", "Withdrawn"]);
-    const first = within(screen.getByRole("button", { name: "Decision: Pick one" }));
-    expect(first.getByText("acme/billing")).toBeOnTheScreen();
-    expect(first.getByText("Answered")).toBeOnTheScreen();
+    expect(queryLargeTitle("History")).toBeOnTheScreen();
+    expect(screen.getAllByRole("header").map((header) => header.props.children as string)).toEqual([
+      "Today",
+      "Yesterday",
+      settledDay(cancelledAt, Date.now()),
+    ]);
+
+    const first = screen.getByRole("button", { name: "Decision: Pick one" });
     expect(
-      first.getByText(`Settled ${new Date("2026-10-10T08:15:00.000Z").toLocaleString()}`),
+      within(first).getByText(`acme/billing · ${formatSettledTime(answeredAt)}`),
     ).toBeOnTheScreen();
-    expect(first.getByText("Answer: Beta")).toBeOnTheScreen();
-    const second = within(screen.getByRole("button", { name: "Decision: Defaulted" }));
-    expect(second.getByText("Expired")).toBeOnTheScreen();
-    expect(second.getByText("Default applied: Reject")).toBeOnTheScreen();
+    expect(within(first).getByText("Beta")).toBeOnTheScreen();
+    expect(first.props.accessibilityValue.text).toBe(
+      `Answered. Answer: Beta acme/billing, settled ${formatSettledTime(answeredAt)}`,
+    );
+
+    const second = screen.getByRole("button", { name: "Decision: Defaulted" });
+    expect(within(second).getByText("Default: Reject")).toBeOnTheScreen();
+    expect(second.props.accessibilityValue.text).toMatch(/^Expired\. Default applied: Reject /);
+
     // Expired and cancelled rows show their own settlement instant, which the
     // Decision read shape does not carry.
-    const third = within(screen.getByRole("button", { name: "Decision: Lapsed" }));
-    expect(third.getByText("Expired without an answer")).toBeOnTheScreen();
-    expect(
-      third.getByText(`Settled ${new Date("2026-10-08T06:00:00.000Z").toLocaleString()}`),
-    ).toBeOnTheScreen();
-    const fourth = within(screen.getByRole("button", { name: "Decision: Withdrawn" }));
-    expect(fourth.getByText("Cancelled")).toBeOnTheScreen();
-    expect(fourth.getByText("No answer was recorded.")).toBeOnTheScreen();
-    expect(
-      fourth.getByText(`Settled ${new Date("2026-10-07T05:00:00.000Z").toLocaleString()}`),
-    ).toBeOnTheScreen();
+    const third = screen.getByRole("button", { name: "Decision: Lapsed" });
+    expect(within(third).getByText("Expired")).toBeOnTheScreen();
+    expect(within(third).getByText(`acme · ${formatSettledTime(lapsedAt)}`)).toBeOnTheScreen();
+    expect(third.props.accessibilityValue.text).toMatch(/^Expired\. Expired without an answer /);
+
+    const fourth = screen.getByRole("button", { name: "Decision: Withdrawn" });
+    expect(within(fourth).getByText("Cancelled")).toBeOnTheScreen();
+    expect(within(fourth).getByText(`acme · ${formatSettledTime(cancelledAt)}`)).toBeOnTheScreen();
+    expect(fourth.props.accessibilityValue.text).toMatch(/^Cancelled\. No answer was recorded\. /);
+  });
+
+  test("day headings read Today, Yesterday, the weekday, then the date", () => {
+    // Local noon on Tuesday 13 October 2026.
+    const now = new Date(2026, 9, 13, 12, 0).getTime();
+    const at = (month: number, day: number, year = 2026) =>
+      new Date(year, month, day, 23, 30).toISOString();
+
+    expect(settledDay(new Date(2026, 9, 13, 0, 5).toISOString(), now)).toBe("Today");
+    expect(settledDay(at(9, 12), now)).toBe("Yesterday");
+    expect(settledDay(at(9, 8), now)).toBe(
+      new Date(2026, 9, 8).toLocaleDateString(undefined, { weekday: "long" }),
+    );
+    expect(settledDay(at(9, 6), now)).toBe(
+      new Date(2026, 9, 6).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    );
+    expect(settledDay(at(11, 30, 2025), now)).toBe(
+      new Date(2025, 11, 30).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+    );
   });
 });
 
@@ -299,25 +406,66 @@ describe("search", () => {
     expect(sentFilters()).toEqual([{}, { query: "ship" }]);
   });
 
+  test("the clear button empties the search", async () => {
+    serveHistory([ship, billing]);
+    await openHistory();
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull();
+
+    fireEvent.changeText(screen.getByLabelText("Search history"), "refund");
+    act(() => jest.advanceTimersByTime(300));
+    expect(rowTitles()).toEqual(["Refund policy?"]);
+
+    fireEvent.press(screen.getByRole("button", { name: "Clear search" }));
+    act(() => jest.advanceTimersByTime(300));
+
+    expect(screen.getByLabelText("Search history")).toHaveDisplayValue("");
+    expect(rowTitles()).toEqual(["Ship the release?", "Refund policy?"]);
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull();
+  });
+
+  // Apple HIG Typography and Buttons: the fields grow with Dynamic Type, and
+  // the clear button is a 44pt target.
+  test("the fields have no fixed height and the clear button is a 44pt target", async () => {
+    serveHistory([ship]);
+    await openHistory();
+    const search = screen.getByLabelText("Search history");
+    // The rounded field around the text input.
+    let box = search.parent;
+    while (box !== null && StyleSheet.flatten(box.props.style)?.borderRadius === undefined) {
+      box = box.parent;
+    }
+    const field = StyleSheet.flatten(box?.props.style);
+    expect(field.height).toBeUndefined();
+    expect(field.minHeight).toBe(38);
+
+    fireEvent.changeText(search, "ship");
+    expect(screen.getByRole("button", { name: "Clear search" }).props.hitSlop).toBe(14);
+
+    fireEvent.press(screen.getByRole("button", { name: "Other topic" }));
+    const topic = StyleSheet.flatten(screen.getByLabelText("Topic").props.style);
+    expect(topic.height).toBeUndefined();
+    expect(topic.minHeight).toBe(44);
+  });
+
   test("the state filter sends the state at once and All states clears it", async () => {
     const expired = settled({ id: "d_e", title: "Lapsed", state: "expired", answer: null });
     const cancelled = settled({ id: "d_c", title: "Withdrawn", state: "cancelled", answer: null });
     serveHistory([ship, expired, cancelled]);
     await openHistory();
-    expect(screen.queryByRole("button", { name: "State: Pending" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "State: Pending" })).toBeNull();
 
-    fireEvent.press(screen.getByRole("button", { name: "State: Expired" }));
+    fireEvent.press(screen.getByRole("tab", { name: "State: Expired" }));
 
     expect(rowTitles()).toEqual(["Lapsed"]);
-    expect(screen.getByRole("button", { name: "State: Expired" })).toBeSelected();
+    expect(screen.getByRole("tab", { name: "State: Expired" })).toBeSelected();
 
-    fireEvent.press(screen.getByRole("button", { name: "State: Cancelled" }));
+    fireEvent.press(screen.getByRole("tab", { name: "State: Cancelled" }));
     expect(rowTitles()).toEqual(["Withdrawn"]);
 
-    fireEvent.press(screen.getByRole("button", { name: "State: Answered" }));
+    fireEvent.press(screen.getByRole("tab", { name: "State: Answered" }));
     expect(rowTitles()).toEqual(["Ship the release?"]);
 
-    fireEvent.press(screen.getByRole("button", { name: "All states" }));
+    fireEvent.press(screen.getByRole("tab", { name: "All states" }));
     expect(rowTitles()).toEqual(["Ship the release?", "Lapsed", "Withdrawn"]);
     expect(sentFilters()).toEqual([
       {},
@@ -332,43 +480,65 @@ describe("search", () => {
     await openHistory();
     expect(rowTitles()).toEqual(["Ship the release?", "Refund policy?", "Rename the corp?"]);
 
-    fireEvent.changeText(screen.getByLabelText("Topic"), "acme");
-    fireEvent.press(screen.getByRole("button", { name: "Apply topic" }));
+    applyOtherTopic("acme");
 
     expect(sentFilters()).toContainEqual({ topic: "acme" });
     expect(rowTitles()).toEqual(["Ship the release?", "Refund policy?"]);
     expect(screen.getByRole("button", { name: "Topic: acme" })).toBeSelected();
   });
 
-  test("an applied topic is normalized and offers its parent prefixes as chips", async () => {
+  test("the topics of loaded rows and their prefixes are chips that filter at once", async () => {
     serveHistory([ship, billing, corp]);
     await openHistory();
 
-    fireEvent.changeText(screen.getByLabelText("Topic"), " Acme/Billing ");
-    fireEvent.press(screen.getByRole("button", { name: "Apply topic" }));
-
-    expect(rowTitles()).toEqual(["Refund policy?"]);
-    expect(screen.getByRole("button", { name: "Topic: acme/billing" })).toBeSelected();
+    expect(screen.getByRole("button", { name: "All topics" })).toBeSelected();
+    for (const topic of ["acme", "acme/billing", "acmecorp"]) {
+      expect(screen.getByRole("button", { name: `Topic: ${topic}` })).toBeOnTheScreen();
+    }
 
     fireEvent.press(screen.getByRole("button", { name: "Topic: acme" }));
+
     expect(rowTitles()).toEqual(["Ship the release?", "Refund policy?"]);
+    expect(screen.getByRole("button", { name: "Topic: acme" })).toBeSelected();
+    // A narrowed list keeps the chips of topics it no longer shows.
+    expect(screen.getByRole("button", { name: "Topic: acmecorp" })).toBeOnTheScreen();
+    expect(sentFilters()).toEqual([{}, { topic: "acme" }]);
+  });
+
+  test("another topic is normalized, applied, and offers its parent prefixes as chips", async () => {
+    serveHistory([ship, billing, corp]);
+    await openHistory();
+    expect(screen.queryByLabelText("Topic")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Topic: acme/billing/eu" })).toBeNull();
+
+    applyOtherTopic(" Acme/Billing/EU ");
+
+    expect(screen.getByText("No matches.")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Topic: acme/billing/eu" })).toBeSelected();
+    // The field closes once the topic applies.
+    expect(screen.queryByLabelText("Topic")).toBeNull();
+
+    fireEvent.press(screen.getByRole("button", { name: "Topic: acme/billing" }));
+    expect(rowTitles()).toEqual(["Refund policy?"]);
 
     fireEvent.press(screen.getByRole("button", { name: "All topics" }));
     expect(rowTitles()).toEqual(["Ship the release?", "Refund policy?", "Rename the corp?"]);
     // The chips stay after an empty result or a cleared filter.
-    expect(screen.getByRole("button", { name: "Topic: acme/billing" })).toBeOnTheScreen();
-    expect(sentFilters()).toEqual([{}, { topic: "acme/billing" }, { topic: "acme" }]);
+    expect(screen.getByRole("button", { name: "Topic: acme/billing/eu" })).toBeOnTheScreen();
+    expect(sentFilters()).toEqual([{}, { topic: "acme/billing/eu" }, { topic: "acme/billing" }]);
   });
 
   test("an invalid topic shows the rule and sends no query", async () => {
     serveHistory([ship]);
     await openHistory();
+    fireEvent.press(screen.getByRole("button", { name: "Other topic" }));
     expect(screen.getByRole("button", { name: "Apply topic" })).toBeDisabled();
 
     fireEvent.changeText(screen.getByLabelText("Topic"), "acme corp");
     fireEvent.press(screen.getByRole("button", { name: "Apply topic" }));
 
     expect(screen.getByText(INVALID_TOPIC)).toBeOnTheScreen();
+    expect(announced()).toEqual([INVALID_TOPIC]);
     expect(sentFilters()).toEqual([{}]);
 
     fireEvent.changeText(screen.getByLabelText("Topic"), "acme");
@@ -456,7 +626,7 @@ describe("pagination", () => {
     act(() =>
       setQuery(search, (args: SearchArgs) => (answeredOnly(args) ? loading : script(args))),
     );
-    fireEvent.press(screen.getByRole("button", { name: "State: Answered" }));
+    fireEvent.press(screen.getByRole("tab", { name: "State: Answered" }));
 
     expect(screen.getByText("Loading history")).toBeOnTheScreen();
     expect(rowTitles()).toEqual([]);
@@ -509,7 +679,7 @@ describe("states", () => {
     expect(screen.queryByText("No matches.")).toBeNull();
 
     act(() => serveHistory([ship]));
-    fireEvent.press(screen.getByRole("button", { name: "State: Cancelled" }));
+    fireEvent.press(screen.getByRole("tab", { name: "State: Cancelled" }));
 
     expect(screen.getByText("No matches.")).toBeOnTheScreen();
     expect(screen.queryByText("No settled decisions.")).toBeNull();
@@ -520,7 +690,8 @@ describe("states", () => {
     setQuery(search, new Error("Network request failed"));
     await openHistory();
 
-    expect(screen.getByText("Could not load your history.")).toBeOnTheScreen();
+    expect(screen.getByText(LOAD_FAILURE)).toBeOnTheScreen();
+    expect(announced()).toEqual([LOAD_FAILURE]);
     expect(screen.queryByText("No settled decisions.")).toBeNull();
     // The inputs stay usable while the list fails.
     expect(screen.getByLabelText("Search history")).toBeOnTheScreen();
@@ -539,11 +710,11 @@ describe("states", () => {
       args.state === undefined ? new Error("Network request failed") : script(args),
     );
     await openHistory();
-    expect(screen.getByText("Could not load your history.")).toBeOnTheScreen();
+    expect(screen.getByText(LOAD_FAILURE)).toBeOnTheScreen();
 
-    fireEvent.press(screen.getByRole("button", { name: "State: Answered" }));
+    fireEvent.press(screen.getByRole("tab", { name: "State: Answered" }));
 
-    expect(screen.queryByText("Could not load your history.")).toBeNull();
+    expect(screen.queryByText(LOAD_FAILURE)).toBeNull();
     expect(rowTitles()).toEqual(["Ship the release?"]);
   });
 });
@@ -557,24 +728,28 @@ describe("delete", () => {
   // req-mobile-app AC-6.2
   test("deletes the selected decision only after confirmation, and the row leaves with the query", async () => {
     await openWith([ship, billing]);
-    expect(removeBinds).toBe(0);
 
-    fireEvent.press(screen.getByRole("button", { name: "Delete Refund policy?" }));
+    deleteRow("Refund policy?");
 
-    expect(
-      screen.getByText('Delete "Refund policy?" from every screen? This cannot be undone.'),
-    ).toBeOnTheScreen();
+    // Apple HIG Action sheets: the system sheet confirms the destructive choice.
+    expect(sheets()).toHaveLength(1);
+    expect(sheets()[0]?.[0]).toEqual({
+      title: 'Delete "Refund policy?"?',
+      message: "It leaves every screen. This cannot be undone.",
+      options: [DELETE_ACTION, "Cancel"],
+      destructiveButtonIndex: 0,
+      cancelButtonIndex: 1,
+    });
     expect(mockRemove).not.toHaveBeenCalled();
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Delete decision" }));
-    });
+    await chooseInSheet(DELETE_ACTION);
 
     expect(mockRemove).toHaveBeenCalledTimes(1);
     expect(mockRemove).toHaveBeenCalledWith({ decisionId: "d_billing" });
+    expect(haptic.success).toHaveBeenCalledTimes(1);
+    expect(haptic.error).not.toHaveBeenCalled();
     // The screen keeps the row until the reactive query drops it.
     expect(rowTitles()).toEqual(["Ship the release?", "Refund policy?"]);
-    expect(screen.queryByRole("button", { name: "Delete decision" })).toBeNull();
 
     act(() => serveHistory([ship]));
 
@@ -582,14 +757,53 @@ describe("delete", () => {
     expect(screen).toHavePathname("/history");
   });
 
+  test("a long press on a row offers Delete without the swipe", async () => {
+    await openWith([ship, billing]);
+    const row = screen.getByRole("button", { name: "Decision: Refund policy?" });
+    expect(row.props.accessibilityHint).toBe("Touch and hold to delete.");
+
+    fireEvent(row, "longPress");
+    await chooseInSheet(DELETE_ACTION);
+
+    expect(mockRemove).toHaveBeenCalledWith({ decisionId: "d_billing" });
+    expect(screen).toHavePathname("/history");
+  });
+
+  test("Android confirms in the system alert", async () => {
+    const os = Platform.OS;
+    Platform.OS = "android";
+    try {
+      const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+      await openWith([ship]);
+
+      deleteRow("Ship the release?");
+
+      expect(sheets()).toHaveLength(0);
+      const [title, message, buttons] = alert.mock.calls[0] ?? [];
+      expect(title).toBe('Delete "Ship the release?"?');
+      expect(message).toBe("It leaves every screen. This cannot be undone.");
+      expect(buttons?.map(({ text, style }: AlertButton) => ({ text, style }))).toEqual([
+        { text: "Cancel", style: "cancel" },
+        { text: DELETE_ACTION, style: "destructive" },
+      ]);
+      expect(mockRemove).not.toHaveBeenCalled();
+
+      await act(async () => buttons?.[1]?.onPress?.());
+
+      expect(mockRemove).toHaveBeenCalledWith({ decisionId: "d_ship" });
+    } finally {
+      Platform.OS = os;
+    }
+  });
+
   test("a cancelled confirmation deletes nothing", async () => {
     await openWith([ship]);
 
-    fireEvent.press(screen.getByRole("button", { name: "Delete Ship the release?" }));
-    fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+    deleteRow("Ship the release?");
+    await chooseInSheet("Cancel");
 
-    expect(screen.queryByRole("button", { name: "Delete decision" })).toBeNull();
     expect(mockRemove).not.toHaveBeenCalled();
+    expect(haptic.success).not.toHaveBeenCalled();
     expect(rowTitles()).toEqual(["Ship the release?"]);
   });
 
@@ -597,49 +811,57 @@ describe("delete", () => {
     const pending = deferred<null>();
     mockRemove.mockReturnValueOnce(pending.promise);
     await openWith([ship, billing]);
-    fireEvent.press(screen.getByRole("button", { name: "Delete Ship the release?" }));
+    deleteRow("Ship the release?");
+    const [, confirm] = sheets()[0] ?? [];
 
-    const confirm = screen.getByRole("button", { name: "Delete decision" });
-    fireEvent.press(confirm);
-    fireEvent.press(confirm);
+    await chooseInSheet(DELETE_ACTION);
+    // A second confirmation, such as a stale sheet's, sends nothing.
+    await act(async () => confirm?.(0));
 
     expect(mockRemove).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "Delete decision" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Delete Refund policy?" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "State: Answered" })).toBeDisabled();
+    // No row offers Delete, by swipe or long press, while the deletion runs.
+    expect(swipeRowOf("Refund policy?")).toBeNull();
+    const row = screen.getByRole("button", { name: "Decision: Refund policy?" });
+    expect(row.props.onLongPress).toBeUndefined();
+    expect(row.props.accessibilityHint).toBeUndefined();
+    expect(screen.getByRole("tab", { name: "State: Answered" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Topic: acme" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Other topic" })).toBeDisabled();
     expect(screen.getByLabelText("Search history").props.editable).toBe(false);
 
-    fireEvent.press(screen.getByRole("button", { name: "Delete Refund policy?" }));
-    expect(mockRemove).toHaveBeenCalledTimes(1);
+    fireEvent.press(screen.getByRole("tab", { name: "State: Answered" }));
+    expect(screen.getByRole("tab", { name: "All states" })).toBeSelected();
 
     await act(async () => {
       pending.resolve(null);
     });
 
-    expect(screen.getByRole("button", { name: "Delete Refund policy?" })).toBeEnabled();
+    expect(swipeRowOf("Refund policy?")).not.toBeNull();
+    expect(screen.getByRole("tab", { name: "State: Answered" })).toBeEnabled();
     expect(screen.getByLabelText("Search history").props.editable).toBe(true);
   });
 
-  test("a failed deletion keeps the row and the confirmation and allows a retry", async () => {
+  test("a failed deletion keeps the row, says so, and allows a retry", async () => {
     mockRemove.mockRejectedValueOnce(new Error("Network request failed"));
     await openWith([ship]);
-    fireEvent.press(screen.getByRole("button", { name: "Delete Ship the release?" }));
+    deleteRow("Ship the release?");
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Delete decision" }));
-    });
+    await chooseInSheet(DELETE_ACTION);
 
-    expect(screen.getByText('Could not delete "Ship the release?". Try again.')).toBeOnTheScreen();
+    const failure = 'Could not delete "Ship the release?". Try again.';
+    expect(screen.getByText(failure)).toBeOnTheScreen();
+    expect(announced()).toEqual([failure]);
+    expect(haptic.error).toHaveBeenCalledTimes(1);
+    expect(haptic.success).not.toHaveBeenCalled();
     expect(rowTitles()).toEqual(["Ship the release?"]);
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Delete decision" }));
-    });
+    deleteRow("Ship the release?");
+    await chooseInSheet(DELETE_ACTION);
 
     expect(mockRemove).toHaveBeenCalledTimes(2);
     expect(mockRemove).toHaveBeenLastCalledWith({ decisionId: "d_ship" });
     expect(screen.queryByText(/^Could not delete/)).toBeNull();
+    expect(haptic.success).toHaveBeenCalledTimes(1);
   });
 
   test("a conflict says the decision is pending and leaves the row to the query", async () => {
@@ -647,14 +869,13 @@ describe("delete", () => {
       new ConvexError({ code: "conflict", message: "Decision is pending" }),
     );
     await openWith([ship]);
-    fireEvent.press(screen.getByRole("button", { name: "Delete Ship the release?" }));
+    deleteRow("Ship the release?");
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Delete decision" }));
-    });
+    await chooseInSheet(DELETE_ACTION);
 
     expect(screen.getByText("This decision is pending and cannot be deleted.")).toBeOnTheScreen();
-    expect(screen.queryByRole("button", { name: "Delete decision" })).toBeNull();
+    expect(announced()).toEqual(["This decision is pending and cannot be deleted."]);
+    expect(haptic.error).toHaveBeenCalledTimes(1);
     expect(rowTitles()).toEqual(["Ship the release?"]);
   });
 
@@ -663,13 +884,12 @@ describe("delete", () => {
       new ConvexError({ code: "not_found", message: "Decision not found" }),
     );
     await openWith([ship, billing]);
-    fireEvent.press(screen.getByRole("button", { name: "Delete Ship the release?" }));
+    deleteRow("Ship the release?");
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Delete decision" }));
-    });
+    await chooseInSheet(DELETE_ACTION);
 
     expect(screen.getByText("This decision was removed elsewhere.")).toBeOnTheScreen();
+    expect(announced()).toEqual(["This decision was removed elsewhere."]);
     expect(rowTitles()).toEqual(["Ship the release?", "Refund policy?"]);
 
     act(() => serveHistory([billing]));
