@@ -6,6 +6,8 @@ import {
   DELETION_RESULT,
   deferred,
   deleteAccount,
+  deletionTokens,
+  fakeJwt,
   push,
   registerDevice,
   rotateDeviceToken,
@@ -13,6 +15,7 @@ import {
   signInAs,
   signOut,
   signOutAll,
+  tokenFor,
   unregisterDevice,
 } from "./fakes";
 import { renderApp } from "./render";
@@ -489,5 +492,75 @@ describe("account deletion", () => {
     act(() => signOutAll());
     expect(await screen.findByLabelText("Email address")).toBeOnTheScreen();
     expect(screen.queryByText(deletingNotice)).not.toBeOnTheScreen();
+  });
+
+  // Review round 1, finding 1: the destructive call is bound to the session
+  // that confirmed it.
+  test("a deletion queued behind a registration never runs once another session is active", async () => {
+    const registration = deferred<null>();
+    registerDevice.mockReturnValueOnce(registration.promise);
+    await openAccount();
+    await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
+
+    deleteConfirmed();
+    await act(async () => {});
+    expect(deleteAccount).not.toHaveBeenCalled();
+
+    // Session B becomes active before the device queue drains.
+    act(() => signInAs("sess_b"));
+    await act(async () => registration.resolve(null));
+    await act(async () => {});
+
+    expect(deleteAccount).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
+    expect(clerkState.get()).toMatchObject({ isSignedIn: true, sessionId: "sess_b" });
+    // Session B's own registration goes ahead on the same queue.
+    await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(deletingNotice)).not.toBeOnTheScreen();
+  });
+
+  test("the deletion call carries the confirming session's own token", async () => {
+    await openRegisteredAccount();
+
+    deleteConfirmed();
+
+    expect(await screen.findByText(deletingNotice)).toBeOnTheScreen();
+    expect(deletionTokens).toEqual([fakeJwt("sess_a")]);
+  });
+
+  test("a token issued for another session is refused before any deletion", async () => {
+    tokenFor.mockResolvedValueOnce(fakeJwt("sess_b"));
+    await openRegisteredAccount();
+
+    deleteConfirmed();
+
+    expect(await screen.findByText(deleteFailed)).toBeOnTheScreen();
+    expect(deleteAccount).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  // Review round 1, finding 3: the sign-out retry survives the account gate
+  // taking the routes down.
+  test("a failed sign-out after the account gate unmounted the screen still offers Try Again", async () => {
+    const deleting = deferred<typeof DELETION_RESULT>();
+    deleteAccount.mockReturnValueOnce(deleting.promise);
+    signOut.mockRejectedValueOnce(new Error("offline"));
+    await openRegisteredAccount();
+    deleteConfirmed();
+    await act(async () => {});
+
+    act(() => convexAuthState.set({ isLoading: true, isAuthenticated: true }));
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeOnTheScreen();
+    await act(async () => deleting.resolve(DELETION_RESULT));
+
+    expect(await screen.findByText(signOutFailedAfterDelete)).toBeOnTheScreen();
+    expect(screen.getByText(/removed by/)).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole("button", { name: "Try Again" }));
+
+    expect(await screen.findByText(deletingNotice)).toBeOnTheScreen();
+    expect(deleteAccount).toHaveBeenCalledTimes(1);
+    expect(signOut).toHaveBeenCalledTimes(2);
+    expect(signOut).toHaveBeenLastCalledWith({ sessionId: "sess_a" });
+    expect(unregisterDevice).not.toHaveBeenCalled();
   });
 });

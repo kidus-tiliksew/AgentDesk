@@ -29,7 +29,8 @@ import { AppText } from "../../../../src/ui/text";
 // Delete Account sits below Sign out (req-accounts-and-connections REQ-5).
 // It asks in the same system action sheet, which says what goes and when,
 // then runs the deletion in src/account-deletion.tsx for this exact Clerk
-// session. A failed step shows its message with a Try Again row.
+// session. A failed deletion call shows its message with a Try Again row; once
+// the deletion has committed, the deletion's own screen takes over.
 
 const UNREGISTER_FAILED =
   "Could not stop notifications on this device. Check your connection and try again.";
@@ -160,7 +161,11 @@ export default function AccountScreen() {
     });
 
   const deleting = deletion.status.kind === "running";
-  const message = deletion.status.kind === "failed" ? deletion.status.message : error;
+  // A failure after the deletion committed shows on the deletion's own
+  // screen above every route (src/account-deletion.tsx), not here.
+  const deleteFailed = deletion.status.kind === "failed" && !deletion.committed;
+  const message =
+    deleteFailed && deletion.status.kind === "failed" ? deletion.status.message : error;
 
   return (
     <>
@@ -192,7 +197,7 @@ export default function AccountScreen() {
             onPress={confirmDelete}
             disabled={busy || deleting || deletion.status.kind === "failed"}
           />
-          {deletion.status.kind === "failed" ? (
+          {deleteFailed ? (
             <GroupedRow title="Try Again" tone="accent" onPress={deletion.start} />
           ) : null}
         </GroupedSection>

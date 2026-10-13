@@ -10,7 +10,10 @@ jest.mock("@clerk/expo", () => {
     useAuth: () => ({
       ...useSyncExternalStore(fakes.clerkState.subscribe, fakes.clerkState.get),
       signOut: fakes.signOut,
-      getToken: async () => "token",
+      // Clerk's token for the active session; its `sid` claim names the
+      // session, as Clerk's session tokens do.
+      getToken: async () => fakes.tokenFor(fakes.clerkState.get().sessionId),
+      sessionClaims: { aud: "convex" },
     }),
     useSignIn: () => ({ signIn: fakes.signIn, errors: {}, fetchStatus: "idle" }),
     useSignUp: () => ({ signUp: fakes.signUp, errors: {}, fetchStatus: "idle" }),
@@ -19,6 +22,30 @@ jest.mock("@clerk/expo", () => {
 });
 
 jest.mock("@clerk/expo/token-cache", () => ({ tokenCache: {} }));
+
+// A ConvexHttpClient serves the account deletion fake and records the token
+// it was authenticated with, so a test can check which session the
+// destructive call carried. Any other function fails the test.
+jest.mock("convex/browser", () => {
+  const { getFunctionName } = require("convex/server");
+  const fakes = require("./fakes");
+  return {
+    ConvexHttpClient: class {
+      private token: string | null = null;
+      setAuth(token: string) {
+        this.token = token;
+      }
+      mutation(reference: unknown, args: unknown) {
+        const name = getFunctionName(reference);
+        if (name === "identity/accountDeletion:deleteAccount") {
+          fakes.deletionTokens.push(this.token);
+          return fakes.deleteAccount(args);
+        }
+        throw new Error(`Unexpected HTTP client mutation ${name}`);
+      }
+    },
+  };
+});
 
 // useMutation hands out the ensureAccount, answer, device, and account
 // deletion fakes and refuses any other function, so a test fails if a screen
