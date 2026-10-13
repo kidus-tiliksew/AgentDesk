@@ -2,9 +2,11 @@ import { topicMatches } from "@agentdesk/contract";
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import { internalMutation, type QueryCtx } from "../_generated/server";
+import { getOwned } from "../lib/owned";
 import { type EventKind, NOTIFIABLE_KINDS } from "./events";
 import { pushMessage } from "./messages";
 import { deliverPush } from "./push";
+import { notifications } from "./refs";
 import { ensureSettings } from "./settings";
 import { inQuietWindow } from "./time";
 
@@ -23,6 +25,10 @@ const DEFAULT_ACTIONS: Partial<Record<EventKind, Action>> = {
   "agent.done": "digest",
   "agent.status_changed": "mute",
 };
+
+// §Interactive hold: how long after a decision's creation its push waits, so
+// an answer given in chat first suppresses it (req-notification-rules REQ-8).
+export const INTERACTIVE_HOLD_MS = 120_000;
 
 // Only decision events carry a priority.
 const PRIORITY_KINDS: readonly EventKind[] = ["decision.created", "decision.expired"];
@@ -112,6 +118,20 @@ export function quietHoursAction(
   return "digest";
 }
 
+// True when the event creates a decision, read within the event owner's
+// account, whose `interactive` flag is set. An unset flag reads as false
+// (AC-8.2).
+async function isInteractiveCreation(
+  ctx: Pick<QueryCtx, "db">,
+  event: Doc<"events">,
+): Promise<boolean> {
+  if (event.kind !== "decision.created" || event.decisionId === undefined) {
+    return false;
+  }
+  const decision = await getOwned(ctx, "decisions", event.decisionId, event.userId);
+  return decision?.interactive === true;
+}
+
 // Stores the action and delivers the event in one transaction. An event that
 // already has an action was routed before, so a repeated run sends nothing
 // more; a push that throws rolls back the stored action, leaving the event
@@ -119,7 +139,7 @@ export function quietHoursAction(
 export const run = internalMutation({
   args: { eventId: v.id("events") },
   returns: v.null(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<null> => {
     const event = await ctx.db.get("events", args.eventId);
     if (event === null || event.action !== undefined) {
       return null;
@@ -151,15 +171,66 @@ export const run = internalMutation({
     await ctx.db.patch("events", event._id, { action: routed });
     // Step 4. A digest event keeps no `digestId` until the digest dispatch
     // stamps it (§Digests). Mute sends nothing; the decision or agent still
-    // shows in every inbox, which reads the domain tables (AC-1.2).
+    // shows in every inbox, which reads the domain tables (AC-1.2). The push
+    // of an interactive decision waits until the hold ends, measured from its
+    // creation however late this run is (§Interactive hold); the repeat guard
+    // above keeps one held run per event.
     if (routed === "push") {
-      const message = await pushMessage(ctx, event);
-      if (message !== null) {
-        await deliverPush(ctx, event._id, message);
+      if (await isInteractiveCreation(ctx, event)) {
+        await ctx.scheduler.runAt(
+          event.occurredAt + INTERACTIVE_HOLD_MS,
+          notifications.route.deliverHeld,
+          { eventId: event._id },
+        );
+      } else {
+        const message = await pushMessage(ctx, event);
+        if (message !== null) {
+          await deliverPush(ctx, event._id, message);
+        }
       }
     }
     // Phase 5 (§Webhooks) enqueues this event's webhook deliveries here,
     // carrying the action.
+    return null;
+  },
+});
+
+// §Interactive hold: the push `run` held, sent at the end of the hold only
+// while the decision is still pending (req-notification-rules AC-8.1). Rules
+// and quiet hours applied once in `run`, so the stored action governs even
+// when the quiet window has begun since. A suppressed push leaves the action
+// `push` and writes no delivery rows, so it never reaches a digest.
+// `deliverPush` keeps a repeated run from sending again (REQ-7), and a send
+// that throws rolls back this run's delivery rows.
+export const deliverHeld = internalMutation({
+  args: { eventId: v.id("events") },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const event = await ctx.db.get("events", args.eventId);
+    if (
+      event === null ||
+      event.action !== "push" ||
+      event.kind !== "decision.created" ||
+      event.decisionId === undefined
+    ) {
+      return null;
+    }
+    // The account purge deletes the event; this check stops a run that comes
+    // first (§Account deletion).
+    const owner = await ctx.db.get("users", event.userId);
+    if (owner === null || owner.deletingAt !== undefined) {
+      return null;
+    }
+    // Answered in the app, a notification, or chat, cancelled, expired, or
+    // removed within the hold.
+    const decision = await getOwned(ctx, "decisions", event.decisionId, event.userId);
+    if (decision === null || decision.state !== "pending") {
+      return null;
+    }
+    const message = await pushMessage(ctx, event);
+    if (message !== null) {
+      await deliverPush(ctx, event._id, message);
+    }
     return null;
   },
 });

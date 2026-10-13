@@ -49,6 +49,8 @@ function pendingDecision(
     state: "pending",
     answer: null,
     answered_at: null,
+    answered_via: null,
+    chat_message: null,
     applied_by_default: false,
     agent_session_id: "a_1",
     agent_name: "Claude on laptop",
