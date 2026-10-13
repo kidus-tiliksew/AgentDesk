@@ -15,6 +15,17 @@ import { styles } from "./styles";
 
 type Outcome = "ready" | "refused" | "failed";
 
+// How long a new Clerk session waits for Convex to accept its token before the
+// gate shows the rejection screen. It is a UI wait budget, not a measured
+// backend latency.
+export const AUTH_WAIT_MS = 10_000;
+
+// Where a Clerk session stands with Convex. `waiting`: Convex has not
+// accepted the session's token and the wait has not run out. `accepted`:
+// Convex has reported the session authenticated at least once. `timedOut`:
+// the wait ran out first.
+type AuthPhase = "waiting" | "accepted" | "timedOut";
+
 function isUnauthenticated(error: unknown) {
   return (
     error instanceof ConvexError &&
@@ -33,6 +44,14 @@ function isUnauthenticated(error: unknown) {
 // even while the new session waits for Convex, so a completion for any other
 // key is dropped: a late result can neither unlock nor sign out another
 // session.
+//
+// Convex reports {isLoading: false, isAuthenticated: false} both when the
+// backend refuses a token and when Clerk has just signed in and the backend
+// has not answered yet, so that pair does not settle a new session. A new
+// session shows the setup screen until Convex accepts it or AUTH_WAIT_MS
+// passes, and only then can it reach the rejection screen. The wait is kept
+// per sessionId, apart from the sessionId#attempt account key, and a render,
+// a loading change, or a retry does not restart it.
 export function AccountGate({ children }: { children: ReactNode }) {
   const { sessionId, signOut } = useAuth();
   const { isLoading, isAuthenticated } = useConvexAuth();
@@ -41,8 +60,60 @@ export function AccountGate({ children }: { children: ReactNode }) {
   const [result, setResult] = useState<{ key: string; outcome: Outcome } | null>(null);
   const requested = useRef<string | null>(null);
   const active = useRef<string | null>(null);
+  const [authWait, setAuthWait] = useState<{ sessionId: string; phase: AuthPhase } | null>(null);
+  const activeSession = useRef<string | null>(null);
 
   const key = sessionId ? `${sessionId}#${attempt}` : null;
+  const authenticated = !isLoading && isAuthenticated;
+  // A session the stored wait does not name is a new one: it starts waiting
+  // in its first render, so an earlier session's timeout cannot show here.
+  let phase: AuthPhase | null = null;
+  if (sessionId) {
+    if (authenticated) {
+      phase = "accepted";
+    } else if (authWait !== null && authWait.sessionId === sessionId) {
+      phase = authWait.phase;
+    } else {
+      phase = "waiting";
+    }
+  }
+  const waiting = phase === "waiting";
+
+  useLayoutEffect(() => {
+    activeSession.current = sessionId ?? null;
+  }, [sessionId]);
+
+  // Convex has accepted this session, so a later loss of authentication is
+  // shown as before: loading while it reconnects, rejection once it settles.
+  useEffect(() => {
+    if (sessionId && authenticated) {
+      setAuthWait((current) =>
+        current?.sessionId === sessionId && current.phase === "accepted"
+          ? current
+          : { sessionId, phase: "accepted" },
+      );
+    }
+  }, [sessionId, authenticated]);
+
+  // One deadline per waiting session. Acceptance, a session change, sign-out,
+  // and unmount clear it; a completion for a session the gate no longer shows
+  // is dropped.
+  useEffect(() => {
+    if (!sessionId || !waiting) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (activeSession.current !== sessionId) {
+        return;
+      }
+      setAuthWait((current) =>
+        current?.sessionId === sessionId && current.phase === "accepted"
+          ? current
+          : { sessionId, phase: "timedOut" },
+      );
+    }, AUTH_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [sessionId, waiting]);
 
   // A layout effect runs at commit, before any pending completion can run.
   useLayoutEffect(() => {
@@ -88,7 +159,10 @@ export function AccountGate({ children }: { children: ReactNode }) {
       </HeaderlessScreen>
     );
   }
-  if (isLoading) {
+  if (waiting) {
+    return <Loading label="Setting up your account" headerless />;
+  }
+  if (isLoading && phase !== "timedOut") {
     return (
       <Loading
         label={outcome === "ready" ? "Reconnecting" : "Setting up your account"}
