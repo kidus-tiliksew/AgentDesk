@@ -20,9 +20,9 @@ jest.mock("@clerk/expo", () => {
 
 jest.mock("@clerk/expo/token-cache", () => ({ tokenCache: {} }));
 
-// useMutation hands out the ensureAccount, answer, and device fakes and
-// refuses any other function, so a test fails if a screen calls Convex for
-// anything else.
+// useMutation hands out the ensureAccount, answer, device, and account
+// deletion fakes and refuses any other function, so a test fails if a screen
+// calls Convex for anything else.
 // useQuery reads the scripted query results and re-renders when a test
 // changes them; "skip" runs no query, as in Convex.
 // useConvex returns one client whose `mutation` hands out the first-launch
@@ -58,6 +58,9 @@ jest.mock("convex/react", () => {
       }
       if (name === "notifications/devices:unregisterDevice") {
         return fakes.unregisterDevice;
+      }
+      if (name === "identity/accountDeletion:deleteAccount") {
+        return fakes.deleteAccount;
       }
       throw new Error(`Unexpected mutation ${name}`);
     },

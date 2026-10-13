@@ -111,6 +111,15 @@ export type RegisterArgs = {
 export const registerDevice = jest.fn<Promise<null>, [RegisterArgs]>();
 export const unregisterDevice = jest.fn<Promise<null>, [{ deviceId: string }]>();
 
+// identity/accountDeletion:deleteAccount. By default it resolves with a
+// deletion that started at DELETION_STARTED and finishes 24 hours later.
+export const DELETION_STARTED = Date.UTC(2026, 9, 13, 12, 0, 0);
+export const DELETION_RESULT = {
+  deletingAt: DELETION_STARTED,
+  completeBy: DELETION_STARTED + 24 * 60 * 60_000,
+};
+export const deleteAccount = jest.fn<Promise<typeof DELETION_RESULT>, [Record<string, never>]>();
+
 // notifications/settings:initializeTimeZone through the Convex client. By
 // default it resolves with the settings the backend returns after recording a
 // device zone.
@@ -406,6 +415,7 @@ export function resetFakes() {
   ensureAccount.mockReset().mockResolvedValue(account);
   registerDevice.mockReset().mockResolvedValue(null);
   unregisterDevice.mockReset().mockResolvedValue(null);
+  deleteAccount.mockReset().mockResolvedValue(DELETION_RESULT);
   initializeTimeZone
     .mockReset()
     .mockImplementation(async ({ timeZone }) => deviceZoneSettings(timeZone));

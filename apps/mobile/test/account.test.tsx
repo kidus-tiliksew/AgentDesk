@@ -2,13 +2,17 @@ import { act, fireEvent, screen, waitFor } from "expo-router/testing-library";
 import { AccessibilityInfo, ActionSheetIOS, type ActionSheetIOSOptions } from "react-native";
 import {
   clerkState,
+  convexAuthState,
+  DELETION_RESULT,
   deferred,
+  deleteAccount,
   push,
   registerDevice,
   rotateDeviceToken,
   secureStore,
   signInAs,
   signOut,
+  signOutAll,
   unregisterDevice,
 } from "./fakes";
 import { renderApp } from "./render";
@@ -75,8 +79,7 @@ describe("account screen", () => {
     expect(screen.getByText("Kidus's iPhone")).toBeOnTheScreen();
     expect(await screen.findByText("Push on")).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "Sign out" })).toBeEnabled();
-    // Account deletion is not built, so the screen offers no such action.
-    expect(screen.queryByText(/Delete account/)).not.toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Delete Account" })).toBeEnabled();
   });
 
   test("VoiceOver reads the device row as one element with its push status and reason", async () => {
@@ -288,5 +291,203 @@ describe("account sign-out", () => {
 
     await act(async () => unregistering.resolve(null));
     expect(await screen.findByLabelText("Email address")).toBeOnTheScreen();
+  });
+});
+
+const deleteFailed = "Could not delete your account. Check your connection and try again.";
+const signOutFailedAfterDelete =
+  "Your account is being deleted, but this device could not sign out. Try again.";
+const deletingNotice = /^Your account is being deleted\. Its data will be removed by .+\.$/;
+
+// Presses Delete Account and confirms it in the action sheet.
+function deleteConfirmed() {
+  fireEvent.press(screen.getByRole("button", { name: "Delete Account" }));
+  choose("Delete Account");
+}
+
+describe("account deletion", () => {
+  test("Delete Account sits below Sign out and asks in an action sheet that says what goes and when", async () => {
+    await openRegisteredAccount();
+
+    const rows = screen.getAllByRole("button").map((row) => row.props.accessibilityLabel);
+    expect(rows.indexOf("Delete Account")).toBeGreaterThan(rows.indexOf("Sign out"));
+    fireEvent.press(screen.getByRole("button", { name: "Delete Account" }));
+
+    expect(sheets).toHaveLength(1);
+    expect(sheets[0]?.options).toEqual({
+      title: "Delete your AgentDesk account?",
+      message:
+        "This permanently deletes your account. Every connected machine and device is disconnected now, and your decisions, agents, rules, and notification settings are removed within 24 hours. This cannot be undone.",
+      options: ["Delete Account", "Cancel"],
+      destructiveButtonIndex: 0,
+      cancelButtonIndex: 1,
+    });
+    expect(deleteAccount).not.toHaveBeenCalled();
+  });
+
+  test("a cancelled confirmation deletes nothing and keeps the session", async () => {
+    await openRegisteredAccount();
+
+    fireEvent.press(screen.getByRole("button", { name: "Delete Account" }));
+    choose("Cancel");
+    await act(async () => {});
+
+    expect(deleteAccount).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
+    expect(screen).toHavePathname("/settings/account");
+    expect(screen.getByRole("button", { name: "Delete Account" })).toBeEnabled();
+  });
+
+  test("deletes the account, ends the exact session, and sign-in says the account is being deleted", async () => {
+    await openRegisteredAccount();
+
+    deleteConfirmed();
+
+    expect(await screen.findByText(deletingNotice)).toBeOnTheScreen();
+    expect(screen.getByLabelText("Email address")).toBeOnTheScreen();
+    expect(screen.getByText(deletingNotice).props.children).toContain(
+      new Date(DELETION_RESULT.completeBy).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    );
+    expect(deleteAccount).toHaveBeenCalledTimes(1);
+    expect(deleteAccount).toHaveBeenCalledWith({});
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(signOut).toHaveBeenCalledWith({ sessionId: "sess_a" });
+    expect(deleteAccount.mock.invocationCallOrder[0]).toBeLessThan(
+      signOut.mock.invocationCallOrder[0] ?? 0,
+    );
+    // The backend removed this install with the account, so no separate
+    // unregistration is sent; the install id stays stored.
+    expect(unregisterDevice).not.toHaveBeenCalled();
+    expect(secureStore.values.get("agentdesk.installId")).toBe(installId);
+  });
+
+  test("the notice goes away when another session signs in", async () => {
+    await openRegisteredAccount();
+    deleteConfirmed();
+    expect(await screen.findByText(deletingNotice)).toBeOnTheScreen();
+
+    act(() => signInAs("sess_b"));
+    await act(async () => {});
+    act(() => signOutAll());
+
+    expect(await screen.findByLabelText("Email address")).toBeOnTheScreen();
+    expect(screen.queryByText(deletingNotice)).not.toBeOnTheScreen();
+  });
+
+  test("shows progress and refuses a second press while the deletion runs", async () => {
+    const deleting = deferred<typeof DELETION_RESULT>();
+    deleteAccount.mockReturnValueOnce(deleting.promise);
+    await openRegisteredAccount();
+
+    deleteConfirmed();
+    await act(async () => {});
+
+    expect(screen.getByRole("button", { name: "Deleting Account..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeDisabled();
+    fireEvent.press(screen.getByRole("button", { name: "Deleting Account..." }));
+    expect(sheets).toHaveLength(1);
+
+    await act(async () => deleting.resolve(DELETION_RESULT));
+    expect(await screen.findByText(deletingNotice)).toBeOnTheScreen();
+    expect(deleteAccount).toHaveBeenCalledTimes(1);
+  });
+
+  test("waits for a registration in flight, and a late token registers nothing", async () => {
+    const registration = deferred<null>();
+    registerDevice.mockReturnValueOnce(registration.promise);
+    await openAccount();
+    await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
+
+    deleteConfirmed();
+    await act(async () => {});
+    expect(deleteAccount).not.toHaveBeenCalled();
+
+    // A token change while the deletion waits registers nothing more.
+    push.expoToken = "ExponentPushToken[bbbb]";
+    act(() => rotateDeviceToken("apns-rotated"));
+    await act(async () => registration.resolve(null));
+
+    expect(await screen.findByText(deletingNotice)).toBeOnTheScreen();
+    expect(registerDevice).toHaveBeenCalledTimes(1);
+    expect(registerDevice.mock.invocationCallOrder[0]).toBeLessThan(
+      deleteAccount.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  test("a failed deletion keeps the session signed in and Try Again deletes it", async () => {
+    deleteAccount.mockRejectedValueOnce(new Error("Network request failed"));
+    await openRegisteredAccount();
+
+    deleteConfirmed();
+
+    expect(await screen.findByText(deleteFailed)).toBeOnTheScreen();
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(deleteFailed);
+    expect(signOut).not.toHaveBeenCalled();
+    expect(clerkState.get()).toMatchObject({ isSignedIn: true, sessionId: "sess_a" });
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeEnabled();
+
+    fireEvent.press(screen.getByRole("button", { name: "Try Again" }));
+
+    expect(await screen.findByText(deletingNotice)).toBeOnTheScreen();
+    expect(deleteAccount).toHaveBeenCalledTimes(2);
+    expect(signOut).toHaveBeenCalledWith({ sessionId: "sess_a" });
+  });
+
+  test("a failed sign-out after the deletion retries only the sign-out", async () => {
+    signOut.mockRejectedValueOnce(new Error("offline"));
+    await openRegisteredAccount();
+
+    deleteConfirmed();
+
+    expect(await screen.findByText(signOutFailedAfterDelete)).toBeOnTheScreen();
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(
+      signOutFailedAfterDelete,
+    );
+    expect(deleteAccount).toHaveBeenCalledTimes(1);
+
+    fireEvent.press(screen.getByRole("button", { name: "Try Again" }));
+
+    expect(await screen.findByText(deletingNotice)).toBeOnTheScreen();
+    expect(deleteAccount).toHaveBeenCalledTimes(1);
+    expect(signOut).toHaveBeenCalledTimes(2);
+  });
+
+  test("finishes the sign-out after the account screen unmounts", async () => {
+    const deleting = deferred<typeof DELETION_RESULT>();
+    deleteAccount.mockReturnValueOnce(deleting.promise);
+    await openRegisteredAccount();
+    deleteConfirmed();
+    await act(async () => {});
+
+    // The account gate takes the routes down while Convex reconnects.
+    act(() => convexAuthState.set({ isLoading: true, isAuthenticated: true }));
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeOnTheScreen();
+    await act(async () => deleting.resolve(DELETION_RESULT));
+
+    expect(await screen.findByText(deletingNotice)).toBeOnTheScreen();
+    expect(signOut).toHaveBeenCalledWith({ sessionId: "sess_a" });
+  });
+
+  test("a deletion that completes after another session signed in never signs that session out", async () => {
+    const deleting = deferred<typeof DELETION_RESULT>();
+    deleteAccount.mockReturnValueOnce(deleting.promise);
+    await openRegisteredAccount();
+    deleteConfirmed();
+    await act(async () => {});
+
+    act(() => signInAs("sess_b"));
+    await act(async () => deleting.resolve(DELETION_RESULT));
+    await act(async () => {});
+
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(signOut).toHaveBeenCalledWith({ sessionId: "sess_a" });
+    expect(clerkState.get()).toMatchObject({ isSignedIn: true, sessionId: "sess_b" });
+
+    act(() => signOutAll());
+    expect(await screen.findByLabelText("Email address")).toBeOnTheScreen();
+    expect(screen.queryByText(deletingNotice)).not.toBeOnTheScreen();
   });
 });

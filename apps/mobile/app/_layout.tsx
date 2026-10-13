@@ -1,5 +1,6 @@
 import { DarkTheme, DefaultTheme, Slot, ThemeProvider } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { AccountDeletionProvider } from "../src/account-deletion";
 import { readConfig } from "../src/config";
 import { ConfigError } from "../src/config-error";
 import { NotificationProvider } from "../src/notifications";
@@ -11,6 +12,9 @@ import { type Theme, useTheme } from "../src/theme";
 // the route guards, so a later route added under either group needs no edit
 // here. NotificationProvider sits above both groups, so a notification tap
 // that launched the app is held through sign-in and account setup.
+// AccountDeletionProvider sits inside it for the same reason: an account
+// deletion finishes its sign-out and hands its notice to sign-in after the
+// (app) routes unmount.
 // React Navigation's stack headers and screen backgrounds take the app's
 // colors for the current scheme: `primary` tints back buttons and header
 // items, `card` fills a pushed screen's header, and `text` colors titles. A
@@ -42,8 +46,10 @@ export default function RootLayout() {
     <ThemeProvider value={navigationTheme(theme)}>
       <Providers config={result.config}>
         <NotificationProvider>
-          <StatusBar style="auto" />
-          <Slot />
+          <AccountDeletionProvider>
+            <StatusBar style="auto" />
+            <Slot />
+          </AccountDeletionProvider>
         </NotificationProvider>
       </Providers>
     </ThemeProvider>

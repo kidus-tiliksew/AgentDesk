@@ -3,6 +3,7 @@ import * as Device from "expo-device";
 import { Stack } from "expo-router";
 import { useState } from "react";
 import { AccessibilityInfo, View } from "react-native";
+import { useAccountDeletion } from "../../../../src/account-deletion";
 import { confirmDestructive } from "../../../../src/confirm";
 import {
   type RegistrationStatus,
@@ -24,6 +25,11 @@ import { AppText } from "../../../../src/ui/text";
 // §Notifications, req-mobile-app AC-4.2). When the unregistration fails, the
 // session stays signed in and the row offers another attempt, so the device
 // never keeps receiving pushes after a sign-out that looked complete.
+//
+// Delete Account sits below Sign out (req-accounts-and-connections REQ-5).
+// It asks in the same system action sheet, which says what goes and when,
+// then runs the deletion in src/account-deletion.tsx for this exact Clerk
+// session. A failed step shows its message with a Try Again row.
 
 const UNREGISTER_FAILED =
   "Could not stop notifications on this device. Check your connection and try again.";
@@ -31,6 +37,8 @@ const SIGN_OUT_FAILED = "Could not sign out. Try again.";
 const DENIED =
   "Notifications are off for this device. Allow them in system settings to get pushes.";
 const NOT_ASKED = "You chose not to get notifications on this device.";
+const DELETE_MESSAGE =
+  "This permanently deletes your account. Every connected machine and device is disconnected now, and your decisions, agents, rules, and notification settings are removed within 24 hours. This cannot be undone.";
 
 const SETUP_FAILURES: Record<SetupFailure, string> = {
   unsupported: "Notifications need a physical iPhone or Android phone.",
@@ -103,6 +111,7 @@ export default function AccountScreen() {
   const { sessionId, signOut } = useAuth();
   const signOutDevice = useSignOutDevice();
   const { status, retry } = useRegistrationStatus();
+  const deletion = useAccountDeletion(sessionId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -139,6 +148,20 @@ export default function AccountScreen() {
       onConfirm: () => void onSignOut(),
     });
 
+  const confirmDelete = () =>
+    confirmDestructive({
+      title: "Delete your AgentDesk account?",
+      message: DELETE_MESSAGE,
+      action: "Delete Account",
+      onConfirm: () => {
+        setError(null);
+        deletion.start();
+      },
+    });
+
+  const deleting = deletion.status.kind === "running";
+  const message = deletion.status.kind === "failed" ? deletion.status.message : error;
+
   return (
     <>
       <Stack.Screen options={{ title: "Account" }} />
@@ -159,12 +182,23 @@ export default function AccountScreen() {
             title="Sign out"
             tone="destructive"
             onPress={confirmSignOut}
-            disabled={busy}
+            disabled={busy || deleting}
           />
         </GroupedSection>
-        {error === null ? null : (
+        <GroupedSection>
+          <GroupedRow
+            title={deleting ? "Deleting Account..." : "Delete Account"}
+            tone="destructive"
+            onPress={confirmDelete}
+            disabled={busy || deleting || deletion.status.kind === "failed"}
+          />
+          {deletion.status.kind === "failed" ? (
+            <GroupedRow title="Try Again" tone="accent" onPress={deletion.start} />
+          ) : null}
+        </GroupedSection>
+        {message === null ? null : (
           <AppText variant="footnote" tone="red" style={styles.error}>
-            {error}
+            {message}
           </AppText>
         )}
       </StackScreen>
