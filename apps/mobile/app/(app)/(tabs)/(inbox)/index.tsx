@@ -2,6 +2,7 @@ import { topicMatches } from "@agentdesk/contract";
 import { useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 import { AccessibilityInfo, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { agents } from "../../../../../../convex/agents/refs";
 import { decisions } from "../../../../../../convex/decisions/refs";
 import { AgentList } from "../../../../src/agent-card";
@@ -154,14 +155,18 @@ function InboxFailure({ retry }: { retry: () => void }) {
   );
 }
 
+// The SafeAreaProvider measures the screen's own view, so its insets cover the
+// large title header and the tab bar; the empty inbox centers between them.
 export default function InboxScreen() {
   return (
     <QuickAnswerScope>
-      <LargeTitleScreen title="Inbox">
-        <QueryErrorBoundary fallback={(_error, retry) => <InboxFailure retry={retry} />}>
-          <Inbox />
-        </QueryErrorBoundary>
-      </LargeTitleScreen>
+      <SafeAreaProvider>
+        <LargeTitleScreen title="Inbox">
+          <QueryErrorBoundary fallback={(_error, retry) => <InboxFailure retry={retry} />}>
+            <Inbox />
+          </QueryErrorBoundary>
+        </LargeTitleScreen>
+      </SafeAreaProvider>
     </QuickAnswerScope>
   );
 }

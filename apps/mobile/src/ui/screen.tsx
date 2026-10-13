@@ -3,6 +3,9 @@ import type { ReactNode } from "react";
 import { ScrollView } from "react-native";
 import { makeStyles } from "../theme";
 
+// The space below a scrolling page's last item.
+export const SCREEN_BOTTOM_PADDING = 32;
+
 const useStyles = makeStyles((theme) => ({
   screen: { backgroundColor: theme.background, flex: 1 },
 }));
@@ -33,7 +36,7 @@ export function LargeTitleScreen({
       <ScrollView
         style={styles.screen}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: SCREEN_BOTTOM_PADDING }}
         keyboardShouldPersistTaps="handled"
       >
         {children}
