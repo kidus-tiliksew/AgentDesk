@@ -232,6 +232,7 @@ describe("ask", () => {
         input_type: "approve_reject",
         topic: "repo/main",
         priority: "normal",
+        interactive: false,
         idempotency_key: "ship-1",
         userId: USER,
         agentSessionId: AGENT_SESSION,
@@ -259,7 +260,12 @@ describe("ask", () => {
 
     const { calls } = await call("ask", args, convex);
 
-    expect(calls[2]?.body).toEqual({ ...args, userId: USER, agentSessionId: AGENT_SESSION });
+    expect(calls[2]?.body).toEqual({
+      ...args,
+      interactive: false,
+      userId: USER,
+      agentSessionId: AGENT_SESSION,
+    });
   });
 });
 

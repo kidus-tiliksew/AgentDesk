@@ -30,7 +30,7 @@ export const CHECK_LIMIT = 50;
 // req-decision-requests AC-2.5.
 const NOTE_MAX = 2000;
 // The surfaces a person answers through. `default` is recorded only by expiry.
-const ANSWER_SURFACES: readonly AnsweredVia[] = ["app", "notification", "api"];
+const ANSWER_SURFACES: readonly Exclude<AnsweredVia, "chat">[] = ["app", "notification", "api"];
 
 // Converts a client-supplied id string to a table id, or throws `invalid`
 // naming the field, so a malformed id is a 400 rather than a generic error.
@@ -77,6 +77,7 @@ export function toDecision(doc: Doc<"decisions">, followUpIds: Id<"decisions">[]
     options: doc.options ?? null,
     recommendation: doc.recommendation ?? null,
     priority: doc.priority,
+    interactive: false,
     deadline: instant(doc.deadline),
     default: doc.default ?? null,
     state: doc.state,
@@ -84,6 +85,8 @@ export function toDecision(doc: Doc<"decisions">, followUpIds: Id<"decisions">[]
     note: doc.note ?? null,
     answered_at: instant(doc.answeredAt),
     answered_via: doc.answeredVia ?? null,
+    chat_message: null,
+    relayed_by_agent_session_id: null,
     applied_by_default: doc.appliedByDefault ?? false,
     parent_id: doc.parentId ?? null,
     follow_up_ids: followUpIds,
