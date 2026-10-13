@@ -368,6 +368,8 @@ describe("answer", () => {
     ],
     ["a long note", approve, { kind: "approve" }, "x".repeat(2001), "app", "note"],
     ["the default surface", approve, { kind: "approve" }, undefined, "default", "answeredVia"],
+    // component-decisions §Relayed answers: only relayAnswer records chat.
+    ["the chat surface", approve, { kind: "approve" }, undefined, "chat", "answeredVia"],
   ])("rejects %s and stays pending", async (_name, input, payload, note, via, field) => {
     const { ask, answer, load } = await setup();
     const decision = await ask(input);

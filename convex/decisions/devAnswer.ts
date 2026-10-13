@@ -14,7 +14,8 @@ import { answerDecision, loadOwned, parseId } from "./model";
 // It takes the owner from the decision and runs the same `answer` mechanism
 // as the production surfaces: the Phase 2 app mutation and the Phase 5
 // `/svc/decisions/answer` route (component-decisions §Service routes). No MCP
-// tool reaches it (req-agent-tools AC-7.3).
+// tool reaches it (req-agent-tools AC-7.3), and it cannot record `chat`, which
+// only a relay through `/svc/decisions/resolve` records.
 export const answer = internalMutation({
   args: {
     decisionId: v.string(),
