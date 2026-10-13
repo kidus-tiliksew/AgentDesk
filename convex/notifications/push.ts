@@ -63,12 +63,24 @@ function devicesOf(ctx: MutationCtx, userId: Id<"users">): Promise<Doc<"devices"
 // that throws, such as the component's `NoPushToken` for an install without a
 // token, rolls back the caller's transaction. A null result, which the
 // component returns for a paused token, counts as sent.
+//
+// The component returns the queued notification's id, or null for a paused
+// token. Each id is recorded against the account in `pushSends`, so account
+// deletion can tell the account's own notifications from another account's
+// on the same token (§Account deletion).
 async function queueToDevice(
   ctx: MutationCtx,
+  userId: Id<"users">,
   deviceId: string,
   notification: NotificationFields,
 ): Promise<void> {
-  await pushNotifications.sendPushNotification(ctx, { userId: deviceId, notification });
+  const notificationId = await pushNotifications.sendPushNotification(ctx, {
+    userId: deviceId,
+    notification,
+  });
+  if (notificationId !== null) {
+    await ctx.db.insert("pushSends", { userId, notificationId });
+  }
 }
 
 // Pushes one event to each of its owner's devices that has no delivery row
@@ -104,7 +116,7 @@ export async function deliverPush(
       continue;
     }
     await ctx.db.insert("pushDeliveries", { eventId, deviceId: device.deviceId });
-    await queueToDevice(ctx, device.deviceId, notification);
+    await queueToDevice(ctx, event.userId, device.deviceId, notification);
   }
 }
 
@@ -122,6 +134,6 @@ export async function deliverDigestPush(
 ): Promise<void> {
   const notification = notificationFor(message, { kind: "digest", digestId: digest._id });
   for (const device of await devicesOf(ctx, digest.userId)) {
-    await queueToDevice(ctx, device.deviceId, notification);
+    await queueToDevice(ctx, digest.userId, device.deviceId, notification);
   }
 }

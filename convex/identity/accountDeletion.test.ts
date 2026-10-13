@@ -507,7 +507,7 @@ describe("purge", () => {
     // The first batch deletes the decisions and agent sessions, then fails
     // in the notifications phase: every deletion of the batch rolls back.
     const failing = vi
-      .spyOn(pushNotifications, "getNotificationsForUser")
+      .spyOn(pushNotifications, "removeToken")
       .mockRejectedValue(new Error("component unavailable"));
     const before = await totalRows(t);
     await expect(

@@ -34,6 +34,9 @@ export const STALL_MS = 10 * 60_000;
 // The most deletions one `resumePurges` run restarts; a full page schedules
 // another run for the rest.
 export const RESUME_PAGE = 50;
+// A batch that deleted nothing because a domain is waiting, such as the push
+// cancellation, schedules the next batch this much later instead of at once.
+export const PURGE_WAIT_MS = 30_000;
 // The first Clerk attempt waits this long, so the app's sign-out of the
 // deleting session finishes before Clerk deletes the user.
 export const CLERK_FIRST_DELAY_MS = 60_000;
@@ -218,7 +221,8 @@ function overdue(record: Doc<"accountDeletions">, now: number): { overdueAt?: nu
 }
 
 // One purge batch: at most PURGE_BATCH rows across the current phase and the
-// ones after it, then the next batch is scheduled. The progress and the
+// ones after it, then the next batch is scheduled, PURGE_WAIT_MS later when
+// this batch deleted nothing because a domain is waiting. The progress and the
 // deletions commit together, and a batch that throws rolls both back, so the
 // phase never moves past rows that are still stored. A batch whose
 // `generation` is no longer the record's does nothing, so a duplicate or a
@@ -273,7 +277,8 @@ export const purgeBatch = internalMutation({
       updatedAt: now,
       ...overdue(record, now),
     });
-    await ctx.scheduler.runAfter(0, identity.accountDeletion.purgeBatch, {
+    const waiting = budget === PURGE_BATCH;
+    await ctx.scheduler.runAfter(waiting ? PURGE_WAIT_MS : 0, identity.accountDeletion.purgeBatch, {
       deletionId,
       generation: generation + 1,
     });

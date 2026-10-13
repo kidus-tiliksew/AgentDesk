@@ -1,153 +1,202 @@
 import { v } from "convex/values";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import type { PurgeStep } from "../identity/accountDeletion";
 import { pushNotifications } from "./push";
 import { notifications } from "./refs";
 
 // component-notifications §Account deletion: this domain's part of account
-// deletion (req-accounts-and-connections AC-5.1). `cancelDevicePushes` runs in
-// the deletion transaction for each removed install; `purgeNotifications` is
-// this domain's part of the purge that `identity/accountDeletion:purgeBatch`
-// drives.
+// deletion (req-accounts-and-connections AC-5.1). `cancelAccountPushes` runs
+// in the deletion transaction; `drainTokenPushes` finishes what it cannot;
+// `purgeNotifications` is this domain's part of the purge that
+// `identity/accountDeletion:purgeBatch` drives.
+//
+// How push component 0.3.1 stores and deletes notifications:
+//
+// - A `pushTokens` row maps a key (AgentDesk uses the install id) to the
+//   install's current Expo push token. Recording a token for a key replaces
+//   the token that key held.
+// - Each queued notification copies the token string; it keeps no key and
+//   no account. The component's coordinator sends it to that token without
+//   looking at any key.
+// - `getNotificationsForUser` and `deleteNotificationsForUser` look a key up
+//   and read notifications by the token it holds now, so they never see
+//   notifications under a token the key held earlier.
+// - `deleteNotificationsForUser` deletes the token's oldest 1,000
+//   notifications in any state. When it fills that page it schedules itself
+//   again with the same key, and that continuation looks the key up again
+//   when it runs, without any check.
+// - Its sender records each send's outcome on the notification's row and
+//   fails the whole batch, other accounts' notifications included, when a
+//   row is missing.
+// - There is no way to delete a single notification by id.
+//
+// Expo issues one token per app install, whichever account is signed in, so
+// one token can carry notifications of several accounts after an install
+// moves between them. AgentDesk therefore keeps every token an account
+// registered (`deviceTokens`) and the id of every notification it queued for
+// the account (`pushSends`).
 
-// The most notifications the component's `deleteNotificationsForUser`
-// deletes in one call. It deletes the install's oldest rows first, and when
-// it fills a page it schedules its own continuation for the next page, which
-// runs later without any check.
+// The most notifications `deleteNotificationsForUser` deletes in one call.
 export const COMPONENT_PAGE = 1000;
-// The most notifications a drain reads to see an install's whole history.
+// The most notifications a drain reads to see a token's whole history.
 export const HISTORY_READ_LIMIT = 4000;
 // A drain looks again every DRAIN_RETRY_MS for its first DRAIN_FAST_LOOKS
 // looks, then every DRAIN_SLOW_RETRY_MS. The component's sender records a
-// send's outcome when Expo answers, or after 10 seconds when it cannot tell,
-// and retries a failed send at most five times.
+// send's outcome when Expo answers, or after 10 seconds when it cannot tell.
 export const DRAIN_RETRY_MS = 50;
 export const DRAIN_FAST_LOOKS = 400;
 export const DRAIN_SLOW_RETRY_MS = 30_000;
+// A token whose drain was scheduled longer ago than this, and which is still
+// stored, gets a new drain from the purge.
+export const DRAIN_STALL_MS = 10 * 60_000;
+// The prefix of the private keys a cancellation reads and deletes through.
+// Install ids are UUIDs, so no install ever uses one.
+export const CANCEL_KEY_PREFIX = "agentdesk-cancel:";
 
-// States the component never changes again. A queued (`awaiting_delivery`)
-// or retrying (`needs_retry`) notification can still be handed to the
-// sender, and an `in_progress` one is in the sender's hands.
-const SETTLED_STATES = new Set(["delivered", "failed", "maybe_delivered", "unable_to_deliver"]);
-
-type Notification = Awaited<ReturnType<typeof pushNotifications.getNotificationsForUser>>[number];
-
-// What one look at an install's notifications did.
 type Look =
-  // Every notification and the token are gone.
+  // The token holds none of the account's notifications any more.
   | "done"
-  // Something must settle, or a deletion is still running; look again.
+  // A notification on the next page is in the sender's hands, or more pages
+  // remain; look again.
   | "wait"
-  // The history is longer than one look can check; nothing was deleted.
-  | "too_long";
+  // The next page holds a notification that is not the account's, or the
+  // history is longer than a look can read. Nothing more can be deleted
+  // without touching another account's rows.
+  | "stop";
 
-// One look at an install's notifications, reading at most `limit` of them,
-// newest first. The component's sender records each send's outcome on its
-// row and fails the whole batch, other accounts' notifications included,
-// when a row is missing, so no look ever deletes a row that is
-// `in_progress`, and no look starts a deletion whose rows it has not read:
+// One look at the notifications under one of the account's tokens, reading
+// at most `limit` of them. It reads and deletes through a private key that
+// holds the token only inside this transaction:
 //
-// - Fewer than COMPONENT_PAGE rows, none in flight: one call deletes every
-//   row, queued and retrying ones included, and schedules no continuation.
-//   The token goes in the same transaction.
-// - COMPONENT_PAGE rows or more, all settled: the component's own
-//   continuations delete the rest of the history later without a check. That
-//   is safe only because every row is settled and nothing can add a row: the
-//   install's `devices` row is gone, so AgentDesk queues nothing for it.
-// - Anything else waits. In a long history, queued and retrying rows are
-//   sent or settle before the history is deleted.
-async function look(ctx: MutationCtx, deviceId: string, limit: number): Promise<Look> {
-  const rows: Notification[] = await pushNotifications.getNotificationsForUser(ctx, {
-    userId: deviceId,
-    limit,
-  });
-  if (rows.length === 0) {
-    await pushNotifications.removeToken(ctx, { userId: deviceId });
-    return "done";
+// 1. The private key gets the token, so the component's reads and deletion
+//    target exactly that token.
+// 2. The page `deleteNotificationsForUser` would delete is the token's
+//    oldest COMPONENT_PAGE notifications. It is deleted only when every
+//    notification on it is one the account queued (`pushSends`) and none is
+//    `in_progress`.
+// 3. The private key loses its token before the transaction ends, so the
+//    component's own continuation finds no token and deletes nothing. No
+//    deletion ever runs unchecked, and none can follow the install to
+//    another account.
+async function look(
+  ctx: MutationCtx,
+  generation: Doc<"deviceTokens">,
+  limit: number,
+): Promise<Look> {
+  const key = `${CANCEL_KEY_PREFIX}${generation._id}`;
+  await pushNotifications.recordToken(ctx, { userId: key, pushToken: generation.token });
+  try {
+    const rows = await pushNotifications.getNotificationsForUser(ctx, { userId: key, limit });
+    if (rows.length === 0) {
+      return "done";
+    }
+    if (rows.length >= limit) {
+      return limit > COMPONENT_PAGE ? "stop" : "wait";
+    }
+    // Newest first, so the oldest page is the end of the list.
+    const page = rows.slice(-COMPONENT_PAGE);
+    if (page.some((row) => row.state === "in_progress")) {
+      return "wait";
+    }
+    for (const row of page) {
+      const sent = await ctx.db
+        .query("pushSends")
+        .withIndex("by_notification", (q) => q.eq("notificationId", row.id))
+        .first();
+      if (sent === null || sent.userId !== generation.userId) {
+        return "stop";
+      }
+    }
+    await pushNotifications.deleteNotificationsForUser(ctx, { userId: key });
+    return rows.length > COMPONENT_PAGE ? "wait" : "done";
+  } finally {
+    await pushNotifications.removeToken(ctx, { userId: key });
   }
-  if (rows.length >= limit) {
-    return limit > COMPONENT_PAGE ? "too_long" : "wait";
-  }
-  if (rows.some((row) => row.state === "in_progress")) {
-    return "wait";
-  }
-  if (rows.length < COMPONENT_PAGE) {
-    await pushNotifications.deleteNotificationsForUser(ctx, { userId: deviceId });
-    await pushNotifications.removeToken(ctx, { userId: deviceId });
-    return "done";
-  }
-  if (rows.every((row) => SETTLED_STATES.has(row.state))) {
-    await pushNotifications.deleteNotificationsForUser(ctx, { userId: deviceId });
-  }
-  return "wait";
 }
 
-// Cancels every send the push component holds for an install and removes the
-// install's token. It runs in the deletion transaction, after the caller
-// deleted the install's `devices` row. The component copies the token into
-// each queued notification, so removing the token alone would still send
-// what is queued (§Push). When the install holds fewer than COMPONENT_PAGE
-// notifications and none is in flight, every queued and retrying send is
-// deleted in this transaction. Otherwise the token stays and
-// `drainDevicePushes` finishes the work in later transactions.
-export async function cancelDevicePushes(ctx: MutationCtx, deviceId: string): Promise<void> {
-  if ((await look(ctx, deviceId, COMPONENT_PAGE)) === "done") {
-    return;
+// Ends a token's cancellation. Its row goes either way; a stopped
+// cancellation is logged with the reason and leaves the token's remaining
+// notifications in the component.
+async function finish(ctx: MutationCtx, generation: Doc<"deviceTokens">, result: Look) {
+  if (result === "stop") {
+    console.error(
+      `Push cancellation for token record ${generation._id} stopped: its next page holds` +
+        " notifications of another account, or its history is too long to read",
+    );
   }
-  await ctx.scheduler.runAfter(0, notifications.accountPurge.drainDevicePushes, {
-    deviceId,
+  await ctx.db.delete("deviceTokens", generation._id);
+}
+
+async function scheduleDrain(ctx: MutationCtx, generation: Doc<"deviceTokens">, now: number) {
+  await ctx.db.patch("deviceTokens", generation._id, { drainScheduledAt: now });
+  await ctx.scheduler.runAfter(0, notifications.accountPurge.drainTokenPushes, {
+    generationId: generation._id,
     attempt: 1,
   });
 }
 
-// Finishes `cancelDevicePushes` for an install that had a send in flight or
-// a long notification history. It reads the whole history, up to
-// HISTORY_READ_LIMIT notifications, on every look and never deletes a row in
-// flight; it waits instead, without a limit on the number of looks. It
-// stops when another account has registered the install since, because the
-// component's token then belongs to that account. A history longer than
-// HISTORY_READ_LIMIT cannot be checked, so the drain logs it and stops,
-// leaving the history and the token in the component.
-export const drainDevicePushes = internalMutation({
-  args: { deviceId: v.string(), attempt: v.number() },
+// Cancels the pushes the component still holds for the account, under every
+// token it ever registered. It runs in the deletion transaction, after the
+// account's `devices` rows and install tokens are gone, so nothing queues a
+// new push for the account. A token with fewer than COMPONENT_PAGE
+// notifications, all the account's own and none in flight, is finished in
+// this transaction, its queued and retrying sends included. Every other
+// token gets a drain.
+export async function cancelAccountPushes(ctx: MutationCtx, userId: Id<"users">): Promise<void> {
+  const now = Date.now();
+  const generations = await ctx.db
+    .query("deviceTokens")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .collect();
+  for (const generation of generations) {
+    const result = await look(ctx, generation, COMPONENT_PAGE);
+    if (result === "wait") {
+      await scheduleDrain(ctx, generation, now);
+    } else {
+      await finish(ctx, generation, result);
+    }
+  }
+}
+
+// Finishes the cancellation for one token, page by page, each page checked
+// in its own transaction. It waits while a notification on the next page is
+// in flight, without a limit on the number of looks.
+export const drainTokenPushes = internalMutation({
+  args: { generationId: v.id("deviceTokens"), attempt: v.number() },
   returns: v.null(),
-  handler: async (ctx, { deviceId, attempt }) => {
-    const owner = await ctx.db
-      .query("devices")
-      .withIndex("by_device", (q) => q.eq("deviceId", deviceId))
-      .first();
-    if (owner !== null) {
+  handler: async (ctx, { generationId, attempt }) => {
+    const generation = await ctx.db.get("deviceTokens", generationId);
+    if (generation === null) {
       return null;
     }
-    const result = await look(ctx, deviceId, HISTORY_READ_LIMIT + 1);
-    if (result === "done") {
-      return null;
-    }
-    if (result === "too_long") {
-      console.error(
-        `Push drain stopped: an install holds more than ${HISTORY_READ_LIMIT} notifications`,
-      );
+    const result = await look(ctx, generation, HISTORY_READ_LIMIT + 1);
+    if (result !== "wait") {
+      await finish(ctx, generation, result);
       return null;
     }
     if (attempt === DRAIN_FAST_LOOKS) {
-      console.error(`Push drain for an install is still waiting after ${attempt} looks`);
+      console.error(`Push cancellation for token record ${generationId} is still waiting`);
     }
+    await ctx.db.patch("deviceTokens", generationId, { drainScheduledAt: Date.now() });
     await ctx.scheduler.runAfter(
       attempt < DRAIN_FAST_LOOKS ? DRAIN_RETRY_MS : DRAIN_SLOW_RETRY_MS,
-      notifications.accountPurge.drainDevicePushes,
-      { deviceId, attempt: attempt + 1 },
+      notifications.accountPurge.drainTokenPushes,
+      { generationId, attempt: attempt + 1 },
     );
     return null;
   },
 });
 
 // Deletes at most `budget` of the account's notification rows and reports
-// whether none remain: devices, with their component notifications and
-// token; events, each after its push delivery rows; digests; rules; and the
-// settings row. Events are found by owner, so events of decisions or
-// sessions already deleted are included, and delivery rows are found through
-// their event, so deliveries to installs unregistered earlier are included.
+// whether none remain: devices with their install tokens; events, each after
+// its push delivery rows; digests; rules; the settings row; and, once every
+// token's cancellation has finished, the account's `pushSends` records. While
+// a token's cancellation runs, the step reports not done, and a stalled
+// cancellation gets a new drain. Events are found by owner, so events of
+// decisions or sessions already deleted are included, and delivery rows are
+// found through their event, so deliveries to installs unregistered earlier
+// are included.
 export async function purgeNotifications(
   ctx: MutationCtx,
   userId: Id<"users">,
@@ -161,7 +210,7 @@ export async function purgeNotifications(
     .take(budget);
   for (const device of devices) {
     await ctx.db.delete("devices", device._id);
-    await cancelDevicePushes(ctx, device.deviceId);
+    await pushNotifications.removeToken(ctx, { userId: device.deviceId });
   }
   deleted += devices.length;
 
@@ -201,6 +250,36 @@ export async function purgeNotifications(
     }
     deleted += rows.length;
   }
+
+  // The send records are the cancellation's proof of ownership, so they go
+  // only after every token's cancellation has finished.
+  const now = Date.now();
+  const generations = await ctx.db
+    .query("deviceTokens")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .take(budget);
+  if (generations.length > 0) {
+    for (const generation of generations) {
+      if (
+        generation.drainScheduledAt === undefined ||
+        generation.drainScheduledAt < now - DRAIN_STALL_MS
+      ) {
+        await scheduleDrain(ctx, generation, now);
+      }
+    }
+    return { deleted, done: false };
+  }
+  if (deleted >= budget) {
+    return { deleted, done: false };
+  }
+  const sends = await ctx.db
+    .query("pushSends")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .take(budget - deleted);
+  for (const row of sends) {
+    await ctx.db.delete("pushSends", row._id);
+  }
+  deleted += sends.length;
 
   return { deleted, done: deleted < budget };
 }
