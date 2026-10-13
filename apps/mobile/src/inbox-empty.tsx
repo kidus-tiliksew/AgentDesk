@@ -23,7 +23,7 @@ function FirstMachine() {
     <EmptyState
       icon="terminal-outline"
       title="Connect your first machine"
-      body="Run the AgentDesk installer on your laptop or devbox. It shows a code you approve here."
+      body="Run the AgentDesk installer on the computer where your agents run. It shows a code you approve here."
     >
       <Button label="Enter installer code" onPress={() => router.push("/settings/add-machine")} />
     </EmptyState>
