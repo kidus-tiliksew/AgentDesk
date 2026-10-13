@@ -271,20 +271,23 @@ describe("inbox sections", () => {
     expect(screen.getByText("No live agents.")).toBeOnTheScreen();
   });
 
-  test("shows loading until each query returns, not an empty state", async () => {
+  test("shows one spinner until both queries return, not a section's empty note", async () => {
     setQuery(listPending, loading);
     setQuery(liveAgents, loading);
 
     await openInbox();
 
-    expect(screen.getByText("Loading decisions")).toBeOnTheScreen();
-    expect(screen.getByText("Loading agents")).toBeOnTheScreen();
-    expect(screen.queryByText("No pending decisions.")).not.toBeOnTheScreen();
+    expect(screen.getByLabelText("Loading inbox")).toBeOnTheScreen();
+    expect(screen.queryByRole("header", { name: "Needs you" })).not.toBeOnTheScreen();
     expect(screen.queryByText("All caught up")).not.toBeOnTheScreen();
 
     act(() => setQuery(listPending, []));
+    expect(screen.getByLabelText("Loading inbox")).toBeOnTheScreen();
+    expect(screen.queryByText("No pending decisions.")).not.toBeOnTheScreen();
+
+    act(() => setQuery(liveAgents, [agent({ id: "a_1", display_name: "Builder" })]));
+    expect(screen.queryByLabelText("Loading inbox")).not.toBeOnTheScreen();
     expect(screen.getByText("No pending decisions.")).toBeOnTheScreen();
-    expect(screen.getByText("Loading agents")).toBeOnTheScreen();
   });
 
   test("a failed query shows a failure with a retry, not an empty inbox", async () => {
@@ -329,6 +332,19 @@ describe("empty inbox", () => {
 
     expect(await screen.findByLabelText("Installer code")).toBeOnTheScreen();
     expect(screen).toHavePathname("/settings/add-machine");
+  });
+
+  test("keeps the spinner while it reads the connections, not a blank screen", async () => {
+    setQuery(listConnections, loading);
+    await openInbox();
+
+    expect(screen.getByLabelText("Loading inbox")).toBeOnTheScreen();
+    expect(screen.queryByText("All caught up")).not.toBeOnTheScreen();
+
+    act(() => setQuery(listConnections, [laptop]));
+
+    expect(screen.queryByLabelText("Loading inbox")).not.toBeOnTheScreen();
+    expect(screen.getByText("All caught up")).toBeOnTheScreen();
   });
 
   test("connecting a machine switches the guide to all caught up", async () => {
