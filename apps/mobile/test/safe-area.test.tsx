@@ -53,7 +53,7 @@ describe("safe areas on screens without a header", () => {
   test("sign-in clears the status bar and the home indicator", async () => {
     renderApp("/sign-in");
 
-    const title = await screen.findByRole("header", { name: "Sign in to AgentDesk" });
+    const title = await screen.findByRole("header", { name: "AgentDesk" });
 
     expect(screenOf(title)).toMatchObject(inset);
   });

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { type StyleProp, View, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SCREEN_PADDING } from "./styles";
+import { useTheme } from "./theme";
 
 // A screen drawn without a navigation header: sign-in, the configuration
 // screen, the guards' loading states, and the account gate's states. It adds
@@ -17,9 +18,11 @@ export function HeaderlessScreen({
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   return (
     <View
       style={[
+        { backgroundColor: theme.background },
         style,
         {
           paddingTop: SCREEN_PADDING + insets.top,

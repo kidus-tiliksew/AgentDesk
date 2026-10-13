@@ -19,12 +19,20 @@ import { ensureInstallId, readInstallId } from "./install-id";
 import { ANDROID_CHANNEL_ID, notificationActionsSettled } from "./notification-actions";
 import { notificationRoute } from "./notification-route";
 import { deviceTimeZone } from "./notification-settings";
+import {
+  PushIntro,
+  type PushIntroChoice,
+  readPushIntroChoice,
+  rememberPushIntroChoice,
+} from "./push-intro";
 
 // component-mobile-app §Notifications: device registration, tap routing,
 // foreground presentation, the device half of sign-out (DEC-7,
 // req-mobile-app REQ-4, AC-4.2), and the first-launch time zone call. Push
 // delivery and per-device deduplication belong to component-notifications;
-// the app only registers, routes, and reports the device's zone.
+// the app only registers, routes, and reports the device's zone. A
+// permission never asked is explained before the system prompt
+// (src/push-intro.tsx).
 
 export type RegisterDevice = (args: {
   deviceId: string;
@@ -36,12 +44,17 @@ export type UnregisterDevice = (args: { deviceId: string }) => Promise<null>;
 
 export type SetupFailure = "unsupported" | "project" | "storage" | "token" | "register";
 
+// `not-asked`: the person chose Not now on the push explanation, so the
+// system prompt never showed. A retry asks directly.
 export type RegistrationStatus =
   | { kind: "off" }
   | { kind: "setting-up" }
   | { kind: "registered" }
   | { kind: "denied" }
+  | { kind: "not-asked" }
   | { kind: "failed"; reason: SetupFailure };
+
+type Rerun = { force: boolean; ask: boolean };
 
 // The Android channel every push lands in, defined with the notification
 // actions so their outcome notifications use it too.
@@ -99,10 +112,20 @@ export class DeviceRegistration {
   // One permission request per session, shared by every run, so a remount
   // does not prompt twice.
   private permissionRequest: Promise<Notifications.NotificationPermissionsStatus> | null = null;
+  // The push explanation's answer, also one per session and shared by every
+  // run, so a remount shows it once.
+  private explanation: {
+    choice: Promise<PushIntroChoice>;
+    resolve: (choice: PushIntroChoice) => void;
+  } | null = null;
+  private intro = false;
   private setup: Promise<void> | null = null;
-  private rerun: { force: boolean } | null = null;
+  private rerun: Rerun | null = null;
 
   getStatus = () => this.status;
+
+  // Whether the push explanation is on screen.
+  getIntro = () => this.intro;
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -111,10 +134,21 @@ export class DeviceRegistration {
     };
   };
 
-  private setStatus(status: RegistrationStatus) {
-    this.status = status;
+  private emit() {
     for (const listener of this.listeners) {
       listener();
+    }
+  }
+
+  private setStatus(status: RegistrationStatus) {
+    this.status = status;
+    this.emit();
+  }
+
+  private setIntro(intro: boolean) {
+    if (this.intro !== intro) {
+      this.intro = intro;
+      this.emit();
     }
   }
 
@@ -126,6 +160,11 @@ export class DeviceRegistration {
       this.signingOut = false;
       this.registered = null;
       this.permissionRequest = null;
+      // An explanation still open for the earlier session closes without
+      // remembering a choice.
+      this.explanation?.resolve("not-now");
+      this.explanation = null;
+      this.setIntro(false);
     }
     this.register = register;
     const run = ++this.run;
@@ -136,16 +175,16 @@ export class DeviceRegistration {
     // sends the new device token to Expo, and registerDevice stores the Expo
     // token. The raw APNs or FCM token is never sent to the backend.
     const tokenSubscription = Notifications.addPushTokenListener(() => {
-      this.refresh(run, { force: true });
+      this.refresh(run, { force: true, ask: false });
     });
     // A return to the foreground picks up a permission granted in system
     // settings and retries a failed setup.
     const appStateSubscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
-        this.refresh(run, { force: false });
+        this.refresh(run, { force: false, ask: false });
       }
     });
-    this.refresh(run, { force: false });
+    this.refresh(run, { force: false, ask: false });
 
     return () => {
       tokenSubscription.remove();
@@ -159,25 +198,62 @@ export class DeviceRegistration {
     };
   }
 
-  // Runs setup again for the current run, for example from a retry button.
+  // Runs setup again for the current run, from a button the person pressed
+  // to turn push on. That press is the explicit request, so a permission
+  // never asked goes straight to the system prompt, past the explanation.
   retry() {
-    this.refresh(this.run, { force: false });
+    this.refresh(this.run, { force: false, ask: true });
+  }
+
+  // The explanation's Continue goes on to the system prompt; its Not now
+  // asks nothing. Later launches remember either answer.
+  answerIntro(choice: PushIntroChoice) {
+    this.setIntro(false);
+    this.explanation?.resolve(choice);
+    void rememberPushIntroChoice(choice);
+  }
+
+  // Resolves with the person's answer to the explanation, showing it unless
+  // this install already answered it.
+  private explain(): Promise<PushIntroChoice> {
+    if (this.explanation === null) {
+      let resolve: (choice: PushIntroChoice) => void = () => undefined;
+      const choice = new Promise<PushIntroChoice>((settle) => {
+        resolve = settle;
+      });
+      const explanation = { choice, resolve };
+      this.explanation = explanation;
+      void readPushIntroChoice().then((stored) => {
+        if (this.explanation !== explanation) {
+          return;
+        }
+        if (stored === null) {
+          this.setIntro(true);
+        } else {
+          resolve(stored);
+        }
+      });
+    }
+    return this.explanation.choice;
   }
 
   private live(run: number) {
     return this.run === run && !this.signingOut;
   }
 
-  private refresh(run: number, options: { force: boolean }) {
+  private refresh(run: number, options: Rerun) {
     if (!this.live(run)) {
       return;
     }
     if (this.setup !== null) {
       // One setup at a time; a request during it runs once more after it.
-      this.rerun = { force: (this.rerun?.force ?? false) || options.force };
+      this.rerun = {
+        force: (this.rerun?.force ?? false) || options.force,
+        ask: (this.rerun?.ask ?? false) || options.ask,
+      };
       return;
     }
-    const setup = this.runSetup(run, options.force).finally(() => {
+    const setup = this.runSetup(run, options).finally(() => {
       if (this.setup !== setup) {
         return;
       }
@@ -191,7 +267,7 @@ export class DeviceRegistration {
     this.setup = setup;
   }
 
-  private async runSetup(run: number, force: boolean) {
+  private async runSetup(run: number, { force, ask }: Rerun) {
     const session = this.session;
     const register = this.register;
     if (session === null || register === null) {
@@ -215,6 +291,15 @@ export class DeviceRegistration {
       }
       let permission = await Notifications.getPermissionsAsync();
       if (!permission.granted && permission.canAskAgain) {
+        // Never asked: explain first, unless the person asked for push
+        // (Apple HIG Privacy). A permission already granted or denied for
+        // good never shows the explanation.
+        if (!ask && (await this.explain()) === "not-now") {
+          if (this.live(run)) {
+            this.setStatus({ kind: "not-asked" });
+          }
+          return;
+        }
         this.permissionRequest ??= Notifications.requestPermissionsAsync();
         permission = await this.permissionRequest;
       }
@@ -464,14 +549,15 @@ function useFirstLaunchTimeZone(sessionId: string | null | undefined, attempts: 
 
 // Mounted inside the account gate, so it runs only after Clerk and Convex
 // accept the session and ensureAccount succeeds. It starts registration for
-// the session, sends the first-launch time zone, and opens a captured tap's
-// screen.
+// the session, sends the first-launch time zone, opens a captured tap's
+// screen, and shows the push explanation while registration waits on it.
 export function NotificationSession() {
   const { registration, taps, timeZoneAttempts } = useNotificationContext();
   const { sessionId } = useAuth();
   const register = useMutation(notifications.devices.registerDevice);
   const router = useRouter();
   const tap = useSyncExternalStore(taps.subscribe, taps.get);
+  const intro = useSyncExternalStore(registration.subscribe, registration.getIntro);
   useFirstLaunchTimeZone(sessionId, timeZoneAttempts);
 
   useEffect(() => {
@@ -496,7 +582,13 @@ export function NotificationSession() {
     }
   }, [tap, taps, router]);
 
-  return null;
+  return (
+    <PushIntro
+      visible={intro}
+      onContinue={() => registration.answerIntro("continue")}
+      onNotNow={() => registration.answerIntro("not-now")}
+    />
+  );
 }
 
 export function useRegistrationStatus(): { status: RegistrationStatus; retry: () => void } {

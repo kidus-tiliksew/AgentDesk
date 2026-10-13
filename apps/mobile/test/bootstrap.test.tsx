@@ -10,9 +10,8 @@ import {
   signInAs,
   signOut,
 } from "./fakes";
-import { renderApp } from "./render";
+import { findInbox, queryLargeTitle, renderApp } from "./render";
 
-const inbox = "No pending decisions.";
 const settingUp = "Setting up your account";
 
 describe("account bootstrap", () => {
@@ -24,7 +23,7 @@ describe("account bootstrap", () => {
     renderApp("/", { strict: true });
 
     expect(screen.getByText(settingUp)).toBeOnTheScreen();
-    expect(screen.queryByText(inbox)).not.toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).not.toBeOnTheScreen();
     // A re-render while the call runs does not repeat it.
     act(() => convexAuthState.set({ isLoading: false, isAuthenticated: true }));
     expect(ensureAccount).toHaveBeenCalledTimes(1);
@@ -33,7 +32,7 @@ describe("account bootstrap", () => {
 
     await act(async () => pending.resolve(account));
 
-    expect(screen.getByText(inbox)).toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).toBeOnTheScreen();
     expect(ensureAccount).toHaveBeenCalledTimes(1);
     expect(queryCalls.map((call) => call.name)).toContain("decisions/app:listPending");
   });
@@ -64,7 +63,7 @@ describe("account bootstrap", () => {
 
     act(() => convexAuthState.set({ isLoading: false, isAuthenticated: true }));
 
-    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    expect(await findInbox()).toBeOnTheScreen();
     expect(ensureAccount).toHaveBeenCalledTimes(1);
   });
 
@@ -79,10 +78,10 @@ describe("account bootstrap", () => {
     expect(ensureAccount).toHaveBeenCalledTimes(2);
 
     await act(async () => first.resolve(account));
-    expect(screen.queryByText(inbox)).not.toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).not.toBeOnTheScreen();
 
     await act(async () => second.resolve(account));
-    expect(screen.getByText(inbox)).toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).toBeOnTheScreen();
   });
 
   test("a previous session's result arriving after the new session's keeps the app open", async () => {
@@ -96,23 +95,23 @@ describe("account bootstrap", () => {
     await act(async () => second.resolve(account));
     await act(async () => first.resolve(account));
 
-    expect(screen.getByText(inbox)).toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).toBeOnTheScreen();
   });
 
   test("a session change hides the app until the new session's account is ready", async () => {
     signInAs("sess_a");
     renderApp("/");
-    await screen.findByText(inbox);
+    await findInbox();
 
     const pending = deferred<typeof account>();
     ensureAccount.mockReturnValueOnce(pending.promise);
     act(() => signInAs("sess_b"));
 
     expect(screen.getByText(settingUp)).toBeOnTheScreen();
-    expect(screen.queryByText(inbox)).not.toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).not.toBeOnTheScreen();
 
     await act(async () => pending.resolve(account));
-    expect(screen.getByText(inbox)).toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).toBeOnTheScreen();
   });
 
   test("an account being deleted ends the Clerk session and returns to sign-in", async () => {
@@ -127,7 +126,7 @@ describe("account bootstrap", () => {
     expect(signOut).toHaveBeenCalledTimes(1);
     expect(signOut).toHaveBeenCalledWith({ sessionId: "sess_a" });
     expect(screen).toHavePathname("/sign-in");
-    expect(screen.queryByText(inbox)).not.toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).not.toBeOnTheScreen();
   });
 
   test("a transient failure offers a retry that calls ensureAccount again", async () => {
@@ -137,7 +136,7 @@ describe("account bootstrap", () => {
 
     fireEvent.press(await screen.findByRole("button", { name: "Try again" }));
 
-    expect(await screen.findByText(inbox)).toBeOnTheScreen();
+    expect(await findInbox()).toBeOnTheScreen();
     expect(ensureAccount).toHaveBeenCalledTimes(2);
     expect(signOut).not.toHaveBeenCalled();
   });
@@ -159,20 +158,20 @@ describe("account bootstrap", () => {
   test("hides the app when Convex loses authentication after the account is ready", async () => {
     signInAs("sess_a");
     renderApp("/");
-    await screen.findByText(inbox);
+    await findInbox();
 
     act(() => convexAuthState.set({ isLoading: true, isAuthenticated: false }));
-    expect(screen.queryByText(inbox)).not.toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).not.toBeOnTheScreen();
     expect(screen.getByText("Reconnecting")).toBeOnTheScreen();
 
     act(() => convexAuthState.set({ isLoading: false, isAuthenticated: false }));
-    expect(screen.queryByText(inbox)).not.toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).not.toBeOnTheScreen();
     expect(
       screen.getByText("The AgentDesk backend did not accept this sign-in."),
     ).toBeOnTheScreen();
 
     act(() => convexAuthState.set({ isLoading: false, isAuthenticated: true }));
-    expect(screen.getByText(inbox)).toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).toBeOnTheScreen();
     expect(ensureAccount).toHaveBeenCalledTimes(1);
   });
 
@@ -202,7 +201,7 @@ describe("account bootstrap", () => {
       expect(screen.getByText(settingUp)).toBeOnTheScreen();
 
       act(() => convexAuthState.set({ isLoading: false, isAuthenticated: true }));
-      expect(await screen.findByText(inbox)).toBeOnTheScreen();
+      expect(await findInbox()).toBeOnTheScreen();
       expect(ensureAccount).toHaveBeenCalledTimes(2);
     });
 
@@ -215,14 +214,14 @@ describe("account bootstrap", () => {
       switchToWaitingSession();
 
       await act(async () => first.resolve(account));
-      expect(screen.queryByText(inbox)).not.toBeOnTheScreen();
+      expect(queryLargeTitle("Inbox")).not.toBeOnTheScreen();
 
       act(() => convexAuthState.set({ isLoading: false, isAuthenticated: true }));
-      expect(screen.queryByText(inbox)).not.toBeOnTheScreen();
+      expect(queryLargeTitle("Inbox")).not.toBeOnTheScreen();
       expect(ensureAccount).toHaveBeenCalledTimes(2);
 
       await act(async () => second.resolve(account));
-      expect(screen.getByText(inbox)).toBeOnTheScreen();
+      expect(queryLargeTitle("Inbox")).toBeOnTheScreen();
     });
 
     test("an earlier session's failure offers no retry", async () => {

@@ -2,18 +2,24 @@ import { type Decision, errorCodeSchema } from "@agentdesk/contract";
 import { useMutation, usePaginatedQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { AccessibilityInfo, ActionSheetIOS, Alert, Platform, Pressable, View } from "react-native";
 import { decisions } from "../../../convex/decisions/refs";
 import { Button } from "./button";
 import { formatAnswer } from "./decision-detail";
+import { haptic } from "./haptics";
 import { Loading } from "./loading";
 import { errorData } from "./query-error-boundary";
-import { styles } from "./styles";
+import { makeStyles, spacing, type Theme, useTheme } from "./theme";
+import { EmptyState } from "./ui/empty-state";
+import { GroupedSection } from "./ui/grouped";
+import { Icon, type IconName } from "./ui/icon";
+import { SwipeRow } from "./ui/swipe-row";
+import { AppText } from "./ui/text";
 
 // component-mobile-app §Screens, history: settled decisions from
 // `decisions/app:searchHistory` and deletion through `decisions/app:remove`
-// (req-mobile-app REQ-6). The query is a native Convex paginated query, so
+// (req-mobile-app REQ-6), confirmed in the system's action sheet. The query is a native Convex paginated query, so
 // `usePaginatedQuery` follows its cursors and keeps every loaded page
 // subscribed. A removed decision leaves the list when the query reports it;
 // the screen never removes a row itself.
@@ -33,10 +39,46 @@ const STATE_LABELS: Record<Decision["state"], string> = {
   cancelled: "Cancelled",
 };
 
-// The settlement instant from the query's `settled_at`, in the device's
-// locale and time zone.
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function startOfDay(time: number): number {
+  const date = new Date(time);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+// The day heading a settled row is grouped under, in the device's time zone:
+// Today, Yesterday, the weekday within the past week, and the date before
+// that (with the year once it is not the current one).
+export function settledDay(settledAt: string, now: number): string {
+  const settled = Date.parse(settledAt);
+  // Rounded, so a day that a daylight-saving change shortens still counts once.
+  const days = Math.round((startOfDay(now) - startOfDay(settled)) / DAY_MS);
+  if (days === 0) {
+    return "Today";
+  }
+  if (days === 1) {
+    return "Yesterday";
+  }
+  const date = new Date(settled);
+  if (days > 1 && days < 7) {
+    return date.toLocaleDateString(undefined, { weekday: "long" });
+  }
+  const sameYear = date.getFullYear() === new Date(now).getFullYear();
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+}
+
+// The settlement time of day from the query's `settled_at`, in the device's
+// locale and time zone. The day heading above the row carries the date.
 export function formatSettledTime(settledAt: string): string {
-  return new Date(settledAt).toLocaleString();
+  return new Date(settledAt).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 // What the row says about the outcome: the answer, the applied default, or
@@ -49,28 +91,82 @@ export function answerSummary(decision: Decision): string {
   return decision.applied_by_default ? `Default applied: ${answer}` : `Answer: ${answer}`;
 }
 
+// The short outcome on the right of a row: the answer, the applied default,
+// or the state when no answer was recorded.
+export function outcomeValue(decision: Decision): string {
+  if (decision.answer === null) {
+    return STATE_LABELS[decision.state];
+  }
+  const answer = formatAnswer(decision.answer, decision.options);
+  return decision.applied_by_default ? `Default: ${answer}` : answer;
+}
+
+// The outcome icon (design "History"): green check for an answer, accent
+// check for an applied default, grey clock for expired without an answer,
+// tertiary x for cancelled.
+function outcomeIcon(decision: Decision, theme: Theme): { name: IconName; color: string } {
+  if (decision.answer !== null) {
+    return decision.applied_by_default
+      ? { name: "checkmark-circle", color: theme.accent }
+      : { name: "checkmark-circle", color: theme.green };
+  }
+  return decision.state === "cancelled"
+    ? { name: "close-circle", color: theme.textTertiary }
+    : { name: "time", color: theme.grey };
+}
+
 export const CONFLICT_MESSAGE = "This decision is pending and cannot be deleted.";
 export const NOT_FOUND_MESSAGE = "This decision was removed elsewhere.";
 
 export type Deletion = {
-  confirmingId: string | null;
   pendingId: string | null;
   failure: { id: string; message: string } | null;
   notice: string | null;
-  open: (decision: Decision) => void;
-  cancel: () => void;
-  confirm: (decision: Decision, remove: Remove) => void;
+  request: (decision: Decision) => void;
 };
+
+export const DELETE_ACTION = "Delete Decision";
+
+// Apple HIG Action sheets: a destructive choice that follows an intentional
+// action (a swipe or a long press on the row) is confirmed in an action sheet
+// whose destructive button names the action, with Cancel. Android has no
+// action sheet, so it uses the system alert with the same buttons.
+function confirmDeletion(title: string, onDelete: () => void) {
+  const heading = `Delete "${title}"?`;
+  const message = "It leaves every screen. This cannot be undone.";
+  if (Platform.OS === "ios") {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: heading,
+        message,
+        options: [DELETE_ACTION, "Cancel"],
+        destructiveButtonIndex: 0,
+        cancelButtonIndex: 1,
+      },
+      (index) => {
+        if (index === 0) {
+          onDelete();
+        }
+      },
+    );
+    return;
+  }
+  Alert.alert(heading, message, [
+    { text: "Cancel", style: "cancel" },
+    { text: DELETE_ACTION, style: "destructive", onPress: onDelete },
+  ]);
+}
 
 // The screen's deletion state. It lives above the list's error boundary, so
 // a new search input or a retried query cannot start a second deletion while
 // one runs.
 export function useHistoryDeletion(): Deletion {
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const remove: Remove = useMutation(decisions.app.remove);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [failure, setFailure] = useState<{ id: string; message: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  // Set synchronously, so a second press before the re-render sends nothing.
+  // Set synchronously, so a second confirmation before the re-render sends
+  // nothing.
   const pending = useRef(false);
   // A call that settles after the screen unmounts changes nothing.
   const mounted = useRef(true);
@@ -81,7 +177,7 @@ export function useHistoryDeletion(): Deletion {
     };
   }, []);
 
-  const confirm = async (decision: Decision, remove: Remove) => {
+  const run = async (decision: Decision) => {
     if (pending.current) {
       return;
     }
@@ -90,23 +186,29 @@ export function useHistoryDeletion(): Deletion {
     setPendingId(id);
     setFailure(null);
     setNotice(null);
+    // Apple HIG Playing haptics: the outcome of the deletion is felt. A
+    // failure is also spoken to VoiceOver when its message appears.
     try {
       await remove({ decisionId: id });
       if (mounted.current) {
-        setConfirmingId(null);
+        haptic.success();
       }
     } catch (error) {
       if (mounted.current) {
         const code = errorData(error)?.code;
+        let message: string;
         if (code === errorCodeSchema.enum.conflict) {
-          setConfirmingId(null);
-          setNotice(CONFLICT_MESSAGE);
+          message = CONFLICT_MESSAGE;
+          setNotice(message);
         } else if (code === errorCodeSchema.enum.not_found) {
-          setConfirmingId(null);
-          setNotice(NOT_FOUND_MESSAGE);
+          message = NOT_FOUND_MESSAGE;
+          setNotice(message);
         } else {
-          setFailure({ id, message: `Could not delete "${decision.title}". Try again.` });
+          message = `Could not delete "${decision.title}". Try again.`;
+          setFailure({ id, message });
         }
+        haptic.error();
+        AccessibilityInfo.announceForAccessibility(message);
       }
     } finally {
       pending.current = false;
@@ -117,110 +219,137 @@ export function useHistoryDeletion(): Deletion {
   };
 
   return {
-    confirmingId,
     pendingId,
     failure,
     notice,
-    open: (decision) => {
+    request: (decision) => {
       if (pending.current) {
         return;
       }
-      setFailure(null);
-      setNotice(null);
-      setConfirmingId(decision.id);
+      confirmDeletion(decision.title, () => void run(decision));
     },
-    cancel: () => {
-      if (pending.current) {
-        return;
-      }
-      setFailure(null);
-      setConfirmingId(null);
-    },
-    confirm: (decision, remove) => void confirm(decision, remove),
   };
 }
 
-// The open confirmation in a row. It owns the remove hook, so the list binds
-// the mutation only while a person is confirming a deletion.
-function DeleteConfirmation({
-  decision,
-  busy,
-  onConfirm,
-  onCancel,
-}: {
-  decision: Decision;
-  busy: boolean;
-  onConfirm: (remove: Remove) => void;
-  onCancel: () => void;
-}) {
-  const remove = useMutation(decisions.app.remove);
+export const LOAD_FAILURE = "Could not load your history.";
+
+// The list's load failure. VoiceOver speaks it when it appears, since the
+// rows it replaces were the focus.
+export function HistoryLoadFailure({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    AccessibilityInfo.announceForAccessibility(LOAD_FAILURE);
+  }, []);
   return (
-    <View style={styles.outcome}>
-      <Text style={styles.line}>
-        {`Delete "${decision.title}" from every screen? This cannot be undone.`}
-      </Text>
-      <Button label="Delete decision" onPress={() => onConfirm(remove)} disabled={busy} />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: busy }}
-        disabled={busy}
-        onPress={onCancel}
-      >
-        <Text style={styles.link}>Cancel</Text>
-      </Pressable>
-    </View>
+    <EmptyState icon="cloud-offline-outline" title={LOAD_FAILURE}>
+      {children}
+    </EmptyState>
   );
 }
 
+const useStyles = makeStyles((theme) => ({
+  list: { paddingBottom: 8 },
+  row: {
+    alignItems: "center",
+    backgroundColor: theme.card,
+    flexDirection: "row",
+    gap: 12,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  pressed: { backgroundColor: theme.fill },
+  grow: { flex: 1, gap: 2 },
+  value: { flexShrink: 1, maxWidth: "40%" },
+  below: { paddingBottom: 12, paddingHorizontal: 16 },
+  more: { marginHorizontal: spacing.screen, marginTop: 16 },
+}));
+
+// One settled decision: the outcome icon, the title, "topic · time", and the
+// outcome on the right, which is text as well as the icon's color. Tapping
+// opens the decision; a long press asks to delete it, the alternative to the
+// swipe (Apple HIG Gestures), and the hint tells VoiceOver so.
+function HistoryRowContent({
+  item,
+  onLongPress,
+}: {
+  item: HistoryItem;
+  onLongPress: (() => void) | undefined;
+}) {
+  const styles = useStyles();
+  const theme = useTheme();
+  const router = useRouter();
+  const { decision } = item;
+  const icon = outcomeIcon(decision, theme);
+  const time = formatSettledTime(item.settled_at);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Decision: ${decision.title}`}
+      accessibilityValue={{
+        text: `${STATE_LABELS[decision.state]}. ${answerSummary(decision)} ${decision.topic}, settled ${time}`,
+      }}
+      accessibilityHint={onLongPress === undefined ? undefined : "Touch and hold to delete."}
+      // The row itself carries Delete as a VoiceOver action: iOS only offers
+      // actions on the focused element, which is this row, not the swipe
+      // container around it.
+      accessibilityActions={
+        onLongPress === undefined ? undefined : [{ name: "delete", label: "Delete" }]
+      }
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === "delete") {
+          onLongPress?.();
+        }
+      }}
+      onLongPress={onLongPress}
+      onPress={() => router.push({ pathname: "/decision/[id]", params: { id: decision.id } })}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+    >
+      <Icon name={icon.name} size={22} color={icon.color} />
+      <View style={styles.grow}>
+        <AppText numberOfLines={2}>{decision.title}</AppText>
+        <AppText variant="footnote" tone="secondary" numberOfLines={1}>
+          {`${decision.topic} · ${time}`}
+        </AppText>
+      </View>
+      <AppText tone="secondary" numberOfLines={1} style={styles.value}>
+        {outcomeValue(decision)}
+      </AppText>
+    </Pressable>
+  );
+}
+
+// A row and any deletion failure. Swiping left reveals Delete (AC-6.2), and a
+// long press offers it too; either asks for confirmation. While a deletion
+// runs the rows offer no Delete, so a second one cannot start.
 function HistoryRow({
   item,
-  confirming,
   busy,
   error,
   deletion,
 }: {
   item: HistoryItem;
-  confirming: boolean;
   busy: boolean;
   error: string | null;
   deletion: Deletion;
 }) {
-  const router = useRouter();
+  const styles = useStyles();
   const { decision } = item;
+  const request = () => deletion.request(decision);
   return (
-    <View style={styles.row}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Decision: ${decision.title}`}
-        onPress={() => router.push({ pathname: "/decision/[id]", params: { id: decision.id } })}
-        style={styles.list}
-      >
-        <Text style={styles.rowTitle}>{decision.title}</Text>
-        <View style={styles.rowMeta}>
-          <Text style={styles.meta}>{decision.topic}</Text>
-          <Text style={styles.meta}>{STATE_LABELS[decision.state]}</Text>
-          <Text style={styles.meta}>{`Settled ${formatSettledTime(item.settled_at)}`}</Text>
-        </View>
-        <Text style={styles.line}>{answerSummary(decision)}</Text>
-      </Pressable>
-      {error === null ? null : <Text style={styles.error}>{error}</Text>}
-      {confirming ? (
-        <DeleteConfirmation
-          decision={decision}
-          busy={busy}
-          onConfirm={(remove) => deletion.confirm(decision, remove)}
-          onCancel={deletion.cancel}
-        />
+    <View>
+      {busy ? (
+        <HistoryRowContent item={item} onLongPress={undefined} />
       ) : (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Delete ${decision.title}`}
-          accessibilityState={{ disabled: busy }}
-          disabled={busy}
-          onPress={() => deletion.open(decision)}
-        >
-          <Text style={styles.link}>Delete</Text>
-        </Pressable>
+        <SwipeRow actionLabel="Delete" onAction={request}>
+          <HistoryRowContent item={item} onLongPress={request} />
+        </SwipeRow>
+      )}
+      {error === null ? null : (
+        <View style={styles.below}>
+          <AppText variant="footnote" tone="red">
+            {error}
+          </AppText>
+        </View>
       )}
     </View>
   );
@@ -239,56 +368,100 @@ function uniqueRows(results: HistoryItem[]): HistoryItem[] {
   });
 }
 
+// Consecutive rows settled on the same day share a section, so the query's
+// order is kept as it is.
+function groupByDay(rows: HistoryItem[], now: number) {
+  const groups: { day: string; rows: HistoryItem[] }[] = [];
+  for (const item of rows) {
+    const day = settledDay(item.settled_at, now);
+    const last = groups.at(-1);
+    if (last !== undefined && last.day === day) {
+      last.rows.push(item);
+    } else {
+      groups.push({ day, rows: [item] });
+    }
+  }
+  return groups;
+}
+
 // The loaded history for one set of committed inputs. The screen keys its
 // error boundary, and so this list, by those inputs, so a change starts again
 // from the first page. A failed page throws to that boundary, so a failure
-// never reads as an empty or exhausted list.
+// never reads as an empty or exhausted list. `onTopics` reports the topics of
+// the loaded rows, which the screen offers as topic chips.
 export function HistoryList({
   args,
   filtered,
   deletion,
+  onTopics,
 }: {
   args: HistoryArgs;
   filtered: boolean;
   deletion: Deletion;
+  onTopics: (topics: string[]) => void;
 }) {
+  const styles = useStyles();
   const { results, status, loadMore } = usePaginatedQuery(decisions.app.searchHistory, args, {
     initialNumItems: HISTORY_PAGE_SIZE,
   });
+  const rows = uniqueRows(results);
+  const topicsKey = [...new Set(rows.map((item) => item.decision.topic))].join("\n");
+  useEffect(() => {
+    if (topicsKey !== "") {
+      onTopics(topicsKey.split("\n"));
+    }
+  }, [topicsKey, onTopics]);
 
   if (status === "LoadingFirstPage") {
     return <Loading label="Loading history" />;
   }
-  const rows = uniqueRows(results);
   const busy = deletion.pendingId !== null;
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
+    <View style={styles.list}>
       {rows.length === 0 ? (
         status === "Exhausted" ? (
-          <Text style={styles.empty}>{filtered ? "No matches." : "No settled decisions."}</Text>
+          filtered ? (
+            <EmptyState
+              icon="search"
+              title="No matches."
+              body="Try other words, another state, or another topic."
+            />
+          ) : (
+            <EmptyState
+              icon="time-outline"
+              title="No settled decisions."
+              body="Answered, expired, and cancelled decisions appear here."
+            />
+          )
         ) : null
       ) : (
-        <View style={styles.list}>
-          {rows.map((item) => (
-            <HistoryRow
-              key={item.decision.id}
-              item={item}
-              confirming={deletion.confirmingId === item.decision.id}
-              busy={busy}
-              error={deletion.failure?.id === item.decision.id ? deletion.failure.message : null}
-              deletion={deletion}
-            />
-          ))}
-        </View>
+        groupByDay(rows, Date.now()).map((group) => (
+          // Two runs can share a day heading when the query's order crosses
+          // days, so a section is keyed by its first row.
+          <GroupedSection key={group.rows[0]?.decision.id} title={group.day}>
+            {group.rows.map((item) => (
+              <HistoryRow
+                key={item.decision.id}
+                item={item}
+                busy={busy}
+                error={deletion.failure?.id === item.decision.id ? deletion.failure.message : null}
+                deletion={deletion}
+              />
+            ))}
+          </GroupedSection>
+        ))
       )}
       {status === "Exhausted" ? null : (
-        <Button
-          label={status === "LoadingMore" ? "Loading more" : "Load more"}
-          onPress={() => loadMore(HISTORY_PAGE_SIZE)}
-          disabled={status === "LoadingMore"}
-        />
+        <View style={styles.more}>
+          <Button
+            label={status === "LoadingMore" ? "Loading more" : "Load more"}
+            variant="secondary"
+            onPress={() => loadMore(HISTORY_PAGE_SIZE)}
+            disabled={status === "LoadingMore"}
+          />
+        </View>
       )}
-    </ScrollView>
+    </View>
   );
 }

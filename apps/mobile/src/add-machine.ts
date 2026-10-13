@@ -17,19 +17,22 @@ export type FoundRequest = Extract<LookupResult, { status: "found" }>;
 // checks the lock on every later call.
 export const LOCK_WINDOW_MS = 10 * 60_000;
 
-const CODE_INPUT = /^[A-Za-z0-9]{4}-?[A-Za-z0-9]{4}$/;
+export const CODE_LENGTH = 8;
 
-// The 8-character code to send, or null when the input is not one. Surrounding
-// whitespace is trimmed, letters are uppercased, and one hyphen between the
-// fourth and fifth characters is dropped. Longer input and other separators
-// are refused rather than truncated or stripped. The backend checks the
-// restricted alphabet.
+// The code field's text as typed or pasted: letters uppercased and everything
+// but ASCII letters and digits dropped, so "abcd-efgh", "ABCD EFGH", and a
+// pasted " ABCD-EFGH\n" all read as ABCDEFGH. It never shortens the code, so
+// text with too many characters is refused rather than sent as a different
+// code.
+export function cleanCodeInput(input: string): string {
+  return input.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+}
+
+// The 8-character code to send, or null when the cleaned input is not one.
+// The backend checks the restricted alphabet.
 export function normalizeCode(input: string): string | null {
-  const trimmed = input.trim();
-  if (!CODE_INPUT.test(trimmed)) {
-    return null;
-  }
-  return trimmed.replace("-", "").toUpperCase();
+  const code = cleanCodeInput(input);
+  return code.length === CODE_LENGTH ? code : null;
 }
 
 function isRefusal(value: { status?: unknown }): value is Refusal {

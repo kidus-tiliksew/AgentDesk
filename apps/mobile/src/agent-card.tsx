@@ -1,87 +1,147 @@
-import type { AgentSession } from "@agentdesk/contract";
+import type { AgentSession, StatusState } from "@agentdesk/contract";
 import { useRouter } from "expo-router";
-import { Pressable, Text, View } from "react-native";
-import { styles } from "./styles";
+import { Fragment } from "react";
+import { Pressable, View } from "react-native";
+import { makeStyles, radius, spacing, useTheme } from "./theme";
+import { Icon } from "./ui/icon";
+import { Pill } from "./ui/pill";
+import { type DotTone, StatusDot } from "./ui/status-dot";
+import { AppText } from "./ui/text";
 import { formatElapsed } from "./use-screen-clock";
 
-function pendingLabel(count: number) {
-  return count === 1 ? "1 pending decision" : `${count} pending decisions`;
+const STATE_LABELS: Record<StatusState, string> = {
+  working: "Working",
+  waiting: "Waiting",
+  blocked: "Blocked",
+  done: "Done",
+};
+
+export function stateLabel(state: StatusState | null): string {
+  return state === null ? "No status yet" : STATE_LABELS[state];
 }
 
-// An agent session's card: display name, topic, state, status line, time
-// since the last status update, pending decision count, and a stale marker
-// when the backend marks the session stale (req-mobile-app AC-2.2). A session
-// that has not reported a status yet says so. `now` comes from the screen's
-// clock. With `onPress` the card is a button; without it, it is read-only.
-export function AgentCard({
-  agent,
-  now,
-  onPress,
-}: {
-  agent: AgentSession;
-  now: number;
-  onPress?: () => void;
-}) {
-  const body = (
-    <>
-      <View style={styles.rowMeta}>
-        <Text style={styles.rowTitle}>{agent.display_name}</Text>
-        {agent.stale ? <Text style={styles.stale}>Stale</Text> : null}
-      </View>
-      <View style={styles.rowMeta}>
-        <Text style={styles.meta}>{agent.topic}</Text>
-        <Text style={styles.meta}>{agent.state ?? "No status yet"}</Text>
-      </View>
-      {agent.line === null ? null : <Text style={styles.line}>{agent.line}</Text>}
-      <View style={styles.rowMeta}>
-        <Text style={styles.meta}>
-          {agent.status_at === null
-            ? "No update yet"
-            : `Updated ${formatElapsed(agent.status_at, now)}`}
-        </Text>
-        <Text style={styles.meta}>{pendingLabel(agent.pending_decision_count)}</Text>
-      </View>
-    </>
-  );
-  if (onPress === undefined) {
-    return <View style={styles.row}>{body}</View>;
+// The color of a status state's dot: green while working, accent while
+// waiting, grey otherwise.
+export function stateTone(state: StatusState | null): DotTone {
+  return state === "working" ? "green" : state === "waiting" ? "accent" : "grey";
+}
+
+// An agent's dot in the inbox. Stale wins, because a stale agent's state may
+// no longer hold; then an agent with pending decisions is waiting on the user.
+export function agentTone(agent: AgentSession): DotTone {
+  if (agent.stale) {
+    return "amber";
   }
+  return agent.pending_decision_count > 0 ? "accent" : stateTone(agent.state);
+}
+
+// Time since the last status update, as a row shows it.
+function elapsedLabel(agent: AgentSession, now: number): string {
+  return agent.status_at === null ? "No update yet" : formatElapsed(agent.status_at, now);
+}
+
+const useStyles = makeStyles((theme) => ({
+  group: {
+    backgroundColor: theme.card,
+    borderRadius: radius.control,
+    marginHorizontal: spacing.screen,
+    overflow: "hidden",
+  },
+  separator: { backgroundColor: theme.separator, height: 0.5, marginLeft: 37 },
+  row: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    minHeight: 46,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  pressed: { backgroundColor: theme.fill },
+  grow: { flex: 1, gap: 2 },
+}));
+
+const pendingLabel = (count: number) =>
+  count === 1 ? "1 pending decision" : `${count} pending decisions`;
+
+// What VoiceOver reads after an agent row's name: every field the row shows,
+// since the dot's color is not read (Apple HIG Accessibility: never convey
+// state by color alone).
+function agentDescription(agent: AgentSession, now: number): string {
+  const pending = agent.pending_decision_count;
+  // req-mobile-app AC-2.2: the count is always read, zero included, though
+  // the row draws it only when there is one.
+  return [
+    stateLabel(agent.state),
+    agent.line,
+    `Topic ${agent.topic}`,
+    agent.stale ? "Stale" : null,
+    pendingLabel(pending),
+    agent.status_at === null ? "No update yet" : `Updated ${formatElapsed(agent.status_at, now)}`,
+  ]
+    .filter((part) => part !== null)
+    .join(", ");
+}
+
+// One live agent as a row: its state dot, its status line as the title (or
+// its state before it has a line), then "name · topic · state · 2m ago" with
+// the stale marker, and a pending count on the right when there are pending
+// decisions (req-mobile-app AC-2.2). Pressing it opens the agent screen.
+function AgentRow({ agent, now }: { agent: AgentSession; now: number }) {
+  const styles = useStyles();
+  const theme = useTheme();
+  const router = useRouter();
+  const state = stateLabel(agent.state);
+  const pending = agent.pending_decision_count;
+  const meta = [
+    agent.display_name,
+    agent.topic,
+    ...(agent.line === null ? [] : [state]),
+    elapsedLabel(agent, now),
+  ].join(" · ");
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Agent: ${agent.display_name}`}
-      onPress={onPress}
-      style={styles.row}
+      accessibilityValue={{ text: agentDescription(agent, now) }}
+      onPress={() => router.push({ pathname: "/agent/[id]", params: { id: agent.id } })}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
-      {body}
+      <StatusDot tone={agentTone(agent)} />
+      <View style={styles.grow}>
+        <AppText weight="600" numberOfLines={2}>
+          {agent.line ?? state}
+        </AppText>
+        <AppText variant="footnote" tone="secondary">
+          {meta}
+          {agent.stale ? " · " : null}
+          {agent.stale ? (
+            <AppText variant="footnote" tone="amber" weight="600">
+              Stale
+            </AppText>
+          ) : null}
+        </AppText>
+      </View>
+      {pending > 0 ? (
+        // The wrapper centers the pill in the row; a pill aligns to the start.
+        <View>
+          <Pill label={`${pending} pending`} tone="accent" />
+        </View>
+      ) : null}
+      <Icon name="chevron-forward" size={17} color={theme.textTertiary} />
     </Pressable>
   );
 }
 
-// The live agent cards in the order given, each opening its agent screen, or
-// `empty` when there are none.
-export function AgentList({
-  agents,
-  now,
-  empty,
-}: {
-  agents: AgentSession[];
-  now: number;
-  empty: string;
-}) {
-  const router = useRouter();
-  if (agents.length === 0) {
-    return <Text style={styles.empty}>{empty}</Text>;
-  }
+// The live agents as a grouped list in the order given.
+export function AgentList({ agents, now }: { agents: AgentSession[]; now: number }) {
+  const styles = useStyles();
   return (
-    <View style={styles.list}>
-      {agents.map((agent) => (
-        <AgentCard
-          key={agent.id}
-          agent={agent}
-          now={now}
-          onPress={() => router.push({ pathname: "/agent/[id]", params: { id: agent.id } })}
-        />
+    <View style={styles.group}>
+      {agents.map((agent, index) => (
+        <Fragment key={agent.id}>
+          {index === 0 ? null : <View style={styles.separator} />}
+          <AgentRow agent={agent} now={now} />
+        </Fragment>
       ))}
     </View>
   );

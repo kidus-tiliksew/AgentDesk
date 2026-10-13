@@ -326,9 +326,19 @@ export function clerkApiError(code: string, message: string) {
 // a Convex reactive query does when its data changes.
 export const loading = Symbol("loading");
 export const queries = store<Record<string, unknown>>({});
+// One connected harness by default, so an empty inbox shows "All caught up"
+// rather than the first-machine guide.
 const defaultQueries: Record<string, unknown> = {
   "decisions/app:listPending": [],
   "agents/app:liveAgents": [],
+  "identity/connections:listConnections": [
+    {
+      credentialId: "c_default",
+      name: "Claude Code",
+      machineName: "laptop",
+      firstConnectedAt: 0,
+    },
+  ],
 };
 
 // Every useQuery call in render order, so a test can check which queries ran.
@@ -359,7 +369,9 @@ export function readQuery(name: string, args: unknown): unknown {
 // step succeeds, finalizing signs a session in, and ensureAccount resolves at
 // once. Notification permission is undetermined and a request grants it, the
 // device registers and unregisters, the first-launch time zone call
-// resolves, and secure storage is empty. Each screen query returns an empty
+// resolves, and secure storage holds only an earlier Continue on the push
+// explanation, so the system prompt shows without it (a test of the
+// explanation deletes that answer). Each screen query returns an empty
 // list. The answer mutation fails until a test scripts it.
 export function resetFakes() {
   clerkState.reset({ isLoaded: true, isSignedIn: false, sessionId: null });
@@ -398,6 +410,7 @@ export function resetFakes() {
     .mockReset()
     .mockImplementation(async ({ timeZone }) => deviceZoneSettings(timeZone));
   secureStore.values.clear();
+  secureStore.values.set("agentdesk.pushIntro", "continue");
   secureStore.failReads = false;
   secureStore.failWrites = false;
   secureStore.getItemAsync.mockClear();

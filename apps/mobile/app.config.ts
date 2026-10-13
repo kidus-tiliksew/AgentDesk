@@ -16,9 +16,22 @@ const config: ExpoConfig = {
   version: "0.1.0",
   orientation: "portrait",
   userInterfaceStyle: "automatic",
-  ios: { bundleIdentifier: "sh.kidus.agentdesk" },
+  // The Prompt bubble mark on the Indigo Ink gradient. iOS masks the square
+  // icon itself and uses the dark and tinted variants for those Home Screen
+  // appearances (Apple HIG App icons); Android draws the white mark over the
+  // adaptive background.
+  icon: "./assets/icon.png",
+  ios: {
+    bundleIdentifier: "sh.kidus.agentdesk",
+    icon: {
+      light: "./assets/icon.png",
+      dark: "./assets/icon-dark.png",
+      tinted: "./assets/icon-tinted.png",
+    },
+  },
   android: {
     package: "sh.kidus.agentdesk",
+    adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#4f46e5" },
     ...(googleServicesFile ? { googleServicesFile } : {}),
   },
   // expo-notifications adds the push entitlement and names the Android
@@ -28,9 +41,13 @@ const config: ExpoConfig = {
   // signs in by email code only, so it adds no Sign in with Apple entitlement.
   plugins: [
     "expo-router",
-    "expo-secure-store",
+    // The app never uses Face ID, so the plugin's default Face ID purpose
+    // string is removed (App Review 5.1.1(ii): purpose strings must describe
+    // real use).
+    ["expo-secure-store", { faceIDPermission: false }],
     ["expo-notifications", { defaultChannel: "default" }],
     ["@clerk/expo", { appleSignIn: false }],
+    "@react-native-community/datetimepicker",
   ],
   ...(projectId ? { extra: { eas: { projectId } } } : {}),
 };

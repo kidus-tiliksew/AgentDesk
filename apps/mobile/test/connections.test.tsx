@@ -1,22 +1,54 @@
 import { getFunctionName } from "convex/server";
 import { act, fireEvent, screen } from "expo-router/testing-library";
-import { formatConnectionTime } from "../src/connections/format";
+import {
+  AccessibilityInfo,
+  ActionSheetIOS,
+  type ActionSheetIOSOptions,
+  Alert,
+  Platform,
+} from "react-native";
+import { confirmDestructive } from "../src/confirm";
+import {
+  connectionSpokenSummary,
+  connectionSummary,
+  formatConnectionDay,
+  groupByMachine,
+} from "../src/connections/format";
+import { haptic } from "../src/haptics";
 import { deferred, loading, queryCalls, setQuery, signInAs } from "./fakes";
 import { renderApp } from "./render";
 
 // component-mobile-app §Screens: settings/connections lists the person's
-// connected harnesses and revokes one after a confirmation
-// (req-accounts-and-connections REQ-4).
+// connected harnesses grouped by machine and revokes one, reached by a swipe,
+// a touch and hold, or VoiceOver's Revoke action, after an action sheet
+// confirms it (req-accounts-and-connections REQ-4).
+
+jest.mock("../src/haptics", () => ({
+  haptic: { success: jest.fn(), warning: jest.fn(), error: jest.fn(), selection: jest.fn() },
+}));
 
 const list = "identity/connections:listConnections";
 const revokeName = "identity/connections:revokeConnection";
 
 // The shared convex/react fake refuses mutations it does not know. This file
-// wraps its useMutation, so revokeConnection gets a local mock and every other
-// mutation, such as ensureAccount, keeps the shared fake.
+// wraps its useMutation, so revokeConnection and Add machine's lookup get local
+// mocks and every other mutation, such as ensureAccount, keeps the shared fake.
 const mockRevokeConnection = jest.fn<Promise<null>, [{ credentialId: string }]>();
+// Add machine binds its lookup as it opens; these tests only open it.
+const lookupName = "identity/deviceRequests:lookupDeviceRequest";
+const mockLookup = jest.fn();
+
+// Each action sheet the screen opens, with the callback that picks a choice.
+const sheets: { options: ActionSheetIOSOptions; pick: (index: number) => void }[] = [];
 
 beforeEach(() => {
+  sheets.length = 0;
+  jest
+    .spyOn(ActionSheetIOS, "showActionSheetWithOptions")
+    .mockImplementation((options, pick) => sheets.push({ options, pick }));
+  jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+  jest.mocked(haptic.success).mockClear();
+  jest.mocked(haptic.error).mockClear();
   mockRevokeConnection.mockReset().mockResolvedValue(null);
   const convexReact = jest.requireMock<{ useMutation: (reference: unknown) => unknown }>(
     "convex/react",
@@ -27,7 +59,9 @@ beforeEach(() => {
     .mockImplementation((reference: unknown) =>
       getFunctionName(reference as never) === revokeName
         ? mockRevokeConnection
-        : sharedUseMutation(reference),
+        : getFunctionName(reference as never) === lookupName
+          ? mockLookup
+          : sharedUseMutation(reference),
     );
 });
 
@@ -36,19 +70,38 @@ afterEach(() => {
 });
 
 const MINUTE = 60_000;
-const FIRST = Date.UTC(2026, 9, 1, 9, 30, 0);
-const USED = Date.UTC(2026, 9, 11, 13, 45, 0);
+const DAY = 24 * 60 * MINUTE;
+const FOOTER =
+  "Swipe left or touch and hold to revoke. A revoked harness fails its next tool call.";
+
+// Times relative to the real clock: renderRouter installs fake timers that
+// start from it, so "2m ago" holds when the screen first renders.
+const now = Date.now();
+const FIRST = now - 12 * DAY;
 
 const laptop = {
   credentialId: "c_laptop",
   name: "Claude Code",
   machineName: "laptop",
   firstConnectedAt: FIRST + 5 * MINUTE,
-  lastUsedAt: USED,
+  lastUsedAt: now - 2 * MINUTE,
 };
 const cursor = {
   credentialId: "c_cursor",
   name: "cursor",
+  firstConnectedAt: FIRST,
+};
+const devbox = {
+  credentialId: "c_devbox",
+  name: "Codex",
+  machineName: "devbox",
+  firstConnectedAt: FIRST,
+  lastUsedAt: now - 3 * DAY,
+};
+const laptopCodex = {
+  credentialId: "c_laptop_codex",
+  name: "Codex",
+  machineName: "laptop",
   firstConnectedAt: FIRST,
 };
 
@@ -57,37 +110,91 @@ async function openConnections() {
   renderApp("/settings/connections");
 }
 
+// Runs a row's Revoke the way VoiceOver does, without the swipe gesture.
+function revokeAction(label: string) {
+  fireEvent(screen.getByLabelText(label), "accessibilityAction", {
+    nativeEvent: { actionName: "Revoke" },
+  });
+}
+
+// The last action sheet the screen opened.
+function lastSheet() {
+  const sheet = sheets[sheets.length - 1];
+  if (sheet === undefined) {
+    throw new Error("No action sheet open");
+  }
+  return sheet;
+}
+
+// Picks `choice` in the last action sheet, letting the call it starts settle.
+async function choose(choice: string) {
+  const sheet = lastSheet();
+  await act(async () => {
+    sheet.pick(sheet.options.options.indexOf(choice));
+  });
+}
+
+function nth<T>(items: T[], index: number): T {
+  const item = items[index];
+  if (item === undefined) {
+    throw new Error(`No item ${index}`);
+  }
+  return item;
+}
+
 describe("connections screen", () => {
   // req-accounts-and-connections AC-4.1
-  test("shows each connection's name, machine, first connected, and last used in query order", async () => {
-    setQuery(list, [laptop, cursor]);
+  test("groups connections by machine in query order, with each one's name, first connected, and last used", async () => {
+    setQuery(list, [laptop, cursor, devbox, laptopCodex]);
 
     await openConnections();
 
     expect(await screen.findByText("Claude Code")).toBeOnTheScreen();
     expect(queryCalls).toContainEqual({ name: list, args: {} });
-    const names = screen
-      .getAllByText(/^(Claude Code|cursor)$/)
+    // One section per machine, in the order each first appears; connections
+    // with no machine name come last under Other.
+    const machines = screen
+      .getAllByRole("header", { name: /^(laptop|devbox|Other)$/ })
       .map((element) => element.props.children);
-    expect(names).toEqual(["Claude Code", "cursor"]);
-    expect(screen.getByText("laptop")).toBeOnTheScreen();
-    expect(
-      screen.getByText(`First connected ${formatConnectionTime(laptop.firstConnectedAt)}`),
-    ).toBeOnTheScreen();
-    expect(screen.getByText(`Last used ${formatConnectionTime(USED)}`)).toBeOnTheScreen();
-    expect(screen.getByText(`First connected ${formatConnectionTime(FIRST)}`)).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "Revoke Claude Code on laptop" })).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "Revoke cursor" })).toBeOnTheScreen();
+    expect(machines).toEqual(["laptop", "devbox", "Other"]);
+    const rows = screen
+      .getAllByLabelText(/^(Claude Code on laptop|Codex on laptop|Codex on devbox|cursor)$/)
+      .map((element) => element.props.accessibilityLabel);
+    expect(rows).toEqual(["Claude Code on laptop", "Codex on laptop", "Codex on devbox", "cursor"]);
+    const day = formatConnectionDay(FIRST, now);
+    expect(screen.getByText(`Connected ${day} · used 2m ago`)).toBeOnTheScreen();
+    expect(screen.getByText(`Connected ${day} · used 3d ago`)).toBeOnTheScreen();
+    expect(screen.getAllByText(`Connected ${day} · never used`)).toHaveLength(2);
+    expect(screen.getAllByText(FOOTER)).toHaveLength(1);
   });
 
-  test("shows Machine unknown and Never used for absent values", async () => {
-    setQuery(list, [cursor]);
-
+  test("VoiceOver reads each row with its machine, both times in words, and how to revoke", async () => {
+    setQuery(list, [laptop, cursor]);
     await openConnections();
 
-    expect(await screen.findByText("Machine unknown")).toBeOnTheScreen();
-    expect(screen.getByText("Never used")).toBeOnTheScreen();
-    expect(screen.queryByText(/^Last used /)).not.toBeOnTheScreen();
+    const row = await screen.findByLabelText("Claude Code on laptop");
+    expect(row).toHaveProp("accessibilityValue", {
+      text: `Connected ${formatConnectionDay(laptop.firstConnectedAt, now)}, last used 2 minutes ago`,
+    });
+    expect(row).toHaveProp("accessibilityHint", "Touch and hold to revoke.");
+    expect(row).toHaveProp("accessibilityActions", [{ name: "Revoke", label: "Revoke" }]);
+    expect(screen.getByLabelText("cursor")).toHaveProp("accessibilityValue", {
+      text: `Connected ${formatConnectionDay(FIRST, now)}, never used`,
+    });
+    // The swipe's revealed button stays out of VoiceOver's reach until open.
+    expect(screen.queryByRole("button", { name: "Revoke" })).not.toBeOnTheScreen();
+  });
+
+  test("the header's + opens Add machine", async () => {
+    setQuery(list, [laptop]);
+    await openConnections();
+    await screen.findByText("Claude Code");
+
+    fireEvent.press(screen.getByRole("button", { name: "Add machine" }));
+
+    expect(await screen.findByLabelText("Installer code")).toBeOnTheScreen();
+    expect(screen).toHavePathname("/settings/add-machine");
+    expect(mockLookup).not.toHaveBeenCalled();
   });
 
   test("shows loading until the query returns, then the list", async () => {
@@ -96,7 +203,7 @@ describe("connections screen", () => {
     await openConnections();
 
     expect(await screen.findByText("Loading connections")).toBeOnTheScreen();
-    expect(screen.queryByText("No connected harnesses.")).not.toBeOnTheScreen();
+    expect(screen.queryByText("No machines connected")).not.toBeOnTheScreen();
 
     act(() => setQuery(list, [laptop]));
 
@@ -104,13 +211,23 @@ describe("connections screen", () => {
     expect(screen.queryByText("Loading connections")).not.toBeOnTheScreen();
   });
 
-  test("shows an empty state when there are no connections", async () => {
+  test("shows an empty state that leads to Add machine when there are no connections", async () => {
     setQuery(list, []);
 
     await openConnections();
 
-    expect(await screen.findByText("No connected harnesses.")).toBeOnTheScreen();
-    expect(screen.queryByRole("button", { name: /^Revoke/ })).not.toBeOnTheScreen();
+    expect(await screen.findByText("No machines connected")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Revoke" })).not.toBeOnTheScreen();
+    expect(screen.queryByText(FOOTER)).not.toBeOnTheScreen();
+
+    // The empty state's button comes first; the header's + follows it.
+    const buttons = screen.getAllByRole("button", { name: "Add machine" });
+    expect(buttons).toHaveLength(2);
+    fireEvent.press(nth(buttons, 0));
+
+    expect(await screen.findByLabelText("Installer code")).toBeOnTheScreen();
+    expect(screen).toHavePathname("/settings/add-machine");
+    expect(mockLookup).not.toHaveBeenCalled();
   });
 
   test("a failed query shows a failure with a retry, never an empty list", async () => {
@@ -120,7 +237,7 @@ describe("connections screen", () => {
     await openConnections();
 
     expect(await screen.findByText("Could not load your connections.")).toBeOnTheScreen();
-    expect(screen.queryByText("No connected harnesses.")).not.toBeOnTheScreen();
+    expect(screen.queryByText("No machines connected")).not.toBeOnTheScreen();
 
     setQuery(list, [laptop]);
     fireEvent.press(screen.getByRole("button", { name: "Try again" }));
@@ -129,101 +246,191 @@ describe("connections screen", () => {
   });
 
   // req-accounts-and-connections AC-4.2
-  test("revokes the selected connection only after confirmation, and the row leaves with the query", async () => {
+  test("revokes the connection only after the action sheet confirms it, and the row leaves with the query", async () => {
     setQuery(list, [laptop, cursor]);
     await openConnections();
+    await screen.findByText("Claude Code");
 
-    fireEvent.press(await screen.findByRole("button", { name: "Revoke Claude Code on laptop" }));
+    revokeAction("Claude Code on laptop");
 
-    expect(
-      screen.getByText("Revoke Claude Code on laptop? Its next tool call will be refused."),
-    ).toBeOnTheScreen();
+    expect(lastSheet().options).toEqual({
+      title: "Revoke Claude Code on laptop?",
+      message: "Its next tool call will fail.",
+      options: ["Revoke", "Cancel"],
+      destructiveButtonIndex: 0,
+      cancelButtonIndex: 1,
+    });
     expect(mockRevokeConnection).not.toHaveBeenCalled();
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Revoke connection" }));
-    });
+    await choose("Revoke");
 
     expect(mockRevokeConnection).toHaveBeenCalledTimes(1);
     expect(mockRevokeConnection).toHaveBeenCalledWith({ credentialId: "c_laptop" });
+    expect(haptic.success).toHaveBeenCalledTimes(1);
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(
+      "Revoked Claude Code on laptop",
+    );
     // The screen keeps the row until the reactive query drops it.
     expect(screen.getByText("Claude Code")).toBeOnTheScreen();
 
     act(() => setQuery(list, [cursor]));
 
     expect(screen.queryByText("Claude Code")).not.toBeOnTheScreen();
-    expect(screen.queryByRole("button", { name: "Revoke connection" })).not.toBeOnTheScreen();
     expect(screen.getByText("cursor")).toBeOnTheScreen();
+  });
+
+  test("a touch and hold on a row opens the same confirmation, so revoking needs no swipe", async () => {
+    setQuery(list, [laptop, cursor]);
+    await openConnections();
+    await screen.findByText("cursor");
+
+    fireEvent(screen.getByLabelText("cursor"), "longPress");
+
+    expect(sheets).toHaveLength(1);
+    expect(lastSheet().options.title).toBe("Revoke cursor?");
+    expect(mockRevokeConnection).not.toHaveBeenCalled();
+
+    await choose("Revoke");
+
+    expect(mockRevokeConnection).toHaveBeenCalledWith({ credentialId: "c_cursor" });
   });
 
   test("a cancelled confirmation revokes nothing", async () => {
     setQuery(list, [laptop, cursor]);
     await openConnections();
+    await screen.findByText("cursor");
 
-    fireEvent.press(await screen.findByRole("button", { name: "Revoke cursor" }));
-    expect(
-      screen.getByText("Revoke cursor? Its next tool call will be refused."),
-    ).toBeOnTheScreen();
-    fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+    revokeAction("cursor");
+    await choose("Cancel");
 
-    expect(screen.queryByText(/Its next tool call will be refused/)).not.toBeOnTheScreen();
-    expect(screen.queryByRole("button", { name: "Revoke connection" })).not.toBeOnTheScreen();
     expect(mockRevokeConnection).not.toHaveBeenCalled();
+    expect(haptic.success).not.toHaveBeenCalled();
     expect(screen.getByText("cursor")).toBeOnTheScreen();
   });
 
-  test("sends one revocation while it runs and disables the controls", async () => {
+  test("sends one revocation while it runs, shows it, and opens no other confirmation", async () => {
     const pending = deferred<null>();
     mockRevokeConnection.mockReturnValueOnce(pending.promise);
     setQuery(list, [laptop, cursor]);
     await openConnections();
-    fireEvent.press(await screen.findByRole("button", { name: "Revoke Claude Code on laptop" }));
+    await screen.findByText("Claude Code");
+    revokeAction("Claude Code on laptop");
 
-    const confirm = screen.getByRole("button", { name: "Revoke connection" });
-    fireEvent.press(confirm);
-    fireEvent.press(confirm);
+    const sheet = lastSheet();
+    act(() => {
+      sheet.pick(0);
+      sheet.pick(0);
+    });
 
     expect(mockRevokeConnection).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "Revoke connection" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Revoke cursor" })).toBeDisabled();
+    expect(screen.getByText("Revoking...")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Claude Code on laptop")).toHaveProp("accessibilityState", {
+      busy: true,
+    });
+    // Neither VoiceOver's action nor a touch and hold on another row opens a
+    // second confirmation while one runs.
+    revokeAction("cursor");
+    fireEvent(screen.getByLabelText("cursor"), "longPress");
+    expect(sheets).toHaveLength(1);
 
     await act(async () => {
       pending.resolve(null);
     });
 
-    expect(screen.getByRole("button", { name: "Revoke cursor" })).toBeEnabled();
+    expect(screen.queryByText("Revoking...")).not.toBeOnTheScreen();
+    revokeAction("cursor");
+    expect(sheets).toHaveLength(2);
+    expect(lastSheet().options.title).toBe("Revoke cursor?");
   });
 
-  test("a failed revocation keeps the row, shows an error, and allows another attempt", async () => {
+  test("a failed revocation keeps the row, reports the error, and allows another attempt", async () => {
     mockRevokeConnection.mockRejectedValueOnce(new Error("Network request failed"));
     setQuery(list, [laptop]);
     await openConnections();
-    fireEvent.press(await screen.findByRole("button", { name: "Revoke Claude Code on laptop" }));
+    await screen.findByText("Claude Code");
+    revokeAction("Claude Code on laptop");
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Revoke connection" }));
-    });
+    await choose("Revoke");
 
-    expect(screen.getByText("Could not revoke Claude Code. Try again.")).toBeOnTheScreen();
+    const failed = "Could not revoke Claude Code. Try again.";
+    expect(screen.getByText(failed)).toBeOnTheScreen();
     expect(screen.getByText("Claude Code")).toBeOnTheScreen();
+    expect(haptic.error).toHaveBeenCalledTimes(1);
+    expect(haptic.success).not.toHaveBeenCalled();
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(failed);
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Revoke connection" }));
-    });
+    revokeAction("Claude Code on laptop");
+    // Opening the confirmation again clears the earlier error.
+    expect(screen.queryByText(failed)).not.toBeOnTheScreen();
+    await choose("Revoke");
 
     expect(mockRevokeConnection).toHaveBeenCalledTimes(2);
-    expect(screen.queryByText("Could not revoke Claude Code. Try again.")).not.toBeOnTheScreen();
+    expect(screen.queryByText(failed)).not.toBeOnTheScreen();
+    expect(haptic.success).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("formatConnectionTime", () => {
-  test("formats to the minute without seconds", () => {
-    const text = formatConnectionTime(Date.UTC(2026, 9, 11, 14, 5, 42), {
-      locale: "en-US",
-      timeZone: "UTC",
-    });
+describe("destructive confirmation", () => {
+  test("on Android it is an alert with Cancel and the destructive action", () => {
+    jest.replaceProperty(Platform, "OS", "android");
+    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    const onConfirm = jest.fn();
 
-    expect(text.replace(/\s/g, " ")).toBe("Oct 11, 2026, 2:05 PM");
+    confirmDestructive({ title: "Revoke cursor?", message: "Gone.", action: "Revoke", onConfirm });
+
+    expect(ActionSheetIOS.showActionSheetWithOptions).not.toHaveBeenCalled();
+    expect(alert).toHaveBeenCalledWith("Revoke cursor?", "Gone.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Revoke", style: "destructive", onPress: onConfirm },
+    ]);
+  });
+});
+
+describe("connection formatting", () => {
+  const utc = { locale: "en-US", timeZone: "UTC" };
+  const NOW = Date.UTC(2026, 9, 13, 12, 0, 0);
+
+  test("shows the day of the first connection, with the year only when it is not this one", () => {
+    expect(formatConnectionDay(Date.UTC(2026, 9, 12, 23, 30), NOW, utc)).toBe("Oct 12");
+    expect(formatConnectionDay(Date.UTC(2025, 11, 31, 9, 0), NOW, utc)).toBe("Dec 31, 2025");
+  });
+
+  test("reads the last use as elapsed time, or never used", () => {
+    const first = Date.UTC(2026, 9, 12, 9, 0);
+    expect(
+      connectionSummary({ firstConnectedAt: first, lastUsedAt: NOW - 2 * MINUTE }, NOW, utc),
+    ).toBe("Connected Oct 12 · used 2m ago");
+    expect(
+      connectionSummary({ firstConnectedAt: first, lastUsedAt: NOW - 5 * DAY }, NOW, utc),
+    ).toBe("Connected Oct 12 · used 5d ago");
+    expect(connectionSummary({ firstConnectedAt: first }, NOW, utc)).toBe(
+      "Connected Oct 12 · never used",
+    );
+  });
+
+  test("speaks the times in whole words for VoiceOver", () => {
+    const first = Date.UTC(2026, 9, 12, 9, 0);
+    const spoken = (lastUsedAt?: number) =>
+      connectionSpokenSummary({ firstConnectedAt: first, lastUsedAt }, NOW, utc);
+    expect(spoken(NOW - 1000)).toBe("Connected Oct 12, last used 1 second ago");
+    expect(spoken(NOW - 2 * MINUTE)).toBe("Connected Oct 12, last used 2 minutes ago");
+    expect(spoken(NOW - 60 * MINUTE)).toBe("Connected Oct 12, last used 1 hour ago");
+    expect(spoken(NOW - 5 * DAY)).toBe("Connected Oct 12, last used 5 days ago");
+    expect(spoken()).toBe("Connected Oct 12, never used");
+  });
+
+  test("groups by machine in first-appearance order with unknown machines last", () => {
+    const rows = [
+      { id: 1 },
+      { id: 2, machineName: "b" },
+      { id: 3, machineName: "a" },
+      { id: 4, machineName: "b" },
+    ];
+    expect(groupByMachine(rows)).toEqual([
+      { machine: "b", connections: [rows[1], rows[3]] },
+      { machine: "a", connections: [rows[2]] },
+      { machine: "Other", connections: [rows[0]] },
+    ]);
+    expect(groupByMachine([])).toEqual([]);
   });
 });

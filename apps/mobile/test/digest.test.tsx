@@ -1,16 +1,41 @@
 import { ConvexError } from "convex/values";
 import { router } from "expo-router";
 import { act, fireEvent, screen } from "expo-router/testing-library";
-import { TextInput } from "react-native";
+import {
+  AccessibilityInfo,
+  AppState,
+  type AppStateStatus,
+  StyleSheet,
+  TextInput,
+} from "react-native";
 import type { Digest, DigestDecision, DigestEvent } from "../../../convex/notifications/digests";
 import { agent, decision } from "./data";
-import { clerkLoadedSignedOut, loading, queryCalls, setQuery, signInAs } from "./fakes";
+import {
+  answerDecision,
+  clerkLoadedSignedOut,
+  loading,
+  queryCalls,
+  setQuery,
+  signInAs,
+} from "./fakes";
 import { renderApp } from "./render";
 
 // component-mobile-app §Screens, digest: the screen a digest push opens
 // (req-mobile-app REQ-4; req-notification-rules AC-6.3).
 
 const get = "notifications/digests:get";
+
+// The text size the window reports; the stat tile test raises it.
+let mockFontScale = 1;
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 393, height: 852, scale: 3, fontScale: mockFontScale }),
+}));
+
+afterEach(() => {
+  mockFontScale = 1;
+  jest.restoreAllMocks();
+});
 const SENT_AT = "2026-10-12T09:00:00.000Z";
 
 function pendingDecision(
@@ -119,8 +144,12 @@ describe("digest screen", () => {
       "Event: Agent done, Codex on desktop",
     ]);
     const headings = screen.getAllByRole("header").map((heading) => heading.props.children);
-    expect(headings).toEqual(["Pending decisions", "Events"]);
+    expect(headings).toEqual(["While you were away", "Waiting on you", "Events"]);
     expect(screen.getByText("Urgent")).toBeOnTheScreen();
+    expect(screen.getAllByText("Claude on laptop · acme")).toHaveLength(3);
+    expect(screen.getByLabelText("3 Waiting on you")).toBeOnTheScreen();
+    expect(screen.getByLabelText("0 Answered")).toBeOnTheScreen();
+    expect(screen.getByLabelText("0 Closed")).toBeOnTheScreen();
   });
 
   test("shows the send time and each event time in the device's locale and time zone", async () => {
@@ -128,7 +157,14 @@ describe("digest screen", () => {
 
     await openDigest();
 
-    expect(await screen.findByText(`Sent ${new Date(SENT_AT).toLocaleString()}`)).toBeOnTheScreen();
+    const sent = new Date(SENT_AT);
+    const day = sent.toLocaleDateString(undefined, {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+    const time = sent.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    expect(await screen.findByText(`${day} · ${time}`)).toBeOnTheScreen();
     expect(
       screen.getByText(new Date("2026-10-12T02:30:00.000Z").toLocaleString()),
     ).toBeOnTheScreen();
@@ -153,7 +189,11 @@ describe("digest screen", () => {
       digest(args.digestId, {
         events: [],
         pending_decisions: [
-          pendingDecision({ id: "d_1", title: "Still open?" }),
+          pendingDecision({
+            id: "d_1",
+            title: "Still open?",
+            deadline: new Date(Date.now() + 30 * 60_000 + 30_000).toISOString(),
+          }),
           pendingDecision({
             id: "d_2",
             title: "Answered later?",
@@ -183,8 +223,15 @@ describe("digest screen", () => {
       "Decision: Withdrawn?, Cancelled",
       "Decision: Defaulted?, Answered by default",
     ]);
-    // Only the pending decision shows a deadline.
-    expect(screen.getAllByText("No deadline")).toHaveLength(1);
+    // Only the pending decision shows a deadline; the rest show outcomes.
+    expect(screen.getAllByText(/left$/)).toHaveLength(1);
+    expect(screen.getByText("30m left")).toBeOnTheScreen();
+    expect(screen.getByText("Answered by default")).toBeOnTheScreen();
+    expect(screen.getByLabelText("1 Waiting on you")).toBeOnTheScreen();
+    expect(screen.getByLabelText("2 Answered")).toBeOnTheScreen();
+    expect(screen.getByLabelText("2 Closed")).toBeOnTheScreen();
+    const headings = screen.getAllByRole("header").map((heading) => heading.props.children);
+    expect(headings).toEqual(["While you were away", "Waiting on you", "Settled since", "Events"]);
   });
 
   test("re-renders when a decision settles while the screen is open", async () => {
@@ -207,7 +254,13 @@ describe("digest screen", () => {
     expect(
       screen.getByRole("button", { name: "Decision: Keep the old endpoint?, Answered" }),
     ).toBeOnTheScreen();
-    expect(buttonLabels()[1]).toBe("Decision: Keep the old endpoint?, Answered");
+    // It moves from Waiting on you to Settled since.
+    expect(buttonLabels().slice(0, 3)).toEqual([
+      "Decision: Refund partial orders?, Pending",
+      "Decision: Archive the logs?, Pending",
+      "Decision: Keep the old endpoint?, Answered",
+    ]);
+    expect(screen.getByLabelText("1 Answered")).toBeOnTheScreen();
   });
 
   test("a decision row opens its decision screen", async () => {
@@ -220,6 +273,92 @@ describe("digest screen", () => {
 
     expect(await screen.findByText("Opened d_3")).toBeOnTheScreen();
     expect(screen).toHavePathname("/decision/d_3");
+  });
+
+  test("a decision still pending answers in place like the inbox's", async () => {
+    setQuery(get, (args: { digestId: string }) => digest(args.digestId));
+    setQuery("decisions/app:listPending", [
+      decision({
+        id: "d_3",
+        title: "Keep the old endpoint?",
+        recommendation: { kind: "reject" },
+      }),
+    ]);
+    answerDecision.mockResolvedValue(decision({ id: "d_3", state: "answered" }));
+    const appStateListeners: ((state: AppStateStatus) => void)[] = [];
+    jest.mocked(AppState.addEventListener).mockImplementation((type, listener) => {
+      if (type === "change") {
+        appStateListeners.push(listener as (state: AppStateStatus) => void);
+      }
+      return { remove: jest.fn() } as never;
+    });
+    await openDigest();
+
+    const reject = await screen.findByRole("button", { name: "Reject: Keep the old endpoint?" });
+    expect(reject.props.accessibilityHint).toBe("Recommended by the agent");
+    // The sparkles on the recommended button shows the recommendation; the
+    // card's VoiceOver value names it.
+    expect(screen.queryByText("Recommends Reject")).not.toBeOnTheScreen();
+    expect(
+      screen.getByRole("button", { name: "Decision: Keep the old endpoint?, Pending" }).props
+        .accessibilityValue.text,
+    ).toMatch(/Recommends Reject$/);
+    // A decision the pending list does not hold has no one-tap answer.
+    expect(
+      screen.queryByRole("button", { name: "Approve: Refund partial orders?" }),
+    ).not.toBeOnTheScreen();
+
+    fireEvent.press(reject);
+
+    // The card leaves while Undo is offered; nothing is sent yet.
+    expect(
+      screen.queryByRole("button", { name: "Decision: Keep the old endpoint?, Pending" }),
+    ).not.toBeOnTheScreen();
+    expect(screen.getByText("Rejected “Keep the old endpoint?”")).toBeOnTheScreen();
+    expect(answerDecision).not.toHaveBeenCalled();
+
+    // The app leaving the foreground sends the held answer at once;
+    // test/inbox-undo.test.tsx covers the hold running out.
+    await act(async () => {
+      for (const listener of appStateListeners) listener("background");
+    });
+
+    expect(answerDecision).toHaveBeenCalledWith({ decisionId: "d_3", answer: { kind: "reject" } });
+  });
+
+  test("Undo puts a digest card back", async () => {
+    setQuery(get, (args: { digestId: string }) => digest(args.digestId));
+    setQuery("decisions/app:listPending", [
+      decision({ id: "d_3", title: "Keep the old endpoint?" }),
+    ]);
+    await openDigest();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Approve: Keep the old endpoint?" }));
+    fireEvent.press(screen.getByRole("button", { name: "Undo" }));
+
+    expect(
+      screen.getByRole("button", { name: "Decision: Keep the old endpoint?, Pending" }),
+    ).toBeOnTheScreen();
+    expect(answerDecision).not.toHaveBeenCalled();
+  });
+
+  test("the stat tiles stack at large text sizes and have no fixed height", async () => {
+    setQuery(get, (args: { digestId: string }) => digest(args.digestId));
+    await openDigest();
+    const tile = await screen.findByLabelText("3 Waiting on you");
+    const row = () => {
+      let node = screen.getByLabelText("3 Waiting on you").parent;
+      while (node !== null && typeof node.type !== "string") {
+        node = node.parent;
+      }
+      return StyleSheet.flatten(node?.props.style);
+    };
+    expect(StyleSheet.flatten(tile.props.style).height).toBeUndefined();
+    expect(row().flexDirection).toBe("row");
+
+    mockFontScale = 1.5;
+    act(() => setQuery(get, (args: { digestId: string }) => digest(args.digestId)));
+    expect(row().flexDirection).toBe("column");
   });
 
   test("an event with a decision and an agent opens the decision", async () => {
@@ -326,6 +465,7 @@ describe("digest screen", () => {
     await openDigest();
 
     expect(await screen.findByText("No decisions were pending.")).toBeOnTheScreen();
+    expect(screen.queryByRole("header", { name: "Settled since" })).not.toBeOnTheScreen();
     expect(screen.getByText("No events in this digest.")).toBeOnTheScreen();
   });
 
@@ -368,10 +508,15 @@ describe("digest screen", () => {
   });
 
   test("any other failure offers a retry, and a retry that succeeds shows the digest", async () => {
+    const announce = jest
+      .spyOn(AccessibilityInfo, "announceForAccessibility")
+      .mockImplementation(() => {});
     setQuery(get, new Error("Network request failed"));
     await openDigest();
 
     expect(await screen.findByText("Could not load this digest.")).toBeOnTheScreen();
+    // VoiceOver hears the failure that replaced the screen.
+    expect(announce).toHaveBeenCalledWith("Could not load this digest.");
     expect(screen.queryByText("Digest not found")).not.toBeOnTheScreen();
 
     setQuery(get, (args: { digestId: string }) => digest(args.digestId));

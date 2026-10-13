@@ -1,11 +1,51 @@
+import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
-import { act, fireEvent, screen, within } from "expo-router/testing-library";
+import { act, fireEvent, screen, waitFor, within } from "expo-router/testing-library";
+import { AccessibilityInfo, AppState, type AppStateStatus, StyleSheet } from "react-native";
+import { haptic } from "../src/haptics";
+import { HOLD_MS } from "../src/inbox-undo";
+import { themes } from "../src/theme";
 import { agent, decision } from "./data";
-import { loading, queryCalls, setQuery, signInAs } from "./fakes";
-import { renderApp } from "./render";
+import { answerDecision, loading, queryCalls, setQuery, signInAs } from "./fakes";
+import { findInbox, queryLargeTitle, renderApp } from "./render";
 
 const listPending = "decisions/app:listPending";
 const liveAgents = "agents/app:liveAgents";
+const listConnections = "identity/connections:listConnections";
+
+// The text size the window reports; the Dynamic Type tests raise it.
+let mockFontScale = 1;
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 393, height: 852, scale: 3, fontScale: mockFontScale }),
+}));
+
+const laptop = { credentialId: "c_laptop", name: "Claude Code", firstConnectedAt: 0 };
+
+// Add machine binds its code lookup as it opens; the shared fake refuses it,
+// so this file gives it a local mock.
+const lookupName = "identity/deviceRequests:lookupDeviceRequest";
+const mockLookup = jest.fn();
+
+beforeEach(() => {
+  mockLookup.mockReset();
+  const convexReact = jest.requireMock<{ useMutation: (reference: unknown) => unknown }>(
+    "convex/react",
+  );
+  const sharedUseMutation = convexReact.useMutation;
+  jest
+    .spyOn(convexReact, "useMutation")
+    .mockImplementation((reference: unknown) =>
+      getFunctionName(reference as never) === lookupName
+        ? mockLookup
+        : sharedUseMutation(reference),
+    );
+  setQuery(listConnections, [laptop]);
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 function decisionTitles() {
   return screen
@@ -22,7 +62,7 @@ function agentNames() {
 async function openInbox() {
   signInAs("sess_a");
   renderApp("/");
-  await screen.findByText("Pending decisions");
+  await findInbox();
 }
 
 describe("inbox sections", () => {
@@ -48,39 +88,112 @@ describe("inbox sections", () => {
       "Agent: Zed",
       "Agent: Amy",
     ]);
+    expect(queryLargeTitle("Inbox")).toBeOnTheScreen();
     const headers = screen.getAllByRole("header").map((header) => header.props.children);
-    expect(headers).toEqual(["Pending decisions", "Live agents"]);
+    expect(headers).toEqual(["Needs you", "Agents"]);
+    expect(screen.getByText("2 live")).toBeOnTheScreen();
     expect(queryCalls).toContainEqual({ name: listPending, args: {} });
     expect(queryCalls).toContainEqual({ name: liveAgents, args: {} });
   });
 
-  test("a decision row shows its title, topic, priority, and deadline", async () => {
-    const deadline = "2026-10-12T15:30:00.000Z";
+  test("a decision card shows one urgency pill, its title, agent and topic", async () => {
     setQuery(listPending, [
       decision({
         id: "d_1",
         title: "Ship it?",
         topic: "acme/billing",
         priority: "urgent",
-        deadline,
+        deadline: new Date(Date.now() + 4 * 60_000 + 30_000).toISOString(),
+        recommendation: { kind: "approve" },
+        agent_session_id: "a_1",
       }),
-      decision({ id: "d_2", title: "Rename?", topic: "beta", priority: "normal", deadline: null }),
+      decision({
+        id: "d_2",
+        title: "Which retry strategy?",
+        topic: "beta",
+        input_type: "single_choice",
+        options: [
+          { id: "o_1", label: "Linear" },
+          { id: "o_2", label: "Exponential backoff" },
+          { id: "o_3", label: "None" },
+        ],
+        recommendation: { kind: "option", option_id: "o_2" },
+        deadline: new Date(Date.now() + 80 * 60_000 + 30_000).toISOString(),
+        agent_session_id: "a_gone",
+      }),
+      decision({ id: "d_3", title: "Rename?", topic: "beta", deadline: null }),
+      decision({ id: "d_4", title: "Hotfix?", topic: "beta", priority: "urgent" }),
     ]);
+    setQuery(liveAgents, [agent({ id: "a_1", display_name: "Claude on laptop" })]);
 
     await openInbox();
+    fireEvent.press(screen.getByRole("button", { name: "Show 1 more" }));
 
     const urgent = within(screen.getByRole("button", { name: "Decision: Ship it?" }));
     expect(urgent.getByText("Ship it?")).toBeOnTheScreen();
-    expect(urgent.getByText("acme/billing")).toBeOnTheScreen();
-    expect(urgent.getByText("Urgent")).toBeOnTheScreen();
-    expect(urgent.getByText(`Due ${new Date(deadline).toLocaleString()}`)).toBeOnTheScreen();
-    const normal = within(screen.getByRole("button", { name: "Decision: Rename?" }));
-    expect(normal.getByText("beta")).toBeOnTheScreen();
-    expect(normal.getByText("Normal")).toBeOnTheScreen();
-    expect(normal.getByText("No deadline")).toBeOnTheScreen();
+    expect(urgent.getByText("Urgent · 4m left")).toBeOnTheScreen();
+    // A live agent names the decision's agent.
+    expect(urgent.getByText("Claude on laptop · acme/billing")).toBeOnTheScreen();
+    // The sparkles on the recommended button shows the recommendation.
+    expect(urgent.queryByText(/^Recommends/)).not.toBeOnTheScreen();
+
+    const choice = within(screen.getByRole("button", { name: "Decision: Which retry strategy?" }));
+    expect(choice.getByText("1h 20m left")).toBeOnTheScreen();
+    expect(choice.queryByText(/options/)).not.toBeOnTheScreen();
+    expect(choice.queryByText(/Urgent/)).not.toBeOnTheScreen();
+    // An agent that is not live leaves the topic alone.
+    expect(choice.getByText("beta")).toBeOnTheScreen();
+    // Without one-tap buttons the card names the recommendation.
+    expect(choice.getByText("Recommends Exponential backoff")).toBeOnTheScreen();
+
+    const plain = within(screen.getByRole("button", { name: "Decision: Rename?" }));
+    expect(plain.queryByText(/left$|Urgent/)).not.toBeOnTheScreen();
+    expect(plain.queryByText(/^Recommends/)).not.toBeOnTheScreen();
+
+    const hotfix = within(screen.getByRole("button", { name: "Decision: Hotfix?" }));
+    expect(hotfix.getByText("Urgent")).toBeOnTheScreen();
   });
 
-  test("an agent card shows every field and marks a stale session", async () => {
+  test("a decision card's VoiceOver value carries every fact, drawn or not", async () => {
+    setQuery(listPending, [
+      decision({
+        id: "d_1",
+        title: "Ship it?",
+        topic: "acme/billing",
+        priority: "urgent",
+        deadline: new Date(Date.now() + 4 * 60_000 + 30_000).toISOString(),
+        recommendation: { kind: "approve" },
+        agent_session_id: "a_1",
+      }),
+      decision({
+        id: "d_2",
+        title: "Which retry strategy?",
+        topic: "beta",
+        input_type: "single_choice",
+        options: [
+          { id: "o_1", label: "Linear" },
+          { id: "o_2", label: "Exponential backoff" },
+        ],
+        recommendation: { kind: "option", option_id: "o_2" },
+      }),
+    ]);
+    setQuery(liveAgents, [agent({ id: "a_1", display_name: "Claude on laptop" })]);
+
+    await openInbox();
+
+    expect(screen.getByRole("button", { name: "Decision: Ship it?" })).toHaveAccessibilityValue({
+      text: "Urgent, 4m left, Claude on laptop, Topic acme/billing, Approve or reject, Recommends Approve",
+    });
+    expect(
+      screen.getByRole("button", { name: "Decision: Which retry strategy?" }),
+    ).toHaveAccessibilityValue({
+      text: "No deadline, Topic beta, Choose one of 2 options, Recommends Exponential backoff",
+    });
+    // The answer buttons stay separate elements.
+    expect(screen.getByRole("button", { name: "Approve: Ship it?" })).toBeOnTheScreen();
+  });
+
+  test("an agent row shows every field in two lines and marks a stale session", async () => {
     setQuery(liveAgents, [
       agent({
         id: "a_1",
@@ -92,22 +205,34 @@ describe("inbox sections", () => {
         pending_decision_count: 2,
         stale: true,
       }),
-      agent({ id: "a_2", display_name: "Codex", pending_decision_count: 1, stale: false }),
+      agent({ id: "a_2", display_name: "Codex", pending_decision_count: 0, stale: false }),
     ]);
 
     await openInbox();
 
-    const stale = within(screen.getByRole("button", { name: "Agent: Claude on laptop" }));
-    expect(stale.getByText("Claude on laptop")).toBeOnTheScreen();
-    expect(stale.getByText("acme/billing")).toBeOnTheScreen();
-    expect(stale.getByText("blocked")).toBeOnTheScreen();
+    // req-mobile-app AC-2.2: display name, topic, state, status line, time
+    // since the last update, pending count, and the stale marker.
+    const staleRow = screen.getByRole("button", { name: "Agent: Claude on laptop" });
+    const stale = within(staleRow);
     expect(stale.getByText("Waiting on the migration review")).toBeOnTheScreen();
-    expect(stale.getByText("Updated 3m ago")).toBeOnTheScreen();
-    expect(stale.getByText("2 pending decisions")).toBeOnTheScreen();
+    expect(
+      stale.getByText("Claude on laptop · acme/billing · Blocked · 3m ago · Stale"),
+    ).toBeOnTheScreen();
     expect(stale.getByText("Stale")).toBeOnTheScreen();
-    const fresh = within(screen.getByRole("button", { name: "Agent: Codex" }));
-    expect(fresh.getByText("1 pending decision")).toBeOnTheScreen();
+    expect(stale.getByText("2 pending")).toBeOnTheScreen();
+    expect(staleRow).toHaveAccessibilityValue({
+      text: "Blocked, Waiting on the migration review, Topic acme/billing, Stale, 2 pending decisions, Updated 3m ago",
+    });
+
+    const freshRow = screen.getByRole("button", { name: "Agent: Codex" });
+    const fresh = within(freshRow);
+    expect(fresh.getByText(/^Codex · acme · Working · \d+s ago$/)).toBeOnTheScreen();
     expect(fresh.queryByText("Stale")).not.toBeOnTheScreen();
+    // No pending decisions draws no count, but VoiceOver still reads it.
+    expect(fresh.queryByText(/pending/)).not.toBeOnTheScreen();
+    expect(freshRow.props.accessibilityValue.text).toMatch(
+      /, 0 pending decisions, Updated \d+s ago$/,
+    );
   });
 
   test("a session with no status yet says so instead of showing activity as a status", async () => {
@@ -117,16 +242,32 @@ describe("inbox sections", () => {
 
     await openInbox();
 
-    const card = within(screen.getByRole("button", { name: "Agent: New agent" }));
-    expect(card.getByText("No status yet")).toBeOnTheScreen();
-    expect(card.getByText("No update yet")).toBeOnTheScreen();
-    expect(card.getByText("0 pending decisions")).toBeOnTheScreen();
+    const row = within(screen.getByRole("button", { name: "Agent: New agent" }));
+    expect(row.getByText("No status yet")).toBeOnTheScreen();
+    expect(row.getByText("New agent · acme · No update yet")).toBeOnTheScreen();
   });
 
-  test("shows an empty state for each empty section", async () => {
+  test("a session with a state but no line shows the state as its title", async () => {
+    setQuery(liveAgents, [
+      agent({ id: "a_1", display_name: "Fresh", state: "working", line: null }),
+    ]);
+
     await openInbox();
 
+    const row = within(screen.getByRole("button", { name: "Agent: Fresh" }));
+    expect(row.getByText("Working")).toBeOnTheScreen();
+    expect(row.getByText(/^Fresh · acme · \d+s ago$/)).toBeOnTheScreen();
+  });
+
+  test("an empty section says so while the other has items", async () => {
+    setQuery(liveAgents, [agent({ id: "a_1", display_name: "Builder" })]);
+    await openInbox();
     expect(screen.getByText("No pending decisions.")).toBeOnTheScreen();
+
+    act(() => {
+      setQuery(liveAgents, []);
+      setQuery(listPending, [decision({ id: "d_1", title: "Ship?" })]);
+    });
     expect(screen.getByText("No live agents.")).toBeOnTheScreen();
   });
 
@@ -139,6 +280,7 @@ describe("inbox sections", () => {
     expect(screen.getByText("Loading decisions")).toBeOnTheScreen();
     expect(screen.getByText("Loading agents")).toBeOnTheScreen();
     expect(screen.queryByText("No pending decisions.")).not.toBeOnTheScreen();
+    expect(screen.queryByText("All caught up")).not.toBeOnTheScreen();
 
     act(() => setQuery(listPending, []));
     expect(screen.getByText("No pending decisions.")).toBeOnTheScreen();
@@ -151,12 +293,370 @@ describe("inbox sections", () => {
     renderApp("/");
 
     expect(await screen.findByText("Could not load your inbox.")).toBeOnTheScreen();
-    expect(screen.queryByText("No pending decisions.")).not.toBeOnTheScreen();
+    expect(queryLargeTitle("Inbox")).toBeOnTheScreen();
+    expect(screen.queryByText("All caught up")).not.toBeOnTheScreen();
 
     setQuery(listPending, []);
     fireEvent.press(screen.getByRole("button", { name: "Try again" }));
 
-    expect(await screen.findByText("No pending decisions.")).toBeOnTheScreen();
+    expect(await screen.findByText("All caught up")).toBeOnTheScreen();
+  });
+});
+
+describe("empty inbox", () => {
+  test("with machines connected, nothing pending and no live agent is all caught up", async () => {
+    await openInbox();
+
+    expect(screen.getByText("All caught up")).toBeOnTheScreen();
+    expect(screen.queryByRole("header", { name: "Needs you" })).not.toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "All topics" })).not.toBeOnTheScreen();
+    expect(queryCalls).toContainEqual({ name: listConnections, args: {} });
+  });
+
+  test("with no machine connected, it guides the first connection to Add machine", async () => {
+    setQuery(listConnections, []);
+    await openInbox();
+
+    expect(screen.getByText("Connect your first machine")).toBeOnTheScreen();
+    expect(
+      screen.getByText(/Run the AgentDesk installer on your laptop or devbox/),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText("All caught up")).not.toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole("button", { name: "Enter installer code" }));
+
+    expect(await screen.findByLabelText("Installer code")).toBeOnTheScreen();
+    expect(screen).toHavePathname("/settings/add-machine");
+  });
+
+  test("connecting a machine switches the guide to all caught up", async () => {
+    setQuery(listConnections, []);
+    await openInbox();
+    expect(screen.getByText("Connect your first machine")).toBeOnTheScreen();
+
+    act(() => setQuery(listConnections, [laptop]));
+
+    expect(screen.getByText("All caught up")).toBeOnTheScreen();
+  });
+
+  test("a failed connections read falls back to all caught up, not a failed inbox", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    setQuery(listConnections, new Error("Network request failed"));
+    await openInbox();
+
+    expect(await screen.findByText("All caught up")).toBeOnTheScreen();
+    expect(screen.queryByText("Could not load your inbox.")).not.toBeOnTheScreen();
+  });
+
+  test("reads connections only when the inbox is empty", async () => {
+    setQuery(listPending, [decision({ id: "d_1" })]);
+    await openInbox();
+
+    expect(queryCalls.map((call) => call.name)).not.toContain(listConnections);
+  });
+});
+
+// Apple HIG Feedback: a one-tap answer hides its card and offers Undo before
+// it is sent. These tests run the real route tree on real timers and send the
+// held answer by the events that send it at once; test/inbox-undo.test.tsx
+// covers the hold itself with fake timers. (Fake timers inside the route tree
+// leave state behind that hangs the test's cleanup.)
+describe("one-tap answers", () => {
+  let appStateListeners: ((state: AppStateStatus) => void)[];
+
+  beforeEach(() => {
+    jest
+      .spyOn(AccessibilityInfo, "announceForAccessibility")
+      .mockClear()
+      .mockImplementation(() => {});
+    jest.spyOn(haptic, "success").mockClear();
+    jest.spyOn(haptic, "error").mockClear();
+    answerDecision.mockImplementation(async ({ decisionId }) =>
+      decision({ id: decisionId, state: "answered" }),
+    );
+    // React Native's Jest mock of AppState records listeners without calling
+    // them; the tests call them as iOS would.
+    appStateListeners = [];
+    jest.mocked(AppState.addEventListener).mockImplementation((type, listener) => {
+      if (type === "change") {
+        appStateListeners.push(listener as (state: AppStateStatus) => void);
+      }
+      return { remove: jest.fn() } as never;
+    });
+  });
+
+  function announced() {
+    return jest.mocked(AccessibilityInfo.announceForAccessibility).mock.calls.map(([text]) => text);
+  }
+
+  // The app leaves the foreground, which sends a held answer at once.
+  function background() {
+    return act(async () => {
+      for (const listener of appStateListeners) listener("background");
+    });
+  }
+
+  test("Approve hides the card and offers Undo instead of sending at once", async () => {
+    setQuery(listPending, [
+      decision({ id: "d_1", title: "Ship it?", recommendation: { kind: "approve" } }),
+    ]);
+    await openInbox();
+
+    const approve = screen.getByRole("button", { name: "Approve: Ship it?" });
+    // The recommended choice is marked (req-mobile-app AC-3.3).
+    expect(approve.props.accessibilityHint).toBe("Recommended by the agent");
+    expect(
+      screen.getByRole("button", { name: "Reject: Ship it?" }).props.accessibilityHint,
+    ).toBeUndefined();
+
+    fireEvent.press(approve);
+
+    expect(decisionTitles()).toEqual([]);
+    expect(screen.getByText("No pending decisions.")).toBeOnTheScreen();
+    expect(screen.getByText("Approved “Ship it?”")).toBeOnTheScreen();
+    expect(answerDecision).not.toHaveBeenCalled();
+
+    await background();
+
+    expect(answerDecision).toHaveBeenCalledTimes(1);
+    expect(answerDecision).toHaveBeenCalledWith({ decisionId: "d_1", answer: { kind: "approve" } });
+    expect(screen.queryByText("Approved “Ship it?”")).not.toBeOnTheScreen();
+    expect(haptic.success).toHaveBeenCalledTimes(1);
+    // The answer settles the decision; the reactive list drops it.
+    act(() => setQuery(listPending, []));
+    expect(decisionTitles()).toEqual([]);
+  });
+
+  test("the Undo banner is read out and its button is reachable", async () => {
+    setQuery(listPending, [decision({ id: "d_1", title: "Ship it?" })]);
+    await openInbox();
+
+    fireEvent.press(screen.getByRole("button", { name: "Reject: Ship it?" }));
+
+    expect(announced()).toContain("Rejected “Ship it?”. Undo available.");
+    const undo = screen.getByRole("button", { name: "Undo" });
+    expect(undo.props.accessibilityHint).toBe("Puts “Ship it?” back without answering it");
+    expect(screen.getByTestId("undo-banner").props.accessibilityLiveRegion).toBe("polite");
+    // Apple HIG Buttons: at least 44 pt tall.
+    expect(StyleSheet.flatten(undo.props.style).minHeight).toBeGreaterThanOrEqual(44);
+  });
+
+  test("Undo restores the card and nothing is sent", async () => {
+    setQuery(listPending, [decision({ id: "d_1", title: "Ship it?" })]);
+    await openInbox();
+
+    fireEvent.press(screen.getByRole("button", { name: "Reject: Ship it?" }));
+    fireEvent.press(screen.getByRole("button", { name: "Undo" }));
+
+    expect(decisionTitles()).toEqual(["Decision: Ship it?"]);
+    expect(screen.queryByText("Rejected “Ship it?”")).not.toBeOnTheScreen();
+    expect(announced()).toContain("Undone. “Ship it?” is back.");
+    await background();
+    expect(answerDecision).not.toHaveBeenCalled();
+  });
+
+  test("leaving the screen sends the held answer at once", async () => {
+    setQuery(listPending, [
+      decision({ id: "d_1", title: "Ship it?" }),
+      decision({ id: "d_2", title: "Notes?", input_type: "free_text" }),
+    ]);
+    setQuery("decisions/app:get", (args: { decisionId: string }) =>
+      decision({ id: args.decisionId, title: "Notes?", input_type: "free_text" }),
+    );
+    await openInbox();
+
+    fireEvent.press(screen.getByRole("button", { name: "Approve: Ship it?" }));
+    fireEvent.press(screen.getByRole("button", { name: "Decision: Notes?" }));
+
+    await waitFor(() => expect(screen).toHavePathname("/decision/d_2"));
+    expect(answerDecision).toHaveBeenCalledWith({ decisionId: "d_1", answer: { kind: "approve" } });
+  });
+
+  test("answering another card sends the held answer first", async () => {
+    setQuery(listPending, [
+      decision({ id: "d_1", title: "Ship it?" }),
+      decision({ id: "d_2", title: "Rename?" }),
+    ]);
+    await openInbox();
+
+    fireEvent.press(screen.getByRole("button", { name: "Approve: Ship it?" }));
+    await act(async () => fireEvent.press(screen.getByRole("button", { name: "Reject: Rename?" })));
+
+    expect(answerDecision).toHaveBeenCalledTimes(1);
+    expect(answerDecision).toHaveBeenCalledWith({ decisionId: "d_1", answer: { kind: "approve" } });
+    expect(screen.getByText("Rejected “Rename?”")).toBeOnTheScreen();
+    expect(decisionTitles()).toEqual([]);
+
+    await background();
+    expect(answerDecision).toHaveBeenLastCalledWith({
+      decisionId: "d_2",
+      answer: { kind: "reject" },
+    });
+  });
+
+  test("a deadline within the hold sends at once, without Undo", async () => {
+    setQuery(listPending, [
+      decision({
+        id: "d_1",
+        title: "Ship it?",
+        deadline: new Date(Date.now() + HOLD_MS - 500).toISOString(),
+      }),
+    ]);
+    await openInbox();
+
+    await act(async () =>
+      fireEvent.press(screen.getByRole("button", { name: "Approve: Ship it?" })),
+    );
+
+    expect(answerDecision).toHaveBeenCalledWith({ decisionId: "d_1", answer: { kind: "approve" } });
+    expect(screen.queryByRole("button", { name: "Undo" })).not.toBeOnTheScreen();
+    expect(haptic.success).toHaveBeenCalledTimes(1);
+  });
+
+  test("a decision settled elsewhere opens its decision screen with the recorded outcome", async () => {
+    const settled = decision({
+      id: "d_1",
+      title: "Ship it?",
+      state: "answered",
+      answer: { kind: "reject" },
+      answered_at: "2026-10-12T10:00:00.000Z",
+      answered_via: "notification",
+    });
+    setQuery(listPending, [decision({ id: "d_1", title: "Ship it?" })]);
+    setQuery("decisions/app:get", settled);
+    answerDecision.mockRejectedValue(
+      new ConvexError({ code: "conflict", message: "Decision already settled", decision: settled }),
+    );
+    await openInbox();
+
+    fireEvent.press(screen.getByRole("button", { name: "Approve: Ship it?" }));
+    await background();
+
+    await waitFor(() => expect(screen).toHavePathname("/decision/d_1"));
+    // The decision screen reads the settled decision and offers no answer.
+    expect(queryCalls).toContainEqual({ name: "decisions/app:get", args: { decisionId: "d_1" } });
+    expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeOnTheScreen();
+  });
+
+  test("any other failure restores the card with the message and allows a retry", async () => {
+    setQuery(listPending, [decision({ id: "d_1", title: "Ship it?" })]);
+    answerDecision.mockRejectedValueOnce(new Error("Network request failed"));
+    await openInbox();
+
+    fireEvent.press(screen.getByRole("button", { name: "Approve: Ship it?" }));
+    await background();
+
+    const message = "Could not send your answer. Check your connection.";
+    expect(screen.getByText(message)).toBeOnTheScreen();
+    expect(decisionTitles()).toEqual(["Decision: Ship it?"]);
+    expect(screen).toHavePathname("/");
+    expect(haptic.error).toHaveBeenCalledTimes(1);
+    expect(haptic.success).not.toHaveBeenCalled();
+    expect(announced()).toContain(message);
+
+    fireEvent.press(screen.getByRole("button", { name: "Approve: Ship it?" }));
+    expect(screen.queryByText(message)).not.toBeOnTheScreen();
+    await background();
+    expect(answerDecision).toHaveBeenCalledTimes(2);
+    expect(haptic.success).toHaveBeenCalledTimes(1);
+  });
+
+  test("a second tap before the re-render sends one answer", async () => {
+    setQuery(listPending, [decision({ id: "d_1", title: "Ship it?" })]);
+    await openInbox();
+
+    const approve = screen.getByRole("button", { name: "Approve: Ship it?" });
+    const reject = screen.getByRole("button", { name: "Reject: Ship it?" });
+    act(() => {
+      fireEvent.press(approve);
+      fireEvent.press(approve);
+      fireEvent.press(reject);
+    });
+    await background();
+
+    expect(answerDecision).toHaveBeenCalledTimes(1);
+  });
+
+  test("without a recommendation neither button is marked and both are secondary", async () => {
+    setQuery(listPending, [decision({ id: "d_1", title: "Ship it?" })]);
+    await openInbox();
+
+    for (const name of ["Approve: Ship it?", "Reject: Ship it?"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button.props.accessibilityHint).toBeUndefined();
+      expect(StyleSheet.flatten(button.props.style).backgroundColor).toBe(themes.light.fill);
+    }
+    expect(screen.queryByText(/^Recommends/)).not.toBeOnTheScreen();
+  });
+
+  test("a recommended Reject is the filled button", async () => {
+    setQuery(listPending, [
+      decision({ id: "d_1", title: "Ship it?", recommendation: { kind: "reject" } }),
+    ]);
+    await openInbox();
+
+    const reject = screen.getByRole("button", { name: "Reject: Ship it?" });
+    const approve = screen.getByRole("button", { name: "Approve: Ship it?" });
+    expect(reject.props.accessibilityHint).toBe("Recommended by the agent");
+    expect(StyleSheet.flatten(reject.props.style).backgroundColor).toBe(themes.light.accentFill);
+    expect(StyleSheet.flatten(approve.props.style).backgroundColor).toBe(themes.light.fill);
+  });
+
+  test("other input types have no one-tap answer", async () => {
+    setQuery(listPending, [decision({ id: "d_1", title: "Notes?", input_type: "free_text" })]);
+    await openInbox();
+
+    expect(screen.getByRole("button", { name: "Decision: Notes?" })).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: /^(Approve|Reject): / })).not.toBeOnTheScreen();
+  });
+});
+
+describe("Dynamic Type", () => {
+  afterEach(() => {
+    mockFontScale = 1;
+  });
+
+  // The view that lays out the card's two buttons.
+  function actions() {
+    let node = screen.getByRole("button", { name: "Approve: Ship it?" }).parent;
+    while (node !== null && typeof node.type !== "string") {
+      node = node.parent;
+    }
+    return StyleSheet.flatten(node?.props.style);
+  }
+
+  test("Reject and Approve sit side by side at regular sizes", async () => {
+    setQuery(listPending, [decision({ id: "d_1", title: "Ship it?" })]);
+    await openInbox();
+
+    expect(actions().flexDirection).toBe("row");
+  });
+
+  test("Reject and Approve stack at large text sizes", async () => {
+    mockFontScale = 1.5;
+    setQuery(listPending, [decision({ id: "d_1", title: "Ship it?" })]);
+    await openInbox();
+
+    expect(actions().flexDirection).toBe("column");
+  });
+});
+
+describe("show more", () => {
+  test("shows the first three decisions and reveals the rest on request", async () => {
+    setQuery(
+      listPending,
+      ["One", "Two", "Three", "Four", "Five"].map((title, index) =>
+        decision({ id: `d_${index}`, title }),
+      ),
+    );
+    await openInbox();
+
+    expect(decisionTitles()).toEqual(["Decision: One", "Decision: Two", "Decision: Three"]);
+
+    fireEvent.press(screen.getByRole("button", { name: "Show 2 more" }));
+
+    expect(decisionTitles()).toHaveLength(5);
+    expect(screen.queryByRole("button", { name: /^Show \d+ more$/ })).not.toBeOnTheScreen();
   });
 });
 
@@ -181,7 +681,7 @@ describe("reactive updates", () => {
     expect(decisionTitles()).toEqual(["Decision: New urgent"]);
 
     act(() => setQuery(listPending, []));
-    expect(screen.getByText("No pending decisions.")).toBeOnTheScreen();
+    expect(screen.getByText("All caught up")).toBeOnTheScreen();
   });
 
   test("re-renders when an agent's status changes or it leaves the live set", async () => {
@@ -202,12 +702,12 @@ describe("reactive updates", () => {
     );
     expect(screen.queryByText("Compiling")).not.toBeOnTheScreen();
     expect(screen.getByText("Needs a decision")).toBeOnTheScreen();
-    expect(screen.getByText("waiting")).toBeOnTheScreen();
+    expect(screen.getByText(/^Builder · acme · Waiting · \d+s ago · Stale$/)).toBeOnTheScreen();
     expect(screen.getByText("Stale")).toBeOnTheScreen();
 
     act(() => setQuery(liveAgents, []));
     expect(agentNames()).toEqual([]);
-    expect(screen.getByText("No live agents.")).toBeOnTheScreen();
+    expect(screen.getByText("All caught up")).toBeOnTheScreen();
   });
 });
 
@@ -242,6 +742,16 @@ describe("topic filter", () => {
       "Topic: acmecorp",
     ]);
     expect(screen.getByRole("button", { name: "All topics" })).toBeSelected();
+  });
+
+  test("offers no filter when everything shares one topic", async () => {
+    setQuery(listPending, [decision({ id: "d_1", title: "Root", topic: "acme/billing" })]);
+    setQuery(liveAgents, [agent({ id: "a_1", display_name: "Root agent", topic: "acme/billing" })]);
+
+    await openInbox();
+
+    expect(screen.queryByRole("button", { name: "All topics" })).not.toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: /^Topic: / })).not.toBeOnTheScreen();
   });
 
   test("chip acme keeps acme and its subtopics and drops acmecorp in both sections", async () => {
@@ -299,19 +809,22 @@ describe("topic filter", () => {
     fireEvent.press(screen.getByRole("button", { name: "Topic: acmecorp" }));
 
     act(() => {
-      setQuery(listPending, [decision({ id: "d_1", title: "Root", topic: "acme" })]);
+      setQuery(listPending, [
+        decision({ id: "d_1", title: "Root", topic: "acme" }),
+        decision({ id: "d_2", title: "Billing", topic: "acme/billing" }),
+      ]);
       setQuery(liveAgents, [agent({ id: "a_1", display_name: "Root agent", topic: "acme" })]);
     });
 
     expect(screen.queryByRole("button", { name: "Topic: acmecorp" })).not.toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "All topics" })).toBeSelected();
-    expect(decisionTitles()).toEqual(["Decision: Root"]);
+    expect(decisionTitles()).toEqual(["Decision: Root", "Decision: Billing"]);
     expect(agentNames()).toEqual(["Agent: Root agent"]);
   });
 });
 
 describe("navigation", () => {
-  test("a decision row opens its decision screen", async () => {
+  test("a decision card opens its decision screen", async () => {
     setQuery(listPending, [decision({ id: "d_42", title: "Deploy?" })]);
     setQuery("decisions/app:get", (args: { decisionId: string }) =>
       decision({ id: args.decisionId, title: "Deploy?", body: "Ship the **release** today." }),
@@ -321,12 +834,12 @@ describe("navigation", () => {
     fireEvent.press(screen.getByRole("button", { name: "Decision: Deploy?" }));
 
     expect(await screen.findByText("release")).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "Submit answer" })).toBeOnTheScreen();
     expect(screen).toHavePathname("/decision/d_42");
     expect(queryCalls).toContainEqual({ name: "decisions/app:get", args: { decisionId: "d_42" } });
+    expect(answerDecision).not.toHaveBeenCalled();
   });
 
-  test("an agent card opens its agent screen", async () => {
+  test("an agent row opens its agent screen", async () => {
     setQuery(liveAgents, [agent({ id: "a_7", display_name: "Reviewer" })]);
     setQuery("agents/app:get", (args: { agentSessionId: string }) => ({
       ...agent({ id: args.agentSessionId, display_name: "Reviewer", line: "Reading the diff" }),
@@ -357,8 +870,10 @@ describe("elapsed time", () => {
     ]);
 
     await openInbox();
-    expect(screen.getByText(/^Updated 5[89]s ago$/)).toBeOnTheScreen();
+    expect(screen.getByText(/^Builder · acme · Working · 5[89]s ago$/)).toBeOnTheScreen();
 
-    expect(await screen.findByText("Updated 1m ago", {}, { timeout: 3_000 })).toBeOnTheScreen();
+    expect(
+      await screen.findByText("Builder · acme · Working · 1m ago", {}, { timeout: 3_000 }),
+    ).toBeOnTheScreen();
   });
 });

@@ -1,6 +1,6 @@
-import { Text } from "react-native";
 import { HeaderlessScreen } from "./headerless-screen";
 import { styles } from "./styles";
+import { AppText } from "./ui/text";
 
 // Shown instead of the app when a public configuration variable is missing,
 // so the app names the gap rather than crashing in a provider. It shows
@@ -8,14 +8,16 @@ import { styles } from "./styles";
 export function ConfigError({ missing }: { missing: string[] }) {
   return (
     <HeaderlessScreen style={styles.centered}>
-      <Text accessibilityRole="header" style={styles.title}>
+      <AppText accessibilityRole="header" variant="title3" style={{ textAlign: "center" }}>
         AgentDesk is not configured
-      </Text>
-      <Text style={styles.body}>Set these variables in apps/mobile/.env and restart Expo:</Text>
+      </AppText>
+      <AppText variant="callout" style={{ textAlign: "center" }}>
+        Set these variables in apps/mobile/.env and restart Expo:
+      </AppText>
       {missing.map((name) => (
-        <Text key={name} style={styles.code}>
+        <AppText key={name} variant="subhead" style={{ fontFamily: "Courier" }}>
           {name}
-        </Text>
+        </AppText>
       ))}
     </HeaderlessScreen>
   );

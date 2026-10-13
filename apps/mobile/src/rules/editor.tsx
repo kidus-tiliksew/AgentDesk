@@ -2,32 +2,53 @@ import type { AgentSession } from "@agentdesk/contract";
 import { errorCodeSchema } from "@agentdesk/contract";
 import { useMutation } from "convex/react";
 import { ConvexError } from "convex/values";
-import { useRouter } from "expo-router";
+import { Stack, useNavigation, useRouter } from "expo-router";
+import { usePreventRemove } from "expo-router/react-navigation";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { AccessibilityInfo, TextInput, useWindowDimensions, View } from "react-native";
 import { notifications } from "../../../../convex/notifications/refs";
 import type { NotificationRule } from "../../../../convex/notifications/rules";
-import { Button } from "../button";
+import { confirmDestructive, confirmDiscard } from "../confirm";
+import { haptic } from "../haptics";
 import { INVALID_TOPIC } from "../history-filters";
 import { errorData } from "../query-error-boundary";
-import { styles } from "../styles";
+import { makeStyles, useTheme } from "../theme";
+import { Card } from "../ui/card";
+import { GroupedRow, GroupedSection } from "../ui/grouped";
+import { Icon } from "../ui/icon";
+import { StackScreen } from "../ui/screen";
+import { AppText } from "../ui/text";
+import { ActionButton, OptionRow, SentenceToken, SentenceWord } from "./editor-parts";
 import {
+  ACTION_LOOK,
   ACTIONS,
   agentChoiceLabel,
   ENDED_AGENT,
   EVENT_KINDS,
-  PRECEDENCE_EXPLANATION,
+  NO_MATCH,
   PRIORITIES,
+  PRIORITY_HINT,
   type RuleAction,
   type RuleEventKind,
   type RulePriority,
+  SUBTOPIC_HINT,
 } from "./format";
+import { HeaderButton } from "./header-button";
+import { eventPhrase, priorityPhrase, rulePreview, topicPhrase } from "./sentence";
 
 // component-mobile-app §Screens, rules: the editor for one notification rule
 // (req-mobile-app REQ-5; req-notification-rules REQ-3). It owns the
 // `notifications/rules:save` and `remove` hooks, so the list binds neither.
 // The backend normalizes the topic and checks every field; the editor only
 // keeps Save disabled while no match field is set (AC-3.3).
+//
+// The rule reads as a sentence, "When [event] by [agent] in [topic] with
+// [priority] priority,", where each bracket opens that field's choices below
+// the sentence; then three action buttons and a plain-words preview
+// (prototype frame "Rule editor"). The editor is a sheet (Apple HIG
+// Sheets): the route puts Cancel on the left of its navigation bar and the
+// editor puts Save on the right. Leaving with unsaved edits, by Cancel or a
+// swipe, asks to discard them first.
 
 type Draft = {
   topic: string;
@@ -40,6 +61,48 @@ type Draft = {
 type Field = "topic" | "agent" | "eventKind" | "priority" | "action";
 
 type Failure = { field: Field | null; message: string };
+
+// The match fields the sentence's tokens open, in sentence order.
+type MatchField = Exclude<Field, "action">;
+
+// Each match field's name, as its choices and its error are labelled.
+const GROUPS: Record<Field, string> = {
+  eventKind: "Event",
+  agent: "Agent",
+  topic: "Topic",
+  priority: "Priority",
+  action: "Action",
+};
+
+const SENTENCE_HINT = "Tap a highlighted part of the sentence to change it.";
+const DELETE_TITLE = "Delete this rule?";
+const DELETE_MESSAGE = "Events it matched follow your other rules or the defaults.";
+
+const useStyles = makeStyles((theme) => ({
+  sentence: {
+    alignItems: "center",
+    columnGap: 6,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    rowGap: 4,
+  },
+  errors: { gap: 4, paddingHorizontal: 20, paddingTop: 8 },
+  topicInput: {
+    color: theme.text,
+    fontSize: 17,
+    minHeight: 46,
+    paddingHorizontal: 16,
+  },
+  label: { paddingBottom: 7, paddingHorizontal: 32, paddingTop: 22 },
+  actions: { flexDirection: "row", gap: 8, paddingHorizontal: 16 },
+  actionsStacked: { flexDirection: "column" },
+  preview: { flexDirection: "row", gap: 10, marginTop: 16 },
+  previewText: { flex: 1, gap: 2 },
+  footer: { paddingHorizontal: 32, paddingTop: 8 },
+  formError: { paddingHorizontal: 20, paddingTop: 12 },
+}));
 
 const RULE_NOT_FOUND = "Notification rule not found";
 const SESSION_NOT_FOUND = "Agent session not found";
@@ -64,6 +127,16 @@ function draftOf(rule: NotificationRule): Draft {
     priority: rule.priority,
     action: rule.action,
   };
+}
+
+function sameDraft(a: Draft, b: Draft): boolean {
+  return (
+    a.topic.trim() === b.topic.trim() &&
+    a.agentSessionId === b.agentSessionId &&
+    a.eventKind === b.eventKind &&
+    a.priority === b.priority &&
+    a.action === b.action
+  );
 }
 
 function hasMatch(draft: Draft): boolean {
@@ -133,68 +206,6 @@ function saveFailure(error: unknown): Failure {
   return { field: null, message: SAVE_FAILED };
 }
 
-function Choice({
-  group,
-  label,
-  selected,
-  disabled,
-  onPress,
-}: {
-  group: string;
-  label: string;
-  selected: boolean;
-  disabled: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${group}: ${label}`}
-      accessibilityState={{ selected, disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={[styles.chip, selected && styles.chipSelected]}
-    >
-      <Text style={selected ? styles.chipTextSelected : styles.chipText}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function ChoiceGroup<T>({
-  group,
-  choices,
-  value,
-  disabled,
-  error,
-  onSelect,
-}: {
-  group: string;
-  choices: { value: T; label: string }[];
-  value: T;
-  disabled: boolean;
-  error: string | null;
-  onSelect: (value: T) => void;
-}) {
-  return (
-    <View style={styles.field} testID={`field-${group}`}>
-      <Text style={styles.fieldLabel}>{group}</Text>
-      <View style={styles.rowMeta}>
-        {choices.map((choice) => (
-          <Choice
-            key={`${group}:${choice.label}:${String(choice.value)}`}
-            group={group}
-            label={choice.label}
-            selected={choice.value === value}
-            disabled={disabled}
-            onPress={() => onSelect(choice.value)}
-          />
-        ))}
-      </View>
-      {error === null ? null : <Text style={styles.error}>{error}</Text>}
-    </View>
-  );
-}
-
 // `rule` is null for a new rule. `agents` are the person's live and recent
 // agents. The draft is set once from `rule` when the editor mounts, so a
 // reactive change to the rule or the agents never overwrites an edit; the
@@ -207,12 +218,22 @@ export function RuleEditor({
   agents: AgentSession[];
 }) {
   const router = useRouter();
+  const navigation = useNavigation();
   const save = useMutation(notifications.rules.save);
   const remove = useMutation(notifications.rules.remove);
-  const [draft, setDraft] = useState<Draft>(() => (rule === null ? NEW_DRAFT : draftOf(rule)));
+  const [initial] = useState<Draft>(() => (rule === null ? NEW_DRAFT : draftOf(rule)));
+  const [draft, setDraft] = useState<Draft>(initial);
   const [pending, setPending] = useState<"save" | "delete" | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
-  const [confirming, setConfirming] = useState(false);
+  // Set when a save or a deletion succeeds; the editor then closes.
+  const [finished, setFinished] = useState(false);
+  // The match field whose choices show under the sentence, one at a time.
+  const [open, setOpen] = useState<MatchField | null>(null);
+  const styles = useStyles();
+  const theme = useTheme();
+  // Apple HIG Typography: at the largest text sizes the three action
+  // buttons stack, so each label keeps its full width.
+  const stacked = useWindowDimensions().fontScale > 1.35;
   // Set synchronously, so a second press of Save or Delete before the
   // re-render sends nothing.
   const busy = useRef(false);
@@ -226,7 +247,7 @@ export function RuleEditor({
   }, []);
 
   const ruleId = rule === null ? null : rule.id;
-  const disabled = pending !== null;
+  const disabled = pending !== null || finished;
   const fieldError = (field: Field) => (failure?.field === field ? failure.message : null);
   const formError = failure !== null && failure.field === null ? failure.message : null;
 
@@ -239,12 +260,34 @@ export function RuleEditor({
     setFailure((current) => (current === null || current.field === field ? null : current));
   };
 
-  const leave = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/settings/rules");
+  // Apple HIG Modality: Cancel, the back gesture, and a swipe down on the
+  // sheet ask before throwing away an edit. An unchanged draft leaves without
+  // asking, and so does a running or finished save or deletion.
+  usePreventRemove(pending === null && !finished && !sameDraft(draft, initial), ({ data }) =>
+    confirmDiscard(() => navigation.dispatch(data.action)),
+  );
+
+  // Back to the rules list once a save or a deletion succeeds, after the
+  // render that stops holding the editor: a pop when the list is under the
+  // editor, and a replace when the editor was opened directly over the
+  // Settings list.
+  useEffect(() => {
+    if (finished) {
+      router.dismissTo("/settings/rules");
     }
+  }, [finished, router]);
+
+  // A failure shows on screen and VoiceOver reads it out, since it appears
+  // away from the focused Save or Delete (Apple HIG Accessibility).
+  const fail = (next: Failure) => {
+    setFailure(next);
+    haptic.error();
+    AccessibilityInfo.announceForAccessibility(next.message);
+  };
+
+  const finish = () => {
+    haptic.success();
+    setFinished(true);
   };
 
   const submit = async () => {
@@ -257,11 +300,11 @@ export function RuleEditor({
     try {
       await save(saveArgs(ruleId, draft));
       if (mounted.current) {
-        leave();
+        finish();
       }
     } catch (error) {
       if (mounted.current) {
-        setFailure(saveFailure(error));
+        fail(saveFailure(error));
       }
     } finally {
       busy.current = false;
@@ -271,7 +314,7 @@ export function RuleEditor({
     }
   };
 
-  const confirmDelete = async () => {
+  const deleteRule = async () => {
     if (busy.current || ruleId === null) {
       return;
     }
@@ -281,15 +324,15 @@ export function RuleEditor({
     try {
       await remove({ ruleId });
       if (mounted.current) {
-        leave();
+        finish();
       }
     } catch (error) {
       if (mounted.current) {
         // A rule deleted elsewhere is gone, which is what Delete asked for.
         if (errorData(error)?.code === errorCodeSchema.enum.not_found) {
-          leave();
+          finish();
         } else {
-          setFailure({ field: null, message: DELETE_FAILED });
+          fail({ field: null, message: DELETE_FAILED });
         }
       }
     } finally {
@@ -310,110 +353,209 @@ export function RuleEditor({
   if (ruleAgent !== null && !agents.some((agent) => agent.id === ruleAgent)) {
     agentOptions.push({ value: ruleAgent, label: ENDED_AGENT });
   }
+  const agentName =
+    draft.agentSessionId === null
+      ? null
+      : (agentOptions.find((option) => option.value === draft.agentSessionId)?.label ??
+        ENDED_AGENT);
+
+  const toggle = (field: MatchField) => setOpen((current) => (current === field ? null : field));
+
+  // A choice sets its field and closes the list, as an action sheet would.
+  function choices<T>(
+    field: MatchField,
+    options: { value: T; label: string }[],
+    value: T,
+    patch: (value: T) => Partial<Draft>,
+  ) {
+    return options.map((option) => (
+      <OptionRow
+        key={`${field}:${option.label}:${String(option.value)}`}
+        group={GROUPS[field]}
+        label={option.label}
+        selected={option.value === value}
+        disabled={disabled}
+        onPress={() => {
+          edit(field, patch(option.value));
+          setOpen(null);
+        }}
+      />
+    ));
+  }
+
+  const token = (field: MatchField, phrase: string) => (
+    <SentenceToken
+      field={GROUPS[field]}
+      phrase={phrase}
+      open={open === field}
+      invalid={fieldError(field) !== null}
+      disabled={disabled}
+      onPress={() => toggle(field)}
+    />
+  );
+
+  // Each field's error sits under the sentence, so it shows whichever list
+  // is open.
+  const errorLine = (field: Field) => {
+    const message = fieldError(field);
+    return message === null ? null : (
+      <View key={field} testID={`field-${GROUPS[field]}`}>
+        <AppText variant="footnote" tone="red">
+          {message}
+        </AppText>
+      </View>
+    );
+  };
+
+  const preview = rulePreview({
+    topic: draft.topic,
+    agent: agentName,
+    eventKind: draft.eventKind,
+    priority: draft.priority,
+    action: draft.action,
+  });
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      <Text style={styles.line}>{PRECEDENCE_EXPLANATION}</Text>
-      <View style={styles.field} testID="field-Topic">
-        <Text style={styles.fieldLabel}>Topic</Text>
-        <TextInput
-          accessibilityLabel="Topic"
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!disabled}
-          onChangeText={(topic) => edit("topic", { topic })}
-          placeholder="Any topic, or a topic such as acme/billing"
-          style={styles.input}
-          value={draft.topic}
-        />
-        <Text style={styles.meta}>A topic also matches its subtopics.</Text>
-        {fieldError("topic") === null ? null : (
-          <Text style={styles.error}>{fieldError("topic")}</Text>
-        )}
-      </View>
-      <ChoiceGroup
-        group="Agent"
-        choices={agentOptions}
-        value={draft.agentSessionId}
-        disabled={disabled}
-        error={fieldError("agent")}
-        onSelect={(agentSessionId) => edit("agent", { agentSessionId })}
+    <>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <HeaderButton
+              label={pending === "save" ? "Saving..." : "Save"}
+              emphasis
+              disabled={disabled || !hasMatch(draft)}
+              onPress={() => void submit()}
+            />
+          ),
+        }}
       />
-      <ChoiceGroup
-        group="Event"
-        choices={[{ value: null, label: "Any event" }, ...EVENT_KINDS]}
-        value={draft.eventKind}
-        disabled={disabled}
-        error={fieldError("eventKind")}
-        onSelect={(eventKind) => edit("eventKind", { eventKind })}
-      />
-      <ChoiceGroup
-        group="Priority"
-        choices={[{ value: null, label: "Any priority" }, ...PRIORITIES]}
-        value={draft.priority}
-        disabled={disabled}
-        error={fieldError("priority")}
-        onSelect={(priority) => edit("priority", { priority })}
-      />
-      <Text style={styles.meta}>Only decision events carry a priority.</Text>
-      <ChoiceGroup
-        group="Action"
-        choices={ACTIONS}
-        value={draft.action}
-        disabled={disabled}
-        error={fieldError("action")}
-        onSelect={(action) => edit("action", { action })}
-      />
-      {hasMatch(draft) ? null : (
-        <Text style={styles.meta}>Set at least one of topic, agent, event, or priority.</Text>
-      )}
-      {formError === null ? null : <Text style={styles.error}>{formError}</Text>}
-      <Button
-        label={pending === "save" ? "Saving..." : "Save rule"}
-        onPress={() => void submit()}
-        disabled={disabled || !hasMatch(draft)}
-      />
-      {ruleId === null ? null : confirming ? (
-        <View style={styles.outcome}>
-          <Text style={styles.line}>
-            Delete this rule? Events it matched follow your other rules or the defaults.
-          </Text>
-          <Button
-            label={pending === "delete" ? "Deleting..." : "Delete rule"}
-            onPress={() => void confirmDelete()}
-            disabled={disabled}
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled }}
-            disabled={disabled}
-            onPress={() => {
-              if (busy.current) {
-                return;
-              }
-              setFailure(null);
-              setConfirming(false);
-            }}
-          >
-            <Text style={styles.link}>Cancel</Text>
-          </Pressable>
+      <StackScreen>
+        <View style={styles.sentence}>
+          <SentenceWord>When</SentenceWord>
+          {token("eventKind", eventPhrase(draft.eventKind))}
+          <SentenceWord>by</SentenceWord>
+          {token("agent", agentName ?? "any agent")}
+          <SentenceWord>in</SentenceWord>
+          {token("topic", topicPhrase(draft.topic))}
+          <SentenceWord>with</SentenceWord>
+          {token("priority", priorityPhrase(draft.priority))}
+          <SentenceWord>priority,</SentenceWord>
         </View>
-      ) : (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled }}
-          disabled={disabled}
-          onPress={() => {
-            if (busy.current) {
-              return;
-            }
-            setFailure(null);
-            setConfirming(true);
-          }}
+        <View style={styles.errors}>
+          {(["eventKind", "agent", "topic", "priority"] as const).map(errorLine)}
+        </View>
+
+        {open === "eventKind" ? (
+          <GroupedSection title="Event">
+            {choices(
+              "eventKind",
+              [{ value: null, label: "Any event" }, ...EVENT_KINDS],
+              draft.eventKind,
+              (eventKind) => ({ eventKind }),
+            )}
+          </GroupedSection>
+        ) : null}
+        {open === "agent" ? (
+          <GroupedSection title="Agent">
+            {choices("agent", agentOptions, draft.agentSessionId, (agentSessionId) => ({
+              agentSessionId,
+            }))}
+          </GroupedSection>
+        ) : null}
+        {open === "topic" ? (
+          <GroupedSection title="Topic" footer={SUBTOPIC_HINT}>
+            <TextInput
+              accessibilityLabel="Topic"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              editable={!disabled}
+              onChangeText={(topic) => edit("topic", { topic })}
+              onSubmitEditing={() => setOpen(null)}
+              placeholder="Any topic, or a topic such as acme/billing"
+              placeholderTextColor={theme.textSecondary}
+              returnKeyType="done"
+              style={styles.topicInput}
+              value={draft.topic}
+            />
+          </GroupedSection>
+        ) : null}
+        {open === "priority" ? (
+          <GroupedSection title="Priority" footer={PRIORITY_HINT}>
+            {choices(
+              "priority",
+              [{ value: null, label: "Any priority" }, ...PRIORITIES],
+              draft.priority,
+              (priority) => ({ priority }),
+            )}
+          </GroupedSection>
+        ) : null}
+
+        <AppText
+          accessibilityRole="header"
+          variant="footnote"
+          tone="secondary"
+          style={[styles.label, { textTransform: "uppercase" }]}
         >
-          <Text style={styles.error}>Delete</Text>
-        </Pressable>
-      )}
-    </ScrollView>
+          Then
+        </AppText>
+        <View style={[styles.actions, stacked && styles.actionsStacked]}>
+          {ACTIONS.map((choice) => (
+            <ActionButton
+              key={choice.value}
+              label={choice.label}
+              icon={ACTION_LOOK[choice.value].icon}
+              selected={draft.action === choice.value}
+              disabled={disabled}
+              stacked={stacked}
+              onPress={() => edit("action", { action: choice.value })}
+            />
+          ))}
+        </View>
+        <View style={styles.errors}>{errorLine("action")}</View>
+
+        <Card style={styles.preview}>
+          <Icon name="sparkles" size={22} color={theme.accent} />
+          <View style={styles.previewText}>
+            <AppText weight="600">Preview</AppText>
+            <AppText variant="subhead" tone={preview === null ? "amber" : "secondary"}>
+              {preview ?? NO_MATCH}
+            </AppText>
+          </View>
+        </Card>
+        {formError === null ? null : (
+          <AppText tone="red" style={styles.formError}>
+            {formError}
+          </AppText>
+        )}
+        <AppText variant="footnote" tone="secondary" style={styles.footer}>
+          {`${SENTENCE_HINT} ${SUBTOPIC_HINT}`}
+        </AppText>
+
+        {/* Apple HIG Action sheets: Delete asks with the system sheet, whose
+            red "Delete Rule" and separate Cancel keep a stray tap from
+            deleting. A failed deletion shows its error; the row asks again. */}
+        {ruleId === null ? null : (
+          <GroupedSection>
+            <GroupedRow
+              title={pending === "delete" ? "Deleting..." : "Delete rule"}
+              tone="destructive"
+              disabled={disabled}
+              onPress={() => {
+                if (busy.current) {
+                  return;
+                }
+                confirmDestructive({
+                  title: DELETE_TITLE,
+                  message: DELETE_MESSAGE,
+                  action: "Delete Rule",
+                  onConfirm: () => void deleteRule(),
+                });
+              }}
+            />
+          </GroupedSection>
+        )}
+      </StackScreen>
+    </>
   );
 }

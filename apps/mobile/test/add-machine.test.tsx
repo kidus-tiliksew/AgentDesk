@@ -1,9 +1,10 @@
 import { getFunctionName } from "convex/server";
 import { router } from "expo-router";
 import { act, fireEvent, screen } from "expo-router/testing-library";
-import { AppState } from "react-native";
-import { normalizeCode } from "../src/add-machine";
-import { deferred, loading, setQuery, signInAs } from "./fakes";
+import { AccessibilityInfo, AppState, Dimensions } from "react-native";
+import { cleanCodeInput, normalizeCode } from "../src/add-machine";
+import { haptic } from "../src/haptics";
+import { deferred, loading, push, setQuery, signInAs } from "./fakes";
 import { renderApp } from "./render";
 
 // component-mobile-app §Screens: settings/add-machine takes the installer's
@@ -15,8 +16,8 @@ const approveName = "identity/deviceRequests:approveDeviceRequest";
 const declineName = "identity/deviceRequests:declineDeviceRequest";
 const list = "identity/connections:listConnections";
 
-const ENTRY_GUIDANCE = "Enter the 8-character code shown by the installer.";
-const FOUND_GUIDANCE = "Approve to connect these harnesses on this machine.";
+const ENTRY_GUIDANCE = "Enter the code shown by the installer";
+const FOUND_NOTE = "Each harness gets its own connection, which you can revoke separately.";
 const NOT_FOUND = "That code is wrong or no longer available. Check the code and try again.";
 const EXPIRED = "That code expired. Run the installer again for a new code.";
 const LOCKED = "Too many wrong codes. Try again in 10 minutes.";
@@ -27,6 +28,10 @@ const APPROVE_FAILED = "Could not approve the request. Check your connection and
 const DECLINE_FAILED = "Could not decline the request. Check your connection and try again.";
 
 type CodeArgs = { code: string };
+
+jest.mock("../src/haptics", () => ({
+  haptic: { success: jest.fn(), warning: jest.fn(), error: jest.fn(), selection: jest.fn() },
+}));
 
 // The shared convex/react fake refuses mutations it does not know. This file
 // wraps its useMutation, so the three device-request mutations get local
@@ -44,7 +49,13 @@ const found = {
 };
 
 beforeEach(() => {
+  // This device already answered the permission prompt, so the push
+  // explanation never covers the screen; notifications.test covers it.
+  push.permission = { granted: true, canAskAgain: true, status: "granted" };
   bound.clear();
+  jest.mocked(haptic.success).mockClear();
+  jest.mocked(haptic.error).mockClear();
+  jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
   mockLookup.mockReset().mockResolvedValue(found);
   mockApprove.mockReset().mockResolvedValue({ status: "approved" });
   mockDecline.mockReset().mockResolvedValue({ status: "declined" });
@@ -70,6 +81,17 @@ beforeEach(() => {
 afterEach(() => {
   jest.restoreAllMocks();
 });
+
+// Connections' header +. The native header renders after the screen's body,
+// so it is the last Add machine button; an empty list adds another.
+function headerAddMachine() {
+  const buttons = screen.getAllByRole("button", { name: "Add machine" });
+  const last = buttons[buttons.length - 1];
+  if (last === undefined) {
+    throw new Error("No Add machine button");
+  }
+  return last;
+}
 
 async function openAddMachine() {
   signInAs("sess_a");
@@ -125,26 +147,24 @@ describe("normalizeCode", () => {
     ["AbCd-EfGh", "ABCDEFGH"],
     ["  abcd-2345\n", "ABCD2345"],
     ["\tAB12cd34 ", "AB12CD34"],
+    // A paste keeps whatever separator the installer's output carried.
+    ["ABCD EFGH", "ABCDEFGH"],
+    ["ab-cd-efgh", "ABCDEFGH"],
+    ["ABCD_EFGH", "ABCDEFGH"],
   ])("%j normalizes to %s", (raw, code) => {
     expect(normalizeCode(raw)).toBe(code);
   });
 
-  test.each([
-    "",
-    "ABCDEFG",
-    "ABC-DEFGH",
-    "ABCDEFGHJ",
-    "ABCD-EFGHJ",
-    "ABCD--EFGH",
-    "AB-CD-EFGH",
-    "ABCDEFGH-",
-    "ABCD EFGH",
-    "ABCD_EFGH",
-    "ABCD.EFGH",
-    "ABCDEFGß",
-    "ABCDEFGĦ",
-  ])("%j is not a code", (raw) => {
-    expect(normalizeCode(raw)).toBeNull();
+  test.each(["", "ABCDEFG", "ABC-DEFG", "ABCDEFGHJ", "ABCD-EFGHJ", "ABCDEFGß", "ABCDEFGĦ"])(
+    "%j is not a code",
+    (raw) => {
+      expect(normalizeCode(raw)).toBeNull();
+    },
+  );
+
+  test("the field keeps only uppercased letters and digits, never shortening the text", () => {
+    expect(cleanCodeInput("k7qm-4x")).toBe("K7QM4X");
+    expect(cleanCodeInput(" ABCD EFGH J ")).toBe("ABCDEFGHJ");
   });
 });
 
@@ -153,25 +173,26 @@ describe("add machine screen", () => {
     await openAddMachine();
 
     expect(screen.getByText(ENTRY_GUIDANCE)).toBeOnTheScreen();
-    expect(input()).toHaveProp("placeholder", "ABCD-EFGH");
+    expect(input()).toHaveProp("autoCapitalize", "characters");
     expect(button("Find machine")).toBeDisabled();
 
     fireEvent.changeText(input(), "abcd-efg");
+    expect(input()).toHaveProp("value", "ABCDEFG");
     expect(button("Find machine")).toBeDisabled();
 
+    // A pasted code in the installer's format fills the boxes.
     fireEvent.changeText(input(), "abcd-efgh");
+    expect(input()).toHaveProp("value", "ABCDEFGH");
     expect(button("Find machine")).toBeEnabled();
 
-    fireEvent.changeText(input(), "abcdefgh");
+    fireEvent.changeText(input(), "ABCD EFGH");
     expect(button("Find machine")).toBeEnabled();
 
     fireEvent.changeText(input(), "abcd-efghj");
     expect(button("Find machine")).toBeDisabled();
 
-    fireEvent.changeText(input(), "ab-cd-efgh");
-    expect(button("Find machine")).toBeDisabled();
-
-    // Typing never looks a code up: lookup records wrong-code attempts.
+    // Typing, even filling the last box, never looks a code up: lookup
+    // records wrong-code attempts.
     expect(mockLookup).not.toHaveBeenCalled();
     // The entry screen binds no approve or decline mutation.
     expect(bound).toEqual(new Set([lookupName]));
@@ -186,14 +207,14 @@ describe("add machine screen", () => {
 
     expect(mockLookup).toHaveBeenCalledTimes(1);
     expect(mockLookup).toHaveBeenCalledWith({ code: "ABCDEFGH" });
-    expect(screen.getByText("Machine")).toBeOnTheScreen();
     expect(screen.getByText("devbox-2")).toBeOnTheScreen();
-    expect(screen.getByText("Harnesses")).toBeOnTheScreen();
+    expect(screen.getByText("wants to connect")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Harnesses")).toBeOnTheScreen();
     const names = screen
       .getAllByText(/^(Claude Code|Codex|Cursor)$/)
       .map((element) => element.props.children);
     expect(names).toEqual(["Codex", "Claude Code", "Cursor"]);
-    expect(screen.getByText(FOUND_GUIDANCE)).toBeOnTheScreen();
+    expect(screen.getByText(FOUND_NOTE)).toBeOnTheScreen();
     expect(button("Approve")).toBeEnabled();
     expect(button("Decline")).toBeEnabled();
     expect(input()).toHaveProp("editable", false);
@@ -210,6 +231,7 @@ describe("add machine screen", () => {
     expect(mockApprove).toHaveBeenCalledTimes(1);
     expect(mockApprove).toHaveBeenCalledWith({ code: "WXYZ2345" });
     expect(mockDecline).not.toHaveBeenCalled();
+    expect(screen.getByText("Machine approved")).toBeOnTheScreen();
     expect(screen.getByText(APPROVED)).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Decline" })).not.toBeOnTheScreen();
@@ -232,6 +254,7 @@ describe("add machine screen", () => {
     expect(mockDecline).toHaveBeenCalledTimes(1);
     expect(mockDecline).toHaveBeenCalledWith({ code: "WXYZ2345" });
     expect(mockApprove).not.toHaveBeenCalled();
+    expect(screen.getByText("Request declined")).toBeOnTheScreen();
     expect(screen.getByText(DECLINED)).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Decline" })).not.toBeOnTheScreen();
@@ -240,6 +263,81 @@ describe("add machine screen", () => {
 
     expect(input()).toHaveProp("value", "");
     expect(mockLookup).toHaveBeenCalledTimes(1);
+  });
+
+  test("an approval plays the success haptic and is read out", async () => {
+    await openFound();
+
+    await press("Approve");
+
+    expect(haptic.success).toHaveBeenCalledTimes(1);
+    expect(haptic.error).not.toHaveBeenCalled();
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith("Machine approved");
+  });
+
+  test("a decline is read out without a success haptic", async () => {
+    await openFound();
+
+    await press("Decline");
+
+    expect(haptic.success).not.toHaveBeenCalled();
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith("Request declined");
+  });
+
+  test.each([
+    ["not_found", NOT_FOUND],
+    ["expired", EXPIRED],
+    ["locked", LOCKED],
+  ])("a %s lookup plays the error haptic and reads the message out", async (status, message) => {
+    mockLookup.mockResolvedValueOnce({ status });
+    await openAddMachine();
+    fireEvent.changeText(input(), "abcd-efgh");
+
+    await press("Find machine");
+
+    expect(haptic.error).toHaveBeenCalledTimes(1);
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(message);
+  });
+
+  test("a failed call plays the error haptic and reads the failure out", async () => {
+    mockApprove.mockRejectedValueOnce(new Error("Network request failed"));
+    await openFound();
+
+    await press("Approve");
+
+    expect(haptic.error).toHaveBeenCalledTimes(1);
+    expect(haptic.success).not.toHaveBeenCalled();
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(APPROVE_FAILED);
+  });
+
+  test("Decline and Approve sit side by side, and stack at large text sizes", async () => {
+    // Jest's window starts at fontScale 2; begin at the default text size.
+    const window = Dimensions.get("window");
+    Dimensions.set({ window: { ...window, fontScale: 1 } });
+    try {
+      await openFound();
+      expect(button("Approve")).toHaveStyle({ flex: 1 });
+      expect(button("Decline")).toHaveStyle({ flex: 1 });
+
+      act(() => Dimensions.set({ window: { ...window, fontScale: 1.5 } }));
+
+      expect(button("Approve")).not.toHaveStyle({ flex: 1 });
+      expect(button("Decline")).not.toHaveStyle({ flex: 1 });
+    } finally {
+      Dimensions.set({ window });
+    }
+  });
+
+  test("Done after an approval returns to Connections", async () => {
+    setQuery(list, []);
+    await openFound();
+    await press("Approve");
+
+    fireEvent.press(button("Done"));
+
+    expect(await screen.findByText("No machines connected")).toBeOnTheScreen();
+    expect(screen).toHavePathname("/settings/connections");
+    expect(mockApprove).toHaveBeenCalledTimes(1);
   });
 
   test("Use another code returns to entry without a call", async () => {
@@ -506,12 +604,13 @@ describe("add machine screen", () => {
     setQuery(list, []);
     signInAs("sess_a");
     renderApp("/settings/connections");
-    fireEvent.press(await screen.findByText("Add machine"));
+    await screen.findByText("No machines connected");
+    fireEvent.press(headerAddMachine());
     fireEvent.changeText(await screen.findByLabelText("Installer code"), "abcd-efgh");
     fireEvent.press(button("Find machine"));
 
     act(() => router.back());
-    expect(await screen.findByText("No connected harnesses.")).toBeOnTheScreen();
+    expect(await screen.findByText("No machines connected")).toBeOnTheScreen();
 
     await act(async () => {
       pending.resolve(found);
@@ -524,21 +623,24 @@ describe("add machine screen", () => {
 
   test.each([
     ["loading", loading, "Loading connections"],
-    ["empty", [], "No connected harnesses."],
+    ["empty", [], "No machines connected"],
     ["failed", new Error("Network request failed"), "Could not load your connections."],
-  ])("Connections links to Add machine while its list is %s", async (_state, result, text) => {
-    jest.spyOn(console, "error").mockImplementation(() => {});
-    setQuery(list, result);
-    signInAs("sess_a");
-    renderApp("/settings/connections");
-    expect(await screen.findByText(text)).toBeOnTheScreen();
+  ])(
+    "Connections' header + opens Add machine while its list is %s",
+    async (_state, result, text) => {
+      jest.spyOn(console, "error").mockImplementation(() => {});
+      setQuery(list, result);
+      signInAs("sess_a");
+      renderApp("/settings/connections");
+      expect(await screen.findByText(text)).toBeOnTheScreen();
 
-    fireEvent.press(screen.getByText("Add machine"));
+      fireEvent.press(headerAddMachine());
 
-    expect(await screen.findByLabelText("Installer code")).toBeOnTheScreen();
-    expect(screen).toHavePathname("/settings/add-machine");
-    expect(mockLookup).not.toHaveBeenCalled();
-  });
+      expect(await screen.findByLabelText("Installer code")).toBeOnTheScreen();
+      expect(screen).toHavePathname("/settings/add-machine");
+      expect(mockLookup).not.toHaveBeenCalled();
+    },
+  );
 });
 
 // renderRouter installs Jest's modern fake timers and keeps them for the rest
