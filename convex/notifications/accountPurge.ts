@@ -51,6 +51,14 @@ import { notifications } from "./refs";
 // schedules the row's drain, and from then on the row only waits for its
 // cancellation: `registerDevice` never reuses it and adds a fresh record when
 // the account registers the token again.
+//
+// A sign-out or handoff cancellation that stops (another account's
+// notification on the oldest page, a history too long to read, or a
+// notification with no `pushSends` record) keeps its row with
+// `drainScheduledAt` set to CANCELLATION_STOPPED, and no drain runs for it.
+// The account's later sign-out of the install or its deletion looks at the
+// token again. Only a cancellation whose account is being deleted deletes a
+// stopped token's row, so the purge can finish.
 
 // The most notifications `deleteNotificationsForUser` deletes in one call.
 export const COMPONENT_PAGE = 1000;
@@ -71,6 +79,10 @@ export const DRAIN_STALL_MS = 10 * 60_000;
 // The prefix of the private keys a cancellation reads and deletes through.
 // Install ids are UUIDs, so no install ever uses one.
 export const CANCEL_KEY_PREFIX = "agentdesk-cancel:";
+// The `drainScheduledAt` of a token whose sign-out or handoff cancellation
+// stopped. It is older than any DRAIN_STALL_MS cutoff, so account deletion
+// and the purge look at the token again.
+export const CANCELLATION_STOPPED = 0;
 
 type Look =
   // The token holds none of the account's notifications any more.
@@ -168,15 +180,34 @@ async function look(
   }
 }
 
-// Ends a token's cancellation. Its row goes either way; a stopped
-// cancellation is logged with the reason and leaves the token's remaining
-// notifications in the component.
-async function finish(ctx: MutationCtx, generation: Doc<"deviceTokens">, result: Look) {
+// Whether the account is gone or being deleted.
+async function ownerDeleting(ctx: MutationCtx, userId: Id<"users">) {
+  const owner = await ctx.db.get("users", userId);
+  return owner === null || owner.deletingAt !== undefined;
+}
+
+// Ends a token's cancellation. A finished or superseded token's row goes. A
+// stopped cancellation is logged with the reason and leaves the token's
+// remaining notifications in the component; its row goes only when the
+// account is being deleted, and otherwise stays, marked
+// CANCELLATION_STOPPED, for the account's later sign-out or deletion.
+async function finish(
+  ctx: MutationCtx,
+  generation: Doc<"deviceTokens">,
+  result: Look,
+  accountDeleting: boolean,
+) {
   if (result === "stop") {
     console.error(
       `Push cancellation for token record ${generation._id} stopped: its next page holds` +
         " notifications of another account, or its history is too long to read",
     );
+    if (!accountDeleting) {
+      await ctx.db.patch("deviceTokens", generation._id, {
+        drainScheduledAt: CANCELLATION_STOPPED,
+      });
+      return;
+    }
   }
   await ctx.db.delete("deviceTokens", generation._id);
 }
@@ -190,13 +221,16 @@ async function scheduleDrain(ctx: MutationCtx, generation: Doc<"deviceTokens">, 
 }
 
 // Settles one look of a cancellation that runs in a caller's transaction: a
-// finished, stopped, or superseded token's row goes; any other token gets a
-// drain, unless a drain scheduled within DRAIN_STALL_MS still runs for it.
+// finished or superseded token's row goes, a stopped one is ended by
+// `finish`, and any other token gets a drain, unless a drain scheduled within
+// DRAIN_STALL_MS still runs for it. A stopped row's CANCELLATION_STOPPED is
+// older than that, so it gets a drain when its history becomes deletable.
 async function settle(
   ctx: MutationCtx,
   generation: Doc<"deviceTokens">,
   result: Look,
   now: number,
+  accountDeleting: boolean,
 ) {
   if (result === "more" || result === "busy") {
     if (
@@ -207,7 +241,7 @@ async function settle(
     }
     return;
   }
-  await finish(ctx, generation, result);
+  await finish(ctx, generation, result, accountDeleting);
 }
 
 // Cancels the pushes the component still holds for the account, under every
@@ -216,7 +250,9 @@ async function settle(
 // new push for the account. A token with fewer than COMPONENT_PAGE
 // notifications, all the account's own and none in flight, is finished in
 // this transaction, its queued and retrying sends included. Every other
-// token gets a drain.
+// token gets a drain. Tokens whose sign-out or handoff cancellation stopped
+// are looked at again; a token that stops here loses its row, so the purge
+// can finish.
 export async function cancelAccountPushes(ctx: MutationCtx, userId: Id<"users">): Promise<void> {
   const now = Date.now();
   const generations = await ctx.db
@@ -229,7 +265,7 @@ export async function cancelAccountPushes(ctx: MutationCtx, userId: Id<"users">)
     if (current === null) {
       continue;
     }
-    await settle(ctx, current, await look(ctx, current, COMPONENT_PAGE), now);
+    await settle(ctx, current, await look(ctx, current, COMPONENT_PAGE), now, true);
   }
 }
 
@@ -257,7 +293,8 @@ export type InstallDeparture = "signOut" | "handoff";
 // under the same Expo token before the drain finishes, the token's oldest
 // page holds both accounts' notifications. The drain then stops and logs,
 // deleting nothing of the new owner's and leaving the former owner's
-// notifications on that page.
+// notifications on that page. The former owner keeps the token's record,
+// marked CANCELLATION_STOPPED, and its account deletion looks again.
 export async function cancelInstallPushes(
   ctx: MutationCtx,
   userId: Id<"users">,
@@ -265,6 +302,7 @@ export async function cancelInstallPushes(
   departure: InstallDeparture,
 ): Promise<void> {
   const now = Date.now();
+  const accountDeleting = await ownerDeleting(ctx, userId);
   const generations = await ctx.db
     .query("deviceTokens")
     .withIndex("by_user_device_token", (q) => q.eq("userId", userId).eq("deviceId", deviceId))
@@ -278,7 +316,7 @@ export async function cancelInstallPushes(
       departure === "handoff"
         ? await look(ctx, current, HISTORY_READ_LIMIT + 1, HANDOFF_PAGES)
         : await look(ctx, current, COMPONENT_PAGE);
-    await settle(ctx, current, result, now);
+    await settle(ctx, current, result, now, accountDeleting);
   }
 }
 
@@ -295,7 +333,7 @@ export const drainTokenPushes = internalMutation({
     }
     const result = await look(ctx, generation, HISTORY_READ_LIMIT + 1);
     if (result !== "more" && result !== "busy") {
-      await finish(ctx, generation, result);
+      await finish(ctx, generation, result, await ownerDeleting(ctx, generation.userId));
       return null;
     }
     if (attempt === DRAIN_FAST_LOOKS) {

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { Id } from "../_generated/dataModel";
 import { identity } from "../identity/refs";
+import { CANCELLATION_STOPPED } from "./accountPurge";
 import { deliverPush, pushNotifications } from "./push";
 import { notifications } from "./refs";
 import {
@@ -414,15 +415,23 @@ describe("an install moving between accounts and the push component's sender", (
       }
       release();
       await t.finishInProgressScheduledFunctions();
+      const stopped = async () =>
+        (await tokenRecords(t, userA)).every(
+          (row) => row.drainScheduledAt === CANCELLATION_STOPPED,
+        );
       await runUntil(
         t,
-        async () =>
-          (await tokenRecords(t, userA)).length === 0 &&
-          (await notification(t, forB.id))?.state === "delivered",
+        async () => (await stopped()) && (await notification(t, forB.id))?.state === "delivered",
       );
 
-      // The cleanup stopped and logged.
-      expect(await tokenRecords(t, userA)).toHaveLength(0);
+      // The cleanup stopped and logged. The former owner keeps the token's
+      // record, marked stopped, and no drain loops on it.
+      expect(await tokenRecords(t, userA)).toEqual([
+        expect.objectContaining({
+          token: "ExponentPushToken[shared]",
+          drainScheduledAt: CANCELLATION_STOPPED,
+        }),
+      ]);
       expect(await pendingDrains(t)).toHaveLength(0);
       expect(errors).toHaveBeenCalledWith(expect.stringContaining("stopped"));
       // Nothing of the new owner's is deleted: its notification, send, token,
@@ -445,6 +454,77 @@ describe("an install moving between accounts and the push component's sender", (
         "For B",
         "For A",
       ]);
+
+      // The former owner's account deletion looks at the token again. The
+      // page still holds B's notification, so it stops once more and drops
+      // the record so the purge can finish; nothing of B's is touched.
+      await asA.mutation(identity.accountDeletion.deleteAccount, {});
+      expect(await tokenRecords(t, userA)).toHaveLength(0);
+      expect(await notification(t, forB.id)).toMatchObject({ state: "delivered" });
+      expect(await tokenStatus(t, "install-x")).toMatchObject({ hasToken: true });
+      expect(await tokenRecords(t, userB)).toHaveLength(1);
     });
   }
+});
+
+// Review round 1, finding 2: the sign-out cutoff beyond the in-transaction
+// case, measured against the component's real sender. Each test counts the
+// messages Expo receives for the signed-out install's token after
+// `unregisterDevice` returns. The sender batches at most 100 notifications.
+describe("the sign-out cutoff beyond one transaction, measured", () => {
+  test(
+    "1,100 queued at sign-out: one sender batch of 100 still reaches Expo, the other 1,000 are deleted",
+    async () => {
+      const { t, userA, userB, asA, asB } = await setup();
+      await register(asA, "install-a", "ExponentPushToken[a]");
+      await register(asB, "install-b", "ExponentPushToken[b]");
+      await queueHistory(t, userA, "install-a", 1100);
+      await queuePush(t, userB, "For B");
+      expect(sent).toHaveLength(0);
+
+      await asA.mutation(notifications.devices.unregisterDevice, { deviceId: "install-a" });
+      // A history of 1,000 or more is left to a drain, so nothing is deleted
+      // in the sign-out transaction.
+      expect(await tokenHistory(t, "ExponentPushToken[a]")).toHaveLength(1100);
+      await runUntil(t, async () => (await tokenRecords(t, userA)).length === 0);
+      await runUntil(t, async () => false, 30);
+
+      // Measured: the coordinator's first batch, queued before the sign-out,
+      // went to Expo before the drain's first look; the drain then deleted
+      // the remaining 1,000 queued notifications.
+      expect(sent.filter((message) => message.to === "ExponentPushToken[a]")).toHaveLength(100);
+      expect(await tokenHistory(t, "ExponentPushToken[a]")).toHaveLength(0);
+      expect(await tokenRecords(t, userA)).toHaveLength(0);
+      expect(sent.filter((message) => message.title === "For B")).toHaveLength(1);
+    },
+    HEAVY_TEST_TIMEOUT_MS,
+  );
+
+  test("queued behind an in-flight batch at sign-out: the batch reaches Expo, none of the 50 behind it does", async () => {
+    const { t, userA, asA } = await setup();
+    await register(asA, "install-a", "ExponentPushToken[a]");
+    await queueHistory(t, userA, "install-a", 150);
+    const { fetchMock, release } = holdNextSend();
+    await startHeldSend(t, fetchMock);
+    const before = await tokenHistory(t, "ExponentPushToken[a]");
+    expect(before.filter((row) => row.state === "in_progress")).toHaveLength(100);
+    expect(before.filter((row) => row.state === "awaiting_delivery")).toHaveLength(50);
+
+    await asA.mutation(notifications.devices.unregisterDevice, { deviceId: "install-a" });
+    expect(await tokenHistory(t, "ExponentPushToken[a]")).toHaveLength(150);
+    release();
+    await t.finishInProgressScheduledFunctions();
+    await runUntil(t, async () => (await tokenRecords(t, userA)).length === 0);
+    await runUntil(t, async () => false, 30);
+
+    // Measured: Expo received one request, the 100 already in flight at
+    // sign-out; the drain deleted the 50 queued behind them before the
+    // coordinator took them.
+    const requests = fetchMock.mock.calls.map(
+      (call) => (JSON.parse(String((call[1] as RequestInit).body)) as unknown[]).length,
+    );
+    expect(requests).toEqual([100]);
+    expect(await tokenHistory(t, "ExponentPushToken[a]")).toHaveLength(0);
+    expect(await tokenRecords(t, userA)).toHaveLength(0);
+  });
 });
