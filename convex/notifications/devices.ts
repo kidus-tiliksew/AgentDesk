@@ -4,7 +4,7 @@ import type { Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation, type QueryCtx } from "../_generated/server";
 import { requireUser } from "../lib/auth";
 import { appError } from "../lib/errors";
-import { cancelAccountPushes } from "./accountPurge";
+import { cancelAccountPushes, cancelInstallPushes } from "./accountPurge";
 import { pushNotifications } from "./push";
 import { platformValidator } from "./schema";
 
@@ -28,8 +28,11 @@ function ownedDevice(ctx: Pick<QueryCtx, "db">, userId: Id<"users">, deviceId: s
 // The app calls this after sign-in and whenever its push token changes. An
 // install that signs in to another account moves to that account: the lookup
 // spans every account, so the former owner keeps no row for the install and
-// its later events select no device for it. The token replaces the one the
-// component held for the install.
+// its later events select no device for it, and the former owner's
+// notifications for the install are cancelled before the new token is
+// recorded (§Devices). The token replaces the one the component held for the
+// install. A re-registration by the same owner, such as a token refresh,
+// keeps the install's notifications.
 export const registerDevice = mutation({
   args: {
     deviceId: v.string(),
@@ -47,12 +50,34 @@ export const registerDevice = mutation({
       .withIndex("by_device", (q) => q.eq("deviceId", args.deviceId))
       .collect();
     let own = null;
+    const formerOwners = new Set<Id<"users">>();
     for (const row of rows) {
       if (row.userId === user._id && own === null) {
         own = row;
       } else {
         await ctx.db.delete("devices", row._id);
+        if (row.userId !== user._id) {
+          formerOwners.add(row.userId);
+        }
       }
+    }
+    // A former owner that signed out of the install has no row left, but its
+    // token records for the install remain while their cancellation drains
+    // or after it stopped, so they name it too.
+    const records = await ctx.db
+      .query("deviceTokens")
+      .withIndex("by_device", (q) => q.eq("deviceId", args.deviceId))
+      .collect();
+    for (const record of records) {
+      if (record.userId !== user._id) {
+        formerOwners.add(record.userId);
+      }
+    }
+    // Before the install takes the new owner's token, which can be the same
+    // Expo token, so the former owner's history under it is gone before the
+    // new owner can queue anything there.
+    for (const formerOwner of formerOwners) {
+      await cancelInstallPushes(ctx, formerOwner, args.deviceId, "handoff");
     }
     if (own === null) {
       await ctx.db.insert("devices", {
@@ -65,15 +90,17 @@ export const registerDevice = mutation({
       await ctx.db.patch("devices", own._id, { name: args.name, platform: args.platform });
     }
     await pushNotifications.recordToken(ctx, { userId: args.deviceId, pushToken: args.pushToken });
-    // Every token the account registers for an install is kept until account
-    // deletion has cancelled its notifications (§Account deletion).
-    const known = await ctx.db
+    // Every token the account registers for an install is kept until a
+    // sign-out, a handoff, or account deletion has cancelled its
+    // notifications (§Account deletion). A record whose cancellation is still
+    // draining is not reused.
+    const ownRecords = await ctx.db
       .query("deviceTokens")
       .withIndex("by_user_device_token", (q) =>
         q.eq("userId", user._id).eq("deviceId", args.deviceId).eq("token", args.pushToken),
       )
-      .first();
-    if (known === null) {
+      .collect();
+    if (ownRecords.every((record) => record.drainScheduledAt !== undefined)) {
       await ctx.db.insert("deviceTokens", {
         userId: user._id,
         deviceId: args.deviceId,
@@ -85,7 +112,9 @@ export const registerDevice = mutation({
 });
 
 // The app calls this on sign-out, before ending the Clerk session, so the
-// install receives nothing more (req-mobile-app AC-4.2). An install the
+// install receives nothing more (req-mobile-app AC-4.2). The install's token
+// goes, and the notifications the account queued for the install are
+// cancelled under every token it registered there (§Devices). An install the
 // signed-in person does not own is left unchanged, as is its token.
 export const unregisterDevice = mutation({
   args: { deviceId: v.string() },
@@ -98,6 +127,7 @@ export const unregisterDevice = mutation({
     }
     await ctx.db.delete("devices", device._id);
     await pushNotifications.removeToken(ctx, { userId: device.deviceId });
+    await cancelInstallPushes(ctx, user._id, device.deviceId, "signOut");
     return null;
   },
 });

@@ -147,7 +147,8 @@ export const tables = {
     drainScheduledAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
-    .index("by_user_device_token", ["userId", "deviceId", "token"]),
+    .index("by_user_device_token", ["userId", "deviceId", "token"])
+    .index("by_device", ["deviceId"]),
 
   // One notification the push component queued for an account, by the id the
   // component returned (§Account deletion). Account deletion deletes a page of
