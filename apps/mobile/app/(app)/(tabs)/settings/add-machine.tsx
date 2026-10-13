@@ -247,7 +247,7 @@ function FoundRequestScreen({
         <View style={stacked ? styles.dockStack : styles.dockRow}>
           <Button
             label={busy === "decline" ? "Declining..." : "Decline"}
-            variant="destructive"
+            variant="secondary"
             grow={!stacked}
             onPress={() => run("decline", code, decline)}
             disabled={disabled}

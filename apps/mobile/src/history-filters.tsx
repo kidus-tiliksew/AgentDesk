@@ -44,7 +44,7 @@ const useStyles = makeStyles((theme) => ({
     flexDirection: "row",
     gap: 6,
     marginHorizontal: spacing.screen,
-    minHeight: 38,
+    minHeight: 44,
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
@@ -181,7 +181,7 @@ function OtherTopicField({
           }}
           onSubmitEditing={apply}
           placeholder="acme/billing"
-          placeholderTextColor={theme.textTertiary}
+          placeholderTextColor={theme.textSecondary}
           returnKeyType="done"
           selectionColor={theme.accent}
           style={styles.topicInput}

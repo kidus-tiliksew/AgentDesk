@@ -21,9 +21,19 @@ export function stateLabel(state: StatusState | null): string {
 }
 
 // The color of a status state's dot: green while working, accent while
-// waiting, grey otherwise.
+// waiting, amber while blocked (it needs a look, as the decision screen shows
+// it), grey otherwise.
 export function stateTone(state: StatusState | null): DotTone {
-  return state === "working" ? "green" : state === "waiting" ? "accent" : "grey";
+  switch (state) {
+    case "working":
+      return "green";
+    case "waiting":
+      return "accent";
+    case "blocked":
+      return "amber";
+    default:
+      return "grey";
+  }
 }
 
 // An agent's dot in the inbox. Stale wins, because a stale agent's state may

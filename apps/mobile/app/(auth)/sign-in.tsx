@@ -284,7 +284,7 @@ export default function SignInScreen() {
                 onChangeText={setEmail}
                 onSubmitEditing={sendCode}
                 placeholder="you@example.com"
-                placeholderTextColor={theme.textTertiary}
+                placeholderTextColor={theme.textSecondary}
                 returnKeyType="go"
                 selectionColor={theme.accent}
                 style={styles.input}

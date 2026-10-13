@@ -122,7 +122,17 @@ export function DecisionDetail({ decision, now }: { decision: Decision; now: num
           {`· ${formatAge(decision.created_at, now)}`}
         </AppText>
       </View>
-      <AppText accessibilityRole="header" variant="title2" weight="700" style={styles.title}>
+      <AppText
+        accessibilityRole="header"
+        // Only urgency is drawn, as a pill; VoiceOver hears the priority
+        // either way (req-mobile-app AC-3.1).
+        accessibilityValue={{
+          text: decision.priority === "urgent" ? "Urgent priority" : "Normal priority",
+        }}
+        variant="title2"
+        weight="700"
+        style={styles.title}
+      >
         {decision.title}
       </AppText>
       <View style={styles.pills}>

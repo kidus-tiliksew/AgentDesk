@@ -436,7 +436,7 @@ describe("search", () => {
     }
     const field = StyleSheet.flatten(box?.props.style);
     expect(field.height).toBeUndefined();
-    expect(field.minHeight).toBe(38);
+    expect(field.minHeight).toBe(44);
 
     fireEvent.changeText(search, "ship");
     expect(screen.getByRole("button", { name: "Clear search" }).props.hitSlop).toBe(14);
