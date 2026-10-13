@@ -319,7 +319,9 @@ describe("empty inbox", () => {
 
     expect(screen.getByText("Connect your first machine")).toBeOnTheScreen();
     expect(
-      screen.getByText(/Run the AgentDesk installer on your laptop or devbox/),
+      screen.getByText(
+        "Run the AgentDesk installer on the computer where your agents run. It shows a code you approve here.",
+      ),
     ).toBeOnTheScreen();
     expect(screen.queryByText("All caught up")).not.toBeOnTheScreen();
 
