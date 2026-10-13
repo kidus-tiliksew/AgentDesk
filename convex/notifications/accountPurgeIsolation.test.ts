@@ -379,6 +379,100 @@ describe("an install moving between accounts and the push component's sender", (
     expect(sendsB.map((row) => row.notificationId)).toEqual([forB.id]);
   });
 
+  // Review round 2: the former owner signed out with a settled history too
+  // long for the sign-out transaction, so its drain is still pending and its
+  // device row is gone when the same install and token register for another
+  // account. The handoff finds the former owner through its token record.
+  async function settledSignOutThenHandoff() {
+    const s = await setup();
+    const { t, userA, userB, asA, asB } = s;
+    await register(asA, "install-x", "ExponentPushToken[shared]");
+    await queueHistory(t, userA, "install-x", 1100);
+    await runUntil(t, async () => sent.length >= 1100, 100);
+    expect(sent).toHaveLength(1100);
+    const settled = await tokenHistory(t, "ExponentPushToken[shared]");
+    expect(settled.every((row) => row.state === "delivered")).toBe(true);
+
+    await asA.mutation(notifications.devices.unregisterDevice, { deviceId: "install-x" });
+    // A history of 1,000 or more waits for a drain that has not run yet.
+    expect(await tokenHistory(t, "ExponentPushToken[shared]")).toHaveLength(1100);
+    expect(await pendingDrains(t)).toHaveLength(1);
+
+    await register(asB, "install-x", "ExponentPushToken[shared]");
+    // The handoff deleted A's whole history before B's token was recorded.
+    expect(await tokenHistory(t, "ExponentPushToken[shared]")).toHaveLength(0);
+    expect(await tokenRecords(t, userA)).toHaveLength(0);
+    await queuePush(t, userB, "For B");
+    const [forB] = await queued(t, "install-x");
+    if (forB === undefined) {
+      throw new Error("No queued push for B");
+    }
+    // A's pending drain runs, finds its record gone, and does nothing.
+    await runUntil(t, async () => (await notification(t, forB.id))?.state === "delivered");
+    return { ...s, forB };
+  }
+
+  async function expectOnlyB(t: Setup["t"], userB: Id<"users">, forBId: string) {
+    expect((await tokenHistory(t, "ExponentPushToken[shared]")).map((row) => row.title)).toEqual([
+      "For B",
+    ]);
+    expect(await notification(t, forBId)).toMatchObject({ state: "delivered" });
+    expect(sent.filter((message) => message.title === "For B")).toHaveLength(1);
+    expect(await tokenStatus(t, "install-x")).toMatchObject({ hasToken: true });
+    const recordsB = await tokenRecords(t, userB);
+    expect(recordsB.map((row) => [row.token, row.drainScheduledAt])).toEqual([
+      ["ExponentPushToken[shared]", undefined],
+    ]);
+    const sendsB = await t.run((ctx) =>
+      ctx.db
+        .query("pushSends")
+        .withIndex("by_user", (q) => q.eq("userId", userB))
+        .collect(),
+    );
+    expect(sendsB.map((row) => row.notificationId)).toEqual([forBId]);
+  }
+
+  test(
+    "a settled multi-page sign-out followed by a handoff on the same token leaves none of the former owner's notifications",
+    async () => {
+      const { t, userA, userB, forB } = await settledSignOutThenHandoff();
+
+      expect(await tokenRecords(t, userA)).toHaveLength(0);
+      expect(await pendingDrains(t)).toHaveLength(0);
+      await expectOnlyB(t, userB, forB.id);
+    },
+    HEAVY_TEST_TIMEOUT_MS,
+  );
+
+  test(
+    "the former owner's account deletion after that sequence touches nothing of the new owner's",
+    async () => {
+      const { t, userA, userB, asA, forB } = await settledSignOutThenHandoff();
+
+      await asA.mutation(identity.accountDeletion.deleteAccount, {});
+      const purged = () =>
+        t.run(async (ctx) => {
+          const [record] = await ctx.db.query("accountDeletions").collect();
+          return record?.purgedAt !== undefined;
+        });
+      await runUntil(t, purged, 120);
+
+      // No cancellation of A's was left, so the purge finished and removed
+      // A's send records with the rest of the account.
+      expect(await purged()).toBe(true);
+      expect(await tokenRecords(t, userA)).toHaveLength(0);
+      const sendsA = await t.run((ctx) =>
+        ctx.db
+          .query("pushSends")
+          .withIndex("by_user", (q) => q.eq("userId", userA))
+          .collect(),
+      );
+      expect(sendsA).toHaveLength(0);
+      await expectOnlyB(t, userB, forB.id);
+    },
+    HEAVY_TEST_TIMEOUT_MS,
+  );
+
   // The documented limit, accepted by operator decision on 2026-10-13
   // (option A): the former owner's send is still at Expo when the install
   // takes the same Expo token for another account, and the new owner's push

@@ -61,6 +61,18 @@ export const registerDevice = mutation({
         }
       }
     }
+    // A former owner that signed out of the install has no row left, but its
+    // token records for the install remain while their cancellation drains
+    // or after it stopped, so they name it too.
+    const records = await ctx.db
+      .query("deviceTokens")
+      .withIndex("by_device", (q) => q.eq("deviceId", args.deviceId))
+      .collect();
+    for (const record of records) {
+      if (record.userId !== user._id) {
+        formerOwners.add(record.userId);
+      }
+    }
     // Before the install takes the new owner's token, which can be the same
     // Expo token, so the former owner's history under it is gone before the
     // new owner can queue anything there.
@@ -82,13 +94,13 @@ export const registerDevice = mutation({
     // sign-out, a handoff, or account deletion has cancelled its
     // notifications (§Account deletion). A record whose cancellation is still
     // draining is not reused.
-    const records = await ctx.db
+    const ownRecords = await ctx.db
       .query("deviceTokens")
       .withIndex("by_user_device_token", (q) =>
         q.eq("userId", user._id).eq("deviceId", args.deviceId).eq("token", args.pushToken),
       )
       .collect();
-    if (records.every((record) => record.drainScheduledAt !== undefined)) {
+    if (ownRecords.every((record) => record.drainScheduledAt !== undefined)) {
       await ctx.db.insert("deviceTokens", {
         userId: user._id,
         deviceId: args.deviceId,

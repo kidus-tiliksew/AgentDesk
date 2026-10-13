@@ -282,11 +282,15 @@ export type InstallDeparture = "signOut" | "handoff";
 //
 // On sign-out a token with fewer than COMPONENT_PAGE notifications, all the
 // account's own and none in flight, is finished in this transaction, as in
-// account deletion. A handoff runs before the new account's token is
-// recorded and deletes up to HANDOFF_PAGES checked pages of each token in
-// this transaction, so a history up to HISTORY_READ_LIMIT with nothing in
-// flight is gone before the new account can queue a notification under a
-// shared token. Every other token gets a drain.
+// account deletion. A handoff runs, for each former owner that
+// `registerDevice` finds through the install's `devices` rows or its
+// `deviceTokens` records (a sign-out's pending or stopped cancellations),
+// before the new account's token is recorded. It deletes up to
+// HANDOFF_PAGES checked pages of each token in this transaction, so a history
+// up to HISTORY_READ_LIMIT with nothing in flight is gone before the new
+// account can queue a notification under a shared token, even when the
+// former owner signed out earlier and its drain has not yet run. Every other
+// token gets a drain.
 //
 // Accepted limit (operator decision, 2026-10-13): when a send of the former
 // owner's is in flight at Expo at the handoff, and the new owner gets a push
@@ -327,6 +331,8 @@ export const drainTokenPushes = internalMutation({
   args: { generationId: v.id("deviceTokens"), attempt: v.number() },
   returns: v.null(),
   handler: async (ctx, { generationId, attempt }) => {
+    // A handoff, a later sign-out, or account deletion may have ended the
+    // token's cancellation first; then there is nothing left to do.
     const generation = await ctx.db.get("deviceTokens", generationId);
     if (generation === null) {
       return null;

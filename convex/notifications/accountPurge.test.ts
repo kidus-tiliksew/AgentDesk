@@ -13,6 +13,7 @@ import { removeAllDevices } from "./devices";
 import { deliverDigestPush, deliverPush, pushNotifications } from "./push";
 import { notifications } from "./refs";
 import {
+  devicesOf,
   pendingDrains,
   queued,
   queueHistory,
@@ -636,6 +637,64 @@ describe("a stopped sign-out cancellation", () => {
     for (const row of rows) {
       expect(await notification(t, row.id)).not.toBeNull();
     }
+  });
+});
+
+// Review round 2: a stopped record of the former owner is retried by the
+// next account's handoff of the install, found through the record itself.
+describe("a handoff after the former owner signed out", () => {
+  test("retries the former owner's stopped record and deletes its history", async () => {
+    const { t, userA, userB, asA, asB } = await setup();
+    await register(asA, "install-x", "ExponentPushToken[shared]");
+    await queuePush(t, userA, "For A");
+    const rows = await queued(t, "install-x");
+    const read = vi.spyOn(pushNotifications, "getNotificationsForUser");
+    read.mockResolvedValueOnce(inFlight(rows));
+    await asA.mutation(notifications.devices.unregisterDevice, { deviceId: "install-x" });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const long = Array.from({ length: HISTORY_READ_LIMIT + 1 }, () => rows[0]).filter(
+      (row) => row !== undefined,
+    );
+    read.mockResolvedValueOnce(long);
+    await drainOnce(t, userA, 1);
+    expect(await tokenRecords(t, userA)).toEqual([
+      expect.objectContaining({ drainScheduledAt: CANCELLATION_STOPPED }),
+    ]);
+    expect(await devicesOf(t)).toHaveLength(0);
+
+    await register(asB, "install-x", "ExponentPushToken[shared]");
+
+    for (const row of rows) {
+      expect(await notification(t, row.id)).toBeNull();
+    }
+    expect(await tokenRecords(t, userA)).toHaveLength(0);
+    expect(await tokenRecords(t, userB)).toHaveLength(1);
+    await queuePush(t, userB, "For B");
+    expect((await queued(t, "install-x")).map((row) => row.title)).toEqual(["For B"]);
+  });
+
+  test("a handoff that ends a pending sign-out drain leaves that drain nothing to do", async () => {
+    const { t, userA, userB, asA, asB } = await setup();
+    await register(asA, "install-x", "ExponentPushToken[shared]");
+    await queuePush(t, userA, "For A");
+    const rows = await queued(t, "install-x");
+    vi.spyOn(pushNotifications, "getNotificationsForUser").mockResolvedValueOnce(inFlight(rows));
+    await asA.mutation(notifications.devices.unregisterDevice, { deviceId: "install-x" });
+    const [pending] = await tokenRecords(t, userA);
+    expect(await pendingDrains(t)).toHaveLength(1);
+
+    await register(asB, "install-x", "ExponentPushToken[shared]");
+    await queuePush(t, userB, "For B");
+    expect(await tokenRecords(t, userA)).toHaveLength(0);
+
+    // The sign-out's drain runs after the handoff ended its record.
+    await t.mutation(notifications.accountPurge.drainTokenPushes, {
+      generationId: pending?._id as Id<"deviceTokens">,
+      attempt: 1,
+    });
+    expect((await queued(t, "install-x")).map((row) => row.title)).toEqual(["For B"]);
+    expect(await tokenRecords(t, userB)).toHaveLength(1);
+    expect(await pendingDrains(t)).toHaveLength(1);
   });
 });
 
