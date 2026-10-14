@@ -120,7 +120,10 @@ describe("bundle dist/agentdesk.mjs", () => {
 
   it("prints its version and an empty status outside the workspace", async () => {
     const env = { HOME: sandbox.home, PATH: sandbox.bin };
-    expect((await runBundle(["--version"], env)).stdout.trim()).toBe("0.0.0");
+    // The build compiles the manifest's version in, so a release bump needs no
+    // edit here.
+    const { version } = readJson(join(PACKAGE_DIR, "package.json"));
+    expect((await runBundle(["--version"], env)).stdout.trim()).toBe(version);
     const status = await runBundle(["status"], env);
     expect(status.code).toBe(0);
     expect(status.stdout).toContain("AgentDesk is not installed on this machine.");
