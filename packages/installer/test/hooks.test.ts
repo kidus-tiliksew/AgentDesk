@@ -278,6 +278,17 @@ describe("hooks written by install", () => {
       "cursor",
       '{"version": 1, "hooks": {"sessionStart": "x"}}\n',
     ],
+    // An explicit null is a value of the wrong type, not an absent key.
+    ["a Claude Code hooks value of null", "claude", '{"model": "opus", "hooks": null}\n'],
+    ["a Claude Code SessionStart value of null", "claude", '{"hooks": {"SessionStart": null}}\n'],
+    ["a Codex hooks value of null", "codex", '{"hooks": null}\n'],
+    ["a Codex SessionStart value of null", "codex", '{"hooks": {"SessionStart": null}}\n'],
+    ["a Cursor hooks value of null", "cursor", '{"version": 1, "hooks": null}\n'],
+    [
+      "a Cursor sessionStart value of null",
+      "cursor",
+      '{"version": 1, "hooks": {"sessionStart": null}}\n',
+    ],
   ];
 
   it.each(refusals)("refuses %s before sign-in and changes nothing", async (_name, which, text) => {

@@ -66,19 +66,20 @@ interface HookDocument {
 /**
  * Reads a hook file. A file that cannot be read or does not parse, or whose
  * `hooks` value is not an object or whose event value is not an array, is
- * refused: the caller changes nothing.
+ * refused: the caller changes nothing. Only an absent key defaults; a present
+ * `null` is refused like any other value of the wrong type.
  */
 function readHookDocument(file: string, harness: Harness): HookDocument {
   const current = readJsonFile(file);
   const data: JsonObject = current?.data ?? (harness.hookFormat === "cursor" ? { version: 1 } : {});
-  const hooks = data.hooks ?? {};
+  const hooks = "hooks" in data ? data.hooks : {};
   if (!isPlainObject(hooks)) {
     throw new InstallerError(
       `${file} has a hooks value that is not an object; it was not changed.`,
     );
   }
   const name = eventName(harness);
-  const event = hooks[name] ?? [];
+  const event = name in hooks ? hooks[name] : [];
   if (!Array.isArray(event)) {
     throw new InstallerError(
       `${file} has a hooks.${name} value that is not a list; it was not changed.`,
@@ -172,6 +173,8 @@ export function findHook(ctx: Context, harness: Harness): string | undefined {
 export interface HookRemoval {
   /** The hook file's text without the installer's hook. */
   text: string;
+  /** The hook file's text as read, which a failed uninstall restores. */
+  original: string;
   /**
    * Hooks whose position changes, as `"<group>:<handler>"` before and after
    * the removal. Codex keys a hook by its position, so these keys change.
@@ -217,5 +220,5 @@ export function planHookRemoval(ctx: Context, harness: Harness): HookRemoval | u
     });
   }
   if (!removed) return undefined;
-  return { text: serialize(doc, harness, event), moved };
+  return { text: serialize(doc, harness, event), original: doc.text, moved };
 }

@@ -1,4 +1,12 @@
-import { readFileSync, realpathSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  symlinkSync,
+} from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { listCodexHooks } from "../src/codex-trust.js";
@@ -297,9 +305,13 @@ describe("editCodexTrust", () => {
 
 describe("trust carried by uninstall", () => {
   /** Installs, then appends three user groups after the installer's: trusted, modified, untrusted. */
-  async function installWithLaterGroups(env: Record<string, string> = {}) {
+  async function installWithLaterGroups(
+    env: Record<string, string> = {},
+    prepare: (fixture: ReturnType<typeof setup>) => void = () => {},
+  ) {
     const fixture = setup();
     const { sandbox, context, hooksFile, config } = fixture;
+    prepare(fixture);
     expect(await context().run(["install", "--yes"])).toBe(0);
     const hooks = readJson(hooksFile) as { hooks: { SessionStart: unknown[] } };
     const later = ["echo trusted", "echo modified", "echo untrusted"];
@@ -339,6 +351,57 @@ describe("trust carried by uninstall", () => {
         trustTable(keyOf(hooksFile, 2), "sha256:stale"),
     );
   });
+
+  it.skipIf(process.getuid?.() === 0)(
+    "restores hooks.json when the trust write fails, and a retry still carries the trust",
+    async () => {
+      // config.toml links into a directory the test can make read-only, so
+      // its write fails after hooks.json has been rewritten.
+      const readOnly = join(makeSandbox().root, "read-only");
+      const { sandbox, h, hooksFile, config, gateway, clock } = await installWithLaterGroups(
+        {},
+        ({ config }) => {
+          mkdirSync(readOnly);
+          renameSync(config, join(readOnly, "config.toml"));
+          symlinkSync(join(readOnly, "config.toml"), config);
+        },
+      );
+      const hooksBefore = read(hooksFile);
+      const configBefore = read(config);
+      chmodSync(readOnly, 0o555);
+      try {
+        expect(await h.run(["uninstall"])).toBe(1);
+      } finally {
+        chmodSync(readOnly, 0o755);
+      }
+      expect(h.err.join("\n")).toContain("Codex: its session-start hook was not removed:");
+      expect(h.out).toContain(`Codex: restored ${hooksFile}, because its trust was not updated.`);
+      expect(read(hooksFile)).toBe(hooksBefore);
+      expect(read(config)).toBe(configBefore);
+      const record = stateRecord(sandbox);
+      expect(record.hookPath).toBe(hooksFile);
+      expect(record.codexTrustKey).toBe(keyOf(hooksFile, 0));
+
+      // The retry finds the installer's hook again and carries the trust.
+      const retry = makeContext(sandbox, { gateway, clock });
+      expect(await retry.run(["uninstall"])).toBe(0);
+      const listed = await listCodexHooks(makeContext(sandbox).ctx);
+      const status =
+        listed.kind === "listed" ? listed.hooks.map((x) => [x.command, x.key, x.trustStatus]) : [];
+      expect(status).toEqual([
+        ["echo trusted", keyOf(hooksFile, 0), "trusted"],
+        ["echo modified", keyOf(hooksFile, 1), "modified"],
+        ["echo untrusted", keyOf(hooksFile, 2), "modified"],
+      ]);
+      expect(read(config)).toBe(
+        `${CONFIG}\n` +
+          trustTable(keyOf(hooksFile, 0), hashOf("echo trusted", "resume")) +
+          trustTable(keyOf(hooksFile, 1), hashOf("echo trusted", "resume")) +
+          trustTable(keyOf(hooksFile, 2), "sha256:stale"),
+      );
+      expect(existsSync(statePath(retry.ctx))).toBe(false);
+    },
+  );
 
   it("warns that later hooks may need trusting again when app-server is unavailable", async () => {
     const { h, hooksFile } = await installWithLaterGroups({ FAKE_CODEX_APP_SERVER: "fail" });

@@ -291,7 +291,9 @@ async function carriedTrust(
 /**
  * Removes the installer's hook, its group when that group then holds no other
  * hook, and for Codex the recorded `hooks.state` table, carrying trust to the
- * later hooks the removal re-keys. Throws when something may remain.
+ * later hooks the removal re-keys. Throws when something may remain. When the
+ * Codex trust edit fails, the hook file is restored as it was, so a later
+ * uninstall finds the installer's hook again and repeats the trust carry.
  */
 async function removeGuidance(
   ctx: Context,
@@ -319,15 +321,30 @@ async function removeGuidance(
       }
     }
   }
-  if (harness.id === "codex" && (record.codexTrustKey !== undefined || carried.size > 0)) {
-    const configPath = harness.configPath(ctx);
-    ctx.io.out(`${harness.displayName}: removing the AgentDesk hook's trust from ${configPath}`);
+  if (harness.id !== "codex" || (record.codexTrustKey === undefined && carried.size === 0)) {
+    return;
+  }
+  const configPath = harness.configPath(ctx);
+  ctx.io.out(`${harness.displayName}: removing the AgentDesk hook's trust from ${configPath}`);
+  try {
     applyCodexTrust(
       configPath,
       carried,
       record.codexTrustKey !== undefined ? [record.codexTrustKey] : [],
       backups,
     );
+  } catch (error) {
+    if (removal) {
+      try {
+        writeFileAtomic(file, removal.original);
+      } catch {
+        throw new InstallerError(
+          `${message(error)} ${file} could not be restored either; hooks listed after AgentDesk's in it may need trusting again in Codex's /hooks.`,
+        );
+      }
+      ctx.io.out(`${harness.displayName}: restored ${file}, because its trust was not updated.`);
+    }
+    throw error;
   }
 }
 
