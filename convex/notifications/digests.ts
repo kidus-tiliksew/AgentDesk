@@ -48,6 +48,11 @@ export type DigestDecision = {
   state: Doc<"decisions">["state"];
   answer: Answer | null;
   answered_at: string | null;
+  // The surface the answer came from, or null while unanswered.
+  answered_via: NonNullable<Doc<"decisions">["answeredVia"]> | null;
+  // The user's chat message as received for an answer given in chat, and
+  // null otherwise (req-decision-requests AC-8.3).
+  chat_message: string | null;
   applied_by_default: boolean;
   agent_session_id: string;
   agent_name: string;
@@ -115,6 +120,8 @@ async function toDigestDecision(
     state: decision.state,
     answer: decision.answer ?? null,
     answered_at: instant(decision.answeredAt),
+    answered_via: decision.answeredVia ?? null,
+    chat_message: decision.answeredVia === "chat" ? (decision.chatMessage ?? null) : null,
     applied_by_default: decision.appliedByDefault ?? false,
     agent_session_id: decision.agentSessionId,
     agent_name: await sessionName(ctx, decision.agentSessionId, decision.userId),

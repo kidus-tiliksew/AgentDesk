@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { Doc, Id } from "../_generated/dataModel";
+import { decisions } from "../decisions/refs";
 import type { EventKind } from "./events";
 import { notifications } from "./refs";
-import { compareRules } from "./route";
+import { compareRules, INTERACTIVE_HOLD_MS } from "./route";
 import { openSession, queued, register, type Setup, setup } from "./test.setup";
 
 const START = Date.UTC(2026, 9, 11, 12, 0, 0);
@@ -18,7 +19,10 @@ afterEach(() => {
 });
 
 type DecisionFields = Partial<
-  Pick<Doc<"decisions">, "title" | "inputType" | "options" | "recommendation" | "priority">
+  Pick<
+    Doc<"decisions">,
+    "title" | "inputType" | "options" | "recommendation" | "priority" | "interactive" | "deadline"
+  >
 >;
 
 async function insertDecision(
@@ -1049,5 +1053,345 @@ describe("settings from routing", () => {
     await expect(route(t, eventId)).rejects.toThrow();
     expect((await loadEvent(t, eventId))?.action).toBeUndefined();
     expect(await settingsOf(t)).toEqual([]);
+  });
+});
+
+describe("interactive hold", () => {
+  // The held push runs from the scheduler, and advancing the fake timers also
+  // runs the push component's sender, so Expo is a fake that accepts every
+  // message.
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        const messages = JSON.parse(String(init?.body ?? "[]")) as unknown[];
+        return new Response(
+          JSON.stringify({ data: messages.map(() => ({ status: "ok", id: "x" })) }),
+        );
+      }),
+    );
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // Person A with two installs and a pending decision created at START, with
+  // its `decision.created` event, not yet routed.
+  async function holdSetup(fields: DecisionFields = { interactive: true }) {
+    const s = await setup();
+    await register(s.asA, "install-1", "ExponentPushToken[1]");
+    await register(s.asA, "install-2", "ExponentPushToken[2]");
+    const agentSessionId = await openSession(s.t, s.userA);
+    const decisionId = await insertDecision(s.t, s.userA, agentSessionId, fields);
+    const eventId = await insertEventWith(s.t, s.userA, "decision.created", {
+      topic: "repo/x",
+      decisionId,
+      agentSessionId,
+      priority: fields.priority ?? "normal",
+    });
+    return { ...s, agentSessionId, decisionId, eventId };
+  }
+
+  // Lets the scheduler run every job due within `ms`, then waits for the jobs
+  // it started.
+  async function runScheduled(t: Setup["t"], ms: number) {
+    vi.advanceTimersByTime(ms);
+    await t.finishInProgressScheduledFunctions();
+  }
+
+  // Every scheduled `deliverHeld` run, oldest first.
+  async function heldRuns(t: Setup["t"]) {
+    const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    return jobs
+      .filter((job) => job.name.endsWith(":deliverHeld"))
+      .map((job) => ({
+        eventId: (job.args[0] as { eventId: Id<"events"> }).eventId,
+        at: job.scheduledTime,
+        state: job.state.kind,
+      }));
+  }
+
+  // The pushes queued for both installs.
+  async function queuedBoth(t: Setup["t"]) {
+    return [(await queued(t, "install-1")).length, (await queued(t, "install-2")).length];
+  }
+
+  function deliverHeld(t: Setup["t"], eventId: Id<"events">) {
+    return t.mutation(notifications.route.deliverHeld, { eventId });
+  }
+
+  // req-notification-rules AC-8.1
+  test("queues nothing at routing and pushes once per device two minutes after creation", async () => {
+    const { t, eventId } = await holdSetup();
+
+    await route(t, eventId);
+
+    expect((await loadEvent(t, eventId))?.action).toBe("push");
+    expect(await queuedBoth(t)).toEqual([0, 0]);
+    expect(await deliveriesOf(t, eventId)).toEqual([]);
+    expect(await heldRuns(t)).toEqual([
+      { eventId, at: START + INTERACTIVE_HOLD_MS, state: "pending" },
+    ]);
+
+    await runScheduled(t, INTERACTIVE_HOLD_MS - 1);
+    expect(await queuedBoth(t)).toEqual([0, 0]);
+
+    await runScheduled(t, 1);
+    expect(await queuedBoth(t)).toEqual([1, 1]);
+    expect(await deliveriesOf(t, eventId)).toHaveLength(2);
+    expect((await loadEvent(t, eventId))?.action).toBe("push");
+    expect((await heldRuns(t)).map((run) => run.state)).toEqual(["success"]);
+  });
+
+  test("the held push carries the same message and data as an immediate one", async () => {
+    const { t, eventId, decisionId, agentSessionId } = await holdSetup();
+    await route(t, eventId);
+    await runScheduled(t, INTERACTIVE_HOLD_MS);
+
+    const [push] = await queued(t, "install-1");
+    expect(push).toMatchObject({
+      title: "Ship it?",
+      body: "repo/x · Claude Code · repo/x",
+      categoryId: "decision-approve-reject",
+    });
+    expect(push?.data).toEqual({ eventId, kind: "decision.created", decisionId, agentSessionId });
+  });
+
+  // req-notification-rules AC-8.1; req-decision-requests AC-8.1
+  type HoldSetup = Awaited<ReturnType<typeof holdSetup>>;
+  test.each<[string, (s: HoldSetup) => Promise<unknown>]>([
+    [
+      "an answer from the app",
+      (s) =>
+        s.asA.mutation(decisions.app.answer, {
+          decisionId: s.decisionId,
+          answer: { kind: "approve" },
+        }),
+    ],
+    [
+      "an answer from a notification",
+      (s) =>
+        s.asA.mutation(decisions.app.answerFromNotification, {
+          decisionId: s.decisionId,
+          action: "approve",
+        }),
+    ],
+    [
+      "an answer relayed from chat",
+      (s) =>
+        s.t.mutation(decisions.operations.resolve, {
+          userId: s.userA,
+          agentSessionId: s.agentSessionId,
+          decisionId: s.decisionId,
+          answer: { kind: "approve" },
+          chatMessage: "yes, ship it",
+        }),
+    ],
+    [
+      "a cancellation",
+      (s) =>
+        s.t.mutation(decisions.operations.cancel, { userId: s.userA, decisionId: s.decisionId }),
+    ],
+    ["an expiry", (s) => s.t.mutation(decisions.expire.run, { decisionId: s.decisionId })],
+    [
+      "an answer and a removal",
+      async (s) => {
+        await s.asA.mutation(decisions.app.answer, {
+          decisionId: s.decisionId,
+          answer: { kind: "reject" },
+        });
+        await s.asA.mutation(decisions.app.remove, { decisionId: s.decisionId });
+      },
+    ],
+  ])("sends nothing after %s within the hold, and the action stays push", async (_, settle) => {
+    const s = await holdSetup({ interactive: true, deadline: START + MINUTE });
+    await route(s.t, s.eventId);
+
+    await runScheduled(s.t, MINUTE);
+    await settle(s);
+    await runScheduled(s.t, INTERACTIVE_HOLD_MS);
+
+    expect(await queuedBoth(s.t)).toEqual([0, 0]);
+    expect(await deliveriesOf(s.t, s.eventId)).toEqual([]);
+    const event = await loadEvent(s.t, s.eventId);
+    expect(event?.action).toBe("push");
+    expect(event?.digestId).toBeUndefined();
+    expect((await heldRuns(s.t)).map((run) => run.state)).toEqual(["success"]);
+  });
+
+  // req-notification-rules AC-8.2
+  test.each<[string, DecisionFields]>([
+    ["false", { interactive: false }],
+    ["unset", {}],
+  ])("pushes a decision whose interactive flag is %s at once", async (_, fields) => {
+    const { t, eventId } = await holdSetup(fields);
+
+    await route(t, eventId);
+
+    expect(await queuedBoth(t)).toEqual([1, 1]);
+    expect(await heldRuns(t)).toEqual([]);
+  });
+
+  test.each<"digest" | "mute">(["digest", "mute"])(
+    "a rule's %s routes an interactive decision with no hold",
+    async (action) => {
+      const { t, userA, eventId } = await holdSetup();
+      await insertRule(t, userA, { eventKind: "decision.created", action });
+
+      expect(await routedAction(t, eventId)).toBe(action);
+      await runScheduled(t, INTERACTIVE_HOLD_MS);
+
+      expect(await heldRuns(t)).toEqual([]);
+      expect(await queuedBoth(t)).toEqual([0, 0]);
+    },
+  );
+
+  // req-notification-rules REQ-5, AC-8.1. START is 12:00Z; Berlin is UTC+2, so
+  // a 13:00–15:00 window there holds START.
+  const QUIET = { timeZone: "Europe/Berlin", quietStart: "13:00", quietEnd: "15:00" };
+
+  test("quiet hours send an interactive decision to the digest with no hold", async () => {
+    const s = await holdSetup();
+    await s.asA.mutation(notifications.settings.updateSettings, QUIET);
+
+    expect(await routedAction(s.t, s.eventId)).toBe("digest");
+    await runScheduled(s.t, INTERACTIVE_HOLD_MS);
+
+    expect(await heldRuns(s.t)).toEqual([]);
+    expect(await queuedBoth(s.t)).toEqual([0, 0]);
+  });
+
+  test.each<[string, boolean, "push" | "digest"]>([
+    ["holds an urgent decision the override keeps as push", true, "push"],
+    ["sends an urgent decision to the digest with the override off", false, "digest"],
+  ])("during quiet hours, %s", async (_, urgentOverride, action) => {
+    const s = await holdSetup({ interactive: true, priority: "urgent" });
+    await s.asA.mutation(notifications.settings.updateSettings, { ...QUIET, urgentOverride });
+
+    expect(await routedAction(s.t, s.eventId)).toBe(action);
+    expect(await queuedBoth(s.t)).toEqual([0, 0]);
+    await runScheduled(s.t, INTERACTIVE_HOLD_MS);
+
+    expect(await queuedBoth(s.t)).toEqual(action === "push" ? [1, 1] : [0, 0]);
+    expect(await heldRuns(s.t)).toHaveLength(action === "push" ? 1 : 0);
+  });
+
+  test("a quiet window that starts during the hold leaves the held push sent", async () => {
+    const s = await holdSetup();
+    // Berlin 14:01 is 12:01Z, one minute into the hold.
+    await s.asA.mutation(notifications.settings.updateSettings, {
+      timeZone: "Europe/Berlin",
+      quietStart: "14:01",
+      quietEnd: "15:00",
+    });
+
+    expect(await routedAction(s.t, s.eventId)).toBe("push");
+    await runScheduled(s.t, INTERACTIVE_HOLD_MS);
+
+    expect(await queuedBoth(s.t)).toEqual([1, 1]);
+  });
+
+  // req-notification-rules REQ-7
+  test("a repeated route holds once, and a repeated held run sends once", async () => {
+    const { t, eventId } = await holdSetup();
+
+    await route(t, eventId);
+    await route(t, eventId);
+    await Promise.all([route(t, eventId), route(t, eventId)]);
+    expect(await heldRuns(t)).toHaveLength(1);
+
+    await runScheduled(t, INTERACTIVE_HOLD_MS);
+    await deliverHeld(t, eventId);
+    await Promise.all([deliverHeld(t, eventId), deliverHeld(t, eventId)]);
+
+    expect(await queuedBoth(t)).toEqual([1, 1]);
+    expect(await deliveriesOf(t, eventId)).toHaveLength(2);
+  });
+
+  test("a late route still ends the hold two minutes after creation", async () => {
+    const { t, eventId } = await holdSetup();
+
+    vi.setSystemTime(START + MINUTE);
+    await route(t, eventId);
+    expect((await heldRuns(t)).map((run) => run.at)).toEqual([START + INTERACTIVE_HOLD_MS]);
+
+    await runScheduled(t, MINUTE - 1);
+    expect(await queuedBoth(t)).toEqual([0, 0]);
+    await runScheduled(t, 1);
+    expect(await queuedBoth(t)).toEqual([1, 1]);
+  });
+
+  test("a route after the hold has ended pushes at once from the scheduler", async () => {
+    const { t, eventId } = await holdSetup();
+
+    vi.setSystemTime(START + 3 * MINUTE);
+    await route(t, eventId);
+    expect(await queuedBoth(t)).toEqual([0, 0]);
+
+    await runScheduled(t, 0);
+    expect(await queuedBoth(t)).toEqual([1, 1]);
+  });
+
+  // component-notifications §Account deletion
+  test.each<[string, (s: HoldSetup) => Promise<unknown>]>([
+    [
+      "an owner being deleted",
+      (s) => s.t.run((ctx) => ctx.db.patch("users", s.userA, { deletingAt: Date.now() })),
+    ],
+    ["a deleted owner", (s) => s.t.run((ctx) => ctx.db.delete("users", s.userA))],
+    ["a purged event", (s) => s.t.run((ctx) => ctx.db.delete("events", s.eventId))],
+  ])("sends nothing for %s", async (_, remove) => {
+    const s = await holdSetup();
+    await route(s.t, s.eventId);
+
+    await remove(s);
+    await runScheduled(s.t, INTERACTIVE_HOLD_MS);
+
+    expect(await queuedBoth(s.t)).toEqual([0, 0]);
+    expect(await deliveriesOf(s.t, s.eventId)).toEqual([]);
+  });
+
+  test("sends nothing for an event whose stored action is not push or whose decision is foreign", async () => {
+    const s = await holdSetup();
+    await route(s.t, s.eventId);
+    await s.t.run((ctx) => ctx.db.patch("events", s.eventId, { action: "digest" }));
+    await deliverHeld(s.t, s.eventId);
+
+    const sessionB = await openSession(s.t, s.userB);
+    const foreign = await insertDecision(s.t, s.userB, sessionB, { interactive: true });
+    const misfiled = await insertEventWith(s.t, s.userA, "decision.created", {
+      decisionId: foreign,
+      agentSessionId: s.agentSessionId,
+    });
+    await s.t.run((ctx) => ctx.db.patch("events", misfiled, { action: "push" }));
+    await deliverHeld(s.t, misfiled);
+
+    expect(await queuedBoth(s.t)).toEqual([0, 0]);
+  });
+
+  test("a failed held send stores no delivery, and a later run delivers", async () => {
+    const { t, userA, asA, eventId } = await holdSetup();
+    // A device row whose install never gave the component a token makes the
+    // send throw.
+    await t.run((ctx) =>
+      ctx.db.insert("devices", {
+        userId: userA,
+        deviceId: "install-3",
+        name: "Phone",
+        platform: "ios",
+      }),
+    );
+    await route(t, eventId);
+    vi.setSystemTime(START + INTERACTIVE_HOLD_MS);
+
+    await expect(deliverHeld(t, eventId)).rejects.toThrow();
+    expect(await deliveriesOf(t, eventId)).toEqual([]);
+    expect(await queuedBoth(t)).toEqual([0, 0]);
+
+    await register(asA, "install-3", "ExponentPushToken[3]");
+    await deliverHeld(t, eventId);
+    expect(await deliveriesOf(t, eventId)).toHaveLength(3);
+    expect(await queued(t, "install-3")).toHaveLength(1);
+    expect((await loadEvent(t, eventId))?.action).toBe("push");
   });
 });

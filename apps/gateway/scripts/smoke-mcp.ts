@@ -11,9 +11,10 @@ import { type AnswerHelper, McpClient, runSmoke, SmokeError } from "./smoke-mcp-
 //   AGENTDESK_GATEWAY_URL=http://localhost:8787 AGENTDESK_CONNECTION_TOKEN=adc_… \
 //     pnpm smoke:mcp [--quick]
 //
-// It settles the first decision with `npx convex run decisions/devAnswer:answer`
-// from the repository root, so the Convex CLI there must select the deployment
-// the gateway's CONVEX_SITE_URL names. CI never runs it.
+// It settles the answered leg's decision with
+// `npx convex run decisions/devAnswer:answer` from the repository root, so the
+// Convex CLI there must select the deployment the gateway's CONVEX_SITE_URL
+// names. CI never runs it.
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 // Bound on one `npx convex run`, which may download the CLI on first use.

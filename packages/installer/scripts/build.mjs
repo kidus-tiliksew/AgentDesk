@@ -1,5 +1,6 @@
-// Bundles the installer into one Node 20+ ESM file with the skill and the
-// default server compiled in (component-installer §Build and distribution).
+// Bundles the installer into one Node 20+ ESM file with the skill, the standing
+// guidance, and the default server compiled in (component-installer §Build and
+// distribution). scripts/build-binaries.mjs compiles this bundle.
 //
 //   AGENTDESK_SERVER_ORIGIN=https://agentdesk.example node scripts/build.mjs [--outfile <path>]
 //
@@ -13,10 +14,18 @@ import { build } from "esbuild";
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-/** Resolves the skill through @agentdesk/skill's own export map, without a dependency link. */
-export function resolveSkillFile() {
+/** Resolves a file through @agentdesk/skill's own export map, without a dependency link. */
+function resolveSkillExport(name) {
   const skillManifest = join(packageDir, "..", "skill", "package.json");
-  return createRequire(skillManifest).resolve("@agentdesk/skill/agentdesk/SKILL.md");
+  return createRequire(skillManifest).resolve(`@agentdesk/skill/agentdesk/${name}`);
+}
+
+export function resolveSkillFile() {
+  return resolveSkillExport("SKILL.md");
+}
+
+export function resolveGuidanceFile() {
+  return resolveSkillExport("GUIDANCE.md");
 }
 
 /** Reads metadata.version from the skill's frontmatter. */
@@ -44,6 +53,7 @@ export async function buildBundle({ outfile, origin }) {
   const skillContent = readFileSync(resolveSkillFile(), "utf8");
   const skillVersion = skillVersionOf(skillContent);
   if (!skillVersion) throw new Error("the skill file has no metadata.version");
+  const guidance = readFileSync(resolveGuidanceFile(), "utf8");
   const manifest = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"));
   await build({
     entryPoints: [join(packageDir, "src", "main.ts")],
@@ -59,6 +69,7 @@ export async function buildBundle({ outfile, origin }) {
       __AGENTDESK_DEFAULT_SERVER__: JSON.stringify(normalizeOrigin(origin)),
       __AGENTDESK_SKILL_CONTENT__: JSON.stringify(skillContent),
       __AGENTDESK_SKILL_VERSION__: JSON.stringify(skillVersion),
+      __AGENTDESK_GUIDANCE__: JSON.stringify(guidance),
       __AGENTDESK_VERSION__: JSON.stringify(manifest.version),
     },
   });

@@ -17,6 +17,7 @@ import {
   skillContent,
   stubExecutable,
   write,
+  writingInvocations,
 } from "./helpers.js";
 
 afterEach(cleanupSandboxes);
@@ -39,7 +40,7 @@ function setup(): { sandbox: Sandbox; gateway: FakeGateway; clock: FakeClock } {
 }
 
 describe("state file (component-installer §State, re-run, and uninstall)", () => {
-  it("records server, connection ids, configuration paths, and skill paths with mode 0600 and no secret", async () => {
+  it("records server, connection ids, configuration, skill, and hook paths, and the Codex trust key with mode 0600 and no secret", async () => {
     const { sandbox, gateway, clock } = setup();
     const h = makeContext(sandbox, { gateway, clock });
     expect(await h.run(["install", "--yes"])).toBe(0);
@@ -57,6 +58,7 @@ describe("state file (component-installer §State, re-run, and uninstall)", () =
           skillPath: join(sandbox.home, ".claude", "skills", "agentdesk"),
           skillRealPath: realpathSync(join(sandbox.home, ".claude", "skills", "agentdesk")),
           skillVersion: "1.0.0",
+          hookPath: join(sandbox.home, ".claude", "settings.json"),
         },
         codex: {
           server: SERVER,
@@ -65,11 +67,14 @@ describe("state file (component-installer §State, re-run, and uninstall)", () =
           skillPath: join(sandbox.home, ".codex", "skills", "agentdesk"),
           skillRealPath: realpathSync(join(sandbox.home, ".codex", "skills", "agentdesk")),
           skillVersion: "1.0.0",
+          hookPath: join(sandbox.home, ".codex", "hooks.json"),
+          codexTrustKey: `${realpathSync(join(sandbox.home, ".codex", "hooks.json"))}:session_start:0:0`,
         },
         cursor: {
           server: SERVER,
           connectionId: gateway.issued[2]?.connectionId,
           configPath: join(sandbox.home, ".cursor", "mcp.json"),
+          hookPath: join(sandbox.home, ".cursor", "hooks.json"),
         },
       },
     });
@@ -104,7 +109,7 @@ describe("re-run (AC-9.4)", () => {
       cursor: read(join(sandbox.home, ".cursor", "mcp.json")),
     };
     const startsBefore = gateway.startRequests().length;
-    const commandsBefore = invocations(sandbox).length;
+    const commandsBefore = writingInvocations(sandbox).length;
 
     const again = makeContext(sandbox, {
       gateway,
@@ -120,7 +125,7 @@ describe("re-run (AC-9.4)", () => {
     expect(read(join(sandbox.home, ".claude.json"))).toBe(before.claude);
     expect(read(join(sandbox.home, ".codex", "config.toml"))).toBe(before.codex);
     expect(read(join(sandbox.home, ".cursor", "mcp.json"))).toBe(before.cursor);
-    expect(invocations(sandbox)).toHaveLength(commandsBefore);
+    expect(writingInvocations(sandbox)).toHaveLength(commandsBefore);
     expect(read(join(sandbox.home, ".claude", "skills", "agentdesk", "SKILL.md"))).toBe(
       skillContent("1.1.0"),
     );
@@ -208,8 +213,35 @@ describe("re-run (AC-9.4)", () => {
   });
 });
 
+describe("state from an installer without hooks", () => {
+  it("reads a record without hook fields, and a re-run adds the hook and Codex trust", async () => {
+    const { sandbox, gateway, clock } = setup();
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const file = statePath(makeContext(sandbox).ctx);
+    const state = readJson(file) as { harnesses: Record<string, Record<string, string>> };
+    for (const record of Object.values(state.harnesses)) {
+      delete record.hookPath;
+      delete record.codexTrustKey;
+    }
+    write(file, JSON.stringify(state));
+    write(join(sandbox.home, ".claude", "settings.json"), "{}\n");
+
+    const status = makeContext(sandbox, { gateway, clock });
+    expect(await status.run(["status"])).toBe(0);
+    expect(status.out.join("\n")).not.toContain("hook");
+
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const after = readJson(file) as { harnesses: Record<string, Record<string, string>> };
+    expect(after.harnesses["claude-code"]?.hookPath).toBe(
+      join(sandbox.home, ".claude", "settings.json"),
+    );
+    expect(after.harnesses.codex?.codexTrustKey).toMatch(/hooks\.json:session_start:0:0$/);
+    expect(gateway.startRequests()).toHaveLength(1);
+  });
+});
+
 describe("status", () => {
-  it("prints each recorded harness, its connection check, and its skill version", async () => {
+  it("prints each recorded harness, its connection check, its skill version, and its hook", async () => {
     const { sandbox, gateway, clock } = setup();
     expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
     gateway.refused.add(gateway.tokenFor("codex"));
@@ -217,9 +249,9 @@ describe("status", () => {
     expect(await h.run(["status"])).toBe(0);
     expect(h.out).toEqual([
       `AgentDesk server: ${SERVER}`,
-      `Claude Code: connected; skill 1.0.0 at ${join(sandbox.home, ".claude", "skills", "agentdesk")}`,
-      `Codex: not connected (the server refused its token); skill 1.0.0 at ${join(sandbox.home, ".codex", "skills", "agentdesk")}`,
-      "Cursor: connected; skill loaded from the Claude Code or Codex folder",
+      `Claude Code: connected; skill 2.0.0 at ${join(sandbox.home, ".claude", "skills", "agentdesk")}; hook in ${join(sandbox.home, ".claude", "settings.json")}`,
+      `Codex: not connected (the server refused its token); skill 2.0.0 at ${join(sandbox.home, ".codex", "skills", "agentdesk")}; hook in ${join(sandbox.home, ".codex", "hooks.json")}, trust trusted`,
+      `Cursor: connected; skill loaded from the Claude Code or Codex folder; hook in ${join(sandbox.home, ".cursor", "hooks.json")}`,
     ]);
     expect(h.output()).not.toContain("adc_");
   });

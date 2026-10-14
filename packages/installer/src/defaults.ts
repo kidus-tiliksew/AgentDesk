@@ -4,6 +4,7 @@
 declare const __AGENTDESK_DEFAULT_SERVER__: string | undefined;
 declare const __AGENTDESK_SKILL_CONTENT__: string | undefined;
 declare const __AGENTDESK_SKILL_VERSION__: string | undefined;
+declare const __AGENTDESK_GUIDANCE__: string | undefined;
 declare const __AGENTDESK_VERSION__: string | undefined;
 
 /**
@@ -19,6 +20,13 @@ export const EMBEDDED_SKILL: { content: string; version: string } | undefined =
     ? { content: __AGENTDESK_SKILL_CONTENT__, version: __AGENTDESK_SKILL_VERSION__ }
     : undefined;
 
+/**
+ * The standing guidance embedded from `@agentdesk/skill/agentdesk/GUIDANCE.md`
+ * at build time; `agentdesk context` prints it (component-installer §Standing guidance).
+ */
+export const EMBEDDED_GUIDANCE: string | undefined =
+  typeof __AGENTDESK_GUIDANCE__ === "string" ? __AGENTDESK_GUIDANCE__ : undefined;
+
 export const INSTALLER_VERSION: string =
   typeof __AGENTDESK_VERSION__ === "string" ? __AGENTDESK_VERSION__ : "0.0.0-dev";
 
@@ -32,3 +40,9 @@ export const MAX_CODES_NONINTERACTIVE = 3;
 export const MCP_ENTRY_NAME = "agentdesk";
 
 export const BACKUP_SUFFIX = ".agentdesk-backup";
+
+/** The session-start hook matcher for Claude Code and Codex: new session, /clear, and compaction. */
+export const HOOK_MATCHER = "startup|clear|compact";
+
+/** Limit on one `codex app-server` exchange (component-installer §Codex trust). */
+export const APP_SERVER_TIMEOUT_MS = 10_000;

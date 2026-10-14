@@ -1,5 +1,5 @@
-// Entry for the npm bin and the Bun-compiled binaries (DEC-8). Runtime code
-// uses Node APIs only, so the same bundle runs under Node 20+ and Bun.
+// Entry for the bundle and the Bun-compiled release binaries (DEC-10). Runtime
+// code uses Node APIs only, so the same bundle runs under Node 20+ and Bun.
 import { createNodeContext, runCli } from "./cli.js";
 
 const ctx = createNodeContext();

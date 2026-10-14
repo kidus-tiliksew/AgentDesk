@@ -8,6 +8,7 @@ import {
   loadCheck,
   loadOwned,
   parseId,
+  relayAnswer,
   serialize,
   validateCreate,
 } from "./model";
@@ -15,8 +16,9 @@ import {
 // component-decisions §Service routes: one internal mutation per route. Each
 // validates its input, loads any decision it needs for the topic, calls
 // `touch` from component-agent-presence, then acts, all in one transaction,
-// so a failure anywhere also rolls back the session activity. No mutation
-// here accepts an answer (req-agent-tools AC-7.3).
+// so a failure anywhere also rolls back the session activity. Only `resolve`
+// accepts an answer, and only with the user's chat message (req-agent-tools
+// AC-7.3).
 
 // MCP `ask`.
 export const create = internalMutation({
@@ -86,5 +88,31 @@ export const cancel = internalMutation({
       await touch(ctx, userId, agentSessionId, doc.topic, now);
     }
     return await cancelDecision(ctx, doc, now);
+  },
+});
+
+// MCP `resolve`: relays an answer the user gave in the calling agent's chat
+// (req-agent-tools REQ-9; DEC-13). The route checked `chatMessage` with the
+// contract's chatMessageSchema before calling. `agentSessionId` is the
+// relaying session, which may differ from the asking one. The touch carries
+// the decision's topic and rolls back with the rest when the relay fails, so
+// a settled decision is `conflict` with no state changed whatever the answer
+// holds (AC-9.2).
+export const resolve = internalMutation({
+  args: {
+    userId: v.string(),
+    agentSessionId: v.string(),
+    decisionId: v.string(),
+    answer: v.optional(v.any()),
+    chatMessage: v.string(),
+  },
+  handler: async (ctx, args): Promise<Decision> => {
+    const now = Date.now();
+    const userId = parseId(ctx, "users", args.userId, "userId");
+    const agentSessionId = parseId(ctx, "agentSessions", args.agentSessionId, "agentSessionId");
+    const decisionId = parseId(ctx, "decisions", args.decisionId, "decisionId");
+    const doc = await loadOwned(ctx, userId, decisionId);
+    await touch(ctx, userId, agentSessionId, doc.topic, now);
+    return await relayAnswer(ctx, doc, args.answer, args.chatMessage, agentSessionId, now);
   },
 });

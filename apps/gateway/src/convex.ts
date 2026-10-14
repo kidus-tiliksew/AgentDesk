@@ -18,7 +18,8 @@ export type ServiceRoute =
   | "decisions/create"
   | "decisions/poll"
   | "decisions/check"
-  | "decisions/cancel";
+  | "decisions/cancel"
+  | "decisions/resolve";
 
 // Posts one service call and returns its parsed JSON result. Aborting `signal`
 // cancels the call in flight. Tests replace it with a fake.

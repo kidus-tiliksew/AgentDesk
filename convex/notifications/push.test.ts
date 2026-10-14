@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { Id } from "../_generated/dataModel";
-import { deliverPush } from "./push";
+import { deliverDigestPush, deliverPush } from "./push";
 import { notifications } from "./refs";
 import { queued, register, type Setup, setup } from "./test.setup";
 
@@ -134,6 +134,7 @@ describe("deliverPush", () => {
       title: "Ship it?",
       body: "repo/x · Claude Code",
       categoryId: "decision-approve-reject",
+      sound: "default",
       state: "awaiting_delivery",
     });
     expect(decisionPush?.data).toEqual({
@@ -146,6 +147,7 @@ describe("deliverPush", () => {
     expect(agentPush?.title).toBe("Claude Code looks stuck");
     expect(agentPush?.body).toBeUndefined();
     expect(agentPush?.categoryId).toBeUndefined();
+    expect(agentPush?.sound).toBe("default");
     expect(agentPush?.data).toEqual({ eventId: agentEventId, kind: "agent.stale", agentSessionId });
   });
 
@@ -227,5 +229,46 @@ describe("deliverPush", () => {
     expect(await deliveriesOf(t, decisionEventId)).toHaveLength(2);
     expect(await queued(t, "install-1")).toHaveLength(1);
     expect(await queued(t, "install-2")).toHaveLength(1);
+  });
+});
+
+describe("deliverDigestPush", () => {
+  test("queues the digest to each device with the default sound and digest routing", async () => {
+    const { t, userA, asA } = await setup();
+    await register(asA, "install-1", "ExponentPushToken[1]");
+    await register(asA, "install-2", "ExponentPushToken[2]");
+    const { decisionId, decisionEventId } = await insertEvents(t, userA);
+
+    const digestId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("digests", {
+        userId: userA,
+        eventIds: [decisionEventId],
+        pendingDecisionIds: [decisionId],
+        sentAt: START,
+      });
+      const digest = await ctx.db.get("digests", id);
+      if (digest === null) {
+        throw new Error("Inserted digest is missing");
+      }
+      await deliverDigestPush(ctx, digest, {
+        title: "AgentDesk digest",
+        body: "1 event · 1 pending decision",
+        data: { eventId: "spoofed", kind: "agent.done", extra: 1 },
+      });
+      return id;
+    });
+
+    for (const deviceId of ["install-1", "install-2"]) {
+      const pushes = await queued(t, deviceId);
+      expect(pushes).toHaveLength(1);
+      expect(pushes[0]).toMatchObject({
+        title: "AgentDesk digest",
+        body: "1 event · 1 pending decision",
+        sound: "default",
+        state: "awaiting_delivery",
+      });
+      expect(pushes[0]?.categoryId).toBeUndefined();
+      expect(pushes[0]?.data).toEqual({ kind: "digest", digestId, extra: 1 });
+    }
   });
 });

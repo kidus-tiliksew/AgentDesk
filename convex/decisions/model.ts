@@ -29,8 +29,14 @@ export const IDEMPOTENCY_WINDOW_MS = 24 * 60 * 60_000;
 export const CHECK_LIMIT = 50;
 // req-decision-requests AC-2.5.
 const NOTE_MAX = 2000;
-// The surfaces a person answers through. `default` is recorded only by expiry.
-const ANSWER_SURFACES: readonly Exclude<AnsweredVia, "chat">[] = ["app", "notification", "api"];
+// The surfaces `answer` accepts. `default` is recorded only by expiry and
+// `chat` only by `relayAnswer`, so the relay fields appear exactly on rows
+// answered in chat (component-decisions §Relayed answers).
+const ANSWER_SURFACES: readonly Exclude<AnsweredVia, "chat" | "default">[] = [
+  "app",
+  "notification",
+  "api",
+];
 
 // Converts a client-supplied id string to a table id, or throws `invalid`
 // naming the field, so a malformed id is a 400 rather than a generic error.
@@ -66,7 +72,11 @@ function instant(at: number | undefined): string | null {
 
 // The contract's Decision read shape (component-contract §Read shapes):
 // absent values are null and instants are ISO 8601 strings, so the gateway
-// passes the result through unchanged.
+// passes the result through unchanged. A row without `interactive` reads as
+// false (req-agent-tools AC-10.1). Only `relayAnswer` sets the relay fields,
+// so they are null on every decision not answered in chat
+// (req-decision-requests AC-8.3). Neither session is loaded, so a purged
+// asking or relaying session never breaks a read (REQ-7).
 export function toDecision(doc: Doc<"decisions">, followUpIds: Id<"decisions">[]): Decision {
   return {
     id: doc._id,
@@ -77,7 +87,7 @@ export function toDecision(doc: Doc<"decisions">, followUpIds: Id<"decisions">[]
     options: doc.options ?? null,
     recommendation: doc.recommendation ?? null,
     priority: doc.priority,
-    interactive: false,
+    interactive: doc.interactive ?? false,
     deadline: instant(doc.deadline),
     default: doc.default ?? null,
     state: doc.state,
@@ -85,8 +95,8 @@ export function toDecision(doc: Doc<"decisions">, followUpIds: Id<"decisions">[]
     note: doc.note ?? null,
     answered_at: instant(doc.answeredAt),
     answered_via: doc.answeredVia ?? null,
-    chat_message: null,
-    relayed_by_agent_session_id: null,
+    chat_message: doc.chatMessage ?? null,
+    relayed_by_agent_session_id: doc.relayedByAgentSessionId ?? null,
     applied_by_default: doc.appliedByDefault ?? false,
     parent_id: doc.parentId ?? null,
     follow_up_ids: followUpIds,
@@ -247,6 +257,8 @@ export async function insertDecision(
     recommendation: input.recommendation,
     // req-decision-requests AC-1.3: the contract defaults priority to normal.
     priority: input.priority,
+    // req-agent-tools AC-10.1: the contract defaults interactive to false.
+    interactive: input.interactive,
     deadline,
     default: input.default,
     state: "pending",
@@ -348,6 +360,46 @@ export async function answerDecision(
     appliedByDefault: false,
     settledAt: now,
     searchText: joinSearch([doc.searchText, ...answerWords(doc, answer.data), note]),
+  });
+  await emit(ctx, decisionEvent("decision.answered", doc, now));
+  return settled;
+}
+
+// `relayAnswer`: settles a pending decision with an answer the user gave in
+// an agent's chat (req-decision-requests REQ-8; DEC-13). A settled decision is
+// `conflict` before the answer is examined, so a relay on a settled decision
+// is refused whatever it carries (req-agent-tools AC-9.2). An invalid answer
+// leaves the decision pending (AC-2.2). `chatMessage` arrives already checked
+// by the contract's chatMessageSchema (AC-8.2) and is stored exactly as
+// received with the relaying session, the time, and the surface `chat`
+// (AC-4.3, AC-8.1). Any agent session of the owner may relay. A relay carries
+// no note.
+export async function relayAnswer(
+  ctx: WriterCtx,
+  doc: Doc<"decisions">,
+  rawAnswer: unknown,
+  chatMessage: string,
+  relayedByAgentSessionId: Id<"agentSessions">,
+  now: number,
+): Promise<Decision> {
+  if (doc.state !== "pending") {
+    return await refuseSettled(ctx, doc);
+  }
+  const answer = validateAnswer(doc.inputType, doc.options, rawAnswer);
+  if (!answer.success) {
+    throw invalidFrom(answer.error.issues[0], "answer");
+  }
+  await cancelExpiry(ctx, doc);
+  const settled = await settle(ctx, doc, {
+    state: "answered",
+    answer: answer.data,
+    answeredAt: now,
+    answeredVia: "chat",
+    appliedByDefault: false,
+    chatMessage,
+    relayedByAgentSessionId,
+    settledAt: now,
+    searchText: joinSearch([doc.searchText, ...answerWords(doc, answer.data), chatMessage]),
   });
   await emit(ctx, decisionEvent("decision.answered", doc, now));
   return settled;

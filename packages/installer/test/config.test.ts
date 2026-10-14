@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -11,6 +11,7 @@ import { InstallerError } from "../src/context.js";
 import {
   allFiles,
   cleanupSandboxes,
+  codexHookHash,
   invocations,
   makeContext,
   makeSandbox,
@@ -19,6 +20,7 @@ import {
   SERVER,
   stubExecutable,
   write,
+  writingInvocations,
 } from "./helpers.js";
 
 afterEach(cleanupSandboxes);
@@ -228,12 +230,18 @@ describe("MCP entries written by install", () => {
     const h = makeContext(sandbox);
     expect(await h.run(["install", "--yes"])).toBe(0);
     const token = h.gateway.tokenFor("codex");
+    const key = `${realpathSync(join(sandbox.home, ".codex", "hooks.json"))}:session_start:0:0`;
+    const hash = codexHookHash("startup|clear|compact", {
+      type: "command",
+      command: `${sandbox.executable} context --harness codex`,
+    });
     expect(read(file)).toBe(
-      `${CODEX_BEFORE + CODEX_AFTER}\n[mcp_servers.agentdesk]\nurl = "${SERVER}/mcp"\nhttp_headers = { "Authorization" = "Bearer ${token}" }\n`,
+      `${CODEX_BEFORE + CODEX_AFTER}\n[mcp_servers.agentdesk]\nurl = "${SERVER}/mcp"\nhttp_headers = { "Authorization" = "Bearer ${token}" }\n` +
+        `\n[hooks.state.${JSON.stringify(key)}]\ntrusted_hash = "${hash}"\n`,
     );
     expect(read(`${file}.agentdesk-backup`)).toBe(CODEX_BEFORE + CODEX_AFTER);
-    // codex itself was never run: Codex is configured through its file.
-    expect(invocations(sandbox)).toEqual([]);
+    // Codex is configured through its files; codex itself only ran app-server to list hooks.
+    expect(writingInvocations(sandbox)).toEqual([]);
   });
 
   it("writes CODEX_HOME/config.toml when CODEX_HOME is set", async () => {

@@ -1343,3 +1343,148 @@ describe("settled decisions", () => {
     expectNoControls();
   });
 });
+
+// component-mobile-app §Screens, Answers given in chat (req-decision-requests
+// AC-8.3; req-mobile-app AC-3.2; DEC-13).
+describe("answers given in chat", () => {
+  // Markdown characters and line breaks the card must show as typed.
+  const MESSAGE = "**Ship it** after the _tests_ pass.\n# Not a heading\n- not a list\n`code`";
+
+  function inChat(overrides: Partial<Decision> & Pick<Decision, "id">): Decision {
+    return answered({
+      answered_via: "chat",
+      chat_message: MESSAGE,
+      relayed_by_agent_session_id: "s_relay",
+      ...overrides,
+    });
+  }
+
+  function messageCard() {
+    return screen.getByLabelText(`Your message in chat: ${MESSAGE}`);
+  }
+
+  test("a chat answer shows its answer, Answered in chat with the time, and the message as typed", async () => {
+    const at = "2026-10-11T10:00:00.000Z";
+    await open(inChat({ id: "d_1", title: "Ship?", answered_at: at }));
+
+    expect(banner("Approved")).toHaveAccessibleName(
+      new RegExp(`^Approved\\. Answered in chat, .*${clockTime(at)}$`),
+    );
+    expect(
+      screen.getByText(new RegExp(`^Answered in chat · .*${clockTime(at)}$`)),
+    ).toBeOnTheScreen();
+    // The card's label reads the message, and its text is the message
+    // exactly, Markdown characters and line breaks included.
+    const card = messageCard();
+    expect(within(card).getByText("Your message in chat")).toBeOnTheScreen();
+    expect(within(card).getByText(MESSAGE)).toBeOnTheScreen();
+    // No Markdown renderer touched it: no heading, emphasis, or list text.
+    expect(screen.queryByText("Ship it")).not.toBeOnTheScreen();
+    expect(screen.queryByText("Not a heading")).not.toBeOnTheScreen();
+    expectNoControls();
+  });
+
+  test("a chat answer of any kind names the recorded answer above the message card", async () => {
+    await open(
+      inChat({
+        id: "d_1",
+        title: "Pick",
+        input_type: "multiple_choice",
+        options: choices,
+        answer: { kind: "options", option_ids: ["a", "c"] },
+        note: "From the chat",
+      }),
+    );
+
+    expect(banner("Answered")).toHaveAccessibleName(
+      /^Answered\. Alpha, Gamma\. Answered in chat, /,
+    );
+    expect(screen.getByText("Alpha, Gamma")).toBeOnTheScreen();
+    expect(messageCard()).toBeOnTheScreen();
+    expect(screen.getByText("From the chat")).toBeOnTheScreen();
+  });
+
+  test("a chat rejection reads as Rejected with the message", async () => {
+    await open(inChat({ id: "d_1", title: "Ship?", answer: { kind: "reject" } }));
+
+    expect(banner("Rejected")).toHaveAccessibleName(/^Rejected\. Answered in chat, /);
+    expect(messageCard()).toBeOnTheScreen();
+  });
+
+  test("a message at the contract's longest length shows in full", async () => {
+    const long = `${"line of the user's message\n".repeat(150)}end`.slice(-4000);
+    expect(long).toHaveLength(4000);
+    await open(inChat({ id: "d_1", title: "Ship?", chat_message: long }));
+
+    const text = screen.getByText(long);
+    expect(text).toBeOnTheScreen();
+    expect(text.props.numberOfLines).toBeUndefined();
+    expect(screen.getByLabelText(`Your message in chat: ${long}`)).toBeOnTheScreen();
+  });
+
+  test("an app answer shows no chat message card", async () => {
+    await open(answered({ id: "d_1", title: "Ship?" }));
+
+    expect(banner("Approved")).toHaveAccessibleName(/^Approved\. By you in the app, /);
+    expect(screen.queryByText("Your message in chat")).not.toBeOnTheScreen();
+    expect(screen.queryByText(/Answered in chat/)).not.toBeOnTheScreen();
+  });
+
+  test("a pending decision answered in chat while open switches to the chat outcome", async () => {
+    const pending = decision({ id: "d_1", title: "Name it", input_type: "free_text" });
+    await open(pending);
+    fireEvent.changeText(screen.getByLabelText("Answer text"), "Half-typed answer");
+
+    act(() =>
+      serve(
+        inChat({
+          id: "d_1",
+          title: "Name it",
+          input_type: "free_text",
+          answer: { kind: "text", text: "Atlas" },
+        }),
+      ),
+    );
+
+    expect(banner("Answered")).toHaveAccessibleName(/^Answered\. Atlas\. Answered in chat, /);
+    expect(messageCard()).toBeOnTheScreen();
+    expect(screen.queryByText("Half-typed answer")).not.toBeOnTheScreen();
+    expectNoControls();
+    expect(answerDecision).not.toHaveBeenCalled();
+  });
+
+  test("an answer that loses to a chat answer shows the chat outcome and is not retried", async () => {
+    const stored = inChat({ id: "d_1", title: "Ship?", answer: { kind: "reject" } });
+    answerDecision.mockRejectedValue(
+      new ConvexError({
+        code: "conflict",
+        message: "Decision is already answered",
+        decision: stored,
+      }),
+    );
+    await open(decision({ id: "d_1", title: "Ship?" }));
+
+    addNote("My attempted note");
+    choose("Approve");
+    await flush();
+
+    expect(
+      screen.getByText(
+        "This decision was settled before your answer arrived. Your answer was not recorded.",
+      ),
+    ).toBeOnTheScreen();
+    expect(banner("Rejected")).toHaveAccessibleName(/^Rejected\. Answered in chat, /);
+    expect(messageCard()).toBeOnTheScreen();
+    expect(announce).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^This decision was settled before your answer arrived\. Your answer was not recorded\. Recorded outcome: Rejected\. Answered in chat, /,
+      ),
+    );
+    expect(screen.queryByText("Approved")).not.toBeOnTheScreen();
+    expect(screen.queryByText("My attempted note")).not.toBeOnTheScreen();
+    expectNoControls();
+
+    await flush();
+    expect(answerDecision).toHaveBeenCalledTimes(1);
+  });
+});

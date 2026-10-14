@@ -171,6 +171,16 @@ function Stat({
   );
 }
 
+// The state label of an answered decision: by default, in chat for an answer
+// an agent relayed from its chat (component-mobile-app §Screens, Decisions;
+// req-decision-requests AC-8.3), or answered.
+function answeredLabel(decision: DigestDecision): string {
+  if (decision.applied_by_default) {
+    return "Answered by default";
+  }
+  return decision.answered_via === "chat" ? "Answered in chat" : "Answered";
+}
+
 // A settled decision's outcome: its label, icon, and color.
 function outcome(
   decision: DigestDecision,
@@ -179,7 +189,7 @@ function outcome(
   switch (decision.state) {
     case "answered":
       return {
-        label: decision.applied_by_default ? "Answered by default" : "Answered",
+        label: answeredLabel(decision),
         icon: "checkmark-circle",
         // A default applied at the deadline is accent, as on the decision
         // screen and in History; an answer the person gave is green.

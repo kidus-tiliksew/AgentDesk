@@ -88,6 +88,11 @@ describe("devAnswer.answer", () => {
     await expect(
       answer({ answer: { kind: "option", option_id: "pg" }, answeredVia: "mcp" }),
     ).rejects.toMatchObject({ data: { code: "invalid", field: "answeredVia" } });
+    // Only a relay through /svc/decisions/resolve records chat
+    // (component-decisions §Development answer helper).
+    await expect(
+      answer({ answer: { kind: "option", option_id: "pg" }, answeredVia: "chat" }),
+    ).rejects.toMatchObject({ data: { code: "invalid", field: "answeredVia" } });
     expect((await load())?.state).toBe("pending");
   });
 

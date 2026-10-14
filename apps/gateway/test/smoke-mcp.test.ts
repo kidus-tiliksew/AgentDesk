@@ -10,6 +10,8 @@ import {
   PROTOCOL_VERSION,
   readEventStream,
   runSmoke,
+  SMOKE_CHAT_MESSAGE,
+  SMOKE_CONFLICT_MESSAGE,
   SMOKE_NOTE,
   SMOKE_TOPIC,
   SmokeError,
@@ -115,12 +117,22 @@ interface AwaitCall {
   asked: Json;
 }
 
+// A tool result the fake answers with: its JSON and whether it is an error.
+interface FakeResult {
+  value: unknown;
+  isError?: boolean;
+}
+
 interface FakeOptions {
   tools?: string[];
   sessionHeader?: string | null;
   initializeStatus?: number;
   status?: (args: Json) => unknown;
   ask?: (args: Json, n: number) => unknown;
+  // Answers the nth `resolve` call given every call so far; the default
+  // answers the first with the relayed decision and the second with a
+  // conflict carrying it.
+  resolve?: (args: Json, n: number, calls: Json[]) => FakeResult;
   // Answers each `await` call; the default answers the first after the
   // helper runs and expires the second after 300 seconds of keepalives.
   await?: (call: AwaitCall, answered: Promise<void>) => Response;
@@ -128,6 +140,18 @@ interface FakeOptions {
   override?: (method: string, id: unknown, params: Json) => Response | undefined;
 }
 
+const STATUS_SESSION = "agent_1";
+const RELAYED = decision({
+  id: "decision_relayed",
+  topic: SMOKE_TOPIC,
+  state: "answered",
+  interactive: true,
+  answer: { kind: "approve" },
+  answered_via: "chat",
+  answered_at: "2026-10-11T10:00:00.000Z",
+  chat_message: SMOKE_CHAT_MESSAGE,
+  relayed_by_agent_session_id: STATUS_SESSION,
+});
 const ANSWERED = decision({
   id: "decision_answered",
   topic: SMOKE_TOPIC,
@@ -144,6 +168,30 @@ const EXPIRED = decision({
   answered_via: "default",
   applied_by_default: true,
 });
+
+// The first `resolve` records its message; a later one conflicts with it.
+function defaultResolve(_args: Json, n: number, calls: Json[]): FakeResult {
+  const stored = { ...RELAYED, chat_message: calls[0]?.chat_message };
+  if (n === 1) {
+    return { value: stored };
+  }
+  return {
+    value: {
+      error: { code: "conflict", message: "Decision is already answered" },
+      decision: stored,
+    },
+    isError: true,
+  };
+}
+
+// The decision id for an `ask`, chosen by its leg's idempotency key.
+function askedId(args: Json): string {
+  const key = String(args.idempotency_key);
+  if (key.endsWith("-relayed")) {
+    return RELAYED.id;
+  }
+  return key.endsWith("-answered") ? ANSWERED.id : EXPIRED.id;
+}
 
 // The expired decision for the default leg's `ask`, settled at its deadline.
 function expiredFor(call: AwaitCall) {
@@ -177,6 +225,7 @@ function fakeGateway(clock: FakeClock, options: FakeOptions = {}) {
   const received: Received[] = [];
   const awaits: AwaitCall[] = [];
   const asks: Json[] = [];
+  const resolves: Json[] = [];
   let answer: () => void = () => {};
   const answered = new Promise<void>((resolve) => {
     answer = resolve;
@@ -216,26 +265,33 @@ function fakeGateway(clock: FakeClock, options: FakeOptions = {}) {
         return new Response(null, { status: 202 });
       case "tools/list":
         return rpc({
-          tools: (options.tools ?? ["ask", "await", "check", "cancel", "status"]).map((name) => ({
-            name,
-          })),
+          tools: (options.tools ?? ["ask", "await", "check", "cancel", "resolve", "status"]).map(
+            (name) => ({ name }),
+          ),
         });
       case "tools/call": {
         const args = (params.arguments ?? {}) as Json;
         switch (params.name) {
           case "status":
-            return rpc(toolResult(options.status?.(args) ?? { id: "agent_1", state: args.state }));
+            return rpc(
+              toolResult(options.status?.(args) ?? { id: STATUS_SESSION, state: args.state }),
+            );
           case "ask": {
             asks.push(args);
             const n = asks.length;
             return rpc(
               toolResult(
                 options.ask?.(args, n) ?? {
-                  decision_id: n === 1 ? ANSWERED.id : EXPIRED.id,
+                  decision_id: askedId(args),
                   state: "pending",
                 },
               ),
             );
+          }
+          case "resolve": {
+            resolves.push(args);
+            const answered = (options.resolve ?? defaultResolve)(args, resolves.length, resolves);
+            return rpc(toolResult(answered.value, answered.isError ?? false));
           }
           case "await": {
             const call = {
@@ -255,7 +311,7 @@ function fakeGateway(clock: FakeClock, options: FakeOptions = {}) {
     }
     throw new Error(`unexpected method ${method}`);
   };
-  return { fetch, received, awaits, asks, answer: () => answer() };
+  return { fetch, received, awaits, asks, resolves, answer: () => answer() };
 }
 
 interface Run {
@@ -315,6 +371,9 @@ describe("runSmoke", () => {
       "tools/call",
       "tools/call",
       "tools/call",
+      "tools/call",
+      "tools/call",
+      "tools/call",
     ]);
     expect(fake.received.map((r) => (r.body.params as Json | undefined)?.name)).toEqual([
       undefined,
@@ -322,12 +381,16 @@ describe("runSmoke", () => {
       undefined,
       "status",
       "ask",
+      "resolve",
+      "resolve",
+      "ask",
       "await",
       "ask",
       "await",
     ]);
     expect(report).toEqual({
       sessionId: MCP_SESSION,
+      relayed: { decisionId: RELAYED.id },
       answered: { decisionId: ANSWERED.id, settleLatencyMs: 0 },
       defaulted: {
         decisionId: EXPIRED.id,
@@ -341,6 +404,10 @@ describe("runSmoke", () => {
       },
     });
     expect(lines[0]).toBe(`ok initialize: protocol ${PROTOCOL_VERSION}, Mcp-Session-Id received`);
+    expect(lines).toContain(
+      `ok relayed leg: ${RELAYED.id} answered in chat by agent session ${STATUS_SESSION}; ` +
+        "a second resolve got conflict with the first answer",
+    );
     expect(lines.at(-1)).toContain("20 keepalives");
     expect(helperCalls).toEqual([
       {
@@ -378,19 +445,26 @@ describe("runSmoke", () => {
     const askedAt = START;
     await result;
     expect(fake.asks[0]).toEqual({
+      title: "Smoke: approve this decision in chat",
+      input_type: "approve_reject",
+      topic: SMOKE_TOPIC,
+      interactive: true,
+      idempotency_key: "smoke-run_1-relayed",
+    });
+    expect(fake.asks[1]).toEqual({
       title: "Smoke: approve this decision",
       input_type: "approve_reject",
       topic: SMOKE_TOPIC,
       idempotency_key: "smoke-run_1-answered",
     });
-    expect(fake.asks[1]).toMatchObject({
+    expect(fake.asks[2]).toMatchObject({
       input_type: "approve_reject",
       topic: SMOKE_TOPIC,
       default: { kind: "reject" },
       idempotency_key: "smoke-run_1-default",
     });
-    // The answered leg moved the clock 5 seconds before the second ask.
-    expect(fake.asks[1]?.deadline).toBe(
+    // The answered leg moved the clock 5 seconds before the default leg's ask.
+    expect(fake.asks[2]?.deadline).toBe(
       new Date(askedAt + 5_000 + DEFAULT_LEG_DEADLINE_MS).toISOString(),
     );
     expect(fake.awaits.map((call) => call.args.timeout_seconds)).toEqual([
@@ -428,7 +502,9 @@ describe("runSmoke", () => {
     const { result, fake, lines } = await run({ quick: true });
     const report = await result;
     expect(report.defaulted).toBeNull();
-    expect(fake.asks).toHaveLength(1);
+    expect(report.relayed).toEqual({ decisionId: RELAYED.id });
+    expect(fake.asks).toHaveLength(2);
+    expect(fake.resolves).toHaveLength(2);
     expect(fake.awaits).toHaveLength(1);
     expect(lines.at(-1)).toContain("skipped default leg (--quick)");
   });
@@ -445,11 +521,11 @@ describe("runSmoke", () => {
     expect(error.message).toContain("HTTP 401");
   });
 
-  it("fails tools/list unless exactly the five tools are listed", async () => {
+  it("fails tools/list unless exactly the six tools are listed", async () => {
     for (const tools of [
-      ["ask", "await", "check", "cancel"],
-      ["ask", "await", "check", "cancel", "status", "answer"],
-      ["ask", "await", "check", "cancel", "status", "status"],
+      ["ask", "await", "check", "cancel", "status"],
+      ["ask", "await", "check", "cancel", "resolve", "status", "answer"],
+      ["ask", "await", "check", "cancel", "resolve", "status", "status"],
     ]) {
       const error = await failure((await run({ gateway: { tools } })).result);
       expect(error.step).toBe("tools/list");
@@ -487,7 +563,123 @@ describe("runSmoke", () => {
     const error = await failure(
       (await run({ gateway: { ask: () => ({ decision_id: "d", state: "answered" }) } })).result,
     );
-    expect(error.step).toBe("answered: ask");
+    expect(error.step).toBe("relayed: ask");
+  });
+
+  it("relays an approve with the fixed chat message, then a reject that must conflict", async () => {
+    const { result, fake } = await run({ quick: true });
+    await result;
+    expect(fake.resolves).toEqual([
+      { decision_id: RELAYED.id, answer: { kind: "approve" }, chat_message: SMOKE_CHAT_MESSAGE },
+      { decision_id: RELAYED.id, answer: { kind: "reject" }, chat_message: SMOKE_CONFLICT_MESSAGE },
+    ]);
+  });
+
+  it("fails status without an agent session id", async () => {
+    const error = await failure(
+      (await run({ gateway: { status: (args) => ({ state: args.state }) } })).result,
+    );
+    expect(error.step).toBe("status");
+    expect(error.message).toContain("no agent session id");
+  });
+
+  it.each([
+    ["the surface", { answered_via: "app" }, "answered_via"],
+    ["the interactive flag", { interactive: false }, "interactive"],
+    ["a trimmed message", { chat_message: SMOKE_CHAT_MESSAGE.trim() }, "chat_message"],
+    [
+      "another relaying session",
+      { relayed_by_agent_session_id: "agent_2" },
+      "relayed_by_agent_session_id",
+    ],
+    ["the answer", { answer: { kind: "reject" } }, "answer"],
+    ["the state", { state: "pending" }, "state"],
+    ["the decision id", { id: "decision_other" }, "decision id"],
+  ])("fails the relayed leg on a wrong %s", async (_name, change, field) => {
+    const error = await failure(
+      (
+        await run({
+          quick: true,
+          gateway: { resolve: () => ({ value: { ...RELAYED, ...change } }) },
+        })
+      ).result,
+    );
+    expect(error.step).toBe("relayed: resolve");
+    expect(error.message).toContain(`${field} is`);
+  });
+
+  it("fails the relayed leg when resolve returns a tool error", async () => {
+    const error = await failure(
+      (
+        await run({
+          quick: true,
+          gateway: {
+            resolve: () => ({
+              value: { error: { code: "invalid", message: "chat_message is required" } },
+              isError: true,
+            }),
+          },
+        })
+      ).result,
+    );
+    expect(error.step).toBe("relayed: resolve");
+    expect(error.message).toContain("tool error");
+  });
+
+  it("fails the conflict check when the second resolve succeeds", async () => {
+    const error = await failure(
+      (await run({ quick: true, gateway: { resolve: () => ({ value: RELAYED }) } })).result,
+    );
+    expect(error.step).toBe("relayed: conflict");
+    expect(error.message).toContain("expected a tool error");
+  });
+
+  it.each([
+    [
+      "another error code",
+      { error: { code: "invalid", message: "Answer is invalid" }, decision: RELAYED },
+      "error is",
+    ],
+    [
+      "another stored state in the message",
+      { error: { code: "conflict", message: "Decision is already expired" }, decision: RELAYED },
+      "error is",
+    ],
+    [
+      "no stored decision",
+      { error: { code: "conflict", message: "Decision is already answered" } },
+      "conflict decision is not an object",
+    ],
+    [
+      "the second answer stored",
+      {
+        error: { code: "conflict", message: "Decision is already answered" },
+        decision: { ...RELAYED, answer: { kind: "reject" } },
+      },
+      "answer is",
+    ],
+    [
+      "the second message stored",
+      {
+        error: { code: "conflict", message: "Decision is already answered" },
+        decision: { ...RELAYED, chat_message: SMOKE_CONFLICT_MESSAGE },
+      },
+      "chat_message is",
+    ],
+  ])("fails the conflict check with %s", async (_name, value, expected) => {
+    const error = await failure(
+      (
+        await run({
+          quick: true,
+          gateway: {
+            resolve: (args, n, calls) =>
+              n === 1 ? defaultResolve(args, n, calls) : { value, isError: true },
+          },
+        })
+      ).result,
+    );
+    expect(error.step).toBe("relayed: conflict");
+    expect(error.message).toContain(expected);
   });
 
   it("fails on a JSON-RPC response for another id or a JSON-RPC error", async () => {

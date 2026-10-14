@@ -610,6 +610,51 @@ describe("digests:get", () => {
     });
   });
 
+  // req-decision-requests AC-8.3
+  test("shows how each saved decision was answered, with the chat message only for chat", async () => {
+    const { t, asA, userA, sessionA } = await dueSetup();
+    const inChat = await insertDecision(t, userA, sessionA, { title: "In chat" });
+    const inApp = await insertDecision(t, userA, sessionA, { title: "In app" });
+    const open = await insertDecision(t, userA, sessionA, { title: "Open" });
+    const digestId = await runWorker(t, userA);
+    if (digestId === null) {
+      throw new Error("No digest sent");
+    }
+
+    await t.mutation(decisions.operations.resolve, {
+      userId: userA,
+      agentSessionId: sessionA,
+      decisionId: inChat,
+      answer: { kind: "approve" },
+      chatMessage: "yes, ship it",
+    });
+    await asA.mutation(decisions.app.answer, {
+      decisionId: inApp,
+      answer: { kind: "reject" },
+      note: "Not today",
+    });
+
+    const digest = await asA.query(notifications.digests.get, { digestId });
+    const byId = new Map(digest.pending_decisions.map((decision) => [decision.id, decision]));
+    expect(byId.get(inChat)).toMatchObject({
+      state: "answered",
+      answer: { kind: "approve" },
+      answered_via: "chat",
+      chat_message: "yes, ship it",
+    });
+    expect(byId.get(inApp)).toMatchObject({
+      state: "answered",
+      answer: { kind: "reject" },
+      answered_via: "app",
+      chat_message: null,
+    });
+    expect(byId.get(open)).toMatchObject({
+      state: "pending",
+      answered_via: null,
+      chat_message: null,
+    });
+  });
+
   test("shows the title of a decision that still exists", async () => {
     const { t, asA, userA, sessionA } = await dueSetup();
     const decision = await insertDecision(t, userA, sessionA, { title: "Deploy?" });

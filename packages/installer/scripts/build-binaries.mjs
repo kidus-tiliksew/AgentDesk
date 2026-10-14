@@ -1,5 +1,6 @@
 // Compiles the bundled installer into standalone binaries with Bun and writes
-// SHA256SUMS over them (component-installer §Build and distribution; DEC-8).
+// SHA256SUMS over them (component-installer §Build and distribution; DEC-10).
+// The binaries are the only distribution; install.sh downloads them.
 // The release workflow runs this; ordinary tests and CI need no Bun.
 //
 //   AGENTDESK_SERVER_ORIGIN=https://agentdesk.example node scripts/build-binaries.mjs [--outdir <dir>]

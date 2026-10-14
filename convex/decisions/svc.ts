@@ -1,4 +1,4 @@
-import { decisionInputFieldsSchema } from "@agentdesk/contract";
+import { chatMessageSchema, decisionInputFieldsSchema } from "@agentdesk/contract";
 import type { RouteSpec } from "convex/server";
 import { z } from "zod";
 import { serviceRoute } from "../lib/svc";
@@ -9,8 +9,9 @@ import { decisions } from "./refs";
 // routes). The gateway resolved the caller before calling, so `userId` and
 // `agentSessionId` are trusted and nothing else in the body names an identity
 // (req-agent-tools REQ-7). Each handler runs one mutation that touches the
-// session and acts in the same transaction. No route accepts an answer
-// (req-agent-tools AC-7.3).
+// session and acts in the same transaction. `/svc/decisions/resolve` is the
+// only route that accepts an answer from an MCP session, and it requires the
+// user's chat message (req-agent-tools AC-7.3).
 const id = z.string().min(1);
 
 export const routes: RouteSpec[] = [
@@ -51,6 +52,27 @@ export const routes: RouteSpec[] = [
     handler: serviceRoute(
       z.object({ userId: id, decisionId: id, agentSessionId: id.optional() }),
       (ctx, input) => ctx.runMutation(decisions.operations.cancel, input),
+    ),
+  },
+  {
+    // MCP `resolve`: relays an answer the user gave in the calling agent's
+    // chat (req-agent-tools REQ-9; DEC-13). The body schema refuses a missing,
+    // blank, or over-long `chatMessage` before any read, so a refused message
+    // touches nothing (AC-9.1; req-decision-requests AC-8.2). The answer is
+    // validated against the decision inside the mutation, after the settled
+    // check, so a settled decision is 409 whatever the answer holds (AC-9.2).
+    path: "/svc/decisions/resolve",
+    method: "POST",
+    handler: serviceRoute(
+      z.object({
+        userId: id,
+        agentSessionId: id,
+        decisionId: id,
+        // Absent or not, the answer reaches the mutation.
+        answer: z.unknown().optional(),
+        chatMessage: chatMessageSchema,
+      }),
+      (ctx, input) => ctx.runMutation(decisions.operations.resolve, input),
     ),
   },
 ];

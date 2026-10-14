@@ -49,6 +49,8 @@ function pendingDecision(
     state: "pending",
     answer: null,
     answered_at: null,
+    answered_via: null,
+    chat_message: null,
     applied_by_default: false,
     agent_session_id: "a_1",
     agent_name: "Claude on laptop",
@@ -260,6 +262,77 @@ describe("digest screen", () => {
       "Decision: Archive the logs?, Pending",
       "Decision: Keep the old endpoint?, Answered",
     ]);
+    expect(screen.getByLabelText("1 Answered")).toBeOnTheScreen();
+  });
+
+  // component-mobile-app §Screens, Decisions (req-decision-requests AC-8.3).
+  test("a decision answered in chat reads Answered in chat, and an app answer reads Answered", async () => {
+    setQuery(get, (args: { digestId: string }) =>
+      digest(args.digestId, {
+        events: [],
+        pending_decisions: [
+          pendingDecision({
+            id: "d_1",
+            title: "Relayed from chat?",
+            state: "answered",
+            answer: { kind: "approve" },
+            answered_at: "2026-10-12T09:30:00.000Z",
+            answered_via: "chat",
+            chat_message: "Yes, go ahead",
+          }),
+          pendingDecision({
+            id: "d_2",
+            title: "Answered in the app?",
+            state: "answered",
+            answer: { kind: "approve" },
+            answered_at: "2026-10-12T09:31:00.000Z",
+            answered_via: "app",
+          }),
+        ],
+      }),
+    );
+
+    await openDigest();
+
+    expect(
+      await screen.findByRole("button", { name: "Decision: Relayed from chat?, Answered in chat" }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Answered in chat")).toBeOnTheScreen();
+    expect(
+      screen.getByRole("button", { name: "Decision: Answered in the app?, Answered" }),
+    ).toBeOnTheScreen();
+    expect(screen.getByLabelText("2 Answered")).toBeOnTheScreen();
+  });
+
+  test("a decision answered in chat while the screen is open changes to Answered in chat", async () => {
+    setQuery(get, (args: { digestId: string }) => digest(args.digestId));
+    await openDigest();
+    await screen.findByRole("button", { name: "Decision: Keep the old endpoint?, Pending" });
+
+    act(() =>
+      setQuery(get, (args: { digestId: string }) => {
+        const base = digest(args.digestId);
+        return {
+          ...base,
+          pending_decisions: base.pending_decisions.map((item) =>
+            item.id === "d_3"
+              ? {
+                  ...item,
+                  state: "answered" as const,
+                  answer: { kind: "reject" as const },
+                  answered_at: "2026-10-12T09:45:00.000Z",
+                  answered_via: "chat" as const,
+                  chat_message: "No, keep it",
+                }
+              : item,
+          ),
+        };
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Decision: Keep the old endpoint?, Answered in chat" }),
+    ).toBeOnTheScreen();
     expect(screen.getByLabelText("1 Answered")).toBeOnTheScreen();
   });
 

@@ -9,6 +9,12 @@ export interface RunResult {
 
 export type Runner = (command: string, args: readonly string[]) => Promise<RunResult>;
 
+/** A cancellable one-shot timer. */
+export interface Timer {
+  promise: Promise<void>;
+  cancel(): void;
+}
+
 export interface Io {
   out(line: string): void;
   err(line: string): void;
@@ -33,6 +39,15 @@ export interface Context {
   skill: { content: string; version: string };
   defaultServer: string | undefined;
   harnesses: readonly Harness[];
+  /** The standing guidance embedded from `@agentdesk/skill/agentdesk/GUIDANCE.md`. */
+  guidance?: string;
+  /**
+   * Absolute path of the running `agentdesk` executable, which the
+   * session-start hooks run. Defaults to the path the process reports.
+   */
+  executable?: string;
+  /** Starts a timer that bounds a subprocess; defaults to a real timer. */
+  startTimer?: (ms: number) => Timer;
   /**
    * Secrets seen during the run. Output passes through `redact`, so a token or
    * device secret never reaches stdout or stderr even through an error path.
@@ -65,4 +80,14 @@ export function redactingIo(io: Io, secrets: ReadonlySet<string>): Io {
     err: (line) => io.err(redact(line, secrets)),
     ...(io.prompt ? { prompt: io.prompt } : {}),
   };
+}
+
+/** Starts `ctx.startTimer`, or a real timer when the context gives none. */
+export function startTimer(ctx: Context, ms: number): Timer {
+  if (ctx.startTimer) return ctx.startTimer(ms);
+  let handle: ReturnType<typeof setTimeout> | undefined;
+  const promise = new Promise<void>((resolve) => {
+    handle = setTimeout(resolve, ms);
+  });
+  return { promise, cancel: () => clearTimeout(handle) };
 }

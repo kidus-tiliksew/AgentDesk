@@ -35,6 +35,7 @@ export const answeredViaValidator = v.union(
   v.literal("app"),
   v.literal("notification"),
   v.literal("api"),
+  v.literal("chat"),
   v.literal("default"),
 );
 
@@ -52,6 +53,9 @@ export const tables = {
     options: v.optional(v.array(v.object({ id: v.string(), label: v.string() }))),
     recommendation: v.optional(answerValidator),
     priority: v.union(v.literal("normal"), v.literal("urgent")),
+    // Absent on rows created before the field existed; reads treat absent as
+    // false (req-agent-tools AC-10.1).
+    interactive: v.optional(v.boolean()),
     // Epoch milliseconds.
     deadline: v.optional(v.number()),
     default: v.optional(answerValidator),
@@ -63,10 +67,16 @@ export const tables = {
     answeredAt: v.optional(v.number()),
     answeredVia: v.optional(answeredViaValidator),
     appliedByDefault: v.optional(v.boolean()),
+    // Set only by a relayed answer: the user's chat message as received and
+    // the relaying session, which the daily purge may delete later
+    // (component-decisions §Relayed answers; req-decision-requests AC-8.1).
+    chatMessage: v.optional(v.string()),
+    relayedByAgentSessionId: v.optional(v.id("agentSessions")),
     parentId: v.optional(v.id("decisions")),
     idempotencyKey: v.optional(v.string()),
     // Title, body, option labels, and once settled the answer text or
-    // selected option labels and the note, joined for history search.
+    // selected option labels, then the note or the chat message, joined for
+    // history search.
     searchText: v.string(),
     // The time the state left `pending`.
     settledAt: v.optional(v.number()),

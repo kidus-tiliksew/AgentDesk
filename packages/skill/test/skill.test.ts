@@ -9,11 +9,12 @@ import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
 
 // component-agent-skill §Verification. The checks parse
-// packages/skill/agentdesk/SKILL.md and judge it against the gateway's tool
-// declaration, so a renamed or added tool fails here instead of leaving a
-// stale list behind.
+// packages/skill/agentdesk/SKILL.md and packages/skill/agentdesk/GUIDANCE.md
+// and judge both against the gateway's tool declaration, so a renamed or added
+// tool fails here instead of leaving a stale list behind.
 
 const SKILL_PATH = fileURLToPath(new URL("../agentdesk/SKILL.md", import.meta.url));
+const GUIDANCE_PATH = fileURLToPath(new URL("../agentdesk/GUIDANCE.md", import.meta.url));
 const PACKAGE_JSON_PATH = fileURLToPath(new URL("../package.json", import.meta.url));
 const GATEWAY_TOOLS_PATH = fileURLToPath(
   new URL("../../../apps/gateway/src/tools.ts", import.meta.url),
@@ -24,13 +25,31 @@ const SECTIONS = ["Topic", "When to ask", "How to ask", "Waiting", "Status"] as 
 // The body stays under 120 lines: 119 passes and 120 fails.
 const MAX_BODY_LINES = 119;
 
-const EXPECTED_TOOL_COUNT = 5;
+const EXPECTED_TOOL_COUNT = 6;
 
-// Identifiers the skill may write as standalone inline code without naming a
-// tool: the gateway's argument and result fields, the topic environment
-// variable, and the enumerated input-type, answer-kind, decision-state,
-// status-state, and priority values. Any other standalone identifier in
-// inline code must be a tool name.
+// The guidance stays within 8 lines: 8 passes and 9 fails.
+const MAX_GUIDANCE_LINES = 8;
+
+// The guidance's last line is the skill pointer, which the installer omits for
+// a harness without skills.
+const SKILL_POINTER = "Load the `agentdesk` skill";
+
+// component-agent-skill v3 §Standing guidance, exactly.
+const CONFIRMED_GUIDANCE = [
+  "AgentDesk is connected. It reaches the user outside this session, wherever they have it set up, through the `agentdesk` MCP tools (`ask`, `await`, `check`, `cancel`, `resolve`, `status`).",
+  "- Report status through AgentDesk when you start a task, finish a stage, become blocked, and finish.",
+  "- When you have a question you should not decide alone, ask it through AgentDesk and show the same question in this chat. The user may answer in either place.",
+  "- If you are a subagent, leave AgentDesk to the agent that started you.",
+  "Load the `agentdesk` skill before your first AgentDesk call. It says how to pick a topic, word a question, wait, and relay an answer given in chat.",
+  "",
+].join("\n");
+
+// Identifiers the skill and the guidance may write as standalone inline code
+// without naming a tool: the gateway's argument and result fields, the topic
+// environment variable, the enumerated input-type, answer-kind,
+// decision-state, status-state, and priority values, and `agentdesk`, the name
+// of the MCP server and the skill. Any other standalone identifier in inline
+// code must be a tool name.
 const SCHEMA_FIELDS = [
   "title",
   "body",
@@ -60,8 +79,11 @@ const SCHEMA_FIELDS = [
   "text",
   "id",
   "label",
+  "interactive",
+  "chat_message",
 ];
 const ENVIRONMENT_IDENTIFIERS = ["AGENTDESK_TOPIC"];
+const SERVER_AND_SKILL_NAMES = ["agentdesk"];
 const ENUM_VALUES = [
   "approve_reject",
   "single_choice",
@@ -88,6 +110,7 @@ const NON_TOOL_IDENTIFIERS = new Set([
   ...SCHEMA_FIELDS,
   ...ENVIRONMENT_IDENTIFIERS,
   ...ENUM_VALUES,
+  ...SERVER_AND_SKILL_NAMES,
 ]);
 
 // English function words that may follow "call" or precede "tool" in prose,
@@ -400,6 +423,40 @@ function validateSkill(raw: string, toolNames: readonly string[]): string[] {
   return problems;
 }
 
+// Returns every problem with a GUIDANCE.md text; an empty list means it passes.
+// The guidance is plain text: no frontmatter, no heading, at most 8 lines, and
+// the skill pointer last.
+function validateGuidance(raw: string, toolNames: readonly string[]): string[] {
+  const text = raw.replace(/\r\n?/g, "\n");
+  const problems: string[] = [];
+  if (splitSkill(text) !== null) {
+    problems.push("guidance has frontmatter");
+  }
+  const lines = bodyLineCount(text);
+  if (lines > MAX_GUIDANCE_LINES) {
+    problems.push(`guidance has ${lines} lines; the limit is ${MAX_GUIDANCE_LINES}`);
+  }
+  const content = text.endsWith("\n") ? text.slice(0, -1) : text;
+  const last = content.split("\n").at(-1) ?? "";
+  if (!last.startsWith(SKILL_POINTER)) {
+    problems.push("guidance's last line is not the skill pointer");
+  }
+  const root = fromMarkdown(text);
+  const visit = (node: Nodes): void => {
+    if (node.type === "heading") {
+      problems.push(`guidance has a heading "${headingText(node.children)}"`);
+    }
+    if ("children" in node) {
+      for (const child of node.children) {
+        visit(child);
+      }
+    }
+  };
+  visit(root);
+  problems.push(...validateToolMentions(root, new Set(toolNames)));
+  return problems;
+}
+
 const TOOL_NAMES = extractToolNames(readFileSync(GATEWAY_TOOLS_PATH, "utf8"));
 
 const VALID_FIXTURE = [
@@ -458,8 +515,15 @@ function withBody(extra: string): string {
 }
 
 describe("gateway tool names", () => {
-  it("reads the five tools from the gateway TOOLS declaration", () => {
-    expect([...TOOL_NAMES].sort()).toEqual(["ask", "await", "cancel", "check", "status"]);
+  it("reads the six tools from the gateway TOOLS declaration", () => {
+    expect([...TOOL_NAMES].sort()).toEqual([
+      "ask",
+      "await",
+      "cancel",
+      "check",
+      "resolve",
+      "status",
+    ]);
   });
 
   it.each([
@@ -474,23 +538,37 @@ describe("gateway tool names", () => {
     ["a missing name", 'const TOOLS = [{ title: "ask" }];', /TOOLS\[0\] has 0 name properties/],
     [
       "a duplicate name",
-      'const TOOLS = [{ name: "ask" }, { name: "ask" }, { name: "await" }, { name: "check" }, { name: "status" }];',
+      'const TOOLS = [{ name: "ask" }, { name: "ask" }, { name: "await" }, { name: "check" }, { name: "resolve" }, { name: "status" }];',
       /duplicate names: ask/,
     ],
     [
-      "four tools",
-      'const TOOLS = [{ name: "ask" }, { name: "await" }, { name: "check" }, { name: "status" }];',
-      /declares 4 tools, expected 5/,
+      "five tools",
+      'const TOOLS = [{ name: "ask" }, { name: "await" }, { name: "check" }, { name: "cancel" }, { name: "status" }];',
+      /declares 5 tools, expected 6/,
     ],
   ])("fails visibly on %s", (_label, source, message) => {
     expect(() => extractToolNames(source)).toThrow(message);
   });
 
-  it("accepts a typed array literal of five string names", () => {
-    const source = `const TOOLS: Tool[] = [${["ask", "await", "check", "cancel", "status"]
+  it("accepts a typed array literal of six string names", () => {
+    const source = `const TOOLS: Tool[] = [${[
+      "ask",
+      "await",
+      "check",
+      "cancel",
+      "resolve",
+      "status",
+    ]
       .map((name) => `{ name: "${name}", run() {} }`)
       .join(", ")}];`;
-    expect(extractToolNames(source)).toEqual(["ask", "await", "check", "cancel", "status"]);
+    expect(extractToolNames(source)).toEqual([
+      "ask",
+      "await",
+      "check",
+      "cancel",
+      "resolve",
+      "status",
+    ]);
   });
 });
 
@@ -514,6 +592,24 @@ describe("delivered SKILL.md", () => {
   });
 });
 
+describe("delivered GUIDANCE.md", () => {
+  const raw = readFileSync(GUIDANCE_PATH, "utf8");
+
+  it("passes every check", () => {
+    expect(validateGuidance(raw, TOOL_NAMES)).toEqual([]);
+  });
+
+  it("is the confirmed standing guidance exactly", () => {
+    expect(raw).toBe(CONFIRMED_GUIDANCE);
+  });
+
+  it("names every tool in inline code", () => {
+    for (const name of TOOL_NAMES) {
+      expect(raw).toContain(`\`${name}\``);
+    }
+  });
+});
+
 describe("package export", () => {
   it("resolves @agentdesk/skill/agentdesk/SKILL.md to the skill file", () => {
     const require = createRequire(import.meta.url);
@@ -522,10 +618,17 @@ describe("package export", () => {
     const split = splitSkill(readFileSync(resolved, "utf8"));
     const data: unknown = parseYaml(split?.frontmatter ?? "");
     const version = isRecord(data) && isRecord(data.metadata) ? data.metadata.version : undefined;
-    expect(version).toBe("1.0.0");
+    expect(version).toBe("2.0.0");
   });
 
-  it("is private, ships the file, and has no runtime dependencies", () => {
+  it("resolves @agentdesk/skill/agentdesk/GUIDANCE.md to the guidance file", () => {
+    const require = createRequire(import.meta.url);
+    const resolved = require.resolve("@agentdesk/skill/agentdesk/GUIDANCE.md");
+    expect(realpathSync(resolved)).toBe(realpathSync(GUIDANCE_PATH));
+    expect(readFileSync(resolved, "utf8")).toBe(CONFIRMED_GUIDANCE);
+  });
+
+  it("is private, ships both files, and has no runtime dependencies", () => {
     const pkg: unknown = JSON.parse(readFileSync(PACKAGE_JSON_PATH, "utf8"));
     expect(isRecord(pkg)).toBe(true);
     if (!isRecord(pkg)) {
@@ -533,8 +636,11 @@ describe("package export", () => {
     }
     expect(pkg.name).toBe("@agentdesk/skill");
     expect(pkg.private).toBe(true);
-    expect(pkg.exports).toEqual({ "./agentdesk/SKILL.md": "./agentdesk/SKILL.md" });
-    expect(pkg.files).toEqual(["agentdesk/SKILL.md"]);
+    expect(pkg.exports).toEqual({
+      "./agentdesk/SKILL.md": "./agentdesk/SKILL.md",
+      "./agentdesk/GUIDANCE.md": "./agentdesk/GUIDANCE.md",
+    });
+    expect(pkg.files).toEqual(["agentdesk/SKILL.md", "agentdesk/GUIDANCE.md"]);
     expect(pkg.dependencies).toBeUndefined();
     expect(pkg.peerDependencies).toBeUndefined();
     expect(pkg.optionalDependencies).toBeUndefined();
@@ -714,7 +820,109 @@ describe("validator fixtures", () => {
     ["fenced selectors", '```json\n{ "name": "await", "arguments": { "decision_id": "d1" } }\n```'],
     ["display names", '```json\n{ "display_name": "Builder", "state": "working" }\n```'],
     ["shell commands", '```sh\ngit remote get-url origin\nbasename "$(pwd)"\n```'],
+    [
+      "the interactive and relay fields",
+      "Set `interactive: true`. Pass `interactive` and `chat_message` to the tools.",
+    ],
+    ["the server and skill name", "Load the `agentdesk` skill."],
   ])("accepts %s", (_label, extra) => {
     expect(validateSkill(withBody(extra), TOOL_NAMES)).toEqual([]);
+  });
+});
+
+const GUIDANCE_FIXTURE = [
+  "AgentDesk is connected through the `agentdesk` MCP tools (`ask`, `status`).",
+  "- Report status through AgentDesk.",
+  "Load the `agentdesk` skill before your first AgentDesk call.",
+  "",
+].join("\n");
+
+const POINTER_LINE = "Load the `agentdesk` skill before your first AgentDesk call.";
+
+// Inserts lines before the skill pointer so the fixture has `target` lines.
+function guidanceWithLines(target: number): string {
+  const lines = GUIDANCE_FIXTURE.slice(0, -1).split("\n");
+  const padding = Array.from(
+    { length: target - lines.length },
+    (_, index) => `- Padding ${index}.`,
+  );
+  return [...lines.slice(0, -1), ...padding, POINTER_LINE, ""].join("\n");
+}
+
+describe("guidance validator fixtures", () => {
+  it("accepts the valid fixture", () => {
+    expect(validateGuidance(GUIDANCE_FIXTURE, TOOL_NAMES)).toEqual([]);
+  });
+
+  it("accepts CRLF line endings and a missing final newline", () => {
+    expect(validateGuidance(GUIDANCE_FIXTURE.replaceAll("\n", "\r\n"), TOOL_NAMES)).toEqual([]);
+    expect(validateGuidance(GUIDANCE_FIXTURE.slice(0, -1), TOOL_NAMES)).toEqual([]);
+  });
+
+  it("accepts 8 lines", () => {
+    expect(validateGuidance(guidanceWithLines(8), TOOL_NAMES)).toEqual([]);
+  });
+
+  it("rejects 9 lines, with LF or CRLF line endings", () => {
+    const fixture = guidanceWithLines(9);
+    expect(validateGuidance(fixture, TOOL_NAMES)).toEqual(["guidance has 9 lines; the limit is 8"]);
+    expect(validateGuidance(fixture.replaceAll("\n", "\r\n"), TOOL_NAMES)).toEqual([
+      "guidance has 9 lines; the limit is 8",
+    ]);
+  });
+
+  it("rejects a missing skill pointer", () => {
+    const fixture = replaceLine(GUIDANCE_FIXTURE, `${POINTER_LINE}\n`, "");
+    expect(validateGuidance(fixture, TOOL_NAMES)).toEqual([
+      "guidance's last line is not the skill pointer",
+    ]);
+  });
+
+  it("rejects a skill pointer that is not the last line", () => {
+    const fixture = `${POINTER_LINE}\n${replaceLine(GUIDANCE_FIXTURE, `${POINTER_LINE}\n`, "")}`;
+    expect(validateGuidance(fixture, TOOL_NAMES)).toEqual([
+      "guidance's last line is not the skill pointer",
+    ]);
+    expect(validateGuidance(`${GUIDANCE_FIXTURE}\n`, TOOL_NAMES)).toEqual([
+      "guidance's last line is not the skill pointer",
+    ]);
+  });
+
+  it("rejects frontmatter", () => {
+    const fixture = `---\nname: agentdesk\n---\n${GUIDANCE_FIXTURE}`;
+    expect(validateGuidance(fixture, TOOL_NAMES)).toContain("guidance has frontmatter");
+  });
+
+  it("rejects an ATX or setext heading", () => {
+    expect(validateGuidance(`# AgentDesk\n${GUIDANCE_FIXTURE}`, TOOL_NAMES)).toEqual([
+      'guidance has a heading "AgentDesk"',
+    ]);
+    expect(validateGuidance(`AgentDesk\n===\n${GUIDANCE_FIXTURE}`, TOOL_NAMES)).toEqual([
+      'guidance has a heading "AgentDesk"',
+    ]);
+  });
+
+  it.each([
+    ["inline code", "- Use `ask_user` for questions.", 'unknown tool "ask_user" in inline code'],
+    [
+      "inline code call",
+      "- Run `ask_user({})` first.",
+      'unknown tool "ask_user" in inline code call',
+    ],
+    ["prose call", "- Call askuser when unsure.", 'unknown tool "askuser" in prose "call NAME"'],
+    ["prose tool", "- Use the askuser tool.", 'unknown tool "askuser" in prose "NAME tool"'],
+  ])("rejects an unknown tool named in %s", (_form, extra, problem) => {
+    const fixture = replaceLine(GUIDANCE_FIXTURE, POINTER_LINE, `${extra}\n${POINTER_LINE}`);
+    expect(validateGuidance(fixture, TOOL_NAMES)).toContain(problem);
+  });
+
+  it("accepts the server and skill name, the relay fields, and tool references", () => {
+    const fixture = replaceLine(
+      GUIDANCE_FIXTURE,
+      POINTER_LINE,
+      "- Set `interactive` and pass `chat_message` to `resolve`. Call `await` again.\n" +
+        POINTER_LINE,
+    );
+    expect(validateGuidance(fixture, TOOL_NAMES)).toEqual([]);
   });
 });

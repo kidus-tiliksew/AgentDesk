@@ -1,7 +1,8 @@
 {
   "name": "agentdesk",
   "version": "0.0.0",
-  "description": "Connect Claude Code, Codex, and Cursor to AgentDesk and install the AgentDesk skill.",
+  "private": true,
+  "description": "The agentdesk command: connects Claude Code, Codex, and Cursor to AgentDesk and installs the skill and the session-start guidance. Distributed as release binaries through install.sh.",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -12,16 +13,12 @@
   "bin": {
     "agentdesk": "dist/agentdesk.mjs"
   },
-  "files": [
-    "dist/agentdesk.mjs"
-  ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:binaries": "node scripts/build-binaries.mjs",
-    "prepack": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
   },

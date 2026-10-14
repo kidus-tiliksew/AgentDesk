@@ -22,7 +22,7 @@ const cursorSkill = (home: string) => join(home, ".cursor", "skills", "agentdesk
 
 describe("skill version", () => {
   it("reads metadata.version from the published skill", () => {
-    expect(skillVersionOf(readFileSync(SKILL_FILE, "utf8"))).toBe("1.0.0");
+    expect(skillVersionOf(readFileSync(SKILL_FILE, "utf8"))).toBe("2.0.0");
   });
 
   it("returns undefined without frontmatter or version", () => {
@@ -108,11 +108,16 @@ describe("skill placement (component-installer §Harnesses)", () => {
     );
     expect(existsSync(join(sandbox.home, ".cursor", "skills"))).toBe(false);
     expect(h.out).toContain("Cursor: does not support skills, so no skill was installed.");
+    // The session-start hook is written all the same; its guidance omits the skill line.
+    expect(readJson(join(sandbox.home, ".cursor", "hooks.json"))).toEqual({
+      version: 1,
+      hooks: { sessionStart: [{ command: `${sandbox.executable} context --harness cursor` }] },
+    });
   });
 });
 
 describe("agentdesk skill install (REQ-3)", () => {
-  it("installs the skill for every detected harness without signing in", async () => {
+  it("installs the skill and the hook for every detected harness without signing in", async () => {
     const sandbox = makeSandbox();
     stubExecutable(sandbox, "claude");
     stubExecutable(sandbox, "codex");
@@ -128,18 +133,28 @@ describe("agentdesk skill install (REQ-3)", () => {
         skillPath: join(sandbox.home, ".claude", "skills", "agentdesk"),
         skillRealPath: realpathSync(join(sandbox.home, ".claude", "skills", "agentdesk")),
         skillVersion: "1.0.0",
+        hookPath: join(sandbox.home, ".claude", "settings.json"),
       },
       codex: {
         skillPath: join(sandbox.home, ".codex", "skills", "agentdesk"),
         skillRealPath: realpathSync(join(sandbox.home, ".codex", "skills", "agentdesk")),
         skillVersion: "1.0.0",
+        hookPath: join(sandbox.home, ".codex", "hooks.json"),
+        codexTrustKey: `${realpathSync(join(sandbox.home, ".codex", "hooks.json"))}:session_start:0:0`,
       },
     });
+    expect(h.out).toContain(
+      "Start a new agent session: a session that is already running has not loaded the updated skill and guidance.",
+    );
     // Uninstall removes a skill-only installation without calling the gateway.
     const removal = makeContext(sandbox);
     expect(await removal.run(["uninstall"])).toBe(0);
     expect(removal.gateway.requests).toEqual([]);
     expect(existsSync(join(sandbox.home, ".claude", "skills", "agentdesk"))).toBe(false);
+    expect(readJson(join(sandbox.home, ".claude", "settings.json"))).toEqual({
+      hooks: { SessionStart: [] },
+    });
+    expect(read(join(sandbox.home, ".codex", "config.toml"))).toBe("");
     expect(existsSync(statePath(h.ctx))).toBe(false);
   });
 
