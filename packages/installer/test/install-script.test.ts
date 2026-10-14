@@ -34,10 +34,21 @@ interface Fixture {
  * arguments one per line in ~/installer-args, what `tty` prints for its
  * standard input in ~/installer-tty, and, when that is no terminal, the first
  * read of its standard input (at most 64 bytes, so /dev/zero ends) in
- * ~/installer-stdin, and exits with FAKE_INSTALLER_STATUS.
+ * ~/installer-stdin, and exits with FAKE_INSTALLER_STATUS. On a terminal it
+ * also records in ~/installer-opened whether standard input is the file
+ * /dev/tty itself: `tty` can name the concrete device for either.
  */
 function stubBinary(asset: string): string {
-  return `#!/bin/sh\necho ${asset}\nprintf '%s\\n' "$@" > "$HOME/installer-args"\ntty > "$HOME/installer-tty" || dd bs=64 count=1 of="$HOME/installer-stdin" 2>/dev/null\nexit "\${FAKE_INSTALLER_STATUS:-0}"\n`;
+  return `#!/bin/sh
+echo ${asset}
+printf '%s\\n' "$@" > "$HOME/installer-args"
+if tty > "$HOME/installer-tty"; then
+  if [ /dev/fd/0 -ef /dev/tty ]; then echo /dev/tty; else echo concrete; fi > "$HOME/installer-opened"
+else
+  dd bs=64 count=1 of="$HOME/installer-stdin" 2>/dev/null
+fi
+exit "\${FAKE_INSTALLER_STATUS:-0}"
+`;
 }
 
 /** A ps that prints FAKE_PS_OUTPUT and exits with FAKE_PS_STATUS. */
@@ -244,7 +255,9 @@ describe("install.sh", () => {
       const result = runScriptInTerminal(f, ["Linux", "x86_64"]);
       expect(result.status).toBe(0);
       expect(result.stdout).toContain("agentdesk-linux-x64");
-      // macOS names /dev/ttysNNN and Linux /dev/pts/N; Bun on macOS cannot poll /dev/tty.
+      // The file opened, not only the name `tty` reports: Bun on macOS cannot poll /dev/tty.
+      expect(read(join(f.home, "installer-opened"))).toBe("concrete\n");
+      // macOS names /dev/ttysNNN and Linux /dev/pts/N.
       expect(read(join(f.home, "installer-tty")).trim()).toMatch(/^\/dev\/(ttys\d+|pts\/\d+)$/);
     },
   );

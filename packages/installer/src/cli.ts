@@ -208,35 +208,97 @@ export function askQuestion(
   question: string,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
+    const tty = input as NodeJS.ReadableStream & {
+      isRaw?: boolean;
+      setRawMode?: (mode: boolean) => unknown;
+    };
+    // What the input holds before readline attaches its listeners and enters
+    // raw mode, so a construction that fails can be undone without an
+    // interface to close.
+    const listenersBefore = new Map(input.eventNames().map((e) => [e, input.listeners(e)]));
+    const wasRaw = Boolean(tty.isRaw);
+    const undoConstruction = () => {
+      for (const event of input.eventNames()) {
+        const before = listenersBefore.get(event) ?? [];
+        for (const listener of input.listeners(event)) {
+          if (!before.includes(listener)) {
+            input.removeListener(event, listener as (...args: unknown[]) => void);
+          }
+        }
+      }
+      input.pause();
+      if (typeof tty.setRawMode === "function" && Boolean(tty.isRaw) !== wasRaw) {
+        tty.setRawMode(wasRaw);
+      }
+    };
+
     let rl: Interface | undefined;
-    let settled = false;
-    const settle = (finish: () => void) => {
-      if (settled) return;
-      settled = true;
-      // The interface keeps its listener: readline may still forward the
-      // same input error to it after this one, and an unheard error throws.
+    let constructing = true;
+    let outcome: (() => void) | undefined;
+    const finish = (result: () => void) => {
       input.off("error", onReadError);
       try {
         // Leaving raw mode can fail again on a terminal that failed to read.
-        rl?.close();
-      } catch {}
-      finish();
+        if (rl) rl.close();
+        else undoConstruction();
+      } catch {
+        try {
+          undoConstruction();
+        } catch {}
+      }
+      result();
+    };
+    // The interface keeps its own error listener after this settles: readline
+    // may still forward the same input error to it, and an unheard error throws.
+    const settle = (result: () => void) => {
+      if (outcome) return;
+      outcome = result;
+      // An error raised while readline is constructed settles first; the
+      // cleanup waits until construction has returned or thrown.
+      if (!constructing) finish(result);
     };
     function onReadError(error: unknown) {
       settle(() => reject(new TerminalReadError(error)));
     }
+
     input.on("error", onReadError);
     try {
       rl = createInterface({ input, output });
       rl.on("error", onReadError);
-      rl.question(question).then(
-        (answer) => settle(() => resolve(answer)),
-        (error: unknown) => settle(() => reject(error)),
-      );
     } catch (error) {
       onReadError(error);
     }
+    constructing = false;
+    if (outcome) {
+      finish(outcome);
+      return;
+    }
+    (rl as Interface).question(question).then(
+      (answer) => settle(() => resolve(answer)),
+      (error: unknown) => settle(() => reject(error)),
+    );
   });
+}
+
+/**
+ * The interactive prompt on `input` and `output`. After one terminal read
+ * error, every later prompt rejects with that error without touching `input`
+ * again: the cleanup of a failed construction can leave it unable to prompt.
+ */
+export function terminalPrompt(
+  input: NodeJS.ReadableStream,
+  output: NodeJS.WritableStream,
+): (question: string) => Promise<string> {
+  let unreadable: TerminalReadError | undefined;
+  return async (question) => {
+    if (unreadable) throw unreadable;
+    try {
+      return await askQuestion(input, output, question);
+    } catch (error) {
+      if (error instanceof TerminalReadError) unreadable = error;
+      throw error;
+    }
+  };
 }
 
 /** Builds the context for a real run from the process. */
@@ -246,9 +308,7 @@ export function createNodeContext(): Context {
   const io: Io = {
     out: (line) => process.stdout.write(`${line}\n`),
     err: (line) => process.stderr.write(`${line}\n`),
-    ...(interactive
-      ? { prompt: (question: string) => askQuestion(process.stdin, process.stdout, question) }
-      : {}),
+    ...(interactive ? { prompt: terminalPrompt(process.stdin, process.stdout) } : {}),
   };
   if (!EMBEDDED_SKILL || EMBEDDED_GUIDANCE === undefined)
     throw new Error("this build carries no skill or guidance; build it with scripts/build.mjs");
