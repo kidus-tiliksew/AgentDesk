@@ -158,7 +158,13 @@ const providers = [
           are deleted 7 days after it ends.
         </li>
         <li>A machine sign-in request, with the machine's host name, is deleted 24 hours after it starts.</li>
-        <li>The stored copy of a push notification is deleted about 24 hours after it is delivered.</li>
+        <li>
+          AgentDesk keeps a copy of each push notification it sends. Once sending has finished and
+          more than 24 hours have passed since the notification was queued, an hourly cleanup
+          deletes the copy. The cleanup deletes copies in whole batches, so a copy can stay longer,
+          with no fixed limit, while its batch holds a newer, unsent, or unrecognized notification,
+          or while the device's history holds more than 4,000 notifications.
+        </li>
         <li>A device and its push token are deleted when you sign out on that device.</li>
         <li>
           Decisions, rules, settings, and connections, including revoked connections, are kept until

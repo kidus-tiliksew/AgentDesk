@@ -124,7 +124,12 @@ describe("content", () => {
     expect(body).toContain("ends after 24 hours without activity");
     expect(body).toContain("deleted 7 days after it ends");
     expect(body).toContain("deleted 24 hours after it starts");
-    expect(body).toContain("about 24 hours after it is delivered");
+    expect(body).toContain("Once sending has finished and more than 24 hours have passed");
+    expect(body).toContain("since the notification was queued");
+    expect(body).toContain("a copy can stay longer, with no fixed limit");
+    expect(body).toContain("a newer, unsent, or unrecognized notification");
+    expect(body).toContain("more than 4,000 notifications");
+    expect(body).not.toMatch(/after it is delivered/);
     expect(body).toContain("for 30 days");
   });
 
