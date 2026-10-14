@@ -2,7 +2,10 @@
  * component-website §Visual identity: the normal-contrast Indigo Ink palettes
  * of apps/mobile/src/theme.ts (DEC-9(3)). Every text color sits only on
  * --background or --surface, except --on-accent, which sits only on
- * --accent-fill; test/contrast.test.ts checks each pair at 4.5:1 (AC-1.8).
+ * --accent-fill. Text may also sit over the --glow gradient, so
+ * test/contrast.test.ts checks each pair, and each text color against --glow
+ * composited over --background, at 4.5:1 (AC-1.8). --separator never sits
+ * behind text.
  */
 :root {
   color-scheme: light dark;
@@ -13,6 +16,8 @@
   --accent: #4f46e5;
   --accent-fill: #4f46e5;
   --on-accent: #ffffff;
+  --separator: rgba(60, 60, 67, 0.18);
+  --glow: rgba(79, 70, 229, 0.08);
   --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 }
@@ -26,6 +31,8 @@
     --accent: #9993ff;
     --accent-fill: #4f46e5;
     --on-accent: #ffffff;
+    --separator: rgba(255, 255, 255, 0.12);
+    --glow: rgba(79, 70, 229, 0.28);
   }
 }
 
@@ -42,11 +49,12 @@ html {
 
 body {
   margin: 0;
-  background: var(--background);
+  background:
+    radial-gradient(44rem 26rem at 78% 8rem, var(--glow), transparent 70%) no-repeat,
+    var(--background);
   color: var(--text);
-  font-family: var(--font-sans);
-  font-size: 1.0625rem;
-  line-height: 1.6;
+  font: 1.0625rem / 1.6 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 img {
@@ -71,27 +79,13 @@ pre:focus-visible {
 h1,
 h2,
 h3 {
-  line-height: 1.2;
-  margin: 0 0 0.5em;
-  font-weight: 700;
-}
-
-h1 {
-  font-size: clamp(2rem, 6vw, 3.25rem);
+  margin: 0;
+  line-height: 1.15;
   letter-spacing: -0.02em;
 }
 
-h2 {
-  font-size: clamp(1.5rem, 4vw, 2rem);
-}
-
-h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-}
-
 p {
-  margin: 0 0 1em;
+  margin: 0;
 }
 
 code {
@@ -101,18 +95,21 @@ code {
 
 .wrap {
   width: 100%;
-  max-width: 1040px;
+  max-width: 1080px;
   margin: 0 auto;
   padding: 0 1.25rem;
 }
 
-main > section {
-  padding-top: 3rem;
-  padding-bottom: 1rem;
+.muted,
+.note,
+.lead,
+.steps p,
+.features p {
+  color: var(--text-secondary);
 }
 
 .site-header {
-  padding: 1rem 0;
+  padding: 1.25rem 0;
 }
 
 .header-row {
@@ -126,8 +123,7 @@ main > section {
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  font-weight: 700;
-  font-size: 1.125rem;
+  font-weight: 600;
 }
 
 .brand img {
@@ -136,56 +132,65 @@ main > section {
   border-radius: 8px;
 }
 
+/* Hero: one column below 860px; text beside the phone from 860px. */
 .hero {
-  padding-top: 3.5rem;
+  display: grid;
+  gap: 3rem;
+  align-items: center;
+  padding-top: 3rem;
+  padding-bottom: 5rem;
+}
+
+.hero > * {
+  min-width: 0;
+}
+
+h1 {
+  font-size: clamp(2.25rem, 5.6vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
 }
 
 .lead {
-  max-width: 40rem;
-  font-size: 1.25rem;
-  color: var(--text-secondary);
-}
-
-.note {
-  color: var(--text-secondary);
-  font-size: 0.9375rem;
+  margin: 1.25rem 0 2rem;
+  max-width: 32rem;
+  font-size: 1.1875rem;
 }
 
 .install {
   display: flex;
   flex-wrap: wrap;
-  align-items: stretch;
-  gap: 0.75rem;
-  max-width: 40rem;
-  margin: 1.5rem 0 1rem;
+  gap: 0.5rem;
+  max-width: 34rem;
+  margin-bottom: 1rem;
+  padding: 0.4375rem;
+  background: var(--surface);
+  border: 1px solid var(--separator);
+  border-radius: 12px;
 }
 
 .install pre {
-  flex: 1 1 18rem;
+  flex: 1 1 16rem;
   min-width: 0;
   margin: 0;
-  padding: 0.875rem 1rem;
+  padding: 0.5rem 0.5625rem;
   overflow-x: auto;
-  background: var(--surface);
-  color: var(--text);
-  border-radius: 10px;
   user-select: text;
 }
 
 .install pre code {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   white-space: pre;
 }
 
 .copy {
   min-height: 44px;
-  padding: 0 1.125rem;
+  padding: 0 1rem;
   border: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--accent-fill);
   color: var(--on-accent);
-  font: inherit;
-  font-weight: 600;
+  font: 600 0.9375rem var(--font-sans);
   cursor: pointer;
 }
 
@@ -193,45 +198,117 @@ main > section {
   display: none;
 }
 
+.note {
+  font-size: 0.9375rem;
+}
+
+.note + .note {
+  margin-top: 0.25rem;
+}
+
+/* Phone figure: the bezel is drawn in CSS with fixed colors in both schemes. */
+.phone {
+  margin: 0;
+  padding: 9px;
+  background: #1b1b22;
+  border: 1px solid #2e2e38;
+  border-radius: 15% / 7%;
+}
+
+.phone img {
+  width: 100%;
+  border-radius: 12.5% / 5.8%;
+}
+
+.hero-phone {
+  width: min(300px, 80vw);
+  justify-self: center;
+  box-shadow: 0 40px 100px -30px rgba(79, 70, 229, 0.6);
+}
+
+main > .wrap + .wrap {
+  padding-top: 3.5rem;
+  padding-bottom: 3.5rem;
+  border-top: 1px solid var(--separator);
+}
+
+h2 {
+  margin-bottom: 2rem;
+  font-size: 1.75rem;
+  font-weight: 650;
+}
+
 .steps {
   display: grid;
-  gap: 1rem;
+  gap: 2.5rem;
   margin: 0;
   padding: 0;
   list-style: none;
   counter-reset: step;
 }
 
-.steps li,
-.card {
-  padding: 1.25rem;
-  background: var(--surface);
-  border-radius: 14px;
-}
-
 .steps li {
   counter-increment: step;
 }
 
-.steps li h3::before {
-  content: counter(step) ". ";
+.steps h3::before {
+  content: counter(step, decimal-leading-zero) "  ";
+  white-space: pre;
+  font: 0.8125rem var(--font-mono);
+  color: var(--accent);
+}
+
+.steps h3,
+.features h3 {
+  margin-bottom: 0.375rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .steps p,
-.card p {
-  margin: 0;
+.features p {
+  font-size: 0.96875rem;
 }
 
-.cards {
+/* Step panel: a fixed-height panel that crops the phone to its top, or to its
+   bottom for .shot-end. */
+.shot {
+  display: flex;
+  justify-content: center;
+  height: 360px;
+  margin-bottom: 1.5rem;
+  padding-top: 2rem;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--separator);
+  border-radius: 18px;
+}
+
+.shot .phone {
+  flex: none;
+  width: 230px;
+  align-self: flex-start;
+}
+
+.shot-end {
+  padding: 0 0 2rem;
+}
+
+.shot-end .phone {
+  align-self: flex-end;
+}
+
+.features {
   display: grid;
-  gap: 1rem;
+  gap: 2.25rem 2.5rem;
 }
 
 .harnesses {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin: 0 0 1rem;
+  margin: -1rem 0 1rem;
   padding: 0;
   list-style: none;
 }
@@ -243,15 +320,15 @@ main > section {
   font-weight: 600;
 }
 
-.site-footer {
-  margin-top: 3rem;
-  padding: 2rem 0;
-  color: var(--text-secondary);
-  font-size: 0.9375rem;
+.muted {
+  max-width: 36rem;
 }
 
-.site-footer p {
-  margin: 0;
+.site-footer {
+  padding: 1.75rem 0 3rem;
+  border-top: 1px solid var(--separator);
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
 }
 
 .visually-hidden {
@@ -266,12 +343,15 @@ main > section {
   border: 0;
 }
 
-@media (min-width: 720px) {
-  .steps {
-    grid-template-columns: repeat(3, 1fr);
+@media (min-width: 860px) {
+  .hero {
+    grid-template-columns: 1.1fr 1fr;
+    padding-top: 4.5rem;
+    padding-bottom: 6.5rem;
   }
 
-  .cards {
-    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  .steps,
+  .features {
+    grid-template-columns: repeat(3, 1fr);
   }
 }

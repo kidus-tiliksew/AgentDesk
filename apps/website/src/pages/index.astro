@@ -1,6 +1,7 @@
 ---
 // component-website §Page: the site's one route. Section order and wording
 // follow req-website REQ-1; the copy follows README.md's product description.
+// Phone figures show the screens under public/screens (§Assets).
 import Base from "../layouts/Base.astro";
 import { INSTALL_COMMAND, REPOSITORY_URL } from "../site";
 
@@ -42,30 +43,52 @@ const harnesses = ["Claude Code", "Codex", "Cursor"];
   </header>
 
   <main>
-    <section class="hero wrap" aria-labelledby="hero-title">
-      <h1 id="hero-title">An inbox for your coding agents</h1>
-      <p class="lead">
-        Your coding agents ask you for decisions and report their status over MCP. You answer
-        from your phone, and the agent picks up the answer and keeps going.
-      </p>
+    <section class="wrap hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <h1 id="hero-title">An inbox for your coding agents</h1>
+        <p class="lead">
+          Your coding agents ask you for decisions and report their status over MCP. You answer
+          from your phone, and the agent picks up the answer and keeps going.
+        </p>
 
-      <div class="install">
-        <pre tabindex="0" aria-label="Install command"><code>{INSTALL_COMMAND}</code></pre>
-        <button type="button" class="copy" data-copy hidden>Copy install command</button>
-        <span class="visually-hidden" role="status" aria-live="polite" data-copy-status></span>
+        <div class="install">
+          <pre tabindex="0" aria-label="Install command"><code>{INSTALL_COMMAND}</code></pre>
+          <button type="button" class="copy" data-copy hidden>Copy<span class="visually-hidden"> install command</span></button>
+          <span class="visually-hidden" role="status" aria-live="polite" data-copy-status></span>
+        </div>
+        <p class="note">
+          Runs on macOS and Linux. <a href={REPOSITORY_URL}>View the source on GitHub</a>.
+        </p>
+        <p class="note">
+          AgentDesk is in early development. Nothing is released in the app stores yet.
+        </p>
       </div>
-      <p class="note">
-        Runs on macOS and Linux. <a href={REPOSITORY_URL}>View the source on GitHub</a>.
-      </p>
-      <p class="note">
-        AgentDesk is in early development. Nothing is released in the app stores yet.
-      </p>
+
+      <figure class="phone hero-phone">
+        <img
+          src="/screens/decision.webp"
+          alt="A decision in the AgentDesk app asking which charting library to use, with Recharts recommended"
+          width="906"
+          height="1968"
+        />
+      </figure>
     </section>
 
     <section class="wrap" aria-labelledby="how-title">
       <h2 id="how-title">How it works</h2>
       <ol class="steps">
         <li>
+          <div class="shot">
+            <figure class="phone">
+              <img
+                src="/screens/inbox.webp"
+                alt="The AgentDesk inbox with questions from three agents"
+                width="906"
+                height="1968"
+                loading="lazy"
+              />
+            </figure>
+          </div>
           <h3>Your agent asks</h3>
           <p>
             The agent calls the <code>ask</code> tool with a question, its options, and its
@@ -73,10 +96,32 @@ const harnesses = ["Claude Code", "Codex", "Cursor"];
           </p>
         </li>
         <li>
+          <div class="shot">
+            <figure class="phone">
+              <img
+                src="/screens/notification.webp"
+                alt="A lock-screen notification with Approve and Reject actions"
+                width="906"
+                height="1968"
+                loading="lazy"
+              />
+            </figure>
+          </div>
           <h3>You answer from your phone</h3>
           <p>The question arrives on your phone. You read it and answer in a tap or two.</p>
         </li>
         <li>
+          <div class="shot shot-end">
+            <figure class="phone">
+              <img
+                src="/screens/agents.webp"
+                alt="The agent list showing what each agent is doing"
+                width="906"
+                height="1968"
+                loading="lazy"
+              />
+            </figure>
+          </div>
           <h3>The agent keeps going</h3>
           <p>The agent's <code>await</code> call returns your answer, and the agent continues.</p>
         </li>
@@ -85,10 +130,10 @@ const harnesses = ["Claude Code", "Codex", "Cursor"];
 
     <section class="wrap" aria-labelledby="features-title">
       <h2 id="features-title">Features</h2>
-      <div class="cards">
+      <div class="features">
         {
           features.map((feature) => (
-            <article class="card">
+            <article>
               <h3>{feature.title}</h3>
               <p>{feature.text}</p>
             </article>
@@ -102,7 +147,7 @@ const harnesses = ["Claude Code", "Codex", "Cursor"];
       <ul class="harnesses">
         {harnesses.map((name) => <li>{name}</li>)}
       </ul>
-      <p>
+      <p class="muted">
         The install command sets up each of these it finds on the machine at user scope, so every
         repository on the machine reaches AgentDesk.
       </p>
