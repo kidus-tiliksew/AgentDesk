@@ -1,4 +1,5 @@
 import { useSignIn, useSignUp } from "@clerk/expo";
+import * as WebBrowser from "expo-web-browser";
 import { useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
@@ -17,6 +18,7 @@ import {
   hasClerkCode,
   IDENTIFIER_NOT_FOUND,
 } from "../../src/clerk-errors";
+import { PRIVACY_POLICY_URL } from "../../src/config";
 import { haptic } from "../../src/haptics";
 import { HeaderlessScreen } from "../../src/headerless-screen";
 import { formatCooldown, useResendCooldown } from "../../src/sign-in-cooldown";
@@ -34,7 +36,9 @@ import { AppText } from "../../src/ui/text";
 // Design "Sign in: email" and "Sign in: code": the app mark over a centered
 // form, then six code boxes that submit on the last digit. After this device
 // deleted an account, the email step says the account is being deleted and
-// when its data will be gone (component-mobile-app §Account deletion).
+// when its data will be gone (component-mobile-app §Account deletion). A
+// Privacy Policy link below the form, on every step, opens the website's
+// privacy policy in an in-app browser sheet (req-mobile-app AC-7.2).
 
 type Flow = "signIn" | "signUp";
 type Step =
@@ -74,6 +78,7 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "center",
   },
   codeForm: { gap: 16, marginTop: 34 },
+  privacy: { alignSelf: "center", marginTop: 28 },
 }));
 
 function Brand() {
@@ -397,6 +402,18 @@ export default function SignInScreen() {
             </View>
           </>
         )}
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Privacy Policy"
+          // Apple HIG Buttons: the text link's hit region is 44pt.
+          hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+          onPress={() => WebBrowser.openBrowserAsync(PRIVACY_POLICY_URL)}
+          style={styles.privacy}
+        >
+          <AppText variant="subhead" tone="accent">
+            Privacy Policy
+          </AppText>
+        </Pressable>
       </HeaderlessScreen>
     </KeyboardAvoidingView>
   );

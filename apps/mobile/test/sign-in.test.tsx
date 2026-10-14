@@ -1,7 +1,8 @@
 import { act, fireEvent, screen } from "expo-router/testing-library";
 import { AccessibilityInfo, StyleSheet } from "react-native";
+import { PRIVACY_POLICY_URL } from "../src/config";
 import { haptic } from "../src/haptics";
-import { clerkApiError, deferred, ensureAccount, signIn, signUp } from "./fakes";
+import { clerkApiError, deferred, ensureAccount, signIn, signUp, webBrowser } from "./fakes";
 import { findInbox, renderApp } from "./render";
 
 beforeEach(() => {
@@ -29,6 +30,14 @@ async function submitEmail(address: string) {
 // Typing the sixth digit submits the code; no button press is needed.
 function submitCode(code: string) {
   fireEvent.changeText(screen.getByLabelText("Code"), code);
+}
+
+// One press of the Privacy Policy link opens the privacy policy once.
+function expectPrivacyLinkOpensPolicy() {
+  fireEvent.press(screen.getByRole("link", { name: "Privacy Policy" }));
+  expect(PRIVACY_POLICY_URL).toBe("https://agentdesk.kidus.sh/privacy");
+  expect(webBrowser.openBrowserAsync).toHaveBeenCalledTimes(1);
+  expect(webBrowser.openBrowserAsync).toHaveBeenCalledWith("https://agentdesk.kidus.sh/privacy");
 }
 
 // The code step names the address the code went to.
@@ -334,6 +343,52 @@ describe("sign-in", () => {
     expect(await screen.findByRole("header", { name: "AgentDesk" })).toBeOnTheScreen();
     expect(screen.getByText("Answer your coding agents from anywhere.")).toBeOnTheScreen();
     expect(screen.getByText("We'll email you a 6-digit code. No password.")).toBeOnTheScreen();
+  });
+
+  // req-mobile-app AC-7.2
+  test("the email step's Privacy Policy link opens the privacy policy and keeps the step", async () => {
+    renderApp("/sign-in");
+    expect(await screen.findByLabelText("Email address")).toBeOnTheScreen();
+
+    expectPrivacyLinkOpensPolicy();
+
+    // Opening the policy starts no sign-in and leaves the screen as it was.
+    expect(signIn.emailCode.sendCode).not.toHaveBeenCalled();
+    expect(signUp.create).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Email address")).toBeOnTheScreen();
+    expect(screen).toHavePathname("/sign-in");
+  });
+
+  // req-mobile-app AC-7.2
+  test("the code step's Privacy Policy link opens the privacy policy and keeps the step", async () => {
+    renderApp("/sign-in");
+    await submitEmail("a@example.com");
+    expectCodeStepFor("a@example.com");
+
+    expectPrivacyLinkOpensPolicy();
+
+    expect(signIn.emailCode.verifyCode).not.toHaveBeenCalled();
+    expect(signIn.emailCode.sendCode).toHaveBeenCalledTimes(1);
+    expectCodeStepFor("a@example.com");
+    expect(screen).toHavePathname("/sign-in");
+  });
+
+  test("an email error and a code error stay shown with the Privacy Policy link", async () => {
+    signIn.emailCode.verifyCode.mockResolvedValueOnce({
+      error: clerkApiError("form_code_incorrect", "Incorrect code"),
+    });
+    renderApp("/sign-in");
+
+    fireEvent.press(await screen.findByRole("button", { name: "Continue" }));
+    expect(await screen.findByText("Enter your email address.")).toBeOnTheScreen();
+    expect(screen.getByRole("link", { name: "Privacy Policy" })).toBeOnTheScreen();
+
+    await submitEmail("a@example.com");
+    submitCode("000000");
+    const wrong = "That code is not correct. Check the email and try again.";
+    expect(await screen.findByText(wrong)).toBeOnTheScreen();
+    expect(screen.getByRole("link", { name: "Privacy Policy" })).toBeOnTheScreen();
+    expect(webBrowser.openBrowserAsync).not.toHaveBeenCalled();
   });
 
   // Apple HIG Typography and Buttons.
