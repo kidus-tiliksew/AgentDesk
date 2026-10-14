@@ -1,0 +1,7 @@
+{
+  // Astro's strict settings come second, so its bundler module settings
+  // override the base's NodeNext (component-website §Package).
+  "extends": ["../../tsconfig.base.json", "astro/tsconfigs/strict"],
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": ["dist"]
+}

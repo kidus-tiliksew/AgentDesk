@@ -15,6 +15,9 @@ coverage/
 .wrangler/
 .dev.vars*
 
+# Astro generated types
+.astro/
+
 # Expo local state
 .expo/
 .expo-shared/

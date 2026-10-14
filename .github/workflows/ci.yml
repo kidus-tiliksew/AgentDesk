@@ -44,6 +44,11 @@ jobs:
       - name: Check the published specification
         run: pnpm --filter @agentdesk/contract spec:check
 
+      # The website must build on every pull request; Vercel deploys main
+      # (component-repository §Continuous integration, DEC-14).
+      - name: Build the website
+        run: pnpm --filter @agentdesk/website build
+
       # CONVEX_DEPLOY_KEY holds a deploy key for the CI dev deployment, never
       # for production (component-repository §Continuous integration).
       - name: Generate and typecheck Convex code
