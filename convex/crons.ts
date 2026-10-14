@@ -26,4 +26,8 @@ crons.hourly(
   {},
 );
 
+// component-notifications §Push history retention: deletes the push
+// component's settled notifications older than 24 hours.
+crons.hourly("push history retention", { minuteUTC: 40 }, notifications.retention.sweep, {});
+
 export default crons;

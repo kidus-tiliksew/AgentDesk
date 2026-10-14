@@ -17,6 +17,9 @@ import { notifications } from "./refs";
 //   install and nothing of its other installs.
 // - `drainTokenPushes` finishes, page by page, what a transaction cannot.
 //
+// Every deletion of component notifications, these three and retention's
+// (./retention.ts), goes through `deleteCheckedPages`.
+//
 // `purgeNotifications` is this domain's part of the purge that
 // `identity/accountDeletion:purgeBatch` drives.
 //
@@ -116,22 +119,103 @@ async function registeredAgain(ctx: MutationCtx, generation: Doc<"deviceTokens">
   );
 }
 
-// One look at the notifications under one of the account's tokens, reading
-// at most `limit` of them and deleting at most `pages` pages. It reads and
-// deletes through a private key that holds the token only inside this
-// transaction:
+// A notification as the component's read returns it, newest first.
+export type ComponentNotification = Awaited<
+  ReturnType<typeof pushNotifications.getNotificationsForUser>
+>[number];
+
+// Why a page check refused the page `deleteNotificationsForUser` would
+// delete. Each caller names its own reasons.
+export type PageCheck<Reason extends string> = (
+  ctx: MutationCtx,
+  page: ComponentNotification[],
+) => Promise<Reason | null>;
+
+export type CheckedDeletion<Reason extends string> =
+  // The read reached its limit, so it may not have seen the token's oldest
+  // notifications, and nothing was deleted.
+  | { outcome: "overLimit"; read: number }
+  // A checked page was refused; `deleted` pages were deleted before it.
+  | { outcome: "blocked"; reason: Reason; deleted: number; remaining: ComponentNotification[] }
+  // `deleted` pages were deleted, and `remaining` is what the read saw after
+  // them, newest first; empty when the token holds nothing more.
+  | { outcome: "deleted"; deleted: number; remaining: ComponentNotification[] };
+
+// Whether every notification on `page` is one `userId` queued, by its
+// `pushSends` record. A notification with no record, or another account's,
+// fails the proof.
+export async function queuedByAccount(
+  ctx: MutationCtx,
+  page: ComponentNotification[],
+  userId: Id<"users">,
+): Promise<boolean> {
+  for (const row of page) {
+    const sent = await ctx.db
+      .query("pushSends")
+      .withIndex("by_notification", (q) => q.eq("notificationId", row.id))
+      .first();
+    if (sent === null || sent.userId !== userId) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// The read-before-delete primitive that every deletion of component
+// notifications goes through: cancellation (`look` below) and retention
+// (./retention.ts). It reads and deletes the notifications under the token of
+// one `deviceTokens` record through a private key that holds the token only
+// inside this transaction:
 //
-// 1. The private key gets the token, so the component's reads and deletion
-//    target exactly that token.
-// 2. The page `deleteNotificationsForUser` would delete is the token's
-//    oldest COMPONENT_PAGE notifications. It is deleted only when every
-//    notification on it is one the account queued (`pushSends`) and none is
-//    `in_progress`. With `pages` above 1, the next oldest page is checked
-//    and deleted the same way from the same read.
-// 3. The private key loses its token before the transaction ends, so the
+// 1. The private key, `keyPrefix` and the record id, gets the token, so the
+//    component's reads and deletion target exactly that token.
+// 2. One read takes at most `limit` notifications, newest first. A read that
+//    reaches `limit` deletes nothing.
+// 3. The page `deleteNotificationsForUser` would delete is the token's oldest
+//    COMPONENT_PAGE notifications, the end of the read. It is deleted only
+//    when `check` accepts it. With `pages` above 1, the next oldest page of
+//    the same read is checked and deleted the same way.
+// 4. The private key loses its token before the transaction ends, so the
 //    component's own continuation finds no token and deletes nothing. No
 //    deletion ever runs unchecked, and none can follow the install to
 //    another account.
+export async function deleteCheckedPages<Reason extends string>(
+  ctx: MutationCtx,
+  generation: Doc<"deviceTokens">,
+  options: { keyPrefix: string; limit: number; pages: number; check: PageCheck<Reason> },
+): Promise<CheckedDeletion<Reason>> {
+  const key = `${options.keyPrefix}${generation._id}`;
+  await pushNotifications.recordToken(ctx, { userId: key, pushToken: generation.token });
+  try {
+    let rows = await pushNotifications.getNotificationsForUser(ctx, {
+      userId: key,
+      limit: options.limit,
+    });
+    if (rows.length >= options.limit) {
+      return { outcome: "overLimit", read: rows.length };
+    }
+    let deleted = 0;
+    while (deleted < options.pages && rows.length > 0) {
+      // Newest first, so the oldest page is the end of the list.
+      const page = rows.slice(-COMPONENT_PAGE);
+      const reason = await options.check(ctx, page);
+      if (reason !== null) {
+        return { outcome: "blocked", reason, deleted, remaining: rows };
+      }
+      await pushNotifications.deleteNotificationsForUser(ctx, { userId: key });
+      rows = rows.slice(0, -COMPONENT_PAGE);
+      deleted++;
+    }
+    return { outcome: "deleted", deleted, remaining: rows };
+  } finally {
+    await pushNotifications.removeToken(ctx, { userId: key });
+  }
+}
+
+// One look at the notifications under one of the account's tokens, reading
+// at most `limit` of them and deleting at most `pages` pages through
+// `deleteCheckedPages`. A page is deleted only when every notification on it
+// is one the account queued (`pushSends`) and none is `in_progress`.
 //
 // A look leaves the token alone while the account has registered it again
 // (`superseded`): that registration's own cancellation, at the next
@@ -146,42 +230,29 @@ async function look(
   if (await registeredAgain(ctx, generation)) {
     return "superseded";
   }
-  const key = `${CANCEL_KEY_PREFIX}${generation._id}`;
-  await pushNotifications.recordToken(ctx, { userId: key, pushToken: generation.token });
-  try {
-    let rows = await pushNotifications.getNotificationsForUser(ctx, { userId: key, limit });
-    if (rows.length >= limit) {
-      return limit > COMPONENT_PAGE ? "stop" : "more";
-    }
-    for (let deleted = 0; deleted < pages; deleted++) {
-      if (rows.length === 0) {
-        return "done";
-      }
-      // Newest first, so the oldest page is the end of the list.
-      const page = rows.slice(-COMPONENT_PAGE);
+  const result = await deleteCheckedPages(ctx, generation, {
+    keyPrefix: CANCEL_KEY_PREFIX,
+    limit,
+    pages,
+    check: async (ctx, page) => {
       if (page.some((row) => row.state === "in_progress")) {
         return "busy";
       }
-      for (const row of page) {
-        const sent = await ctx.db
-          .query("pushSends")
-          .withIndex("by_notification", (q) => q.eq("notificationId", row.id))
-          .first();
-        if (sent === null || sent.userId !== generation.userId) {
-          return "stop";
-        }
-      }
-      await pushNotifications.deleteNotificationsForUser(ctx, { userId: key });
-      rows = rows.slice(0, -COMPONENT_PAGE);
-    }
-    return rows.length === 0 ? "done" : "more";
-  } finally {
-    await pushNotifications.removeToken(ctx, { userId: key });
+      return (await queuedByAccount(ctx, page, generation.userId)) ? null : "stop";
+    },
+  });
+  switch (result.outcome) {
+    case "overLimit":
+      return limit > COMPONENT_PAGE ? "stop" : "more";
+    case "blocked":
+      return result.reason;
+    case "deleted":
+      return result.remaining.length === 0 ? "done" : "more";
   }
 }
 
 // Whether the account is gone or being deleted.
-async function ownerDeleting(ctx: MutationCtx, userId: Id<"users">) {
+export async function ownerDeleting(ctx: MutationCtx, userId: Id<"users">) {
   const owner = await ctx.db.get("users", userId);
   return owner === null || owner.deletingAt !== undefined;
 }
