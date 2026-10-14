@@ -309,7 +309,8 @@ export interface Harnessed {
 }
 
 export interface ContextOptions {
-  answers?: string[];
+  /** Answers to prompts in order; an Error makes that prompt reject with it. */
+  answers?: (string | Error)[];
   skill?: { content: string; version: string };
   harnesses?: readonly Harness[];
   defaultServer?: string | undefined;
@@ -348,6 +349,7 @@ export function makeContext(sandbox: Sandbox, options: ContextOptions = {}): Har
                 prompts.push(question);
                 const answer = answers.shift();
                 if (answer === undefined) throw new Error(`unexpected prompt: ${question}`);
+                if (answer instanceof Error) throw answer;
                 return answer;
               },
             }
@@ -401,4 +403,12 @@ export function allFiles(dir: string): string[] {
 export function write(path: string, content: string): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content);
+}
+
+/** The read error Bun raises on macOS when it cannot poll /dev/tty. */
+export function kqueueError(): Error {
+  return Object.assign(new Error("EINVAL: invalid argument, kqueue"), {
+    code: "EINVAL",
+    syscall: "kqueue",
+  });
 }

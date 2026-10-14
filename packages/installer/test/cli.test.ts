@@ -1,9 +1,12 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { TERMINAL_UNREADABLE_SELECTION } from "../src/commands.js";
+import { TerminalReadError } from "../src/context.js";
 import { statePath } from "../src/state.js";
 import {
   cleanupSandboxes,
+  kqueueError,
   makeContext,
   makeSandbox,
   read,
@@ -69,6 +72,36 @@ describe("selection (AC-9.1)", () => {
     expect(h.gateway.requests).toEqual([]);
     expect(existsSync(statePath(h.ctx))).toBe(false);
     expect(existsSync(join(sandbox.home, ".cursor"))).toBe(false);
+  });
+
+  it("keeps every detected harness when the prompt cannot read the terminal", async () => {
+    const sandbox = allThree();
+    const h = makeContext(sandbox, { answers: [new TerminalReadError(kqueueError())] });
+    expect(await h.run(["install"])).toBe(0);
+    expect(h.prompts).toHaveLength(1);
+    expect(h.out.filter((line) => line === TERMINAL_UNREADABLE_SELECTION)).toHaveLength(1);
+    expect(h.gateway.startRequests()[0]?.body).toMatchObject({
+      harnesses: ["claude-code", "codex", "cursor"],
+    });
+    expect(Object.keys(readJson(statePath(h.ctx)).harnesses as object)).toEqual([
+      "claude-code",
+      "codex",
+      "cursor",
+    ]);
+    expect(read(join(sandbox.home, ".codex", "config.toml"))).toContain(
+      h.gateway.tokenFor("codex"),
+    );
+  });
+
+  it("stops without installing when the prompt rejects for another reason, such as Ctrl+C", async () => {
+    const sandbox = allThree();
+    const abort = Object.assign(new Error("Aborted with Ctrl+C"), { name: "AbortError" });
+    const h = makeContext(sandbox, { answers: [abort] });
+    expect(await h.run(["install"])).toBe(1);
+    expect(h.err).toEqual(["agentdesk failed with an unexpected AbortError."]);
+    expect(h.out).not.toContain(TERMINAL_UNREADABLE_SELECTION);
+    expect(h.gateway.requests).toEqual([]);
+    expect(existsSync(statePath(h.ctx))).toBe(false);
   });
 
   it("refuses an answer that is not a listed number", async () => {

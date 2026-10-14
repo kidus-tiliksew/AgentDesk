@@ -1,4 +1,4 @@
-import { type Context, InstallerError } from "./context.js";
+import { type Context, InstallerError, TerminalReadError } from "./context.js";
 import { MAX_CODES_NONINTERACTIVE, POLL_INTERVAL_MS } from "./defaults.js";
 import type { HarnessId } from "./harnesses.js";
 
@@ -238,6 +238,10 @@ async function poll(
   }
 }
 
+/** Printed when the new-code prompt cannot read the terminal (component-installer §Sign-in). */
+export const TERMINAL_UNREADABLE_NEW_CODE =
+  "The terminal could not be read, so new codes are requested without asking.";
+
 /**
  * Short-code sign-in from the machine (component-installer §Sign-in;
  * req-accounts-and-connections REQ-6). Prints the code, polls every two
@@ -254,6 +258,9 @@ export async function signIn(
   harnesses: readonly HarnessId[],
 ): Promise<Connection[]> {
   let codes = 0;
+  // Cleared when the new-code prompt cannot read the terminal; the run then
+  // follows the noninteractive limit, counting the codes already requested.
+  let prompt = ctx.io.prompt;
   for (;;) {
     codes++;
     const started = await start(ctx, server, harnesses);
@@ -266,10 +273,17 @@ export async function signIn(
     if (outcome.kind === "approved") return outcome.connections;
     if (outcome.kind === "declined") throw new InstallerError(DECLINED_MESSAGE, 1);
     ctx.io.out("The code expired.");
-    if (ctx.io.prompt) {
-      const answer = (
-        await ctx.io.prompt("Press Enter for a new code, or type q to stop: ")
-      ).trim();
+    let answer: string | undefined;
+    if (prompt) {
+      try {
+        answer = (await prompt("Press Enter for a new code, or type q to stop: ")).trim();
+      } catch (error) {
+        if (!(error instanceof TerminalReadError)) throw error;
+        prompt = undefined;
+        ctx.io.out(TERMINAL_UNREADABLE_NEW_CODE);
+      }
+    }
+    if (answer !== undefined) {
       if (answer.toLowerCase().startsWith("q")) {
         throw new InstallerError("Sign-in stopped. No harness was connected.");
       }

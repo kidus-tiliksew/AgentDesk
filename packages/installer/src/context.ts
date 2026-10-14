@@ -65,6 +65,20 @@ export class InstallerError extends Error {
   }
 }
 
+/**
+ * The prompt could not read the terminal, such as Bun's `EINVAL` from kqueue
+ * on macOS. Callers fall back to their non-interactive behavior; Ctrl+C and
+ * other rejections are not this error.
+ */
+export class TerminalReadError extends Error {
+  constructor(readonly readError: unknown) {
+    super(
+      `the terminal could not be read: ${readError instanceof Error ? readError.message : String(readError)}`,
+    );
+    this.name = "TerminalReadError";
+  }
+}
+
 export function redact(text: string, secrets: ReadonlySet<string>): string {
   let result = text;
   for (const secret of secrets) {

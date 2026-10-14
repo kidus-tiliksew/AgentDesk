@@ -17,7 +17,7 @@ import {
   writeFileAtomic,
   writeMcpEntry,
 } from "./config.js";
-import { type Context, InstallerError } from "./context.js";
+import { type Context, InstallerError, TerminalReadError } from "./context.js";
 import {
   type Detection,
   detectHarnesses,
@@ -56,6 +56,10 @@ import {
   type UnrevokedConnection,
   writeState,
 } from "./state.js";
+
+/** Printed when the harness selection prompt cannot read the terminal (component-installer §Commands). */
+export const TERMINAL_UNREADABLE_SELECTION =
+  "The terminal could not be read, so every detected harness is kept. Use --only to choose.";
 
 export interface InstallOptions {
   server?: string;
@@ -126,9 +130,16 @@ async function select(
     }
     return candidates.map((d) => d.harness);
   }
-  const answer = await ctx.io.prompt(
-    "Press Enter to install for all of them, or type the numbers to leave out (for example: 2 3): ",
-  );
+  let answer: string;
+  try {
+    answer = await ctx.io.prompt(
+      "Press Enter to install for all of them, or type the numbers to leave out (for example: 2 3): ",
+    );
+  } catch (error) {
+    if (!(error instanceof TerminalReadError)) throw error;
+    ctx.io.out(TERMINAL_UNREADABLE_SELECTION);
+    return candidates.map((d) => d.harness);
+  }
   const leaveOut = new Set<number>();
   for (const part of answer.split(/[\s,]+/).filter((p) => p.length > 0)) {
     const index = Number(part);

@@ -31,15 +31,20 @@ interface Fixture {
 
 /**
  * The binary each asset holds: it prints its asset name, records its
- * arguments one per line in ~/installer-args and its standard input in
+ * arguments one per line in ~/installer-args, what `tty` prints for its
+ * standard input in ~/installer-tty, and, when that is no terminal, the first
+ * read of its standard input (at most 64 bytes, so /dev/zero ends) in
  * ~/installer-stdin, and exits with FAKE_INSTALLER_STATUS.
  */
 function stubBinary(asset: string): string {
-  return `#!/bin/sh\necho ${asset}\nprintf '%s\\n' "$@" > "$HOME/installer-args"\ncat > "$HOME/installer-stdin"\nexit "\${FAKE_INSTALLER_STATUS:-0}"\n`;
+  return `#!/bin/sh\necho ${asset}\nprintf '%s\\n' "$@" > "$HOME/installer-args"\ntty > "$HOME/installer-tty" || dd bs=64 count=1 of="$HOME/installer-stdin" 2>/dev/null\nexit "\${FAKE_INSTALLER_STATUS:-0}"\n`;
 }
 
+/** A ps that prints FAKE_PS_OUTPUT and exits with FAKE_PS_STATUS. */
+const STUB_PS = `#!/bin/sh\nprintf '%s' "$FAKE_PS_OUTPUT"\nexit "\${FAKE_PS_STATUS:-0}"\n`;
+
 /** A release download directory, a stub uname, and the script as the gateway serves it. */
-function fixture(options: { corrupt?: string; origin?: string } = {}): Fixture {
+function fixture(options: { corrupt?: string; origin?: string; ps?: boolean } = {}): Fixture {
   const sandbox = makeSandbox();
   const downloads = join(sandbox.root, "downloads");
   const stubs = join(sandbox.root, "stubs");
@@ -60,6 +65,10 @@ function fixture(options: { corrupt?: string; origin?: string } = {}): Fixture {
     '#!/bin/sh\ncase "$1" in\n  -s) echo "$FAKE_UNAME_S" ;;\n  -m) echo "$FAKE_UNAME_M" ;;\nesac\n',
   );
   chmodSync(join(stubs, "uname"), 0o755);
+  if (options.ps) {
+    writeFileSync(join(stubs, "ps"), STUB_PS);
+    chmodSync(join(stubs, "ps"), 0o755);
+  }
   const script = join(sandbox.root, "install.sh");
   writeFileSync(
     script,
@@ -74,6 +83,8 @@ interface RunOptions {
   /** Standard input of sh, such as the rest of a piped script. */
   input?: string;
   status?: number;
+  /** Output and status of the stub ps, for a fixture built with `ps`. */
+  ps?: { output: string; status?: number };
 }
 
 interface ScriptResult {
@@ -101,6 +112,8 @@ function runScript(
         FAKE_UNAME_S: uname[0],
         FAKE_UNAME_M: uname[1],
         FAKE_INSTALLER_STATUS: String(options.status ?? 0),
+        FAKE_PS_OUTPUT: options.ps?.output ?? "",
+        FAKE_PS_STATUS: String(options.ps?.status ?? 0),
       },
     });
     let stdout = "";
@@ -122,6 +135,50 @@ function runScript(
 
 function installerArgs(f: Fixture): string[] {
   return read(join(f.home, "installer-args")).split("\n").slice(0, -1);
+}
+
+/** What the stub installer read first from its standard input. */
+function installerStdin(f: Fixture): string {
+  return read(join(f.home, "installer-stdin"));
+}
+
+const PYTHON_PTY =
+  spawnSync("python3", ["-I", "-c", "import pty"], { stdio: "ignore" }).status === 0;
+
+/**
+ * Runs the script under sh as the session leader of a new pseudo-terminal,
+ * which is its controlling terminal, through Python's pty module.
+ */
+function runScriptInTerminal(f: Fixture, uname: [string, string]): ScriptResult {
+  const program = [
+    "import os, pty, sys",
+    "pid, fd = pty.fork()",
+    "if pid == 0:",
+    "    os.execvp('sh', ['sh', sys.argv[1]])",
+    "out = b''",
+    "while True:",
+    "    try:",
+    "        chunk = os.read(fd, 4096)",
+    "    except OSError:",
+    "        break",
+    "    if not chunk:",
+    "        break",
+    "    out += chunk",
+    "sys.stdout.write(out.decode('utf-8', 'replace'))",
+    "sys.exit(os.waitstatus_to_exitcode(os.waitpid(pid, 0)[1]))",
+  ].join("\n");
+  const result = spawnSync("python3", ["-I", "-c", program, f.script], {
+    encoding: "utf8",
+    timeout: 20_000,
+    env: {
+      HOME: f.home,
+      PATH: [f.stubs, "/usr/bin", "/bin"].join(":"),
+      AGENTDESK_DOWNLOAD_BASE: pathToFileURL(f.downloads).href,
+      FAKE_UNAME_S: uname[0],
+      FAKE_UNAME_M: uname[1],
+    },
+  });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
 describe("install.sh", () => {
@@ -176,8 +233,59 @@ describe("install.sh", () => {
     const f = fixture();
     const result = await runScript(f, ["Linux", "x86_64"], { input: "echo rest-of-the-script\n" });
     expect(result.status).toBe(0);
-    expect(read(join(f.home, "installer-stdin"))).toBe("");
+    expect(read(join(f.home, "installer-tty"))).toBe("not a tty\n");
+    expect(installerStdin(f)).toBe("");
   });
+
+  it.skipIf(!PYTHON_PTY)(
+    "gives the installer the controlling terminal's own device, not /dev/tty",
+    () => {
+      const f = fixture();
+      const result = runScriptInTerminal(f, ["Linux", "x86_64"]);
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("agentdesk-linux-x64");
+      // macOS names /dev/ttysNNN and Linux /dev/pts/N; Bun on macOS cannot poll /dev/tty.
+      expect(read(join(f.home, "installer-tty")).trim()).toMatch(/^\/dev\/(ttys\d+|pts\/\d+)$/);
+    },
+  );
+
+  it.each([
+    ["zero", "the bare name"],
+    ["  zero  \n", "padding"],
+  ])("opens the device ps names (%j, %s) before /dev/tty", async (output) => {
+    const f = fixture({ ps: true });
+    const result = await runScript(f, ["Linux", "x86_64"], {
+      input: "echo rest-of-the-script\n",
+      ps: { output },
+    });
+    expect(result.status).toBe(0);
+    // /dev/zero, not /dev/tty (unopenable here) or /dev/null: the device branch ran.
+    expect(installerStdin(f)).toBe("\0".repeat(64));
+  });
+
+  it.each([
+    ["", 0, "prints nothing"],
+    ["?", 0, "prints ? (Linux, no terminal)"],
+    ["??", 0, "prints ?? (macOS, no terminal)"],
+    ["zero", 1, "fails"],
+    ["zero null", 0, "prints two fields"],
+    ["zero\nzero\n", 0, "prints two lines"],
+    ["/dev/zero", 0, "prints an absolute path"],
+    ["../dev/zero", 0, "prints a path outside /dev"],
+    ["ttys-agentdesk-missing", 0, "names a device that does not exist"],
+  ])(
+    "falls back to /dev/tty, then /dev/null, when ps output is %j with status %i (%s)",
+    async (output, status) => {
+      const f = fixture({ ps: true });
+      const result = await runScript(f, ["Linux", "x86_64"], {
+        input: "echo rest-of-the-script\n",
+        ps: { output, status },
+      });
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(installerStdin(f)).toBe("");
+    },
+  );
 
   it("exits with the installer's status", async () => {
     const f = fixture();

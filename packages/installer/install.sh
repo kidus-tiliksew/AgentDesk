@@ -88,12 +88,30 @@ else
   set -- install --server "$AGENTDESK_ORIGIN" "$@"
 fi
 
+# Prints the controlling terminal's own device, such as /dev/ttys003 or
+# /dev/pts/3, or nothing when ps names none. ps pads its one field with
+# spaces and prints ? or ?? without a terminal; anything other than one plain
+# relative name is not a device.
+terminal_device() {
+  name="$(ps -o tty= -p "$$" 2>/dev/null)" || return 0
+  name="$(printf '%s\n' "$name" | awk 'NF { lines++; line = $0 } END { if (lines == 1 && split(line, f) == 1) print f[1] }')"
+  case "$name" in
+    "" | /* | *[!A-Za-z0-9/]*) ;;
+    *) printf '/dev/%s\n' "$name" ;;
+  esac
+}
+
 # Standard input is the terminal when one can be opened, otherwise /dev/null,
-# so the installer never reads the rest of a script piped into sh.
-status=0
-if (: </dev/tty) 2>/dev/null; then
-  "${INSTALL_DIR}/agentdesk" "$@" </dev/tty || status=$?
-else
-  "${INSTALL_DIR}/agentdesk" "$@" </dev/null || status=$?
+# so the installer never reads the rest of a script piped into sh. The
+# terminal's own device comes before /dev/tty: Bun on macOS cannot poll
+# /dev/tty (kqueue answers EINVAL), so the compiled installer could not read it.
+input=/dev/null
+device="$(terminal_device)"
+if [ -n "$device" ] && [ -c "$device" ] && (: <"$device") 2>/dev/null; then
+  input="$device"
+elif (: </dev/tty) 2>/dev/null; then
+  input=/dev/tty
 fi
+status=0
+"${INSTALL_DIR}/agentdesk" "$@" <"$input" || status=$?
 exit "$status"

@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { homedir, hostname } from "node:os";
-import { createInterface } from "node:readline/promises";
+import { createInterface, type Interface } from "node:readline/promises";
 import { parseArgs } from "node:util";
 import {
   FORGET_UNREVOKED_FLAG,
@@ -10,7 +10,14 @@ import {
   status,
   uninstall,
 } from "./commands.js";
-import { type Context, InstallerError, type Io, type Runner, redactingIo } from "./context.js";
+import {
+  type Context,
+  InstallerError,
+  type Io,
+  type Runner,
+  redactingIo,
+  TerminalReadError,
+} from "./context.js";
 import {
   DEFAULT_SERVER_ORIGIN,
   EMBEDDED_GUIDANCE,
@@ -189,6 +196,49 @@ export const nodeRunner: Runner = (command, args) =>
     child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
   });
 
+/**
+ * Asks one question on `input`. An error on `input`, which readline forwards
+ * as its own `error` event, rejects with TerminalReadError instead of escaping
+ * as an unhandled error; Bun on macOS raises `EINVAL` from kqueue that way.
+ * The question's own rejection, such as Ctrl+C, passes through unchanged.
+ */
+export function askQuestion(
+  input: NodeJS.ReadableStream,
+  output: NodeJS.WritableStream,
+  question: string,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let rl: Interface | undefined;
+    let settled = false;
+    const settle = (finish: () => void) => {
+      if (settled) return;
+      settled = true;
+      // The interface keeps its listener: readline may still forward the
+      // same input error to it after this one, and an unheard error throws.
+      input.off("error", onReadError);
+      try {
+        // Leaving raw mode can fail again on a terminal that failed to read.
+        rl?.close();
+      } catch {}
+      finish();
+    };
+    function onReadError(error: unknown) {
+      settle(() => reject(new TerminalReadError(error)));
+    }
+    input.on("error", onReadError);
+    try {
+      rl = createInterface({ input, output });
+      rl.on("error", onReadError);
+      rl.question(question).then(
+        (answer) => settle(() => resolve(answer)),
+        (error: unknown) => settle(() => reject(error)),
+      );
+    } catch (error) {
+      onReadError(error);
+    }
+  });
+}
+
 /** Builds the context for a real run from the process. */
 export function createNodeContext(): Context {
   const secrets = new Set<string>();
@@ -197,16 +247,7 @@ export function createNodeContext(): Context {
     out: (line) => process.stdout.write(`${line}\n`),
     err: (line) => process.stderr.write(`${line}\n`),
     ...(interactive
-      ? {
-          prompt: async (question: string) => {
-            const rl = createInterface({ input: process.stdin, output: process.stdout });
-            try {
-              return await rl.question(question);
-            } finally {
-              rl.close();
-            }
-          },
-        }
+      ? { prompt: (question: string) => askQuestion(process.stdin, process.stdout, question) }
       : {}),
   };
   if (!EMBEDDED_SKILL || EMBEDDED_GUIDANCE === undefined)
