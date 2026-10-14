@@ -1,8 +1,16 @@
 ---
-// component-website §Page: document metadata for every route (AC-1.11).
+// component-website §Page: document metadata for every route (AC-1.11). A
+// route may pass its own title and description (AC-3.10); both default to the
+// site's.
 import "../styles/global.css";
 import { SITE_DESCRIPTION, SITE_TITLE } from "../site";
 
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = SITE_TITLE, description = SITE_DESCRIPTION } = Astro.props;
 const site = Astro.site ?? new URL("https://agentdesk.kidus.sh");
 const pageUrl = new URL(Astro.url.pathname, site).href;
 const imageUrl = new URL("/og.png", site).href;
@@ -13,10 +21,10 @@ const imageUrl = new URL("/og.png", site).href;
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{SITE_TITLE}</title>
-    <meta name="description" content={SITE_DESCRIPTION} />
-    <meta property="og:title" content={SITE_TITLE} />
-    <meta property="og:description" content={SITE_DESCRIPTION} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={pageUrl} />
     <meta property="og:image" content={imageUrl} />
