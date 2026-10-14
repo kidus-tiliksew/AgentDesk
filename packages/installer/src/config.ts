@@ -78,19 +78,21 @@ export interface McpEntry {
 // ---------------------------------------------------------------------------
 // JSON configuration (~/.claude.json fallback and ~/.cursor/mcp.json)
 
-type JsonObject = Record<string, unknown>;
+export type JsonObject = Record<string, unknown>;
 
-function isPlainObject(value: unknown): value is JsonObject {
+export function isPlainObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-interface JsonFile {
+export interface JsonFile {
   data: JsonObject;
   indent: string;
+  /** The file's text as read. */
+  text: string;
 }
 
 /** Reads a file as UTF-8; a read failure is an InstallerError, never confirmed absence. */
-function readText(file: string): string {
+export function readText(file: string): string {
   try {
     return readFileSync(file, "utf8");
   } catch {
@@ -98,10 +100,10 @@ function readText(file: string): string {
   }
 }
 
-function readJsonFile(file: string): JsonFile | undefined {
+export function readJsonFile(file: string): JsonFile | undefined {
   if (!existsSync(file)) return undefined;
   const text = readText(file);
-  if (text.trim().length === 0) return { data: {}, indent: "  " };
+  if (text.trim().length === 0) return { data: {}, indent: "  ", text };
   let data: unknown;
   try {
     data = JSON.parse(text);
@@ -116,7 +118,7 @@ function readJsonFile(file: string): JsonFile | undefined {
     );
   }
   const indent = /\n([ \t]+)"/.exec(text)?.[1] ?? "  ";
-  return { data, indent };
+  return { data, indent, text };
 }
 
 function mcpServersOf(file: string, data: JsonObject): JsonObject {
@@ -195,11 +197,12 @@ interface Region {
 }
 
 /**
- * Finds the line ranges of `[mcp_servers.agentdesk]` and its subtables. Each
- * range runs from the header to the next other header, minus trailing blank
- * and comment lines, which belong to whatever follows.
+ * Finds the line ranges of the tables whose header line `isTarget` accepts,
+ * with their subtables. Each range runs from the header to the next other
+ * header, minus trailing blank and comment lines, which belong to whatever
+ * follows.
  */
-function agentdeskRegions(lines: string[]): Region[] {
+function tableRegions(lines: string[], isTarget: (header: string) => boolean): Region[] {
   const regions: Region[] = [];
   let inMultiline: string | undefined;
   let open: number | undefined;
@@ -223,13 +226,31 @@ function agentdeskRegions(lines: string[]): Region[] {
       if (!after.includes(delim)) inMultiline = delim;
     }
     if (!ANY_HEADER.test(line)) return;
-    const isOurs = AGENTDESK_HEADER.test(line);
+    const isOurs = isTarget(line);
     if (isOurs && open !== undefined) return; // a subtable inside the open region
     close(index);
     if (isOurs) open = index;
   });
   close(lines.length);
   return regions;
+}
+
+/** The line ranges of `[mcp_servers.agentdesk]` and its subtables. */
+function agentdeskRegions(lines: string[]): Region[] {
+  return tableRegions(lines, (line) => AGENTDESK_HEADER.test(line));
+}
+
+/** Appends `table` after a blank separator line. */
+function appendTable(lines: readonly string[], table: readonly string[], eol: string): string[] {
+  const next = [...lines];
+  if (next.length > 0) {
+    const lastIndex = next.length - 1;
+    const last = next[lastIndex] ?? "";
+    if (!last.endsWith("\n")) next[lastIndex] = last + eol;
+    if (stripEol(next[lastIndex] ?? "").trim().length > 0) next.push(eol);
+  }
+  next.push(...table);
+  return next;
 }
 
 function tomlString(value: string): string {
@@ -294,14 +315,7 @@ export function replaceCodexTable(
       next.splice(region.start, region.end - region.start, ...replacement);
     }
   } else {
-    next = [...lines];
-    if (next.length > 0) {
-      const lastIndex = next.length - 1;
-      const last = next[lastIndex] ?? "";
-      if (!last.endsWith("\n")) next[lastIndex] = last + eol;
-      if (stripEol(next[lastIndex] ?? "").trim().length > 0) next.push(eol);
-    }
-    next.push(...table);
+    next = appendTable(lines, table, eol);
   }
   const result = next.join("");
   // The edited text must parse and hold exactly the new entry; otherwise the
@@ -378,6 +392,145 @@ export function removeCodexEntry(file: string, backups: BackupRegistry): boolean
 export function readCodexEntry(file: string): McpEntry {
   if (!existsSync(file)) return { present: false };
   return codexEntryOf(parseCodex(file, readText(file)));
+}
+
+// ---------------------------------------------------------------------------
+// Codex hook trust: replace only the lines of `[hooks.state."<key>"]` tables.
+
+/** The key path of a table header line, such as ["hooks", "state", "<key>"]. */
+function headerPath(line: string): string[] | undefined {
+  let node: unknown;
+  try {
+    node = parseToml(line);
+  } catch {
+    return undefined;
+  }
+  const path: string[] = [];
+  while (isPlainObject(node)) {
+    const keys = Object.keys(node);
+    if (keys.length === 0) return path.length > 0 ? path : undefined;
+    if (keys.length !== 1) return undefined;
+    const key = keys[0] as string;
+    path.push(key);
+    node = node[key];
+  }
+  // An array of tables, such as [[hooks.state."<key>"]], is never a target.
+  return undefined;
+}
+
+function isTrustHeader(key: string): (line: string) => boolean {
+  return (line) => {
+    const path = headerPath(line);
+    return path !== undefined && path[0] === "hooks" && path[1] === "state" && path[2] === key;
+  };
+}
+
+/**
+ * Replaces the first region `isTarget` finds with `table` and removes the
+ * others, or appends `table` when there is none. An empty `table` removes
+ * every region.
+ */
+function setRegions(
+  lines: readonly string[],
+  isTarget: (line: string) => boolean,
+  table: readonly string[],
+  eol: string,
+): string[] {
+  const regions = tableRegions([...lines], isTarget);
+  const first = regions[0];
+  if (!first) return table.length > 0 ? appendTable(lines, table, eol) : [...lines];
+  const next = [...lines];
+  for (const region of [...regions].reverse()) {
+    const replacement = region === first ? [...table] : [];
+    let start = region.start;
+    if (replacement.length === 0) {
+      // Drop the blank separator the installer added before an appended table.
+      if (region.end >= next.length && start > 0 && stripEol(next[start - 1] ?? "").trim() === "") {
+        start--;
+      }
+    } else if (!(next[region.end - 1] ?? "").endsWith("\n")) {
+      // A region that ends at the end of a file without a final newline keeps that shape.
+      const lastIndex = replacement.length - 1;
+      replacement[lastIndex] = stripEol(replacement[lastIndex] ?? "");
+    }
+    next.splice(start, region.end - start, ...replacement);
+  }
+  return next;
+}
+
+function hooksStateOf(data: Record<string, unknown>): Record<string, unknown> {
+  const hooks = data.hooks;
+  if (!isPlainObject(hooks) || !isPlainObject(hooks.state)) return {};
+  return hooks.state;
+}
+
+/**
+ * Returns config.toml text with `[hooks.state."<key>"] trusted_hash` set for
+ * each entry of `trust` and the table of each key in `remove` deleted. Only
+ * those tables' lines change. The result must parse and hold exactly those
+ * values; otherwise the file defines them in a form lines cannot replace, and
+ * it is refused unchanged (component-installer §Codex trust).
+ */
+export function editCodexTrust(
+  file: string,
+  text: string,
+  trust: ReadonlyMap<string, string>,
+  remove: readonly string[],
+): string {
+  parseCodex(file, text);
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  let lines = splitLines(text);
+  for (const key of remove) {
+    if (!trust.has(key)) lines = setRegions(lines, isTrustHeader(key), [], eol);
+  }
+  for (const [key, hash] of trust) {
+    const table = [
+      `[hooks.state.${tomlString(key)}]${eol}`,
+      `trusted_hash = ${tomlString(hash)}${eol}`,
+    ];
+    lines = setRegions(lines, isTrustHeader(key), table, eol);
+  }
+  const result = lines.join("");
+  let state: Record<string, unknown> | undefined;
+  try {
+    state = hooksStateOf(parseToml(result) as Record<string, unknown>);
+  } catch {
+    // fall through to the refusal
+  }
+  const holds = (key: string, hash: string) => {
+    const table = state?.[key];
+    return isPlainObject(table) && Object.keys(table).length === 1 && table.trusted_hash === hash;
+  };
+  if (
+    !state ||
+    ![...trust].every(([key, hash]) => holds(key, hash)) ||
+    !remove.every((key) => trust.has(key) || state?.[key] === undefined)
+  ) {
+    throw new InstallerError(
+      `${file} defines hooks.state for the AgentDesk hook in a form the installer cannot replace; it was not changed.`,
+    );
+  }
+  return result;
+}
+
+/**
+ * Sets and removes `[hooks.state."<key>"]` tables in config.toml. Returns
+ * whether the file changed; unchanged text is not rewritten.
+ */
+export function applyCodexTrust(
+  file: string,
+  trust: ReadonlyMap<string, string>,
+  remove: readonly string[],
+  backups: BackupRegistry,
+): boolean {
+  const exists = existsSync(file);
+  if (!exists && trust.size === 0) return false;
+  const text = exists ? readText(file) : "";
+  const next = editCodexTrust(file, text, trust, remove);
+  if (next === text) return false;
+  backups.backupOnce(file);
+  writeFileAtomic(file, next);
+  return true;
 }
 
 // ---------------------------------------------------------------------------

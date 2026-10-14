@@ -22,6 +22,10 @@ export interface HarnessRecord {
    */
   skillRealPath?: string;
   skillVersion?: string;
+  /** The file that holds this installation's session-start hook. */
+  hookPath?: string;
+  /** Codex only: the `hooks.state` key whose trust this installation recorded. */
+  codexTrustKey?: string;
 }
 
 /**
@@ -77,6 +81,8 @@ const RECORD_FIELDS = [
   "skillPath",
   "skillRealPath",
   "skillVersion",
+  "hookPath",
+  "codexTrustKey",
 ] as const;
 
 export function readState(ctx: Context): State | undefined {

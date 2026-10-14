@@ -1,10 +1,20 @@
+import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  findListedHook,
+  type HookList,
+  listCodexHooks,
+  parseHookKey,
+  TRUST_STEP,
+} from "./codex-trust.js";
+import {
+  applyCodexTrust,
   BackupRegistry,
   type McpEntry,
   mcpUrl,
   readMcpEntry,
   removeMcpEntry,
+  writeFileAtomic,
   writeMcpEntry,
 } from "./config.js";
 import { type Context, InstallerError } from "./context.js";
@@ -17,6 +27,13 @@ import {
   harnessById,
   isHarnessId,
 } from "./harnesses.js";
+import {
+  checkHookFile,
+  currentHookCommand,
+  findHook,
+  planHookRemoval,
+  writeHook,
+} from "./hooks.js";
 import {
   type Connection,
   checkConnection,
@@ -167,6 +184,153 @@ function installSkills(ctx: Context, harnesses: readonly Harness[], state: State
   return failures;
 }
 
+/**
+ * Records trust for the Codex hook that runs `command` (component-installer
+ * §Codex trust). When app-server cannot report the hook, it prints the
+ * `/hooks` step and does not fail the run (AC-10.3). Returns failure lines.
+ */
+async function trustCodexHook(
+  ctx: Context,
+  harness: Harness,
+  record: HarnessRecord,
+  command: string,
+  backups: BackupRegistry,
+): Promise<string[]> {
+  const list = await listCodexHooks(ctx);
+  const hook = findListedHook(list, command);
+  if (!hook) {
+    const reason =
+      list.kind === "unavailable" ? list.reason : "codex does not list the AgentDesk hook";
+    ctx.io.out(
+      `${harness.displayName}: the AgentDesk hook is not trusted yet (${reason}). ${TRUST_STEP}`,
+    );
+    return [];
+  }
+  const configPath = harness.configPath(ctx);
+  const replaced =
+    record.codexTrustKey !== undefined && record.codexTrustKey !== hook.key
+      ? [record.codexTrustKey]
+      : [];
+  try {
+    applyCodexTrust(configPath, new Map([[hook.key, hook.currentHash]]), replaced, backups);
+  } catch (error) {
+    return [
+      `${harness.displayName}: the AgentDesk hook's trust was not recorded: ${message(error)} ${TRUST_STEP}`,
+    ];
+  }
+  record.codexTrustKey = hook.key;
+  ctx.io.out(`${harness.displayName}: trust for the AgentDesk hook recorded in ${configPath}`);
+  return [];
+}
+
+/**
+ * Writes or refreshes each harness's session-start hook and, for Codex, its
+ * trust, and records them (component-installer §Standing guidance; AC-9.4).
+ * Returns failure lines.
+ */
+async function installGuidance(
+  ctx: Context,
+  harnesses: readonly Harness[],
+  state: State,
+  backups: BackupRegistry,
+): Promise<string[]> {
+  const failures: string[] = [];
+  for (const harness of harnesses) {
+    const record: HarnessRecord = state.harnesses[harness.id] ?? {};
+    state.harnesses[harness.id] = record;
+    const file = harness.hookPath(ctx);
+    const command = currentHookCommand(ctx, harness.id);
+    try {
+      writeHook(ctx, harness, command, backups);
+    } catch (error) {
+      failures.push(
+        `${harness.displayName}: its session-start hook in ${file} was not written: ${message(error)}`,
+      );
+      continue;
+    }
+    record.hookPath = file;
+    ctx.io.out(`${harness.displayName}: session-start hook written to ${file}`);
+    if (harness.id === "codex") {
+      failures.push(...(await trustCodexHook(ctx, harness, record, command, backups)));
+    }
+  }
+  return failures;
+}
+
+/**
+ * Carries trust to Codex hooks whose keys a removal changed: each hook that
+ * was trusted before and still has the same hash at its new key gets a
+ * `hooks.state` table for that key (component-installer §State, re-run, and
+ * uninstall). Returns undefined when app-server could not report both lists.
+ */
+async function carriedTrust(
+  ctx: Context,
+  before: HookList,
+  file: string,
+  moved: ReadonlyMap<string, string>,
+): Promise<Map<string, string> | undefined> {
+  if (before.kind !== "listed") return undefined;
+  const after = await listCodexHooks(ctx);
+  if (after.kind !== "listed") return undefined;
+  const carried = new Map<string, string>();
+  for (const hook of before.hooks) {
+    const parsed = parseHookKey(hook.key);
+    const target = parsed && parsed.file === file ? moved.get(parsed.position) : undefined;
+    if (hook.source !== "user" || hook.trustStatus !== "trusted" || !target || !hook.currentHash) {
+      continue;
+    }
+    const newKey = `${file}:session_start:${target}`;
+    const now = after.hooks.find((h) => h.key === newKey);
+    if (now?.source === "user" && now.currentHash === hook.currentHash) {
+      carried.set(newKey, hook.currentHash);
+    }
+  }
+  return carried;
+}
+
+/**
+ * Removes the installer's hook, its group when that group then holds no other
+ * hook, and for Codex the recorded `hooks.state` table, carrying trust to the
+ * later hooks the removal re-keys. Throws when something may remain.
+ */
+async function removeGuidance(
+  ctx: Context,
+  harness: Harness,
+  record: HarnessRecord,
+  backups: BackupRegistry,
+): Promise<void> {
+  const file = harness.hookPath(ctx);
+  let carried = new Map<string, string>();
+  const removal = record.hookPath ? planHookRemoval(ctx, harness) : undefined;
+  if (removal) {
+    const codexMoves = harness.id === "codex" && removal.moved.size > 0;
+    const keyFile = codexMoves ? realpathSync(file) : file;
+    const before = codexMoves ? await listCodexHooks(ctx) : undefined;
+    ctx.io.out(`${harness.displayName}: removing the session-start hook from ${file}`);
+    backups.backupOnce(file);
+    writeFileAtomic(file, removal.text);
+    if (before) {
+      const carry = await carriedTrust(ctx, before, keyFile, removal.moved);
+      if (carry) carried = carry;
+      else {
+        ctx.io.out(
+          `${harness.displayName}: hooks listed after AgentDesk's in ${file} may need trusting again. In Codex, run /hooks and trust them.`,
+        );
+      }
+    }
+  }
+  if (harness.id === "codex" && (record.codexTrustKey !== undefined || carried.size > 0)) {
+    const configPath = harness.configPath(ctx);
+    ctx.io.out(`${harness.displayName}: removing the AgentDesk hook's trust from ${configPath}`);
+    applyCodexTrust(
+      configPath,
+      carried,
+      record.codexTrustKey !== undefined ? [record.codexTrustKey] : [],
+      backups,
+    );
+  }
+}
+
 /** `agentdesk install` (component-installer §Commands; REQ-9). */
 export async function install(ctx: Context, options: InstallOptions): Promise<number> {
   const previous = readState(ctx) ?? emptyState();
@@ -196,6 +360,8 @@ export async function install(ctx: Context, options: InstallOptions): Promise<nu
   for (const harness of selected) {
     const entry = readMcpEntry(ctx, harness);
     if (entry.token) ctx.secrets.add(entry.token);
+    // A hook file the run would refuse stops it before a code is requested.
+    checkHookFile(ctx, harness);
     oldEntries.set(harness.id, entry);
     const record = previous.harnesses[harness.id];
     if (
@@ -319,8 +485,9 @@ export async function install(ctx: Context, options: InstallOptions): Promise<nu
     };
   }
 
-  // AC-9.4: every run rewrites the skill at the current version.
+  // AC-9.4: every run rewrites the skill, the hook, and Codex trust.
   failures.push(...installSkills(ctx, selected, state));
+  failures.push(...(await installGuidance(ctx, selected, state, backups)));
   writeState(ctx, state);
 
   for (const record of unresolved) failures.push(unrevokedLine(ctx, record, "forget"));
@@ -330,7 +497,7 @@ export async function install(ctx: Context, options: InstallOptions): Promise<nu
     for (const line of failures) ctx.io.err(line);
     return 1;
   }
-  ctx.io.out("AgentDesk is installed. A new agent session can call ask now.");
+  ctx.io.out(NEW_SESSION);
   return 0;
 }
 
@@ -405,7 +572,14 @@ export async function forget(ctx: Context, connectionId: string): Promise<number
   return 0;
 }
 
-/** `agentdesk skill install`: the skill only, for every detected harness (REQ-3). */
+/** A session already running has not run the hook (component-installer §Commands). */
+const NEW_SESSION =
+  "AgentDesk is installed. Start a new agent session: a session that is already running has not loaded the AgentDesk guidance.";
+
+/**
+ * `agentdesk skill install`: the skill and the session-start hook, with Codex
+ * trust, for every detected harness (REQ-3).
+ */
 export async function skillInstall(ctx: Context): Promise<number> {
   const state = readState(ctx) ?? emptyState();
   const detected = detectHarnesses(ctx);
@@ -414,17 +588,43 @@ export async function skillInstall(ctx: Context): Promise<number> {
       "No supported harness was found. Install Claude Code, Codex, or Cursor first.",
     );
   }
-  const failures = installSkills(
-    ctx,
-    detected.map((d) => d.harness),
-    state,
-  );
+  const harnesses = detected.map((d) => d.harness);
+  for (const harness of harnesses) checkHookFile(ctx, harness);
+  const failures = installSkills(ctx, harnesses, state);
+  failures.push(...(await installGuidance(ctx, harnesses, state, new BackupRegistry())));
   writeState(ctx, state);
   for (const line of failures) ctx.io.err(line);
-  return failures.length > 0 ? 1 : 0;
+  if (failures.length > 0) return 1;
+  ctx.io.out(
+    "Start a new agent session: a session that is already running has not loaded the updated skill and guidance.",
+  );
+  return 0;
 }
 
-/** `agentdesk status`: each recorded harness, its connection check, and its skill version. */
+/**
+ * Describes the recorded hook: whether its file holds the installer's hook
+ * and, for Codex, the trust `hooks/list` reports for it.
+ */
+async function hookStatus(ctx: Context, harness: Harness, record: HarnessRecord): Promise<string> {
+  const file = harness.hookPath(ctx);
+  let command: string | undefined;
+  try {
+    command = findHook(ctx, harness);
+  } catch (error) {
+    return `hook file unreadable (${message(error)})`;
+  }
+  if (command === undefined) return `no AgentDesk hook in ${record.hookPath ?? file}`;
+  if (harness.id !== "codex") return `hook in ${file}`;
+  const hook = findListedHook(await listCodexHooks(ctx), command);
+  return hook?.trustStatus
+    ? `hook in ${file}, trust ${hook.trustStatus}`
+    : `hook in ${file}, trust could not be checked; confirm it in Codex's /hooks`;
+}
+
+/**
+ * `agentdesk status`: each recorded harness, its connection check, its skill
+ * version, and its hook with Codex trust.
+ */
 export async function status(ctx: Context): Promise<number> {
   const state = readState(ctx);
   const ids = HARNESS_IDS.filter((id) => state?.harnesses[id]);
@@ -475,7 +675,8 @@ export async function status(ctx: Context): Promise<number> {
     } else {
       skill = "no skill installed";
     }
-    ctx.io.out(`${harness.displayName}: ${connection}; ${skill}`);
+    const hook = record.hookPath ? `; ${await hookStatus(ctx, harness, record)}` : "";
+    ctx.io.out(`${harness.displayName}: ${connection}; ${skill}${hook}`);
   }
   return 0;
 }
@@ -508,6 +709,7 @@ export async function uninstall(
     const harness = harnessById(ctx, id);
     const configPath = harness.configPath(ctx);
     const skillDir = harness.skillDir(ctx);
+    const hookPath = harness.hookPath(ctx);
     // Only the installer's own locations are ever edited or removed.
     if (record.configPath && resolve(record.configPath) !== configPath) {
       failures.push(
@@ -521,11 +723,18 @@ export async function uninstall(
       );
       continue;
     }
+    if (record.hookPath && resolve(record.hookPath) !== hookPath) {
+      failures.push(
+        `${harness.displayName}: the recorded hook path ${record.hookPath} is not ${hookPath}; nothing was changed for it.`,
+      );
+      continue;
+    }
 
+    // The MCP entry, read before anything changes; set when the record holds a connection.
+    let entry: McpEntry | undefined;
     if (record.connectionId || record.configPath) {
       // An unreadable or malformed configuration is not proof the entry is
       // gone: keep the record so a later run can revoke and remove it.
-      let entry: McpEntry;
       try {
         entry = readMcpEntry(ctx, harness);
       } catch (error) {
@@ -556,6 +765,24 @@ export async function uninstall(
           reason: `no token for it was in ${configPath}`,
         });
       }
+    }
+
+    // The hook goes before the MCP entry, so the Codex trust table appended
+    // after the MCP table leaves config.toml as it was before install.
+    if (record.hookPath || record.codexTrustKey) {
+      try {
+        await removeGuidance(ctx, harness, record, backups);
+      } catch (error) {
+        failures.push(
+          `${harness.displayName}: its session-start hook was not removed: ${message(error)}`,
+        );
+        continue;
+      }
+      delete record.hookPath;
+      delete record.codexTrustKey;
+    }
+
+    if (entry) {
       try {
         if (entry.present) {
           ctx.io.out(`${harness.displayName}: removing the MCP entry from ${configPath}`);
