@@ -1,13 +1,11 @@
 ---
 name: agentdesk
-description: Use when you work without the user watching and meet a choice you should not make alone, or reach a point worth reporting. AgentDesk asks the user on their phone, returns the answer, and shows your status.
+description: Use when you start a task, finish a stage, become blocked, or finish a task, to report status through AgentDesk. Use when you have a question you should not decide alone, such as an irreversible or destructive action, a choice that depends on the user's preference, or ambiguity the repository and task cannot resolve, to ask it through AgentDesk. AgentDesk reaches the user outside this session and returns the answer.
 metadata:
-  version: "1.0.0"
+  version: "2.0.0"
 ---
 
-# AgentDesk
-
-AgentDesk reaches the user while you work unattended. Its MCP server offers `ask`, `await`, `check`, `cancel`, and `status`.
+AgentDesk reaches the user outside this session. Its MCP server offers `ask`, `await`, `check`, `cancel`, `resolve`, and `status`.
 
 ## Topic
 
@@ -43,6 +41,7 @@ Call `ask` with these arguments:
 - `body`: the context the user needs to decide, in Markdown.
 - `recommendation`: the answer you would choose. Set it on every decision.
 - `deadline` and `default`: set both when the default action is reversible. `deadline` is an ISO 8601 time in the future. `default` is the answer applied when the deadline passes.
+- `interactive`: set `interactive: true` when the session is interactive, one the user may be watching. Omit it otherwise.
 
 Set no `default` when the default action is irreversible. Never set `default` without `deadline`.
 
@@ -72,11 +71,13 @@ Example arguments:
 }
 ```
 
+When you call `ask`, show the same question in this chat: the title, the context, the options, and your recommendation. The user may answer in either place.
+
 `ask` returns a `decision_id` at once. It does not wait for the answer.
 
 ## Waiting
 
-1. Call `await` with the `decision_id`. It waits up to `timeout_seconds`, 300 by default and 600 at most.
+1. Call `await` with the `decision_id`. It waits up to `timeout_seconds`. Set `timeout_seconds` to 60 when the session is interactive, so a chat answer reaches you within a minute. Otherwise use a value up to 600.
 2. When it returns `pending`, call `await` again with the same `decision_id`. Repeat until the state is `answered`, `expired`, or `cancelled`.
 3. Never ask the same question twice. Never create a second decision while the first is `pending`.
 4. Act on the returned `answer` and read its `note`. An `expired` decision with `applied_by_default` carries the `default` as its `answer`.
@@ -85,7 +86,11 @@ A coordinator that runs several tasks may call `check` with `decision_ids` betwe
 
 When a pending question no longer matters, call `cancel` with its `decision_id`.
 
-If the user answers in this chat instead, call `resolve` with the `decision_id`, their `answer`, and their message word for word. Never record an answer the user did not write.
+When a chat message arrives while you wait:
+
+- If it answers the decision, call `resolve` with the `decision_id`, the `answer`, and `chat_message` holding the user's message word for word. Write the `answer` in the shapes shown above for `recommendation` and `default`. Never relay an answer the user did not write.
+- If it does not answer the decision, handle the message, then call `await` again with the same `decision_id`. When the message makes the question moot, call `cancel` with the `decision_id` instead.
+- If `resolve` is rejected because the decision is already settled, act on the `answer` in the decision it returns.
 
 ## Status
 

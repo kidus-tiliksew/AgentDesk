@@ -217,8 +217,8 @@ describe("status", () => {
     expect(await h.run(["status"])).toBe(0);
     expect(h.out).toEqual([
       `AgentDesk server: ${SERVER}`,
-      `Claude Code: connected; skill 1.0.0 at ${join(sandbox.home, ".claude", "skills", "agentdesk")}`,
-      `Codex: not connected (the server refused its token); skill 1.0.0 at ${join(sandbox.home, ".codex", "skills", "agentdesk")}`,
+      `Claude Code: connected; skill 2.0.0 at ${join(sandbox.home, ".claude", "skills", "agentdesk")}`,
+      `Codex: not connected (the server refused its token); skill 2.0.0 at ${join(sandbox.home, ".codex", "skills", "agentdesk")}`,
       "Cursor: connected; skill loaded from the Claude Code or Codex folder",
     ]);
     expect(h.output()).not.toContain("adc_");

@@ -161,7 +161,7 @@ describe("npm package agentdesk", () => {
     expect(readFileSync(join(home, ".codex", "skills", "agentdesk", "SKILL.md"))).toEqual(
       readFileSync(SKILL_FILE),
     );
-    expect(result.stdout).toContain("skill 1.0.0");
+    expect(result.stdout).toContain("skill 2.0.0");
   });
 
   it("signs in against the build's default server and writes the connection", async () => {
