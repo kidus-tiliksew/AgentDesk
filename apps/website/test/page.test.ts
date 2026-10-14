@@ -43,11 +43,51 @@ describe("install block", () => {
   });
 
   test("renders the copy button hidden with its label, beside a live status region (AC-1.3, AC-1.7)", () => {
-    const button = html.match(/<button[^>]*data-copy[^>]*>([^<]*)<\/button>/);
-    expect(button?.[0]).toMatch(/\shidden[\s>]/);
-    expect(button?.[0]).toMatch(/type="button"/);
-    expect(button?.[1]).toBe("Copy install command");
+    const button = html.match(/<button[^>]*data-copy[^>]*>([\s\S]*?)<\/button>/);
+    const opening = button?.[0].match(/^<button[^>]*>/)?.[0];
+    expect(opening).toMatch(/\shidden[\s>]/);
+    expect(opening).toMatch(/type="button"/);
+    const content = button?.[1] ?? "";
+    // The accessible name is the button's whole text content.
+    expect(content.replace(/<[^>]+>/g, "")).toBe("Copy install command");
+    // Only "Copy" shows; " install command" is in a visually hidden span.
+    expect(content).toMatch(/^Copy<span class="visually-hidden"> install command<\/span>$/);
     expect(html).toMatch(/<span[^>]*role="status"[^>]*aria-live="polite"[^>]*>/);
+  });
+});
+
+describe("phone figures", () => {
+  const images = () =>
+    [...html.matchAll(/<img\s[^>]*src="\/screens\/[^"]*"[^>]*>/g)].map((m) => m[0]);
+  const attribute = (tag: string, name: string) =>
+    tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
+
+  test("shows the four screens, hero first, each in a figure", () => {
+    expect(images().map((tag) => attribute(tag, "src"))).toEqual([
+      "/screens/decision.webp",
+      "/screens/inbox.webp",
+      "/screens/notification.webp",
+      "/screens/agents.webp",
+    ]);
+    expect(html.match(/<figure class="phone[^"]*">\s*<img\s[^>]*src="\/screens\//g)).toHaveLength(
+      4,
+    );
+  });
+
+  test("gives each screen its size and a non-empty alt text", () => {
+    for (const tag of images()) {
+      expect(attribute(tag, "width"), tag).toBe("906");
+      expect(attribute(tag, "height"), tag).toBe("1968");
+      expect(attribute(tag, "alt")?.trim(), tag).toBeTruthy();
+    }
+  });
+
+  test("loads the hero eagerly and the step screens lazily", () => {
+    const [hero = "", ...steps] = images();
+    expect(hero).toContain("/screens/decision.webp");
+    expect(attribute(hero, "loading")).toBeUndefined();
+    expect(steps).toHaveLength(3);
+    for (const tag of steps) expect(attribute(tag, "loading"), tag).toBe("lazy");
   });
 });
 
