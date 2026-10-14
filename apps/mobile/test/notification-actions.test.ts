@@ -444,6 +444,59 @@ describe("answering a press", () => {
       "Already answered: Hold the release",
     ],
     [
+      "answered in chat with reject after an approve press",
+      {
+        kind: "conflict",
+        decision: settled({
+          ...answered,
+          answer: { kind: "reject" },
+          answered_via: "chat",
+          chat_message: "No, **hold** it\nuntil Monday",
+          relayed_by_agent_session_id: "s_relay",
+        }),
+      },
+      "Answered in chat: Reject",
+    ],
+    [
+      "answered in chat with an option",
+      {
+        kind: "conflict",
+        decision: settled({
+          ...answered,
+          input_type: "single_choice",
+          options: [
+            { id: "o1", label: "Ship it" },
+            { id: "o2", label: "Hold the release" },
+          ],
+          answer: { kind: "option", option_id: "o2" },
+          answered_via: "chat",
+          chat_message: "Hold it",
+          relayed_by_agent_session_id: "s_relay",
+        }),
+      },
+      "Answered in chat: Hold the release",
+    ],
+    [
+      "answered in chat with options",
+      {
+        kind: "conflict",
+        decision: settled({
+          ...answered,
+          input_type: "multiple_choice",
+          options: [
+            { id: "o1", label: "Logs" },
+            { id: "o2", label: "Metrics" },
+            { id: "o3", label: "Traces" },
+          ],
+          answer: { kind: "options", option_ids: ["o1", "o3"] },
+          answered_via: "chat",
+          chat_message: "Logs and traces",
+          relayed_by_agent_session_id: "s_relay",
+        }),
+      },
+      "Answered in chat: Logs, Traces",
+    ],
+    [
       "expired with its default applied",
       {
         kind: "conflict",

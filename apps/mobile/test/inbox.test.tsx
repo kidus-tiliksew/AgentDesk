@@ -556,6 +556,39 @@ describe("one-tap answers", () => {
     expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeOnTheScreen();
   });
 
+  test("a decision answered in chat first opens its decision screen with the chat answer", async () => {
+    const settled = decision({
+      id: "d_1",
+      title: "Ship it?",
+      state: "answered",
+      answer: { kind: "reject" },
+      answered_at: "2026-10-12T10:00:00.000Z",
+      answered_via: "chat",
+      chat_message: "Not yet, *wait* for QA",
+      relayed_by_agent_session_id: "s_relay",
+    });
+    setQuery(listPending, [decision({ id: "d_1", title: "Ship it?" })]);
+    setQuery("decisions/app:get", settled);
+    answerDecision.mockRejectedValue(
+      new ConvexError({ code: "conflict", message: "Decision already settled", decision: settled }),
+    );
+    await openInbox();
+
+    fireEvent.press(screen.getByRole("button", { name: "Approve: Ship it?" }));
+    await background();
+
+    await waitFor(() => expect(screen).toHavePathname("/decision/d_1"));
+    await act(async () => {});
+    act(() => jest.advanceTimersByTime(0));
+    // The stored chat answer, not the attempted Approve, is the outcome.
+    expect(
+      screen.getByRole("header", { name: /^Rejected\. Answered in chat, / }),
+    ).toBeOnTheScreen();
+    expect(screen.getByLabelText("Your message in chat: Not yet, *wait* for QA")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeOnTheScreen();
+    expect(answerDecision).toHaveBeenCalledTimes(1);
+  });
+
   test("any other failure restores the card with the message and allows a retry", async () => {
     setQuery(listPending, [decision({ id: "d_1", title: "Ship it?" })]);
     answerDecision.mockRejectedValueOnce(new Error("Network request failed"));
@@ -700,6 +733,20 @@ describe("reactive updates", () => {
 
     act(() => setQuery(listPending, []));
     expect(screen.getByText("All caught up")).toBeOnTheScreen();
+  });
+
+  test("a decision answered in chat leaves the inbox when the query drops it", async () => {
+    setQuery(listPending, [
+      decision({ id: "d_1", title: "Relayed", interactive: true }),
+      decision({ id: "d_2", title: "Still open" }),
+    ]);
+    await openInbox();
+    expect(decisionTitles()).toEqual(["Decision: Relayed", "Decision: Still open"]);
+
+    act(() => setQuery(listPending, [decision({ id: "d_2", title: "Still open" })]));
+
+    expect(decisionTitles()).toEqual(["Decision: Still open"]);
+    expect(answerDecision).not.toHaveBeenCalled();
   });
 
   test("re-renders when an agent's status changes or it leaves the live set", async () => {

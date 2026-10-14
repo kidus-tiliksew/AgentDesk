@@ -151,8 +151,14 @@ export function outcomeBody(result: SendResult): string | null {
 function conflictBody(decision: Decision): string {
   switch (decision.state) {
     case "answered":
-      return decision.answer === null
-        ? FAILED_BODY
+      if (decision.answer === null) {
+        return FAILED_BODY;
+      }
+      // An answer relayed from the agent's chat names its source, without
+      // the chat message (component-mobile-app §Notifications, Outcomes;
+      // req-decision-requests AC-8.3).
+      return decision.answered_via === "chat"
+        ? `Answered in chat: ${formatAnswer(decision.answer, decision.options)}`
         : `Already answered: ${formatAnswer(decision.answer, decision.options)}`;
     case "expired":
       if (decision.answer !== null && decision.applied_by_default) {

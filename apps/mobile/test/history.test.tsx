@@ -346,6 +346,112 @@ describe("rows", () => {
     expect(fourth.props.accessibilityValue.text).toMatch(/^Cancelled\. No answer was recorded\. /);
   });
 
+  // component-mobile-app §Screens, Rows (req-decision-requests AC-8.3).
+  test("a chat answer of every type reads Answered in chat with the message below in two lines", async () => {
+    const options = [
+      { id: "a", label: "Alpha" },
+      { id: "b", label: "Beta" },
+      { id: "c", label: "Gamma" },
+    ];
+    const message = "**Go** with _this_ one.\n# not a heading\nThird line";
+    const inChat = (
+      id: string,
+      title: string,
+      overrides: Partial<Decision>,
+      chatMessage = message,
+    ): Item =>
+      settled({
+        id,
+        title,
+        options,
+        answered_via: "chat",
+        chat_message: chatMessage,
+        relayed_by_agent_session_id: "s_relay",
+        ...overrides,
+      });
+    const rows: [Item, string][] = [
+      [inChat("d_1", "Approve it", { answer: { kind: "approve" } }), "Approve"],
+      [inChat("d_2", "Reject it", { answer: { kind: "reject" } }), "Reject"],
+      [
+        inChat("d_3", "Pick one", {
+          input_type: "single_choice",
+          answer: { kind: "option", option_id: "b" },
+        }),
+        "Beta",
+      ],
+      [
+        inChat("d_4", "Pick many", {
+          input_type: "multiple_choice",
+          answer: { kind: "options", option_ids: ["a", "c"] },
+        }),
+        "Alpha, Gamma",
+      ],
+      [
+        inChat("d_5", "Name it", {
+          input_type: "free_text",
+          options: null,
+          answer: { kind: "text", text: "Atlas" },
+        }),
+        "Atlas",
+      ],
+      [
+        inChat("d_6", "Pick or type", {
+          input_type: "single_choice_or_text",
+          answer: { kind: "text", text: "Something else" },
+        }),
+        "Something else",
+      ],
+    ];
+    const app = settled({ id: "d_7", title: "From the app", answer: { kind: "approve" } });
+    serveHistory([...rows.map(([item]) => item), app]);
+
+    await openHistory();
+
+    const time = formatSettledTime(SETTLED);
+    for (const [item, answer] of rows) {
+      const row = screen.getByRole("button", { name: `Decision: ${item.decision.title}` });
+      expect(within(row).getByText(`Answered in chat: ${answer}`)).toBeOnTheScreen();
+      // The message is shown as typed and cut to two lines.
+      const shown = within(row).getByText(message);
+      expect(shown.props.numberOfLines).toBe(2);
+      expect(row.props.accessibilityValue.text).toBe(
+        `Answered. Answered in chat: ${answer}. Your message in chat: ${message}. acme, settled ${time}`,
+      );
+    }
+
+    // An app answer keeps its summary and shows no chat message.
+    const appRow = screen.getByRole("button", { name: "Decision: From the app" });
+    expect(within(appRow).getByText("Approve")).toBeOnTheScreen();
+    expect(within(appRow).queryByText(/Answered in chat/)).not.toBeOnTheScreen();
+    expect(within(appRow).queryByText(message)).not.toBeOnTheScreen();
+    expect(appRow.props.accessibilityValue.text).toBe(
+      `Answered. Answer: Approve acme, settled ${time}`,
+    );
+  });
+
+  test("a decision answered in chat while History is open joins the list", async () => {
+    const pendingNow: Item[] = [];
+    serveHistory(pendingNow);
+    await openHistory();
+    expect(rowTitles()).toEqual([]);
+
+    act(() =>
+      serveHistory([
+        settled({
+          id: "d_1",
+          title: "Ship?",
+          answered_via: "chat",
+          chat_message: "Yes, ship it",
+          relayed_by_agent_session_id: "s_relay",
+        }),
+      ]),
+    );
+
+    const row = screen.getByRole("button", { name: "Decision: Ship?" });
+    expect(within(row).getByText("Answered in chat: Approve")).toBeOnTheScreen();
+    expect(within(row).getByText("Yes, ship it")).toBeOnTheScreen();
+  });
+
   test("day headings read Today, Yesterday, the weekday, then the date", () => {
     // Local noon on Tuesday 13 October 2026.
     const now = new Date(2026, 9, 13, 12, 0).getTime();

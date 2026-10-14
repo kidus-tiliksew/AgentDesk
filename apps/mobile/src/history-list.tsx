@@ -7,6 +7,7 @@ import { AccessibilityInfo, ActionSheetIOS, Alert, Platform, Pressable, View } f
 import { decisions } from "../../../convex/decisions/refs";
 import { Button } from "./button";
 import { formatAnswer } from "./decision-detail";
+import { CHAT_MESSAGE_LABEL, chatMessageOf } from "./decision-outcome";
 import { haptic } from "./haptics";
 import { Loading } from "./loading";
 import { errorData } from "./query-error-boundary";
@@ -81,14 +82,17 @@ export function formatSettledTime(settledAt: string): string {
   });
 }
 
-// What the row says about the outcome: the answer, the applied default, or
-// that no answer was recorded.
+// What the row says about the outcome: the answer, an answer given in chat,
+// the applied default, or that no answer was recorded.
 export function answerSummary(decision: Decision): string {
   if (decision.answer === null) {
     return decision.state === "expired" ? "Expired without an answer" : "No answer was recorded.";
   }
   const answer = formatAnswer(decision.answer, decision.options);
-  return decision.applied_by_default ? `Default applied: ${answer}` : `Answer: ${answer}`;
+  if (decision.applied_by_default) {
+    return `Default applied: ${answer}`;
+  }
+  return decision.answered_via === "chat" ? `Answered in chat: ${answer}` : `Answer: ${answer}`;
 }
 
 // The short outcome on the right of a row: the answer, the applied default,
@@ -265,7 +269,12 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 // One settled decision: the outcome icon, the title, "topic · time", and the
-// outcome on the right, which is text as well as the icon's color. Tapping
+// outcome on the right, which is text as well as the icon's color. A
+// decision answered in chat shows "Answered in chat: <answer>" under the
+// title instead of the outcome on the right, and the user's chat message
+// below it, cut to two lines (component-mobile-app §Screens, Rows;
+// req-decision-requests AC-8.3); the decision screen shows the whole
+// message. Tapping
 // opens the decision; a long press asks to delete it, the alternative to the
 // swipe (Apple HIG Gestures), and the hint tells VoiceOver so.
 function HistoryRowContent({
@@ -281,12 +290,17 @@ function HistoryRowContent({
   const { decision } = item;
   const icon = outcomeIcon(decision, theme);
   const time = formatSettledTime(item.settled_at);
+  const chatMessage = decision.answer === null ? null : chatMessageOf(decision);
+  const summary = answerSummary(decision);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Decision: ${decision.title}`}
       accessibilityValue={{
-        text: `${STATE_LABELS[decision.state]}. ${answerSummary(decision)} ${decision.topic}, settled ${time}`,
+        text:
+          chatMessage === null
+            ? `${STATE_LABELS[decision.state]}. ${summary} ${decision.topic}, settled ${time}`
+            : `${STATE_LABELS[decision.state]}. ${summary}. ${CHAT_MESSAGE_LABEL}: ${chatMessage}. ${decision.topic}, settled ${time}`,
       }}
       accessibilityHint={onLongPress === undefined ? undefined : "Touch and hold to delete."}
       // The row itself carries Delete as a VoiceOver action: iOS only offers
@@ -310,10 +324,22 @@ function HistoryRowContent({
         <AppText variant="footnote" tone="secondary" numberOfLines={1}>
           {`${decision.topic} · ${time}`}
         </AppText>
+        {chatMessage === null ? null : (
+          <>
+            <AppText variant="subhead" numberOfLines={2}>
+              {summary}
+            </AppText>
+            <AppText variant="footnote" tone="secondary" numberOfLines={2}>
+              {chatMessage}
+            </AppText>
+          </>
+        )}
       </View>
-      <AppText tone="secondary" numberOfLines={1} style={styles.value}>
-        {outcomeValue(decision)}
-      </AppText>
+      {chatMessage === null ? (
+        <AppText tone="secondary" numberOfLines={1} style={styles.value}>
+          {outcomeValue(decision)}
+        </AppText>
+      ) : null}
     </Pressable>
   );
 }
