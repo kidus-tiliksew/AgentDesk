@@ -395,6 +395,13 @@ export function readQuery(name: string, args: unknown): unknown {
 // explanation, so the system prompt shows without it (a test of the
 // explanation deletes that answer). Each screen query returns an empty
 // list. The answer mutation fails until a test scripts it.
+// The PostHog fake: the props the app last mounted PostHogProvider with, or
+// null when it mounted none, and every screen view the app recorded.
+export const analytics = {
+  provider: null as null | Record<string, unknown>,
+  screen: jest.fn<void, [string]>(),
+};
+
 export function resetFakes() {
   clerkState.reset({ isLoaded: true, isSignedIn: false, sessionId: null });
   convexAuthState.reset({ isLoading: false, isAuthenticated: false });
@@ -481,4 +488,6 @@ export function resetFakes() {
   });
   queries.reset({ ...defaultQueries });
   queryCalls.length = 0;
+  analytics.provider = null;
+  analytics.screen.mockClear();
 }
