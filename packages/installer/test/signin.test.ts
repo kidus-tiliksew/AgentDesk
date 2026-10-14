@@ -1,10 +1,12 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { CODE_INSTRUCTION, DECLINED_MESSAGE } from "../src/signin.js";
+import { TerminalReadError } from "../src/context.js";
+import { CODE_INSTRUCTION, DECLINED_MESSAGE, TERMINAL_UNREADABLE_NEW_CODE } from "../src/signin.js";
 import { statePath } from "../src/state.js";
 import {
   cleanupSandboxes,
+  kqueueError,
   makeContext,
   makeSandbox,
   read,
@@ -117,6 +119,32 @@ describe("short-code sign-in (component-installer §Sign-in)", () => {
     h.gateway.scripts = [["expired"]];
     expect(await h.run(["install", "--only", "codex"])).toBe(1);
     expect(h.gateway.startRequests()).toHaveLength(1);
+    expect(existsSync(join(sandbox.home, ".codex"))).toBe(false);
+  });
+
+  it("requests a new code without asking again when the prompt cannot read the terminal", async () => {
+    const sandbox = makeSandbox();
+    stubExecutable(sandbox, "codex");
+    const h = makeContext(sandbox, { answers: [new TerminalReadError(kqueueError())] });
+    h.gateway.scripts = [["expired"], ["expired"], ["approved"]];
+    expect(await h.run(["install", "--only", "codex"])).toBe(0);
+    expect(h.prompts).toEqual(["Press Enter for a new code, or type q to stop: "]);
+    expect(h.out.filter((line) => line === TERMINAL_UNREADABLE_NEW_CODE)).toHaveLength(1);
+    expect(h.gateway.startRequests()).toHaveLength(3);
+    expect(read(join(sandbox.home, ".codex", "config.toml"))).toContain(
+      h.gateway.tokenFor("codex"),
+    );
+  });
+
+  it("stops after three codes in total when the prompt cannot read the terminal", async () => {
+    const sandbox = makeSandbox();
+    stubExecutable(sandbox, "codex");
+    const h = makeContext(sandbox, { answers: [new TerminalReadError(kqueueError())] });
+    h.gateway.scripts = [["expired"], ["expired"], ["expired"], ["approved"]];
+    expect(await h.run(["install", "--only", "codex"])).toBe(1);
+    expect(h.prompts).toHaveLength(1);
+    expect(h.gateway.startRequests()).toHaveLength(3);
+    expect(h.err.join("\n")).toContain("The code expired 3 times");
     expect(existsSync(join(sandbox.home, ".codex"))).toBe(false);
   });
 
