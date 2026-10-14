@@ -1,0 +1,219 @@
+---
+// PROTOTYPE A3: the chosen direction, written to component-website's page
+// contract so the real index.astro + global.css can follow it closely. Real
+// app screens (public/screens, cropped from apps/mobile/store/screenshots)
+// sit in a CSS phone bezel; colors follow prefers-color-scheme.
+import Proto from "../../layouts/Proto.astro";
+import { INSTALL_COMMAND, REPOSITORY_URL } from "../../site";
+
+const features = [
+  ["Decision requests", "Agents ask approve-or-reject, multiple-choice, or free-text questions. Each question can carry a recommendation, a deadline, and a default that applies when the deadline passes."],
+  ["Live agent status", "Status cards show what each agent is doing right now and flag agents that have gone quiet."],
+  ["Notification rules and the daily digest", "Server-side rules decide what buzzes your phone, what waits for the daily digest, and what stays silent."],
+  ["One install per machine", "One install covers every repository on the machine. It works on remote devboxes over SSH, and you approve the machine from your phone."],
+  ["Open HTTP API and webhooks", "A published HTTP API and webhooks let anyone build another client, such as Slack or email."],
+];
+
+const harnesses = ["Claude Code", "Codex", "Cursor"];
+---
+
+<Proto title="Prototype A3 · Midnight, screens">
+  <header class="site-header">
+    <div class="wrap header-row">
+      <div class="brand"><img src="/mark.png" alt="" width="28" height="28" /><span>AgentDesk</span></div>
+      <a href={REPOSITORY_URL}>GitHub</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="wrap hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <h1 id="hero-title">An inbox for your coding agents</h1>
+        <p class="lead">
+          Your coding agents ask you for decisions and report their status over MCP. You answer
+          from your phone, and the agent picks up the answer and keeps going.
+        </p>
+        <div class="install">
+          <pre tabindex="0" aria-label="Install command"><code>{INSTALL_COMMAND}</code></pre>
+          <button type="button" class="copy" data-copy hidden>Copy<span class="visually-hidden"> install command</span></button>
+          <span class="visually-hidden" role="status" aria-live="polite" data-copy-status></span>
+        </div>
+        <p class="note">Runs on macOS and Linux. <a href={REPOSITORY_URL}>View the source on GitHub</a>.</p>
+        <p class="note">AgentDesk is in early development. Nothing is released in the app stores yet.</p>
+      </div>
+
+      <figure class="phone hero-phone">
+        <img src="/screens/decision.webp" alt="A decision in the AgentDesk app asking which charting library to use, with Recharts recommended" width="906" height="1968" />
+      </figure>
+    </section>
+
+    <section class="wrap" aria-labelledby="how-title">
+      <h2 id="how-title">How it works</h2>
+      <ol class="steps">
+        <li>
+          <div class="shot"><figure class="phone"><img src="/screens/inbox.webp" alt="The AgentDesk inbox with questions from three agents" width="906" height="1968" loading="lazy" /></figure></div>
+          <h3>Your agent asks</h3>
+          <p>The agent calls the <code>ask</code> tool with a question, its options, and its recommendation.</p>
+        </li>
+        <li>
+          <div class="shot"><figure class="phone"><img src="/screens/notification.webp" alt="A lock-screen notification with Approve and Reject actions" width="906" height="1968" loading="lazy" /></figure></div>
+          <h3>You answer from your phone</h3>
+          <p>The question arrives on your phone. You read it and answer in a tap or two.</p>
+        </li>
+        <li>
+          <div class="shot shot-end"><figure class="phone"><img src="/screens/agents.webp" alt="The agent list showing what each agent is doing" width="906" height="1968" loading="lazy" /></figure></div>
+          <h3>The agent keeps going</h3>
+          <p>The agent's <code>await</code> call returns your answer, and the agent continues.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="wrap" aria-labelledby="features-title">
+      <h2 id="features-title">Features</h2>
+      <div class="features">
+        {features.map(([title, text]) => (
+          <article>
+            <h3>{title}</h3>
+            <p>{text}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="wrap" aria-labelledby="harnesses-title">
+      <h2 id="harnesses-title">Works with your harness</h2>
+      <ul class="harnesses">
+        {harnesses.map((name) => <li>{name}</li>)}
+      </ul>
+      <p class="muted">
+        The install command sets up each of these it finds on the machine at user scope, so every
+        repository on the machine reaches AgentDesk.
+      </p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>
+        <a href={`${REPOSITORY_URL}/blob/main/LICENSE`}>Open source under the MIT license</a>.{" "}
+        <a href={REPOSITORY_URL}>Source on GitHub</a>.
+      </p>
+    </div>
+  </footer>
+</Proto>
+
+<script>
+  import { INSTALL_COMMAND } from "../../site";
+
+  const button = document.querySelector<HTMLButtonElement>("[data-copy]");
+  const status = document.querySelector<HTMLElement>("[data-copy-status]");
+
+  if (button && status) {
+    button.hidden = false;
+    button.addEventListener("click", async () => {
+      status.textContent = "";
+      try {
+        await navigator.clipboard.writeText(INSTALL_COMMAND);
+        status.textContent = "Copied";
+      } catch {
+        status.textContent = "Copy failed. Select the command to copy it";
+      }
+    });
+  }
+</script>
+
+<style is:global>
+  :root {
+    color-scheme: light dark;
+    --background: #ffffff;
+    --surface: #f2f2f7;
+    --text: #000000;
+    --text-secondary: #6c6c72;
+    --accent: #4f46e5;
+    --accent-fill: #4f46e5;
+    --on-accent: #ffffff;
+    --separator: rgba(60, 60, 67, 0.18);
+    --glow: rgba(79, 70, 229, 0.08);
+    --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: #000000;
+      --surface: #1c1c1e;
+      --text: #ffffff;
+      --text-secondary: #9a9aa1;
+      --accent: #9993ff;
+      --accent-fill: #4f46e5;
+      --on-accent: #ffffff;
+      --separator: rgba(255, 255, 255, 0.12);
+      --glow: rgba(79, 70, 229, 0.28);
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: radial-gradient(44rem 26rem at 78% 8rem, var(--glow), transparent 70%) no-repeat, var(--background);
+    color: var(--text);
+    font: 1.0625rem/1.6 var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  img { display: block; max-width: 100%; height: auto; }
+  a { color: var(--accent); text-decoration: underline; text-underline-offset: 0.15em; }
+  a:focus-visible, button:focus-visible, pre:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  h1, h2, h3 { margin: 0; line-height: 1.15; letter-spacing: -0.02em; }
+  p { margin: 0; }
+  code { font-family: var(--font-mono); font-size: 0.9em; }
+  .wrap { width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 1.25rem; }
+  .muted, .note, .lead, .steps p, .features p { color: var(--text-secondary); }
+
+  .site-header { padding: 1.25rem 0; }
+  .header-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .brand { display: flex; align-items: center; gap: 0.625rem; font-weight: 600; }
+  .brand img { width: 28px; height: 28px; border-radius: 7px; }
+
+  .hero { display: grid; gap: 3rem; align-items: center; padding-top: 3rem; padding-bottom: 5rem; }
+  .hero > * { min-width: 0; }
+  h1 { font-size: clamp(2.25rem, 5.6vw, 4rem); font-weight: 700; letter-spacing: -0.035em; }
+  .lead { margin: 1.25rem 0 2rem; max-width: 32rem; font-size: 1.1875rem; }
+  .install { display: flex; flex-wrap: wrap; gap: 0.5rem; max-width: 34rem; margin-bottom: 1rem; padding: 0.4375rem; background: var(--surface); border: 1px solid var(--separator); border-radius: 12px; }
+  .install pre { flex: 1 1 16rem; min-width: 0; margin: 0; padding: 0.5rem 0.5625rem; overflow-x: auto; user-select: text; }
+  .install pre code { font-size: 0.875rem; white-space: pre; }
+  .copy { min-height: 44px; padding: 0 1rem; border: 0; border-radius: 8px; background: var(--accent-fill); color: var(--on-accent); font: 600 0.9375rem var(--font-sans); cursor: pointer; }
+  .copy[hidden] { display: none; }
+  .note { font-size: 0.9375rem; }
+  .note + .note { margin-top: 0.25rem; }
+
+  .phone { margin: 0; padding: 9px; background: #1b1b22; border: 1px solid #2e2e38; border-radius: 15% / 7%; }
+  .phone img { width: 100%; border-radius: 12.5% / 5.8%; }
+  .hero-phone { width: min(300px, 80vw); justify-self: center; box-shadow: 0 40px 100px -30px rgba(79, 70, 229, 0.6); }
+
+  main > .wrap + .wrap { padding-top: 3.5rem; padding-bottom: 3.5rem; border-top: 1px solid var(--separator); }
+  h2 { margin-bottom: 2rem; font-size: 1.75rem; font-weight: 650; }
+  .steps { display: grid; gap: 2.5rem; margin: 0; padding: 0; list-style: none; counter-reset: step; }
+  .steps li { counter-increment: step; }
+  .steps h3::before { content: counter(step, decimal-leading-zero) "  "; white-space: pre; font: 0.8125rem var(--font-mono); color: var(--accent); }
+  .steps h3, .features h3 { margin-bottom: 0.375rem; font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.01em; }
+  .steps p, .features p { font-size: 0.96875rem; }
+  .shot { display: flex; justify-content: center; height: 360px; margin-bottom: 1.5rem; padding-top: 2rem; overflow: hidden; background: var(--surface); border: 1px solid var(--separator); border-radius: 18px; }
+  .shot .phone { flex: none; width: 230px; align-self: flex-start; }
+  .shot-end { padding: 0 0 2rem; }
+  .shot-end .phone { align-self: flex-end; }
+  .features { display: grid; gap: 2.25rem 2.5rem; }
+
+  .harnesses { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: -1rem 0 1rem; padding: 0; list-style: none; }
+  .harnesses li { padding: 0.375rem 0.875rem; background: var(--surface); border-radius: 999px; font-weight: 600; }
+  .muted { max-width: 36rem; }
+
+  .site-footer { padding: 1.75rem 0 3rem; border-top: 1px solid var(--separator); color: var(--text-secondary); font-size: 0.9375rem; }
+
+  .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  @media (min-width: 860px) {
+    .hero { grid-template-columns: 1.1fr 1fr; padding-top: 4.5rem; padding-bottom: 6.5rem; }
+    .steps, .features { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
