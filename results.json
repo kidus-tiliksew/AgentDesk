@@ -1,0 +1,257 @@
+{
+  "origin": "http://127.0.0.1:4329",
+  "layout": [
+    {
+      "route": "/",
+      "width": 320,
+      "scheme": "light",
+      "scrollWidth": 320,
+      "innerWidth": 320,
+      "background": "rgb(255, 255, 255)",
+      "text": "rgb(0, 0, 0)",
+      "phoneImagesLoaded": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "horizontalOverflow": false,
+      "screenshot": "screenshots/landing-320-light.png"
+    },
+    {
+      "route": "/privacy",
+      "width": 320,
+      "scheme": "light",
+      "scrollWidth": 320,
+      "innerWidth": 320,
+      "background": "rgb(255, 255, 255)",
+      "text": "rgb(0, 0, 0)",
+      "phoneImagesLoaded": [],
+      "horizontalOverflow": false,
+      "screenshot": "screenshots/privacy-320-light.png"
+    },
+    {
+      "route": "/",
+      "width": 1280,
+      "scheme": "light",
+      "scrollWidth": 1280,
+      "innerWidth": 1280,
+      "background": "rgb(255, 255, 255)",
+      "text": "rgb(0, 0, 0)",
+      "phoneImagesLoaded": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "horizontalOverflow": false,
+      "screenshot": "screenshots/landing-1280-light.png"
+    },
+    {
+      "route": "/privacy",
+      "width": 1280,
+      "scheme": "light",
+      "scrollWidth": 1280,
+      "innerWidth": 1280,
+      "background": "rgb(255, 255, 255)",
+      "text": "rgb(0, 0, 0)",
+      "phoneImagesLoaded": [],
+      "horizontalOverflow": false,
+      "screenshot": "screenshots/privacy-1280-light.png"
+    },
+    {
+      "route": "/",
+      "width": 320,
+      "scheme": "dark",
+      "scrollWidth": 320,
+      "innerWidth": 320,
+      "background": "rgb(0, 0, 0)",
+      "text": "rgb(255, 255, 255)",
+      "phoneImagesLoaded": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "horizontalOverflow": false,
+      "screenshot": "screenshots/landing-320-dark.png"
+    },
+    {
+      "route": "/privacy",
+      "width": 320,
+      "scheme": "dark",
+      "scrollWidth": 320,
+      "innerWidth": 320,
+      "background": "rgb(0, 0, 0)",
+      "text": "rgb(255, 255, 255)",
+      "phoneImagesLoaded": [],
+      "horizontalOverflow": false,
+      "screenshot": "screenshots/privacy-320-dark.png"
+    },
+    {
+      "route": "/",
+      "width": 1280,
+      "scheme": "dark",
+      "scrollWidth": 1280,
+      "innerWidth": 1280,
+      "background": "rgb(0, 0, 0)",
+      "text": "rgb(255, 255, 255)",
+      "phoneImagesLoaded": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "horizontalOverflow": false,
+      "screenshot": "screenshots/landing-1280-dark.png"
+    },
+    {
+      "route": "/privacy",
+      "width": 1280,
+      "scheme": "dark",
+      "scrollWidth": 1280,
+      "innerWidth": 1280,
+      "background": "rgb(0, 0, 0)",
+      "text": "rgb(255, 255, 255)",
+      "phoneImagesLoaded": [],
+      "horizontalOverflow": false,
+      "screenshot": "screenshots/privacy-1280-dark.png"
+    }
+  ],
+  "keyboard": {
+    "/": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 22
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 547
+      },
+      {
+        "tag": "button",
+        "name": "Copy install command",
+        "href": null,
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 547
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 618
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 2278
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 2278
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 2278
+      }
+    ],
+    "/privacy": [
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "kidus.tiliksew@gmail.com",
+        "href": "mailto:kidus.tiliksew@gmail.com",
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 307
+      },
+      {
+        "tag": "a",
+        "name": "kidus.tiliksew@gmail.com",
+        "href": "mailto:kidus.tiliksew@gmail.com",
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 2690
+      },
+      {
+        "tag": "a",
+        "name": "kidus.tiliksew@gmail.com",
+        "href": "mailto:kidus.tiliksew@gmail.com",
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 2911
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 3032
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 3032
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "outline": "solid 2px rgb(79, 70, 229)",
+        "offset": "2px",
+        "top": 3032
+      }
+    ]
+  },
+  "noJavaScript": {
+    "/": {
+      "textLength": 1694,
+      "installCommand": "curl -fsSL https://agentdesk.kidus.sh/install | sh",
+      "copyButtonHidden": true,
+      "footerPrivacyLink": true,
+      "h2Count": 3,
+      "screenshot": "screenshots/landing-no-js-1280-light.png"
+    },
+    "/privacy": {
+      "textLength": 4253,
+      "installCommand": null,
+      "copyButtonHidden": null,
+      "footerPrivacyLink": true,
+      "h2Count": 9,
+      "screenshot": "screenshots/privacy-no-js-1280-light.png"
+    }
+  }
+}
