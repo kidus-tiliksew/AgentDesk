@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img">
+  <title>AgentDesk</title>
+  <!-- Source of og.png (component-website §Assets). The mark is the Prompt
+       bubble from apps/mobile/assets/icon.png, redrawn as vectors so this file
+       is self-contained. -->
+  <defs>
+    <linearGradient id="ink" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#3730a3"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#ffffff"/>
+  <g transform="translate(96 195) scale(0.234375)">
+    <rect width="1024" height="1024" rx="224" fill="url(#ink)"/>
+    <path d="M350 326 H674 A80 80 0 0 1 754 406 V568 A80 80 0 0 1 674 648 H494 L394 728 V648 H350 A80 80 0 0 1 270 568 V406 A80 80 0 0 1 350 326 Z" fill="#ffffff"/>
+    <polyline points="398,430 466,487 398,544" fill="none" stroke="#3730a3" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="522" y1="543" x2="631" y2="543" stroke="#3730a3" stroke-width="46" stroke-linecap="round"/>
+  </g>
+  <text x="384" y="290" font-family="Inter, 'Helvetica Neue', Arial, 'DejaVu Sans', sans-serif" font-size="88" font-weight="700" fill="#000000">AgentDesk</text>
+  <text font-family="Inter, 'Helvetica Neue', Arial, 'DejaVu Sans', sans-serif" font-size="34" fill="#6c6c72">
+    <tspan x="388" y="360">Your coding agents ask for decisions and report</tspan>
+    <tspan x="388" y="404">their status. You answer from your phone, and</tspan>
+    <tspan x="388" y="448">they keep going.</tspan>
+  </text>
+</svg>

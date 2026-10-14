@@ -1,0 +1,277 @@
+/*
+ * component-website §Visual identity: the normal-contrast Indigo Ink palettes
+ * of apps/mobile/src/theme.ts (DEC-9(3)). Every text color sits only on
+ * --background or --surface, except --on-accent, which sits only on
+ * --accent-fill; test/contrast.test.ts checks each pair at 4.5:1 (AC-1.8).
+ */
+:root {
+  color-scheme: light dark;
+  --background: #ffffff;
+  --surface: #f2f2f7;
+  --text: #000000;
+  --text-secondary: #6c6c72;
+  --accent: #4f46e5;
+  --accent-fill: #4f46e5;
+  --on-accent: #ffffff;
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #000000;
+    --surface: #1c1c1e;
+    --text: #ffffff;
+    --text-secondary: #9a9aa1;
+    --accent: #9993ff;
+    --accent-fill: #4f46e5;
+    --on-accent: #ffffff;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+a:focus-visible,
+button:focus-visible,
+pre:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  margin: 0 0 0.5em;
+  font-weight: 700;
+}
+
+h1 {
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+}
+
+h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+p {
+  margin: 0 0 1em;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+main > section {
+  padding-top: 3rem;
+  padding-bottom: 1rem;
+}
+
+.site-header {
+  padding: 1rem 0;
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.brand img {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.hero {
+  padding-top: 3.5rem;
+}
+
+.lead {
+  max-width: 40rem;
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+}
+
+.note {
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+}
+
+.install {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.75rem;
+  max-width: 40rem;
+  margin: 1.5rem 0 1rem;
+}
+
+.install pre {
+  flex: 1 1 18rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.875rem 1rem;
+  overflow-x: auto;
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 10px;
+  user-select: text;
+}
+
+.install pre code {
+  font-size: 0.9375rem;
+  white-space: pre;
+}
+
+.copy {
+  min-height: 44px;
+  padding: 0 1.125rem;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.copy[hidden] {
+  display: none;
+}
+
+.steps {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li,
+.card {
+  padding: 1.25rem;
+  background: var(--surface);
+  border-radius: 14px;
+}
+
+.steps li {
+  counter-increment: step;
+}
+
+.steps li h3::before {
+  content: counter(step) ". ";
+}
+
+.steps p,
+.card p {
+  margin: 0;
+}
+
+.cards {
+  display: grid;
+  gap: 1rem;
+}
+
+.harnesses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.harnesses li {
+  padding: 0.375rem 0.875rem;
+  background: var(--surface);
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.site-footer {
+  margin-top: 3rem;
+  padding: 2rem 0;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (min-width: 720px) {
+  .steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .cards {
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  }
+}

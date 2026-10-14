@@ -1,0 +1,142 @@
+---
+// component-website §Page: the site's one route. Section order and wording
+// follow req-website REQ-1; the copy follows README.md's product description.
+import Base from "../layouts/Base.astro";
+import { INSTALL_COMMAND, REPOSITORY_URL } from "../site";
+
+const features = [
+  {
+    title: "Decision requests",
+    text: "Agents ask approve-or-reject, multiple-choice, or free-text questions. Each question can carry a recommendation, a deadline, and a default that applies when the deadline passes.",
+  },
+  {
+    title: "Live agent status",
+    text: "Status cards show what each agent is doing right now and flag agents that have gone quiet.",
+  },
+  {
+    title: "Notification rules and the daily digest",
+    text: "Server-side rules decide what buzzes your phone, what waits for the daily digest, and what stays silent.",
+  },
+  {
+    title: "One install per machine",
+    text: "One install covers every repository on the machine. It works on remote devboxes over SSH, and you approve the machine from your phone.",
+  },
+  {
+    title: "Open HTTP API and webhooks",
+    text: "A published HTTP API and webhooks let anyone build another client, such as Slack or email.",
+  },
+];
+
+const harnesses = ["Claude Code", "Codex", "Cursor"];
+---
+
+<Base>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <div class="brand">
+        <img src="/mark.png" alt="" width="32" height="32" />
+        <span>AgentDesk</span>
+      </div>
+      <a href={REPOSITORY_URL}>GitHub</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <h1 id="hero-title">An inbox for your coding agents</h1>
+      <p class="lead">
+        Your coding agents ask you for decisions and report their status over MCP. You answer
+        from your phone, and the agent picks up the answer and keeps going.
+      </p>
+
+      <div class="install">
+        <pre tabindex="0" aria-label="Install command"><code>{INSTALL_COMMAND}</code></pre>
+        <button type="button" class="copy" data-copy hidden>Copy install command</button>
+        <span class="visually-hidden" role="status" aria-live="polite" data-copy-status></span>
+      </div>
+      <p class="note">
+        Runs on macOS and Linux. <a href={REPOSITORY_URL}>View the source on GitHub</a>.
+      </p>
+      <p class="note">
+        AgentDesk is in early development. Nothing is released in the app stores yet.
+      </p>
+    </section>
+
+    <section class="wrap" aria-labelledby="how-title">
+      <h2 id="how-title">How it works</h2>
+      <ol class="steps">
+        <li>
+          <h3>Your agent asks</h3>
+          <p>
+            The agent calls the <code>ask</code> tool with a question, its options, and its
+            recommendation.
+          </p>
+        </li>
+        <li>
+          <h3>You answer from your phone</h3>
+          <p>The question arrives on your phone. You read it and answer in a tap or two.</p>
+        </li>
+        <li>
+          <h3>The agent keeps going</h3>
+          <p>The agent's <code>await</code> call returns your answer, and the agent continues.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="wrap" aria-labelledby="features-title">
+      <h2 id="features-title">Features</h2>
+      <div class="cards">
+        {
+          features.map((feature) => (
+            <article class="card">
+              <h3>{feature.title}</h3>
+              <p>{feature.text}</p>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="wrap" aria-labelledby="harnesses-title">
+      <h2 id="harnesses-title">Works with your harness</h2>
+      <ul class="harnesses">
+        {harnesses.map((name) => <li>{name}</li>)}
+      </ul>
+      <p>
+        The install command sets up each of these it finds on the machine at user scope, so every
+        repository on the machine reaches AgentDesk.
+      </p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>
+        <a href={`${REPOSITORY_URL}/blob/main/LICENSE`}>Open source under the MIT license</a>.{" "}
+        <a href={REPOSITORY_URL}>Source on GitHub</a>.
+      </p>
+    </div>
+  </footer>
+</Base>
+
+<script>
+  // component-website §Install block: without JavaScript the button stays
+  // hidden and the command remains selectable text (AC-1.7).
+  import { INSTALL_COMMAND } from "../site";
+
+  const button = document.querySelector<HTMLButtonElement>("[data-copy]");
+  const status = document.querySelector<HTMLElement>("[data-copy-status]");
+
+  if (button && status) {
+    button.hidden = false;
+    button.addEventListener("click", async () => {
+      status.textContent = "";
+      try {
+        await navigator.clipboard.writeText(INSTALL_COMMAND);
+        status.textContent = "Copied";
+      } catch {
+        status.textContent = "Copy failed. Select the command to copy it";
+      }
+    });
+  }
+</script>

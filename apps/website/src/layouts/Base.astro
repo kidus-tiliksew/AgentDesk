@@ -1,0 +1,30 @@
+---
+// component-website §Page: document metadata for every route (AC-1.11).
+import "../styles/global.css";
+import { SITE_DESCRIPTION, SITE_TITLE } from "../site";
+
+const site = Astro.site ?? new URL("https://agentdesk.kidus.sh");
+const pageUrl = new URL(Astro.url.pathname, site).href;
+const imageUrl = new URL("/og.png", site).href;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{SITE_TITLE}</title>
+    <meta name="description" content={SITE_DESCRIPTION} />
+    <meta property="og:title" content={SITE_TITLE} />
+    <meta property="og:description" content={SITE_DESCRIPTION} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={pageUrl} />
+    <meta property="og:image" content={imageUrl} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
