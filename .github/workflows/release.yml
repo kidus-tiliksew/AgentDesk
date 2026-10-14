@@ -2,9 +2,9 @@ name: Release
 
 # component-repository §Releases and deployment: a v<semver> tag runs every CI
 # step, publishes the installer binaries and SHA256SUMS on the GitHub Release,
-# publishes packages/installer to npm as agentdesk, then deploys Convex and the
-# gateway to production. Each job needs the previous one, so a failed job skips
-# every later job: a failed npm publish deploys nothing.
+# then deploys Convex and the gateway to production. The installer ships only
+# as these binaries (DEC-10). Each job needs the previous one, so a failed job
+# skips every later job: a failed GitHub Release deploys nothing.
 on:
   push:
     tags: ["v*"]
@@ -36,7 +36,7 @@ jobs:
           node-version-file: .nvmrc
 
       # AGENTDESK_PUBLIC_ORIGIN is the default server compiled into the binaries
-      # and the npm build, and the gateway's PUBLIC_ORIGIN.
+      # and the gateway's PUBLIC_ORIGIN.
       - name: Check the tag, the installer version, and the public origin
         id: check
         run: node .github/scripts/release-preflight.mjs
@@ -109,41 +109,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
 
-  # Step 3. prepack builds dist/agentdesk.mjs with the same default server and
-  # the skill from this tag's checkout.
-  npm:
-    needs: [preflight, github-release]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Set up Node
-        uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Publish agentdesk to npm
-        working-directory: packages/installer
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          AGENTDESK_SERVER_ORIGIN: ${{ needs.preflight.outputs.origin }}
-
-  # Step 4. The production environment's CONVEX_DEPLOY_KEY overrides the
+  # Step 3. The production environment's CONVEX_DEPLOY_KEY overrides the
   # repository's CI dev key.
   convex:
-    needs: npm
+    needs: github-release
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -181,7 +150,7 @@ jobs:
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
 
-  # Step 5. The deploy replaces wrangler.toml's local PUBLIC_ORIGIN,
+  # Step 4. The deploy replaces wrangler.toml's local PUBLIC_ORIGIN,
   # CONVEX_SITE_URL, and CLERK_PUBLISHABLE_KEY with production values. The
   # Worker secrets SERVICE_SECRET and CLERK_SECRET_KEY stay in its secret store.
   gateway:
