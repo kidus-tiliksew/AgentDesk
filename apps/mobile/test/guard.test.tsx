@@ -2,8 +2,9 @@ import { ConvexError } from "convex/values";
 import { router } from "expo-router";
 import { act, fireEvent, screen, waitFor } from "expo-router/testing-library";
 import { ActionSheetIOS } from "react-native";
+import { PRIVACY_POLICY_URL } from "../src/config";
 import { decision } from "./data";
-import { clerkState, ensureAccount, setQuery, signInAs, signOut } from "./fakes";
+import { clerkState, ensureAccount, setQuery, signInAs, signOut, webBrowser } from "./fakes";
 import {
   findInbox,
   findLargeTitle,
@@ -119,6 +120,30 @@ describe("navigation", () => {
     // The screen pushes inside the Settings tab, so the tab bar stays.
     expect(selectedTab()).toBe("Settings");
     expect(tabBarHidden()).toBe(false);
+  });
+
+  // req-mobile-app AC-7.1
+  test("the Settings tab's About section opens the privacy policy in the browser sheet", async () => {
+    setQuery("identity/connections:listConnections", []);
+    signInAs("sess_a");
+    renderApp("/");
+    await findInbox();
+
+    pressTab("Settings");
+    expect(await findLargeTitle("Settings")).toBeOnTheScreen();
+    expect(screen.getByRole("header", { name: "About" })).toBeOnTheScreen();
+    const privacy = screen.getByRole("link", { name: "Privacy Policy" });
+    // The row is one link, not a button inside a link.
+    expect(screen.queryByRole("button", { name: "Privacy Policy" })).not.toBeOnTheScreen();
+
+    fireEvent.press(privacy);
+
+    expect(PRIVACY_POLICY_URL).toBe("https://agentdesk.kidus.sh/privacy");
+    expect(webBrowser.openBrowserAsync).toHaveBeenCalledTimes(1);
+    expect(webBrowser.openBrowserAsync).toHaveBeenCalledWith("https://agentdesk.kidus.sh/privacy");
+    // The page opens over the app; Settings stays where it was.
+    expect(screen).toHavePathname("/settings");
+    expect(selectedTab()).toBe("Settings");
   });
 
   test("a decision opened from the inbox pushes inside the Inbox tab, and back returns", async () => {

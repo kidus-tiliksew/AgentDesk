@@ -402,6 +402,12 @@ export const analytics = {
   screen: jest.fn<void, [string]>(),
 };
 
+// expo-web-browser. A test reads which URLs the app opened in the in-app
+// browser sheet.
+export const webBrowser = {
+  openBrowserAsync: jest.fn<Promise<{ type: string }>, [string]>(),
+};
+
 export function resetFakes() {
   clerkState.reset({ isLoaded: true, isSignedIn: false, sessionId: null });
   convexAuthState.reset({ isLoading: false, isAuthenticated: false });
@@ -443,6 +449,7 @@ export function resetFakes() {
   initializeTimeZone
     .mockReset()
     .mockImplementation(async ({ timeZone }) => deviceZoneSettings(timeZone));
+  webBrowser.openBrowserAsync.mockReset().mockResolvedValue({ type: "opened" });
   secureStore.values.clear();
   secureStore.values.set("agentdesk.pushIntro", "continue");
   secureStore.failReads = false;

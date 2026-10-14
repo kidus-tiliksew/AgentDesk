@@ -18,6 +18,10 @@ export type AnalyticsConfig = {
 // PostHog's US cloud ingestion host, used when EXPO_PUBLIC_POSTHOG_HOST is unset.
 export const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 
+// The privacy policy the website publishes (req-mobile-app REQ-7). Settings
+// and sign-in open it in an in-app browser sheet (component-mobile-app §Screens).
+export const PRIVACY_POLICY_URL = "https://agentdesk.kidus.sh/privacy";
+
 export type ConfigResult = { ok: true; config: AppConfig } | { ok: false; missing: string[] };
 
 type PublicEnv = {

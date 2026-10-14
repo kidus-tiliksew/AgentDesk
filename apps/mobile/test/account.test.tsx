@@ -348,6 +348,8 @@ describe("account deletion", () => {
 
     expect(await screen.findByText(deletingNotice)).toBeOnTheScreen();
     expect(screen.getByLabelText("Email address")).toBeOnTheScreen();
+    // The Privacy Policy link sits below the form alongside the notice.
+    expect(screen.getByRole("link", { name: "Privacy Policy" })).toBeOnTheScreen();
     expect(screen.getByText(deletingNotice).props.children).toContain(
       new Date(DELETION_RESULT.completeBy).toLocaleString(undefined, {
         dateStyle: "medium",

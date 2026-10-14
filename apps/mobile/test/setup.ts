@@ -215,6 +215,15 @@ jest.mock("posthog-react-native", () => {
   };
 });
 
+// The in-app browser sheet records the URLs it was asked to open.
+jest.mock("expo-web-browser", () => {
+  const { webBrowser } = require("./fakes");
+  return {
+    __esModule: true,
+    openBrowserAsync: webBrowser.openBrowserAsync,
+  };
+});
+
 jest.mock("expo-constants", () => {
   const { constants } = require("./fakes");
   return {
