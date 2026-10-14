@@ -1,0 +1,207 @@
+---
+// component-website §Privacy policy: the policy at /privacy (req-website
+// REQ-3). Each statement is a fact about the code symbol §Privacy policy cites
+// for it, so a change to that symbol changes this text (AC-3.6). The page has
+// no script (AC-1.7).
+import SiteFooter from "../components/SiteFooter.astro";
+import Base from "../layouts/Base.astro";
+import { PRIVACY_CONTACT, PRIVACY_EFFECTIVE_DATE, PRIVACY_OPERATOR } from "../site";
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+const [year, month, day] = PRIVACY_EFFECTIVE_DATE.split("-").map(Number);
+const effectiveDate = `${day} ${MONTHS[(month ?? 1) - 1]} ${year}`;
+const mailto = `mailto:${PRIVACY_CONTACT}`;
+
+const providers = [
+  { name: "Clerk", receives: "Your email address, to sign you in." },
+  {
+    name: "Convex",
+    receives:
+      "Everything AgentDesk stores, listed above. Convex runs AgentDesk's database and backend.",
+  },
+  {
+    name: "Expo and Apple",
+    receives: "The content of each push notification and your device's push token.",
+  },
+  {
+    name: "Cloudflare",
+    receives:
+      "Requests from your agents and the installer to the AgentDesk gateway. It reads the IP address of a machine sign-in request to limit how often one can start, and AgentDesk keeps no copy of it.",
+  },
+  { name: "PostHog", receives: "Anonymous app usage, as Analytics describes below." },
+  { name: "Vercel", receives: "Requests to this website." },
+  { name: "GitHub", receives: "Downloads of the AgentDesk installer." },
+];
+---
+
+<Base
+  title="Privacy policy · AgentDesk"
+  description="What AgentDesk stores about you, who processes it, how long it is kept, and how to delete it."
+>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/">
+        <img src="/mark.png" alt="" width="32" height="32" />
+        <span>AgentDesk</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="wrap policy">
+    <h1>Privacy policy</h1>
+    <p class="effective">Effective {effectiveDate}</p>
+
+    <section aria-labelledby="who">
+      <h2 id="who">Who runs AgentDesk</h2>
+      <p>
+        {PRIVACY_OPERATOR} runs the AgentDesk service. Send privacy questions and requests to{" "}
+        <a href={mailto}>{PRIVACY_CONTACT}</a>.
+      </p>
+      <p>When this policy changes, the new version is published on this page with a new effective date.</p>
+    </section>
+
+    <section aria-labelledby="stores">
+      <h2 id="stores">What AgentDesk stores</h2>
+      <p>AgentDesk stores this data for your account:</p>
+      <ul>
+        <li>Your email address, which you give when you sign in.</li>
+        <li>
+          The decisions your agents ask: their titles, bodies, and options, and your answers, your
+          notes, and any chat message an agent relays as your answer.
+        </li>
+        <li>Your agent sessions: each agent's name, topic, status lines, and links, as the agent reports them.</li>
+        <li>
+          Your connections: each connection's name, the harness it belongs to, and the host name of
+          the machine that ran the installer.
+        </li>
+        <li>Your devices: each phone's device name, push token, and time zone.</li>
+        <li>Your notification rules and settings.</li>
+      </ul>
+      <p>
+        AgentDesk uses this data only to show it to you and to deliver your notifications.
+        Connection tokens are stored only as SHA-256 hashes. AgentDesk does not store your IP
+        address.
+      </p>
+    </section>
+
+    <section aria-labelledby="push">
+      <h2 id="push">Push notifications</h2>
+      <p>
+        Push notifications travel through the Expo push service and Apple Push Notification
+        service. A notification can carry a decision's title and option labels, its topic, an
+        agent's name and status line, and, when a deadline passes, the answer applied by default.
+        A notification never carries a decision's body. The daily digest notification carries only
+        counts.
+      </p>
+    </section>
+
+    <section aria-labelledby="providers">
+      <h2 id="providers">Service providers</h2>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Provider</th>
+            <th scope="col">What it receives</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            providers.map((provider) => (
+              <tr>
+                <th scope="row">{provider.name}</th>
+                <td>{provider.receives}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+      <p>
+        AgentDesk shares your data with no one else. These providers may process data in the United
+        States and in other countries.
+      </p>
+    </section>
+
+    <section aria-labelledby="analytics">
+      <h2 id="analytics">Analytics</h2>
+      <p>
+        The app sends usage events to PostHog when it is installed, updated, opened, or moved to the
+        background, and when you open a screen. A screen is named by its route pattern, such as{" "}
+        <code>/agent/[id]</code>, never by the id itself. These events carry no account or identity,
+        and PostHog derives no location from them. The app records no touches, screen content,
+        session recordings, or surveys.
+      </p>
+      <p>This website sets no cookies and runs no analytics.</p>
+      <p>
+        AgentDesk does not sell your data, does not use it for advertising, and does not track you
+        across other companies' apps or websites.
+      </p>
+    </section>
+
+    <section aria-labelledby="retention">
+      <h2 id="retention">How long AgentDesk keeps it</h2>
+      <ul>
+        <li>
+          An agent session ends after 24 hours without activity. The session and its status history
+          are deleted 7 days after it ends.
+        </li>
+        <li>A machine sign-in request, with the machine's host name, is deleted 24 hours after it starts.</li>
+        <li>The stored copy of a push notification is deleted about 24 hours after it is delivered.</li>
+        <li>A device and its push token are deleted when you sign out on that device.</li>
+        <li>
+          Decisions, rules, settings, and connections, including revoked connections, are kept until
+          you delete them or your account.
+        </li>
+        <li>
+          After your account is deleted, AgentDesk keeps only your Clerk user ID, for 30 days, so an
+          old sign-in cannot recreate the account.
+        </li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="deleting">
+      <h2 id="deleting">Deleting your data</h2>
+      <ul>
+        <li>
+          To delete your account, open Settings, then Account, and choose Delete Account. Every
+          connection and device is disconnected at once. Your data and your Clerk sign-in account
+          are deleted within 24 hours.
+        </li>
+        <li>To delete one settled decision, swipe it in History and choose Delete.</li>
+        <li>To revoke one connection, swipe it in Settings, then Connections, and choose Revoke.</li>
+        <li>
+          To remove AgentDesk from a machine, run <code>agentdesk uninstall</code>. It revokes the
+          machine's connections and removes the token, the skill, and the hooks from each harness's
+          configuration.
+        </li>
+        <li>To get a copy of your data or have it deleted, email <a href={mailto}>{PRIVACY_CONTACT}</a>.</li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="children">
+      <h2 id="children">Children</h2>
+      <p>AgentDesk is not directed at children under 13.</p>
+    </section>
+
+    <section aria-labelledby="contact">
+      <h2 id="contact">Contact</h2>
+      <p>
+        Questions about this policy or your data go to <a href={mailto}>{PRIVACY_CONTACT}</a>.
+      </p>
+    </section>
+  </main>
+
+  <SiteFooter />
+</Base>

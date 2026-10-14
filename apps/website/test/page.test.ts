@@ -151,6 +151,11 @@ describe("content", () => {
     expect(html).toMatch(/MIT license<\/a>\. <a /);
   });
 
+  test("links the privacy policy from the footer (AC-3.9)", () => {
+    const footer = html.match(/<footer[\s\S]*<\/footer>/)?.[0] ?? "";
+    expect(footer).toContain('<a href="/privacy">Privacy</a>');
+  });
+
   test("states early development and carries no app store links (AC-1.6)", () => {
     expect(text()).toContain("AgentDesk is in early development.");
     expect(html).not.toMatch(/apps\.apple\.com|play\.google\.com/);
