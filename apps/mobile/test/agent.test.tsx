@@ -235,6 +235,33 @@ describe("agent screen", () => {
     expect(screen.getByText("No pending decisions.")).toBeOnTheScreen();
   });
 
+  test("a pending decision answered in chat leaves the pending list when the query drops it", async () => {
+    setQuery(get, (args: { agentSessionId: string }) => detail(args.agentSessionId));
+    await openAgent();
+    expect(
+      await screen.findByRole("button", { name: "Decision: Keep the old endpoint?" }),
+    ).toBeOnTheScreen();
+
+    act(() =>
+      setQuery(get, (args: { agentSessionId: string }) =>
+        detail(args.agentSessionId, {
+          pending_decisions: [
+            decision({ id: "d_9", title: "Refund partial orders?", priority: "urgent" }),
+          ],
+          pending_decision_count: 1,
+        }),
+      ),
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Decision: Keep the old endpoint?" }),
+    ).not.toBeOnTheScreen();
+    expect(
+      screen.getByRole("button", { name: "Decision: Refund partial orders?" }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("1 pending decision")).toBeOnTheScreen();
+  });
+
   test("a missing or foreign session shows the not-found state", async () => {
     setQuery(get, new ConvexError({ code: "not_found", message: "Agent session not found" }));
 

@@ -118,6 +118,17 @@ const useStyles = makeStyles(() => ({
   note: { marginTop: 10 },
 }));
 
+export const CHAT_MESSAGE_LABEL = "Your message in chat";
+
+// The user's chat message for a decision answered in chat, or null for any
+// other settlement (req-decision-requests AC-8.3; DEC-13).
+export function chatMessageOf(decision: {
+  answered_via: AnsweredVia | null;
+  chat_message: string | null;
+}): string | null {
+  return decision.answered_via === "chat" ? decision.chat_message : null;
+}
+
 // What the banner says, as lines: the outcome, the answer when the title
 // alone does not say it, and how and when the decision was settled.
 function outcomeLines(decision: Decision, now: number) {
@@ -153,8 +164,9 @@ export function describeOutcome(decision: Decision, now: number): string {
 
 // A settled decision's recorded outcome, read-only: a colored banner naming
 // the outcome, the answer when the title alone does not say it, how and when
-// it was settled, and the note in a card (req-decision-requests REQ-4,
-// AC-4.3, AC-5.1, AC-5.2). Answered, expired with its default applied,
+// it was settled, the user's chat message in a card for an answer given in
+// chat, and the note in a card (req-decision-requests REQ-4, AC-4.3, AC-5.1,
+// AC-5.2, AC-8.3). Answered, expired with its default applied,
 // expired without an answer, and cancelled each read differently. Apple HIG
 // VoiceOver: the banner is one header element whose label reads all of it,
 // so the outcome is never split across swipes and the headings rotor finds
@@ -164,6 +176,7 @@ export function SettledOutcome({ decision, now }: { decision: Decision; now: num
   const theme = useTheme();
   const { outcome, detail, how } = outcomeLines(decision, now);
   const color = outcomeColor(theme, outcome.tone);
+  const chatMessage = chatMessageOf(decision);
   return (
     <View>
       <View
@@ -192,6 +205,18 @@ export function SettledOutcome({ decision, now }: { decision: Decision; now: num
           )}
         </View>
       </View>
+      {chatMessage === null ? null : (
+        // component-mobile-app §Screens, Answers given in chat: the message
+        // in full as plain text, never rendered as Markdown, so it reads
+        // exactly as the user typed it. The card is one element whose label
+        // reads the message.
+        <Card accessibilityLabel={`${CHAT_MESSAGE_LABEL}: ${chatMessage}`} style={styles.note}>
+          <AppText variant="footnote" tone="secondary">
+            {CHAT_MESSAGE_LABEL}
+          </AppText>
+          <AppText>{chatMessage}</AppText>
+        </Card>
+      )}
       {decision.note === null ? null : (
         <Card style={styles.note}>
           <AppText variant="footnote" tone="secondary">
