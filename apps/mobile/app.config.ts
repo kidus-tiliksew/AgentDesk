@@ -13,7 +13,7 @@ const config: ExpoConfig = {
   name: "AgentDesk",
   slug: "agentdesk",
   scheme: "agentdesk",
-  version: "0.1.0",
+  version: "1.0",
   orientation: "portrait",
   userInterfaceStyle: "automatic",
   // The Prompt bubble mark on the Indigo Ink gradient. iOS masks the square
@@ -23,6 +23,10 @@ const config: ExpoConfig = {
   icon: "./assets/icon.png",
   ios: {
     bundleIdentifier: "sh.kidus.agentdesk",
+    // The app uses only the encryption iOS provides (HTTPS and the Keychain),
+    // which is exempt from export documentation, so App Store Connect asks no
+    // encryption question per build.
+    config: { usesNonExemptEncryption: false },
     icon: {
       light: "./assets/icon.png",
       dark: "./assets/icon-dark.png",
