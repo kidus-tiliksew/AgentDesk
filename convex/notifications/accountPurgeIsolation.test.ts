@@ -4,6 +4,7 @@ import { identity } from "../identity/refs";
 import { CANCELLATION_STOPPED } from "./accountPurge";
 import { deliverPush, pushNotifications } from "./push";
 import { notifications } from "./refs";
+import { RETENTION_MS } from "./retention";
 import {
   pendingDrains,
   queued,
@@ -621,4 +622,81 @@ describe("the sign-out cutoff beyond one transaction, measured", () => {
     expect(await tokenHistory(t, "ExponentPushToken[a]")).toHaveLength(0);
     expect(await tokenRecords(t, userA)).toHaveLength(0);
   });
+});
+
+// component-notifications §Push history retention and §Account deletion:
+// retention keeps an install's history short, so account deletion's
+// in-transaction cutoff applies to it.
+describe("account deletion after retention", () => {
+  test(
+    "a history retention reduced below 1,000 has its queued and retrying sends cancelled in the deletion transaction",
+    async () => {
+      const { t, userA, asA } = await setup();
+      await register(asA, "install-a", "ExponentPushToken[a]");
+      await queueHistory(t, userA, "install-a", 1500);
+      await runUntil(t, async () => sent.length === 1500);
+
+      // Expo refuses the next push, so the component waits to retry it.
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_url: string, init?: RequestInit) => {
+          const messages = JSON.parse(String(init?.body ?? "[]")) as unknown[];
+          return new Response(
+            JSON.stringify({
+              data: messages.map(() => ({ status: "error", message: "MessageRateExceeded" })),
+            }),
+          );
+        }),
+      );
+      await queuePush(t, userA, "Retrying");
+      for (let i = 0; i < 20; i++) {
+        const rows = await tokenHistory(t, "ExponentPushToken[a]");
+        if (rows.some((row) => row.state === "needs_retry")) {
+          break;
+        }
+        await runScheduled(t, 300);
+      }
+      await queuePush(t, userA, "Queued");
+      const before = await tokenHistory(t, "ExponentPushToken[a]");
+      expect(before.slice(0, 2).map((row) => row.state)).toEqual([
+        "awaiting_delivery",
+        "needs_retry",
+      ]);
+      expect(before).toHaveLength(1502);
+
+      // A day later, retention deletes the oldest page of 1,000 settled
+      // notifications. The next page holds the queued and retrying sends, so
+      // it stays. Its steps run without moving the clock, so the component's
+      // coordinator does not retry the send.
+      vi.setSystemTime(Date.now() + RETENTION_MS + 60 * 60_000);
+      await t.mutation(notifications.retention.sweep, {});
+      const pendingRetention = () =>
+        t.run(async (ctx) =>
+          (await ctx.db.system.query("_scheduled_functions").collect()).filter(
+            (job) => job.name.startsWith("notifications/retention") && job.state.kind === "pending",
+          ),
+        );
+      for (let i = 0; i < 20 && (await pendingRetention()).length > 0; i++) {
+        await runScheduled(t, 0);
+      }
+      expect(await pendingRetention()).toHaveLength(0);
+      const after = await tokenHistory(t, "ExponentPushToken[a]");
+      expect(after).toHaveLength(502);
+      expect(after.slice(0, 2).map((row) => row.state)).toEqual([
+        "awaiting_delivery",
+        "needs_retry",
+      ]);
+
+      // The deletion transaction cancels everything left, the queued and the
+      // retrying send included, with no drain.
+      await asA.mutation(identity.accountDeletion.deleteAccount, {});
+      expect(await tokenHistory(t, "ExponentPushToken[a]")).toHaveLength(0);
+      expect(await tokenRecords(t, userA)).toHaveLength(0);
+      expect(await pendingDrains(t)).toHaveLength(0);
+      const sentBefore = sent.length;
+      await runUntil(t, async () => false, 10);
+      expect(sent).toHaveLength(sentBefore);
+    },
+    HEAVY_TEST_TIMEOUT_MS,
+  );
 });

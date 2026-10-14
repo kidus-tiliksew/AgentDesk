@@ -6,6 +6,7 @@ import {
   COMPONENT_PAGE,
   DRAIN_FAST_LOOKS,
   DRAIN_SLOW_RETRY_MS,
+  deleteCheckedPages,
   HISTORY_READ_LIMIT,
   purgeNotifications,
 } from "./accountPurge";
@@ -755,5 +756,77 @@ describe("purgeNotifications", () => {
     expect(left.rules).toHaveLength(0);
     expect(left.digests).toHaveLength(0);
     expect(left.deliveries.map((row) => row.eventId)).toEqual([eventB]);
+  });
+});
+
+// The read-before-delete primitive that cancellation and retention share
+// (§Account deletion, §Push history retention).
+describe("deleteCheckedPages", () => {
+  test("deletes only a page its check accepts and removes the private key on every outcome", async () => {
+    const { t, userA, asA } = await setup();
+    await register(asA, "install-a", "ExponentPushToken[a]");
+    await queuePush(t, userA, "First");
+    await queuePush(t, userA, "Second");
+    const [record] = await tokenRecords(t, userA);
+    if (record === undefined) {
+      throw new Error("No token record");
+    }
+    const key = `test-key:${record._id}`;
+
+    const outcomes = await t.run(async (ctx) => {
+      const keyHeld = async () =>
+        (await pushNotifications.getStatusForUser(ctx, { userId: key })).hasToken;
+      const options = { keyPrefix: "test-key:", limit: 10, pages: 1 };
+      const seen: unknown[] = [];
+
+      // A check that throws deletes nothing and still removes the key.
+      await expect(
+        deleteCheckedPages(ctx, record, {
+          ...options,
+          check: async () => {
+            throw new Error("check failed");
+          },
+        }),
+      ).rejects.toThrow("check failed");
+      seen.push(await keyHeld());
+
+      // A read that reaches its limit deletes nothing.
+      const overLimit = await deleteCheckedPages(ctx, record, {
+        ...options,
+        limit: 2,
+        check: async () => null,
+      });
+      seen.push(overLimit.outcome, await keyHeld());
+
+      // A refused page is kept, with the check's reason.
+      const blocked = await deleteCheckedPages(ctx, record, {
+        ...options,
+        check: async (_ctx, page) => (page.length === 2 ? "refused" : null),
+      });
+      seen.push(blocked.outcome, blocked.outcome === "blocked" && blocked.reason, await keyHeld());
+
+      // An accepted page is deleted.
+      const deleted = await deleteCheckedPages(ctx, record, {
+        ...options,
+        check: async () => null,
+      });
+      seen.push(deleted.outcome, deleted.outcome === "deleted" && deleted.deleted, await keyHeld());
+      return seen;
+    });
+
+    expect(outcomes).toEqual([
+      false,
+      "overLimit",
+      false,
+      "blocked",
+      "refused",
+      false,
+      "deleted",
+      1,
+      false,
+    ]);
+    expect(await queued(t, "install-a")).toHaveLength(0);
+    // The install's own key still holds its token.
+    expect(await tokenStatus(t, "install-a")).toMatchObject({ hasToken: true });
   });
 });
