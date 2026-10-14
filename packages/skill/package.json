@@ -4,10 +4,12 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./agentdesk/SKILL.md": "./agentdesk/SKILL.md"
+    "./agentdesk/SKILL.md": "./agentdesk/SKILL.md",
+    "./agentdesk/GUIDANCE.md": "./agentdesk/GUIDANCE.md"
   },
   "files": [
-    "agentdesk/SKILL.md"
+    "agentdesk/SKILL.md",
+    "agentdesk/GUIDANCE.md"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
