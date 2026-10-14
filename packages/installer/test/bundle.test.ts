@@ -185,9 +185,10 @@ describe("bundle dist/agentdesk.mjs", () => {
     expect(existsSync(join(home, ".config", "agentdesk", "state.json"))).toBe(true);
 
     // The hook's command, run by a shell as Cursor runs it, prints the guidance.
-    const hook = spawnSync("sh", ["-c", command], {
+    // PATH holds node for the bundle's `#!/usr/bin/env node` line; node need not be in /usr/bin.
+    const hook = spawnSync("/bin/sh", ["-c", command], {
       encoding: "utf8",
-      env: { HOME: home, PATH: dirname(process.execPath) },
+      env: { HOME: home, PATH: `${dirname(process.execPath)}:/usr/bin:/bin` },
     });
     expect(hook.status).toBe(0);
     expect(JSON.parse(hook.stdout)).toEqual({ additional_context: read(GUIDANCE_FILE) });
