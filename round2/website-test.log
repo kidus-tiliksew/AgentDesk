@@ -1,0 +1,13 @@
+
+> @agentdesk/website@0.0.0 test /opt/dev/conveyor-worktrees/agentdesk-task-261014-bafaf2/apps/website
+> vitest run
+
+
+ RUN  v4.1.11 /opt/dev/conveyor-worktrees/agentdesk-task-261014-bafaf2/apps/website
+
+
+ Test Files  4 passed (4)
+      Tests  63 passed (63)
+   Start at  09:39:32
+   Duration  1.17s (transform 1.48s, setup 0ms, import 2.12s, tests 83ms, environment 0ms)
+

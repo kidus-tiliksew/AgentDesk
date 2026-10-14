@@ -200,7 +200,7 @@
         "href": "mailto:kidus.tiliksew@gmail.com",
         "outline": "solid 2px rgb(79, 70, 229)",
         "offset": "2px",
-        "top": 2690
+        "top": 2799
       },
       {
         "tag": "a",
@@ -208,7 +208,7 @@
         "href": "mailto:kidus.tiliksew@gmail.com",
         "outline": "solid 2px rgb(79, 70, 229)",
         "offset": "2px",
-        "top": 2911
+        "top": 3020
       },
       {
         "tag": "a",
@@ -216,7 +216,7 @@
         "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
         "outline": "solid 2px rgb(79, 70, 229)",
         "offset": "2px",
-        "top": 3032
+        "top": 3140
       },
       {
         "tag": "a",
@@ -224,7 +224,7 @@
         "href": "https://github.com/kidus-tiliksew/AgentDesk",
         "outline": "solid 2px rgb(79, 70, 229)",
         "offset": "2px",
-        "top": 3032
+        "top": 3140
       },
       {
         "tag": "a",
@@ -232,7 +232,7 @@
         "href": "/privacy",
         "outline": "solid 2px rgb(79, 70, 229)",
         "offset": "2px",
-        "top": 3032
+        "top": 3140
       }
     ]
   },
@@ -246,7 +246,7 @@
       "screenshot": "screenshots/landing-no-js-1280-light.png"
     },
     "/privacy": {
-      "textLength": 4253,
+      "textLength": 4585,
       "installCommand": null,
       "copyButtonHidden": null,
       "footerPrivacyLink": true,

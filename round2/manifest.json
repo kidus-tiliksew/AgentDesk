@@ -1,0 +1,53 @@
+[
+  {
+    "name": "website-test",
+    "command": "pnpm --filter @agentdesk/website test",
+    "cwd": "/opt/dev/conveyor-worktrees/agentdesk-task-261014-bafaf2",
+    "head": "3c414c2b68be06bb8e19ea147ae4cc178dc724d5",
+    "started": "2026-10-14T09:39:31Z",
+    "ended": "2026-10-14T09:39:34Z",
+    "exit": 0,
+    "log": "website-test.log",
+    "sha256": "b51eaafd0087e8db7175762d385650e9c0fbb7134e8c5b44e4ab0132ab98df0d",
+    "environment": {
+      "os": "Linux 7.0.0-15-generic",
+      "node": "v22.22.2",
+      "pnpm": "10.34.6",
+      "CI": "unset"
+    }
+  },
+  {
+    "name": "website-build",
+    "command": "pnpm --filter @agentdesk/website build",
+    "cwd": "/opt/dev/conveyor-worktrees/agentdesk-task-261014-bafaf2",
+    "head": "3c414c2b68be06bb8e19ea147ae4cc178dc724d5",
+    "started": "2026-10-14T09:39:34Z",
+    "ended": "2026-10-14T09:39:35Z",
+    "exit": 0,
+    "log": "website-build.log",
+    "sha256": "d7f153839c4ef8fae78431497f36ddb9826c3af4170a7be9f947440c0a932a0e",
+    "environment": {
+      "os": "Linux 7.0.0-15-generic",
+      "node": "v22.22.2",
+      "pnpm": "10.34.6",
+      "CI": "unset"
+    }
+  },
+  {
+    "name": "pnpm-check",
+    "command": "pnpm check",
+    "cwd": "/opt/dev/conveyor-worktrees/agentdesk-task-261014-bafaf2",
+    "head": "3c414c2b68be06bb8e19ea147ae4cc178dc724d5",
+    "started": "2026-10-14T09:39:36Z",
+    "ended": "2026-10-14T09:40:47Z",
+    "exit": 0,
+    "log": "pnpm-check.log",
+    "sha256": "dca71dbf9672e649523353d13fa1f4bfa8000009bf5813db279a2a64f3becd91",
+    "environment": {
+      "os": "Linux 7.0.0-15-generic",
+      "node": "v22.22.2",
+      "pnpm": "10.34.6",
+      "CI": "unset"
+    }
+  }
+]
