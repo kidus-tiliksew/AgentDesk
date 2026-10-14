@@ -113,6 +113,9 @@ function runScript(
     });
     child.on("error", reject);
     child.on("close", (status) => resolvePromise({ status, stdout, stderr }));
+    // sh never reads its standard input, and it can exit before the write
+    // lands (an unsupported platform fails at once), so EPIPE is expected.
+    child.stdin.on("error", () => {});
     child.stdin.end(options.input ?? "");
   });
 }
