@@ -31,7 +31,8 @@ export type PushMessage = Pick<NotificationFields, "title" | "body" | "categoryI
 const ROUTING_KEYS = new Set(["eventId", "kind", "decisionId", "agentSessionId", "digestId"]);
 
 // The component notification for `message`, with `routing` laid over the
-// caller's data.
+// caller's data. Every push plays the device's default notification sound;
+// without `sound` the platform delivers it silently. Callers cannot change it.
 function notificationFor(
   message: PushMessage,
   routing: Record<string, unknown>,
@@ -40,6 +41,7 @@ function notificationFor(
   const notification: NotificationFields = {
     title: message.title,
     data: { ...Object.fromEntries(extra), ...routing },
+    sound: "default",
   };
   if (message.body !== undefined) {
     notification.body = message.body;
