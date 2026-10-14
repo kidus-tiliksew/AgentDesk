@@ -4,7 +4,9 @@
 # The gateway serves this file as /install.sh and replaces the placeholder in
 # AGENTDESK_ORIGIN with its PUBLIC_ORIGIN. The script detects the platform,
 # downloads the matching release binary and SHA256SUMS, verifies the checksum,
-# and installs to ~/.local/bin.
+# installs to ~/.local/bin, and runs `agentdesk install` with the script's own
+# arguments, so `curl -fsSL <url> | sh -s -- --only codex` passes `--only codex`
+# on (AC-9.8). It exits with the installer's status.
 #
 # AGENTDESK_DOWNLOAD_BASE overrides the download location (tests use file://).
 set -eu
@@ -81,7 +83,17 @@ esac
 echo ""
 # An unsubstituted copy (run from the repository) names no server.
 if [ "$AGENTDESK_ORIGIN" = "__AGENTDESK_PUBLIC""_ORIGIN__" ]; then
-  echo "Next, run: agentdesk install"
+  set -- install "$@"
 else
-  echo "Next, run: agentdesk install --server ${AGENTDESK_ORIGIN}"
+  set -- install --server "$AGENTDESK_ORIGIN" "$@"
 fi
+
+# Standard input is the terminal when one can be opened, otherwise /dev/null,
+# so the installer never reads the rest of a script piped into sh.
+status=0
+if (: </dev/tty) 2>/dev/null; then
+  "${INSTALL_DIR}/agentdesk" "$@" </dev/tty || status=$?
+else
+  "${INSTALL_DIR}/agentdesk" "$@" </dev/null || status=$?
+fi
+exit "$status"

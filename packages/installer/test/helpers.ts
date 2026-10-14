@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   chmodSync,
   existsSync,
@@ -14,11 +15,12 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runCli } from "../src/cli.js";
-import { type Context, type Runner, redactingIo } from "../src/context.js";
+import { type Context, type Runner, redactingIo, type Timer } from "../src/context.js";
 import { HARNESSES, type Harness } from "../src/harnesses.js";
 
 export const PACKAGE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const SKILL_FILE = resolve(PACKAGE_DIR, "..", "skill", "agentdesk", "SKILL.md");
+export const GUIDANCE_FILE = resolve(PACKAGE_DIR, "..", "skill", "agentdesk", "GUIDANCE.md");
 export const SERVER = "https://agentdesk.test";
 export const HOSTNAME = "devbox-1";
 
@@ -31,6 +33,8 @@ export interface Sandbox {
   home: string;
   bin: string;
   log: string;
+  /** The agentdesk executable path the sandbox's runs report; it need not exist. */
+  executable: string;
   env: Record<string, string>;
 }
 
@@ -45,7 +49,15 @@ export function makeSandbox(): Sandbox {
   mkdirSync(home, { recursive: true });
   mkdirSync(bin, { recursive: true });
   const log = join(root, "commands.log");
-  return { root, home, bin, log, env: { HOME: home, PATH: bin, AGENTDESK_TEST_LOG: log } };
+  const executable = join(root, "app", "agentdesk");
+  return {
+    root,
+    home,
+    bin,
+    log,
+    executable,
+    env: { HOME: home, PATH: bin, AGENTDESK_TEST_LOG: log },
+  };
 }
 
 export function cleanupSandboxes(): void {
@@ -77,6 +89,35 @@ export function invocations(sandbox: Sandbox): Invocation[] {
     .split("\n")
     .filter((line) => line.length > 0)
     .map((line) => JSON.parse(line) as Invocation);
+}
+
+/** Invocations other than `codex app-server`, which reads and never writes. */
+export function writingInvocations(sandbox: Sandbox): Invocation[] {
+  return invocations(sandbox).filter((i) => !(i.name === "codex" && i.args[0] === "app-server"));
+}
+
+/** The JSON-RPC messages the stub `codex app-server` received. */
+export function appServerMessages(sandbox: Sandbox): Record<string, unknown>[] {
+  const file = `${sandbox.log}.rpc`;
+  if (!existsSync(file)) return [];
+  return readFileSync(file, "utf8")
+    .trim()
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
+/** The hash the stub `codex app-server` reports; it matches test/fixtures/fake-harness.mjs. */
+export function codexHookHash(
+  matcher: string | undefined,
+  handler: { type?: string; command?: string },
+): string {
+  const definition = JSON.stringify([
+    matcher ?? null,
+    handler.type ?? null,
+    handler.command ?? null,
+  ]);
+  return `sha256:${createHash("sha256").update(definition).digest("hex")}`;
 }
 
 /** Runs harness CLIs with the sandbox environment, never the real HOME. */
@@ -114,10 +155,36 @@ export interface RecordedRequest {
 export class FakeClock {
   now = 0;
   sleeps: number[] = [];
+  private timers: { at: number; fire: () => void }[] = [];
   sleep = async (ms: number) => {
     this.sleeps.push(ms);
-    this.now += ms;
+    this.advance(ms);
   };
+  /** Moves the clock forward and fires every timer that is then due. */
+  advance(ms: number): void {
+    this.now += ms;
+    const due = this.timers.filter((t) => t.at <= this.now);
+    this.timers = this.timers.filter((t) => t.at > this.now);
+    for (const timer of due) timer.fire();
+  }
+  startTimer = (ms: number): Timer => {
+    let fire = () => {};
+    const promise = new Promise<void>((resolvePromise) => {
+      fire = resolvePromise;
+    });
+    const timer = { at: this.now + ms, fire };
+    this.timers.push(timer);
+    return {
+      promise,
+      cancel: () => {
+        this.timers = this.timers.filter((t) => t !== timer);
+      },
+    };
+  };
+  /** Timers started and neither fired nor cancelled. */
+  get pendingTimers(): number {
+    return this.timers.length;
+  }
 }
 
 export class FakeGateway {
@@ -249,6 +316,8 @@ export interface ContextOptions {
   env?: Record<string, string>;
   gateway?: FakeGateway;
   clock?: FakeClock;
+  executable?: string;
+  guidance?: string;
 }
 
 /** Builds a context against the sandbox, a fake gateway, and a fake clock. */
@@ -289,6 +358,9 @@ export function makeContext(sandbox: Sandbox, options: ContextOptions = {}): Har
     skill: options.skill ?? { content: readFileSync(SKILL_FILE, "utf8"), version: "1.0.0" },
     defaultServer: "defaultServer" in options ? options.defaultServer : SERVER,
     harnesses: options.harnesses ?? HARNESSES,
+    guidance: options.guidance ?? readFileSync(GUIDANCE_FILE, "utf8"),
+    executable: options.executable ?? sandbox.executable,
+    startTimer: clock.startTimer,
     secrets,
   };
   return {

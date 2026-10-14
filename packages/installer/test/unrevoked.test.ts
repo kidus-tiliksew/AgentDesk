@@ -272,5 +272,14 @@ describe("recovery records stay until the person forgets them", () => {
     );
     expect(await h.run(["uninstall"])).toBe(1);
     expect(h.err.join("\n")).toContain("unreadable connectionId for codex");
+    for (const field of ["hookPath", "codexTrustKey"]) {
+      write(
+        file,
+        JSON.stringify({ ...state, harnesses: { ...state.harnesses, codex: { [field]: ["x"] } } }),
+      );
+      const refused = makeContext(sandbox, { gateway, clock });
+      expect(await refused.run(["install", "--yes"])).toBe(1);
+      expect(refused.err.join("\n")).toContain(`unreadable ${field} for codex`);
+    }
   });
 });

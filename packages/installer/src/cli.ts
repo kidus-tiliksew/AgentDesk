@@ -11,8 +11,14 @@ import {
   uninstall,
 } from "./commands.js";
 import { type Context, InstallerError, type Io, type Runner, redactingIo } from "./context.js";
-import { DEFAULT_SERVER_ORIGIN, EMBEDDED_SKILL, INSTALLER_VERSION } from "./defaults.js";
-import { HARNESS_IDS, HARNESSES, type HarnessId, isHarnessId } from "./harnesses.js";
+import {
+  DEFAULT_SERVER_ORIGIN,
+  EMBEDDED_GUIDANCE,
+  EMBEDDED_SKILL,
+  INSTALLER_VERSION,
+} from "./defaults.js";
+import { printContext, runningExecutable } from "./guidance.js";
+import { HARNESS_IDS, HARNESSES, type HarnessId, harnessById, isHarnessId } from "./harnesses.js";
 
 export const USAGE = `Usage: agentdesk <command>
 
@@ -20,9 +26,14 @@ Commands:
   install [--server <url>] [--only <harnesses>] [--yes]
                      Detect Claude Code, Codex, and Cursor, sign each in with a
                      short code approved in the AgentDesk app, and install the
-                     MCP connection and the skill.
-  skill install      Install or update only the skill for every detected harness.
-  status             Show each recorded harness, its connection, and its skill version.
+                     MCP connection, the skill, and the session-start hook.
+  skill install      Install or update only the skill and the session-start hook
+                     for every detected harness.
+  context --harness <id>
+                     Print the AgentDesk guidance a session starts with; the
+                     session-start hook runs this.
+  status             Show each recorded harness, its connection, its skill
+                     version, and its hook.
   forget <connection-id>
                      Forget a connection the installer could not revoke, after
                      you revoked it in the AgentDesk app under Settings →
@@ -94,6 +105,26 @@ export async function runCli(argv: readonly string[], ctx: Context): Promise<num
         if (rest.length !== 1 || rest[0] !== "install")
           throw usageError("Use: agentdesk skill install");
         return await skillInstall(ctx);
+      }
+      case "context": {
+        let harness: string | undefined;
+        try {
+          harness = parseArgs({
+            args: rest,
+            strict: true,
+            allowPositionals: false,
+            options: { harness: { type: "string" } },
+          }).values.harness;
+        } catch (error) {
+          throw usageError(error);
+        }
+        if (harness === undefined) throw usageError("Use: agentdesk context --harness <id>");
+        if (!isHarnessId(harness)) {
+          throw usageError(
+            `Unknown harness ${JSON.stringify(harness)}. Use ${HARNESS_IDS.join(", ")}.`,
+          );
+        }
+        return printContext(ctx, harnessById(ctx, harness));
       }
       case "status":
         if (rest.length > 0) throw usageError("status takes no arguments.");
@@ -178,8 +209,8 @@ export function createNodeContext(): Context {
         }
       : {}),
   };
-  if (!EMBEDDED_SKILL)
-    throw new Error("this build carries no skill; build it with scripts/build.mjs");
+  if (!EMBEDDED_SKILL || EMBEDDED_GUIDANCE === undefined)
+    throw new Error("this build carries no skill or guidance; build it with scripts/build.mjs");
   return {
     env: process.env,
     home: process.env.HOME && process.env.HOME.length > 0 ? process.env.HOME : homedir(),
@@ -192,6 +223,8 @@ export function createNodeContext(): Context {
     skill: EMBEDDED_SKILL,
     defaultServer: DEFAULT_SERVER_ORIGIN,
     harnesses: HARNESSES,
+    guidance: EMBEDDED_GUIDANCE,
+    executable: runningExecutable(),
     secrets,
   };
 }

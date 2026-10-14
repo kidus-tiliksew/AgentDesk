@@ -15,6 +15,13 @@ export function isHarnessId(value: string): value is HarnessId {
 
 export type ConfigFormat = "claude" | "codex-toml" | "cursor-json";
 
+/**
+ * Shape of the session-start hook file: `hooks.SessionStart` groups for
+ * Claude Code and Codex, `hooks.sessionStart` entries for Cursor
+ * (component-installer §Standing guidance).
+ */
+export type HookFormat = "session-start-groups" | "cursor";
+
 export interface Harness {
   id: HarnessId;
   displayName: string;
@@ -31,6 +38,9 @@ export interface Harness {
   skillDir(ctx: Context): string;
   /** The base directory the skill folder must stay inside: the home directory or CODEX_HOME. */
   skillAnchor(ctx: Context): string;
+  hookFormat: HookFormat;
+  /** The user-level file that holds the session-start hook. */
+  hookPath(ctx: Context): string;
 }
 
 export function codexHome(ctx: Context): string {
@@ -39,7 +49,8 @@ export function codexHome(ctx: Context): string {
   return join(ctx.home, ".codex");
 }
 
-// component-installer §Harnesses: detection, MCP entry location, and skill path.
+// component-installer §Harnesses and §Standing guidance: detection, MCP entry
+// location, skill path, and session-start hook file.
 export const HARNESSES: readonly Harness[] = [
   {
     id: "claude-code",
@@ -51,6 +62,8 @@ export const HARNESSES: readonly Harness[] = [
     configPath: (ctx) => join(ctx.home, ".claude.json"),
     skillDir: (ctx) => join(ctx.home, ".claude", "skills", "agentdesk"),
     skillAnchor: (ctx) => ctx.home,
+    hookFormat: "session-start-groups",
+    hookPath: (ctx) => join(ctx.home, ".claude", "settings.json"),
   },
   {
     id: "codex",
@@ -62,6 +75,8 @@ export const HARNESSES: readonly Harness[] = [
     configPath: (ctx) => join(codexHome(ctx), "config.toml"),
     skillDir: (ctx) => join(codexHome(ctx), "skills", "agentdesk"),
     skillAnchor: (ctx) => codexHome(ctx),
+    hookFormat: "session-start-groups",
+    hookPath: (ctx) => join(codexHome(ctx), "hooks.json"),
   },
   {
     id: "cursor",
@@ -73,6 +88,8 @@ export const HARNESSES: readonly Harness[] = [
     configPath: (ctx) => join(ctx.home, ".cursor", "mcp.json"),
     skillDir: (ctx) => join(ctx.home, ".cursor", "skills", "agentdesk"),
     skillAnchor: (ctx) => ctx.home,
+    hookFormat: "cursor",
+    hookPath: (ctx) => join(ctx.home, ".cursor", "hooks.json"),
   },
 ];
 
