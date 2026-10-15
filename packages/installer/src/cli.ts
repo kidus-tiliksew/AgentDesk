@@ -26,6 +26,7 @@ import {
 } from "./defaults.js";
 import { printContext, runningExecutable } from "./guidance.js";
 import { HARNESS_IDS, HARNESSES, type HarnessId, harnessById, isHarnessId } from "./harnesses.js";
+import { parseHookArgs, parseWaitArgs, runHook, runWait } from "./resume/commands.js";
 
 export const USAGE = `Usage: agentdesk <command>
 
@@ -39,6 +40,12 @@ Commands:
   context --harness <id>
                      Print the AgentDesk guidance a session starts with; the
                      session-start hook runs this.
+  wait --harness <id> [--codex-thread <thread>] <decision-id>
+                     Wait on one decision and resume its agent session when it
+                     settles outside the chat.
+  hook <event> --harness <id>
+                     Run a resume hook: stop for Codex and Cursor, after-mcp
+                     for Cursor. The installer's hooks run this.
   status             Show each recorded harness, its connection, its skill
                      version, and its hook.
   forget <connection-id>
@@ -132,6 +139,24 @@ export async function runCli(argv: readonly string[], ctx: Context): Promise<num
           );
         }
         return printContext(ctx, harnessById(ctx, harness));
+      }
+      case "wait": {
+        let options: ReturnType<typeof parseWaitArgs>;
+        try {
+          options = parseWaitArgs(rest);
+        } catch (error) {
+          throw usageError(error);
+        }
+        return await runWait(ctx, options);
+      }
+      case "hook": {
+        let options: ReturnType<typeof parseHookArgs>;
+        try {
+          options = parseHookArgs(rest);
+        } catch (error) {
+          throw usageError(error);
+        }
+        return await runHook(ctx, options);
       }
       case "status":
         if (rest.length > 0) throw usageError("status takes no arguments.");

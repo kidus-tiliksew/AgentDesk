@@ -1,0 +1,10 @@
+{
+  "session_id": "019a1b2c-3d4e-7f00-8a9b-0c1d2e3f4a5b",
+  "transcript_path": "__TRANSCRIPT__",
+  "cwd": "/work/app",
+  "hook_event_name": "Stop",
+  "model": "gpt-5.5",
+  "turn_id": "turn_1",
+  "stop_hook_active": false,
+  "last_assistant_message": "I asked on AgentDesk."
+}
