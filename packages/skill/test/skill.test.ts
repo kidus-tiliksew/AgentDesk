@@ -22,8 +22,8 @@ const GATEWAY_TOOLS_PATH = fileURLToPath(
 
 const SECTIONS = ["Topic", "When to ask", "How to ask", "Waiting", "Status"] as const;
 
-// The body stays under 120 lines: 119 passes and 120 fails.
-const MAX_BODY_LINES = 119;
+// The body stays under 140 lines: 139 passes and 140 fails.
+const MAX_BODY_LINES = 139;
 
 const EXPECTED_TOOL_COUNT = 6;
 
@@ -47,8 +47,9 @@ const CONFIRMED_GUIDANCE = [
 // Identifiers the skill and the guidance may write as standalone inline code
 // without naming a tool: the gateway's argument and result fields, the topic
 // environment variable, the enumerated input-type, answer-kind,
-// decision-state, status-state, and priority values, and `agentdesk`, the name
-// of the MCP server and the skill. Any other standalone identifier in inline
+// decision-state, status-state, and priority values, `agentdesk`, the name of
+// the MCP server, the skill, and the command, and the Claude Code tools the
+// Waiting section starts and stops. Any other standalone identifier in inline
 // code must be a tool name.
 const SCHEMA_FIELDS = [
   "title",
@@ -84,6 +85,10 @@ const SCHEMA_FIELDS = [
 ];
 const ENVIRONMENT_IDENTIFIERS = ["AGENTDESK_TOPIC"];
 const SERVER_AND_SKILL_NAMES = ["agentdesk"];
+// Claude Code's own tools, which resume mode uses to run and stop the waiter
+// (component-agent-skill §Skill file). They are not gateway tools, so prose
+// such as "the `Monitor` tool" still fails the six-tool check.
+const CLAUDE_CODE_TOOLS = ["Monitor", "TaskStop"];
 const ENUM_VALUES = [
   "approve_reject",
   "single_choice",
@@ -111,6 +116,7 @@ const NON_TOOL_IDENTIFIERS = new Set([
   ...ENVIRONMENT_IDENTIFIERS,
   ...ENUM_VALUES,
   ...SERVER_AND_SKILL_NAMES,
+  ...CLAUDE_CODE_TOOLS,
 ]);
 
 // English function words that may follow "call" or precede "tool" in prose,
@@ -579,16 +585,99 @@ describe("delivered SKILL.md", () => {
     expect(validateSkill(raw, TOOL_NAMES)).toEqual([]);
   });
 
-  it("keeps the body under 120 lines", () => {
+  it("keeps the body under 140 lines", () => {
     const split = splitSkill(raw);
     expect(split).not.toBeNull();
-    expect(bodyLineCount(split?.body ?? "")).toBeLessThan(120);
+    expect(bodyLineCount(split?.body ?? "")).toBeLessThan(140);
   });
 
   it("names every tool in inline code", () => {
     for (const name of TOOL_NAMES) {
       expect(raw).toContain(`\`${name}\``);
     }
+  });
+});
+
+// component-agent-skill §Skill file, Waiting row: resume mode and await mode
+// (req-installation-and-agent-guidance AC-11.1 to AC-11.3, AC-12.8, REQ-7).
+describe("delivered Waiting section", () => {
+  const text = readFileSync(SKILL_PATH, "utf8").replace(/\r\n?/g, "\n");
+  const start = text.indexOf("\n## Waiting\n");
+  const end = text.indexOf("\n## Status\n");
+  const waiting = text.slice(start, end);
+
+  it("is the section between How to ask and Status", () => {
+    expect(start).toBeGreaterThan(text.indexOf("\n## How to ask\n"));
+    expect(end).toBeGreaterThan(start);
+  });
+
+  it("enters resume mode only when the session, harness, and binary all qualify", () => {
+    expect(waiting).toContain("Resume mode applies when all three hold:");
+    expect(waiting).toContain("- The session is interactive.");
+    expect(waiting).toContain("- The harness is Claude Code, Codex, or Cursor.");
+    expect(waiting).toContain("- `command -v agentdesk` finds the installed binary.");
+    expect(waiting).toContain("Await mode applies in every other session.");
+  });
+
+  it("reports waiting, starts the Claude Code waiter, and ends the turn without await", () => {
+    expect(waiting).toContain("Call `status` with `state` set to `waiting`.");
+    expect(waiting).toContain(
+      "In Claude Code, start `Monitor` with the command `agentdesk wait --harness claude-code <decision_id>`, a description that names the question, and the maximum timeout of 30 minutes.",
+    );
+    expect(waiting).toContain("When it expires without an event, start it again the same way.");
+    expect(waiting).toContain(
+      "In Codex and Cursor, start nothing. The installed hooks resume the session.",
+    );
+    expect(waiting).toContain("End your turn without calling `await`.");
+  });
+
+  it("reads a settled decision with check and states its answer and surface first", () => {
+    expect(waiting).toContain(
+      "A turn that begins with `AgentDesk decision <id> settled` is a resume. Call `check` with that id in `decision_ids`.",
+    );
+    expect(waiting).toContain(
+      "In your first chat message, state the answer and where it was given, from `answered_via`. Then act on it.",
+    );
+  });
+
+  it("keeps await mode for every other session", () => {
+    expect(waiting).toContain("Set `timeout_seconds` to 60 when the session is interactive");
+    expect(waiting).toContain("Otherwise use a value up to 600.");
+    expect(waiting).toContain(
+      "When it returns `pending`, call `await` again with the same `decision_id`.",
+    );
+    expect(waiting).toContain(
+      "never ask the same question twice, and never create a second decision while the first is `pending`.",
+    );
+    expect(waiting).toContain(
+      "An `expired` decision with `applied_by_default` carries the `default`",
+    );
+    expect(waiting).toContain("may call `check` with `decision_ids` between tasks");
+  });
+
+  it("relays a chat answer word for word in either mode and stops the waiter", () => {
+    expect(waiting).toContain(
+      "When a chat message arrives while the decision is `pending`, in either mode:",
+    );
+    expect(waiting).toContain(
+      "call `resolve` with the `decision_id`, the `answer`, and `chat_message` holding the user's message word for word.",
+    );
+    expect(waiting).toContain("In Claude Code, stop the running `Monitor` with `TaskStop`.");
+    expect(waiting).toContain("Never relay an answer the user did not write.");
+    expect(waiting).toContain(
+      "If `resolve` is rejected because the decision is already settled, act on the `answer` in the decision it returns.",
+    );
+  });
+
+  it("leaves a non-answer pending and cancels a moot question", () => {
+    expect(waiting).toContain(
+      "If it does not answer the decision, handle the message and leave the decision pending.",
+    );
+    expect(waiting).toContain("In await mode, call `await` again with the same `decision_id`.");
+    expect(waiting).toContain("In resume mode, end your turn again");
+    expect(waiting).toContain(
+      "When the message makes the question moot, call `cancel` with the `decision_id` instead.",
+    );
   });
 });
 
@@ -618,7 +707,7 @@ describe("package export", () => {
     const split = splitSkill(readFileSync(resolved, "utf8"));
     const data: unknown = parseYaml(split?.frontmatter ?? "");
     const version = isRecord(data) && isRecord(data.metadata) ? data.metadata.version : undefined;
-    expect(version).toBe("2.0.0");
+    expect(version).toBe("2.1.0");
   });
 
   it("resolves @agentdesk/skill/agentdesk/GUIDANCE.md to the guidance file", () => {
@@ -663,19 +752,21 @@ describe("validator fixtures", () => {
     expect(bodyLineCount("")).toBe(0);
   });
 
-  it("accepts a 119-line body", () => {
-    expect(validateSkill(withBodyLines(VALID_FIXTURE, 119), TOOL_NAMES)).toEqual([]);
+  it("accepts a 139-line body, with LF or CRLF line endings", () => {
+    const fixture = withBodyLines(VALID_FIXTURE, 139);
+    expect(validateSkill(fixture, TOOL_NAMES)).toEqual([]);
+    expect(validateSkill(fixture.replaceAll("\n", "\r\n"), TOOL_NAMES)).toEqual([]);
   });
 
-  it("rejects a 120-line body", () => {
-    expect(validateSkill(withBodyLines(VALID_FIXTURE, 120), TOOL_NAMES)).toEqual([
-      "body has 120 lines; the limit is 119",
+  it("rejects a 140-line body", () => {
+    expect(validateSkill(withBodyLines(VALID_FIXTURE, 140), TOOL_NAMES)).toEqual([
+      "body has 140 lines; the limit is 139",
     ]);
   });
 
-  it("rejects a 120-line body written with CRLF line endings", () => {
-    const fixture = withBodyLines(VALID_FIXTURE, 120).replaceAll("\n", "\r\n");
-    expect(validateSkill(fixture, TOOL_NAMES)).toEqual(["body has 120 lines; the limit is 119"]);
+  it("rejects a 140-line body written with CRLF line endings", () => {
+    const fixture = withBodyLines(VALID_FIXTURE, 140).replaceAll("\n", "\r\n");
+    expect(validateSkill(fixture, TOOL_NAMES)).toEqual(["body has 140 lines; the limit is 139"]);
   });
 
   it.each(SECTIONS.map((section) => [section]))("rejects a missing %s section", (section) => {
@@ -785,6 +876,16 @@ describe("validator fixtures", () => {
     ],
     ["prose tool", "Use the askuser tool.", 'unknown tool "askuser" in prose "NAME tool"'],
     [
+      "prose tool of a Claude Code tool",
+      "Start the `Monitor` tool.",
+      'unknown tool "Monitor" in prose "NAME tool"',
+    ],
+    [
+      "inline code of another Claude Code tool",
+      "Stop it with `TaskCreate`.",
+      'unknown tool "TaskCreate" in inline code',
+    ],
+    [
       "fenced call",
       '```ts\nawait askUser({ title: "Deploy?" });\n```',
       'unknown tool "askUser" in fenced code call',
@@ -825,6 +926,10 @@ describe("validator fixtures", () => {
       "Set `interactive: true`. Pass `interactive` and `chat_message` to the tools.",
     ],
     ["the server and skill name", "Load the `agentdesk` skill."],
+    [
+      "the Claude Code tools and the waiter command",
+      "Start `Monitor` with `agentdesk wait --harness claude-code <decision_id>`. Stop it with `TaskStop`.",
+    ],
   ])("accepts %s", (_label, extra) => {
     expect(validateSkill(withBody(extra), TOOL_NAMES)).toEqual([]);
   });

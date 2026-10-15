@@ -147,7 +147,7 @@ describe("bundle dist/agentdesk.mjs", () => {
     expect(readFileSync(join(home, ".codex", "skills", "agentdesk", "SKILL.md"))).toEqual(
       readFileSync(SKILL_FILE),
     );
-    expect(result.stdout).toContain("skill 2.0.0");
+    expect(result.stdout).toContain("skill 2.1.0");
     // codex is not on PATH, so trust for each hook is left to Codex's /hooks.
     expect(result.stdout).toContain(
       "Codex: the AgentDesk session-start hook is not trusted yet (codex is not on PATH). In Codex, run /hooks and trust the AgentDesk session-start hook.",
