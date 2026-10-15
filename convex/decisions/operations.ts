@@ -16,9 +16,10 @@ import {
 // component-decisions §Service routes: one internal mutation per route. Each
 // validates its input, loads any decision it needs for the topic, calls
 // `touch` from component-agent-presence, then acts, all in one transaction,
-// so a failure anywhere also rolls back the session activity. Only `resolve`
-// accepts an answer, and only with the user's chat message (req-agent-tools
-// AC-7.3).
+// so a failure anywhere also rolls back the session activity. A route touches
+// the session its caller names; `cancel` without one touches none, and `watch`
+// touches the asking session recorded on the decision. Only `resolve` accepts
+// an answer, and only with the user's chat message (req-agent-tools AC-7.3).
 
 // MCP `ask`.
 export const create = internalMutation({
@@ -43,6 +44,30 @@ export const poll = internalMutation({
     const decisionId = parseId(ctx, "decisions", args.decisionId, "decisionId");
     const doc = await loadOwned(ctx, userId, decisionId);
     await touch(ctx, userId, agentSessionId, doc.topic, now);
+    return await serialize(ctx, doc);
+  },
+});
+
+// The resume waiter's read, through the gateway's `POST /device/wait` (DEC-15).
+// The waiter has no MCP session, so the request names none. The touch goes to
+// the session that asked, the row's `agentSessionId`, with the decision's
+// topic, so that session stays active while its waiter waits (req-agent-status
+// AC-3.5). Decisions outlive their sessions (req-decision-requests REQ-7), so
+// the touch is skipped only when that session no longer exists. The existence
+// check is explicit rather than a caught `not_found`, so any other touch
+// failure, such as a session owned by another user, still fails the call and
+// rolls it back. Reads every state and changes no decision.
+export const watch = internalMutation({
+  args: { userId: v.string(), decisionId: v.string() },
+  handler: async (ctx, args): Promise<Decision> => {
+    const now = Date.now();
+    const userId = parseId(ctx, "users", args.userId, "userId");
+    const decisionId = parseId(ctx, "decisions", args.decisionId, "decisionId");
+    const doc = await loadOwned(ctx, userId, decisionId);
+    const asking = await ctx.db.get("agentSessions", doc.agentSessionId);
+    if (asking !== null) {
+      await touch(ctx, userId, doc.agentSessionId, doc.topic, now);
+    }
     return await serialize(ctx, doc);
   },
 });

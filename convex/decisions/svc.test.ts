@@ -1095,6 +1095,296 @@ describe("/svc/decisions/resolve", () => {
   });
 });
 
+// component-decisions §Service routes: the resume waiter's read (DEC-15). The
+// request names no session; the touch goes to the asking session recorded on
+// the decision (req-agent-status AC-3.3, AC-3.5).
+describe("/svc/decisions/watch", () => {
+  const DEADLINE = START + 60 * MINUTE;
+
+  async function watchSetup() {
+    const base = await setup();
+    const { t, userId, otherUserId, open, ask } = base;
+    // The asking session asks; a second activated session of the same user and
+    // another user's session must stay as they are.
+    const asker = await open();
+    const bystander = await open();
+    await ask(bystander);
+    const foreignSession = await open(otherUserId);
+    const asA = t.withIdentity({ subject: "user_a" });
+    const watch = (body: Record<string, unknown>) =>
+      post(t, "/svc/decisions/watch", { userId, ...body });
+    const load = (id: string) => t.run((ctx) => ctx.db.get("decisions", id as Id<"decisions">));
+    const sessions = () => t.run((ctx) => ctx.db.query("agentSessions").collect());
+    // Everything a watch leaves unchanged apart from the asking session's
+    // activity: decisions, their expiry jobs, and events.
+    const decisionState = () =>
+      t.run(async (ctx) => {
+        const rows = await ctx.db.query("decisions").collect();
+        const jobs = [];
+        for (const row of rows) {
+          jobs.push(
+            row.expiryJobId === undefined
+              ? null
+              : ((await ctx.db.system.get(row.expiryJobId))?.state.kind ?? null),
+          );
+        }
+        // The scheduled routing job annotates events on its own clock, so only
+        // their identity and kind are compared.
+        const events = (await ctx.db.query("events").collect()).map((event) => [
+          event._id,
+          event.kind,
+        ]);
+        return { rows, jobs, events };
+      });
+    return {
+      ...base,
+      asker,
+      bystander,
+      foreignSession,
+      asA,
+      watch,
+      load,
+      sessions,
+      decisionState,
+    };
+  }
+
+  test("returns 200 with the Decision and touches only the asking session", async () => {
+    const { t, asker, bystander, ask, session, sessions, watch, decisionState } =
+      await watchSetup();
+    const decision = await ask(asker);
+    await t.run((ctx) =>
+      ctx.db.patch("agentSessions", asker, {
+        staleSince: START,
+        endedAt: START,
+        endReason: "idle",
+      }),
+    );
+    const askerBefore = await session(asker);
+    const bystanderBefore = await session(bystander);
+    const sessionIds = (await sessions()).map((row) => row._id);
+    const before = await decisionState();
+    vi.setSystemTime(START + MINUTE);
+
+    // A session named in the body is not the caller's: the schema drops it.
+    const response = await watch({ decisionId: decision.id, agentSessionId: bystander });
+
+    expect(response.status).toBe(200);
+    expect(decisionSchema.parse(await response.json())).toEqual(decision);
+    const touched = await session(asker);
+    expect(touched).toMatchObject({
+      topic: askerBefore?.topic,
+      activatedAt: askerBefore?.activatedAt,
+      lastActivityAt: START + MINUTE,
+    });
+    expect(touched?.staleSince).toBeUndefined();
+    expect(touched?.endedAt).toBeUndefined();
+    expect(touched?.endReason).toBeUndefined();
+    expect(await session(bystander)).toEqual(bystanderBefore);
+    expect((await sessions()).map((row) => row._id)).toEqual(sessionIds);
+    expect(await decisionState()).toEqual(before);
+  });
+
+  // component-agent-presence §Lifecycle: a `done` end stays through a touch.
+  test("keeps a done end on the asking session", async () => {
+    const { t, asker, ask, session, watch } = await watchSetup();
+    const decision = await ask(asker);
+    await t.run((ctx) =>
+      ctx.db.patch("agentSessions", asker, {
+        staleSince: START,
+        endedAt: START,
+        endReason: "done",
+      }),
+    );
+    vi.setSystemTime(START + MINUTE);
+
+    const response = await watch({ decisionId: decision.id });
+
+    expect(response.status).toBe(200);
+    const touched = await session(asker);
+    expect(touched).toMatchObject({
+      lastActivityAt: START + MINUTE,
+      endedAt: START,
+      endReason: "done",
+    });
+    expect(touched?.staleSince).toBeUndefined();
+  });
+
+  // component-decisions §State machine: watch reads every state and settles,
+  // cancels, or schedules nothing.
+  test("returns each state's stored Decision and changes no decision", async () => {
+    const { t, userId, asker, asA, ask, session, watch, decisionState } = await watchSetup();
+    const deadline = new Date(DEADLINE).toISOString();
+    const pending = await ask(asker, { ...approve, deadline });
+    const answered = await ask(asker, single);
+    // The pending decision keeps a scheduled expiry job; the clock never
+    // reaches its deadline.
+    const soon = new Date(START + MINUTE).toISOString();
+    const withDefault = await ask(asker, {
+      ...approve,
+      deadline: soon,
+      default: { kind: "approve" },
+    });
+    const withoutDefault = await ask(asker, { ...approve, deadline: soon });
+    const cancelled = await ask(asker);
+    await asA.mutation(decisions.app.answer, {
+      decisionId: answered.id,
+      answer: { kind: "option", option_id: "sq" },
+      note: "Smaller footprint",
+    });
+    await post(t, "/svc/decisions/cancel", { userId, decisionId: cancelled.id });
+    vi.setSystemTime(START + MINUTE);
+    for (const { id } of [withDefault, withoutDefault]) {
+      await t.mutation(decisions.expire.run, { decisionId: id as Id<"decisions"> });
+    }
+    const ids = [pending, answered, withDefault, withoutDefault, cancelled].map(({ id }) => id);
+    const stored = [];
+    for (const id of ids) {
+      stored.push(await asA.query(decisions.app.get, { decisionId: id }));
+    }
+    const before = await decisionState();
+    vi.setSystemTime(START + 2 * MINUTE);
+
+    const reads = [];
+    for (const id of ids) {
+      const response = await watch({ decisionId: id });
+      expect(response.status).toBe(200);
+      reads.push(decisionSchema.parse(await response.json()));
+    }
+
+    expect(reads).toEqual(stored);
+    expect(reads.map((d) => [d.state, d.answered_via])).toEqual([
+      ["pending", null],
+      ["answered", "app"],
+      ["expired", "default"],
+      ["expired", null],
+      ["cancelled", null],
+    ]);
+    expect(reads[1]).toMatchObject({
+      answer: { kind: "option", option_id: "sq" },
+      note: "Smaller footprint",
+    });
+    expect(reads[2]?.answer).toEqual({ kind: "approve" });
+    expect(await decisionState()).toEqual(before);
+    expect(before.jobs).toContain("pending");
+    expect((await session(asker))?.lastActivityAt).toBe(START + 2 * MINUTE);
+  });
+
+  // req-decision-requests REQ-7; req-agent-status AC-4.2: a decision outlives
+  // its asking session, and no session replaces it.
+  test("returns the Decision after the asking session is deleted and touches nothing", async () => {
+    const { t, asker, ask, sessions, watch, decisionState } = await watchSetup();
+    const decision = await ask(asker);
+    await t.run((ctx) => ctx.db.delete("agentSessions", asker));
+    const sessionsBefore = await sessions();
+    const before = await decisionState();
+    vi.setSystemTime(START + MINUTE);
+
+    const response = await watch({ decisionId: decision.id });
+
+    expect(response.status).toBe(200);
+    expect(decisionSchema.parse(await response.json())).toEqual(decision);
+    expect(await sessions()).toEqual(sessionsBefore);
+    expect(await decisionState()).toEqual(before);
+  });
+
+  // Only a missing asking session skips the touch: an existing session that
+  // touch refuses still fails the call, which rolls back.
+  test("returns 404 when the recorded asking session belongs to another user", async () => {
+    const { t, asker, foreignSession, ask, sessions, watch, decisionState } = await watchSetup();
+    const decision = await ask(asker);
+    await t.run((ctx) =>
+      ctx.db.patch("decisions", decision.id as Id<"decisions">, {
+        agentSessionId: foreignSession,
+      }),
+    );
+    const sessionsBefore = await sessions();
+    const before = await decisionState();
+    vi.setSystemTime(START + MINUTE);
+
+    const response = await watch({ decisionId: decision.id });
+
+    expect(response.status).toBe(404);
+    expect((await errorOf(response)).code).toBe("not_found");
+    expect(await sessions()).toEqual(sessionsBefore);
+    expect(await decisionState()).toEqual(before);
+  });
+
+  // req-agent-tools AC-7.1: missing and foreign decisions are alike.
+  test("returns the same 404 for a missing or foreign decision and touches nothing", async () => {
+    const { t, otherUserId, asker, foreignSession, ask, sessions, watch, decisionState } =
+      await watchSetup();
+    const gone = await ask(asker);
+    await t.run((ctx) => ctx.db.delete("decisions", gone.id as Id<"decisions">));
+    const foreign = decisionSchema.parse(
+      await (
+        await post(t, "/svc/decisions/create", {
+          userId: otherUserId,
+          agentSessionId: foreignSession,
+          ...approve,
+        })
+      ).json(),
+    );
+    const sessionsBefore = await sessions();
+    const before = await decisionState();
+    vi.setSystemTime(START + MINUTE);
+
+    for (const decisionId of [gone.id, foreign.id]) {
+      const response = await watch({ decisionId });
+      expect(response.status).toBe(404);
+      expect(await errorOf(response)).toEqual({ code: "not_found", message: "Decision not found" });
+    }
+    expect(await sessions()).toEqual(sessionsBefore);
+    expect(await decisionState()).toEqual(before);
+  });
+
+  test("returns 400 naming a missing, empty, or malformed id and touches nothing", async () => {
+    const { t, userId, asker, ask, sessions, decisionState } = await watchSetup();
+    const decision = await ask(asker);
+    const sessionsBefore = await sessions();
+    const before = await decisionState();
+    vi.setSystemTime(START + MINUTE);
+
+    for (const [body, field] of [
+      [{ decisionId: decision.id }, "userId"],
+      [{ userId: "", decisionId: decision.id }, "userId"],
+      [{ userId: "nope", decisionId: decision.id }, "userId"],
+      // An id of another table is malformed for this field.
+      [{ userId: asker, decisionId: decision.id }, "userId"],
+      [{ userId }, "decisionId"],
+      [{ userId, decisionId: "" }, "decisionId"],
+      [{ userId, decisionId: "nope" }, "decisionId"],
+      [{ userId, decisionId: asker }, "decisionId"],
+    ] as const) {
+      const response = await post(t, "/svc/decisions/watch", body);
+      expect(response.status).toBe(400);
+      expect(await errorOf(response)).toMatchObject({ code: "invalid", field });
+    }
+    expect(await sessions()).toEqual(sessionsBefore);
+    expect(await decisionState()).toEqual(before);
+  });
+
+  test("returns 401 for a wrong or missing secret and touches nothing", async () => {
+    const { t, userId, asker, ask, sessions, decisionState } = await watchSetup();
+    const decision = await ask(asker);
+    const sessionsBefore = await sessions();
+    const before = await decisionState();
+    vi.setSystemTime(START + MINUTE);
+
+    for (const authorization of ["Bearer nope", ""]) {
+      const response = await post(
+        t,
+        "/svc/decisions/watch",
+        { userId, decisionId: decision.id },
+        authorization,
+      );
+      expect(response.status).toBe(401);
+    }
+    expect(await sessions()).toEqual(sessionsBefore);
+    expect(await decisionState()).toEqual(before);
+  });
+});
+
 // req-agent-tools AC-7.3: resolve is the only route that takes an answer.
 test("no route but resolve accepts an answer", async () => {
   const { t, userId, open, ask } = await setup();
