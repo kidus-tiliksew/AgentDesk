@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, symlinkSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { dirname, join } from "node:path";
@@ -29,27 +29,44 @@ function message(id: string): string {
   return `AgentDesk decision ${id} settled. Read it with check, tell the user the answer and where it was given, then act on it.`;
 }
 
+/**
+ * Runs the bundle and resolves once its streams close. `ms` is the time to
+ * the process's own exit. `stdin: "open"` keeps standard input open with no
+ * data, as a stalled harness would. A child still running after 20 seconds is
+ * killed and reported with `killed: true`.
+ */
 function runBundle(
   args: string[],
   env: NodeJS.ProcessEnv,
-  stdin?: string,
-): Promise<{ code: number; stdout: string; stderr: string; ms: number }> {
+  stdin?: string | { open: true },
+): Promise<{ code: number; stdout: string; stderr: string; ms: number; killed: boolean }> {
   const started = Date.now();
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [bundle, ...args], { env });
     let stdout = "";
     let stderr = "";
+    let exitedAt = 0;
+    let killed = false;
+    const guard = setTimeout(() => {
+      killed = true;
+      child.kill("SIGKILL");
+    }, 20_000);
     child.stdout.on("data", (c) => {
       stdout += c;
     });
     child.stderr.on("data", (c) => {
       stderr += c;
     });
+    child.on("exit", () => {
+      exitedAt = Date.now();
+      clearTimeout(guard);
+      if (!child.stdin.destroyed) child.stdin.destroy();
+    });
     child.on("close", (code) =>
-      resolve({ code: code ?? 1, stdout, stderr, ms: Date.now() - started }),
+      resolve({ code: code ?? 1, stdout, stderr, ms: (exitedAt || Date.now()) - started, killed }),
     );
-    if (stdin !== undefined) child.stdin.end(stdin);
-    else child.stdin.end();
+    if (typeof stdin === "string") child.stdin.end(stdin);
+    else if (stdin === undefined) child.stdin.end();
   });
 }
 
@@ -148,6 +165,41 @@ describe("resume commands in the bundle", () => {
     expect(stop.code).toBe(0);
     expect(stop.stdout).toBe(`${JSON.stringify({ followup_message: message("dec_cursor1") })}\n`);
     expect(stop.stderr).toBe("");
+  }, 30_000);
+
+  it("the Codex Stop hook exits promptly with {} for a transcript that would stall a read", async () => {
+    const sandbox = installSandbox(["codex"], origin);
+    const env = { HOME: sandbox.home, PATH: sandbox.bin };
+    const fifo = join(sandbox.root, "transcript.fifo");
+    const made = spawnSync("mkfifo", [fifo]);
+    expect(made.status).toBe(0);
+    const linked = join(sandbox.root, "transcript-link.jsonl");
+    symlinkSync(fifo, linked);
+    for (const transcript of [fifo, linked, "/dev/zero"]) {
+      const input = JSON.stringify({ session_id: THREAD, transcript_path: transcript });
+      const hook = await runBundle(["hook", "stop", "--harness", "codex"], env, input);
+      // The process itself ended, well inside Codex's 10-second hook timeout.
+      expect(hook.killed).toBe(false);
+      expect(hook.ms).toBeLessThan(10_000);
+      expect(hook.code).toBe(0);
+      expect(hook.stdout).toBe("{}\n");
+      expect(hook.stderr).toBe("");
+    }
+    // No waiter started, during the hook or after it.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(existsSync(join(resumeRoot(sandbox), "waiters"))).toBe(false);
+  }, 60_000);
+
+  it("the Codex Stop hook exits promptly with {} when its input never ends", async () => {
+    const sandbox = installSandbox(["codex"], origin);
+    const env = { HOME: sandbox.home, PATH: sandbox.bin };
+    const hook = await runBundle(["hook", "stop", "--harness", "codex"], env, { open: true });
+    expect(hook.killed).toBe(false);
+    expect(hook.ms).toBeLessThan(10_000);
+    expect(hook.code).toBe(0);
+    expect(hook.stdout).toBe("{}\n");
+    expect(hook.stderr).toBe("");
+    expect(existsSync(join(resumeRoot(sandbox), "waiters"))).toBe(false);
   }, 30_000);
 
   it("the hooks print {} on bad input, and wait answers usage errors with status 2", async () => {

@@ -1,11 +1,14 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   askDecisionId,
   CODEX_HOOK_BUDGET_MS,
+  HookCancelledError,
   runCodexStop,
   scanCodexTranscript,
+  TranscriptRefusedError,
 } from "../../src/resume/codex.js";
 import { launchDetached, processIsAlive } from "../../src/resume/process.js";
 import { ResumeStore } from "../../src/resume/storage.js";
@@ -52,6 +55,47 @@ describe("transcript scan", () => {
       "dec_phone2",
       "dec_phone1",
     ]);
+  });
+});
+
+describe("transcript checks and cancellation", () => {
+  it("refuses a FIFO, a link to one, a device, and a directory without opening a stalled read", async () => {
+    const sandbox = installSandbox(["codex"]);
+    const fifo = join(sandbox.root, "t.fifo");
+    expect(spawnSync("mkfifo", [fifo]).status).toBe(0);
+    const linked = join(sandbox.root, "t-link.jsonl");
+    symlinkSync(fifo, linked);
+    for (const path of [fifo, linked, "/dev/zero", "/dev/null", FIXTURES]) {
+      const started = Date.now();
+      await expect(scanCodexTranscript(path)).rejects.toBeInstanceOf(TranscriptRefusedError);
+      expect(Date.now() - started).toBeLessThan(2000);
+    }
+  });
+
+  it("follows a link to a regular transcript", async () => {
+    const sandbox = installSandbox(["codex"]);
+    const linked = join(sandbox.root, "t-link.jsonl");
+    symlinkSync(TRANSCRIPT, linked);
+    expect(await scanCodexTranscript(linked)).toEqual(["dec_phone1", "dec_phone2"]);
+  });
+
+  it("rejects at once with an aborted signal, and closes the reader when aborted mid-scan", async () => {
+    const sandbox = installSandbox(["codex"]);
+    const done = new AbortController();
+    done.abort();
+    await expect(scanCodexTranscript(TRANSCRIPT, done.signal)).rejects.toBeInstanceOf(
+      HookCancelledError,
+    );
+    // A large transcript, aborted shortly after the scan starts.
+    const big = join(sandbox.root, "big.jsonl");
+    const line = `${JSON.stringify({ type: "response_item", payload: { text: "x".repeat(1000) } })}\n`;
+    writeFileSync(big, line.repeat(100_000));
+    const stop = new AbortController();
+    const scan = scanCodexTranscript(big, stop.signal);
+    setTimeout(() => stop.abort(), 5);
+    const started = Date.now();
+    await expect(scan).rejects.toBeInstanceOf(HookCancelledError);
+    expect(Date.now() - started).toBeLessThan(2000);
   });
 });
 
@@ -186,6 +230,55 @@ describe("agentdesk hook stop --harness codex", () => {
     expect(elapsed).toBe(CODEX_HOOK_BUDGET_MS);
     expect(elapsed).toBeLessThan(10_000);
     expect(h.clock.pendingTimers).toBe(0);
+  });
+
+  it("starts no waiter after the budget expires, closes the input read, and asks the process to exit", async () => {
+    const sandbox = installSandbox(["codex"]);
+    const h = makeContext(sandbox);
+    const adapters = fakeAdapters(stopInput());
+    const exits: number[] = [];
+    let readSignal: AbortSignal | undefined;
+    const input = stopInput();
+    const withSignal = {
+      ...adapters,
+      readInput: async (signal?: AbortSignal) => {
+        readSignal = signal;
+        return input;
+      },
+      exitAfterOutput: (code: number) => exits.push(code),
+    };
+    let pid = 60_000;
+    // The first start is still running when the budget expires.
+    adapters.launchImpl = async (command, args) => {
+      adapters.launches.push({ command, args: [...args] });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return pid++;
+    };
+    const { value, elapsed } = await pump(h.clock, runCodexStop(h.ctx, withSignal), {
+      stepMs: 1000,
+    });
+    expect(value).toBe(0);
+    expect(elapsed).toBe(CODEX_HOOK_BUDGET_MS);
+    expect(h.out).toEqual(["{}"]);
+    expect(exits).toEqual([0]);
+    expect(readSignal?.aborted).toBe(true);
+    // The start in flight finishes and is recorded; the next decision never starts.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(adapters.launches.map((l) => l.args.at(-1))).toEqual(["dec_phone1"]);
+    expect(new ResumeStore(h.ctx).waiterPid("dec_phone1")).toBe(60_000);
+    expect(existsSync(join(resumeRoot(sandbox), "waiters", "dec_phone2"))).toBe(false);
+  });
+
+  it("does not ask the process to exit when it finishes within the budget", async () => {
+    const sandbox = installSandbox(["codex"]);
+    const h = makeContext(sandbox);
+    const exits: number[] = [];
+    const adapters = {
+      ...fakeAdapters(stopInput()),
+      exitAfterOutput: (c: number) => exits.push(c),
+    };
+    expect(await runCodexStop(h.ctx, adapters)).toBe(0);
+    expect(exits).toEqual([]);
   });
 
   it("returns at once for a transcript with no ask result", async () => {

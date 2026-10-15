@@ -12,12 +12,21 @@ export const MAX_HOOK_INPUT_BYTES = 1024 * 1024;
 export const HOOK_INPUT_TIMEOUT_MS = 3000;
 
 export interface HookAdapters {
-  /** Reads the hook input; undefined when it is missing, too large, or late. */
-  readInput(): Promise<string | undefined>;
+  /**
+   * Reads the hook input; undefined when it is missing, too large, or late,
+   * or when `signal` aborts first.
+   */
+  readInput(signal?: AbortSignal): Promise<string | undefined>;
   /** Whether a process with this id runs. */
   isAlive(pid: number): boolean;
   /** Starts `command` detached with standard streams closed and returns its process id. */
   launch(command: string, args: readonly string[]): Promise<number>;
+  /**
+   * Ends the process with `code` once its output is written. The Codex hook
+   * calls it only after its budget expired, when a filesystem request the
+   * runtime cannot cancel may still be pending.
+   */
+  exitAfterOutput?(code: number): void;
 }
 
 /** Reads standard input up to the size and time bounds, then stops reading it. */
@@ -25,6 +34,7 @@ export function readStdin(
   input: NodeJS.ReadStream = process.stdin,
   limit = MAX_HOOK_INPUT_BYTES,
   timeoutMs = HOOK_INPUT_TIMEOUT_MS,
+  signal?: AbortSignal,
 ): Promise<string | undefined> {
   return new Promise((resolve) => {
     const chunks: Buffer[] = [];
@@ -34,6 +44,7 @@ export function readStdin(
       if (done) return;
       done = true;
       clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
       input.off("data", onData);
       input.off("end", onEnd);
       input.off("error", onError);
@@ -49,7 +60,13 @@ export function readStdin(
     };
     const onEnd = () => finish(Buffer.concat(chunks).toString("utf8"));
     const onError = () => finish(undefined);
+    const onAbort = () => finish(undefined);
     const timer = setTimeout(() => finish(undefined), timeoutMs);
+    if (signal?.aborted) {
+      finish(undefined);
+      return;
+    }
+    signal?.addEventListener("abort", onAbort, { once: true });
     input.on("data", onData);
     input.on("end", onEnd);
     input.on("error", onError);
@@ -90,10 +107,17 @@ export function launchDetached(command: string, args: readonly string[]): Promis
   });
 }
 
+/** Exits once everything written to standard output has been flushed. */
+export function exitAfterStdout(code: number): void {
+  process.stdout.write("", () => process.exit(code));
+}
+
 export const nodeHookAdapters: HookAdapters = {
-  readInput: () => readStdin(),
+  readInput: (signal) =>
+    readStdin(process.stdin, MAX_HOOK_INPUT_BYTES, HOOK_INPUT_TIMEOUT_MS, signal),
   isAlive: processIsAlive,
   launch: launchDetached,
+  exitAfterOutput: exitAfterStdout,
 };
 
 /**
