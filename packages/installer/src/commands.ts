@@ -1,5 +1,5 @@
-import { realpathSync } from "node:fs";
-import { resolve } from "node:path";
+import { lstatSync, realpathSync, rmSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import {
   findListedHook,
   type HookList,
@@ -38,6 +38,7 @@ import {
   planHookRemoval,
   writeHooks,
 } from "./hooks.js";
+import { resumeDir } from "./resume/storage.js";
 import {
   type Connection,
   checkConnection,
@@ -46,7 +47,13 @@ import {
   revokeConnection,
   signIn,
 } from "./signin.js";
-import { installedSkillVersion, planSkills, removeSkillDir, writeSkill } from "./skill.js";
+import {
+  assertOwnedDir,
+  installedSkillVersion,
+  planSkills,
+  removeSkillDir,
+  writeSkill,
+} from "./skill.js";
 import {
   deleteState,
   emptyState,
@@ -410,6 +417,32 @@ async function removeGuidance(
       ctx.io.out(`${harness.displayName}: restored ${file}, because its trust was not updated.`);
     }
     throw error;
+  }
+}
+
+/**
+ * Removes `component-resume`'s `resume` directory beside the state file. The
+ * target is derived from the state file's location, never from state
+ * content, and is printed before removal. It is removed only when it and
+ * `agentdesk` above it are real directories, not symbolic links, below the
+ * configuration base (`XDG_CONFIG_HOME` or `~/.config`). Throws when it may
+ * remain.
+ */
+function removeResumeDir(ctx: Context): void {
+  const dir = resumeDir(ctx);
+  try {
+    // A symbolic link counts as present, so it is refused rather than skipped.
+    lstatSync(dir);
+  } catch {
+    return;
+  }
+  ctx.io.out(`Removing the resume directory ${dir}`);
+  assertOwnedDir(dir, dirname(dirname(statePath(ctx))), "resume directory");
+  try {
+    rmSync(dir, { recursive: true });
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException | undefined)?.code ?? "unknown error";
+    throw new InstallerError(`${dir} could not be removed (${code}).`);
   }
 }
 
@@ -919,6 +952,21 @@ export async function uninstall(
     delete state.harnesses[id];
   }
 
+  // The waiter's claims and records go once no harness hook can start it
+  // again; the state is kept while they may remain, so a later uninstall
+  // retries (component-resume §Claims).
+  let resumeRemains = false;
+  if (Object.keys(state.harnesses).length === 0) {
+    try {
+      removeResumeDir(ctx);
+    } catch (error) {
+      resumeRemains = true;
+      failures.push(
+        `The resume directory was not removed: ${message(error)} Fix it, then run agentdesk uninstall again.`,
+      );
+    }
+  }
+
   // Recovery records leave the state only on the person's explicit request.
   if (options.forgetUnrevoked) {
     for (const record of state.unrevoked) {
@@ -931,7 +979,7 @@ export async function uninstall(
     for (const record of state.unrevoked) failures.push(unrevokedLine(ctx, record, "uninstall"));
   }
 
-  if (stateIsEmpty(state)) {
+  if (stateIsEmpty(state) && !resumeRemains) {
     deleteState(ctx);
     ctx.io.out(`Removed ${statePath(ctx)}`);
   } else {

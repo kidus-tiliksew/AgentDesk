@@ -181,6 +181,10 @@ describe("agentdesk skill install (REQ-3)", () => {
     expect(h.out).toContain(
       "Start a new agent session: a session that is already running has not loaded the updated skill and guidance.",
     );
+    // A waiter the resume hooks started left claims beside the state file.
+    const resume = join(sandbox.home, ".config", "agentdesk", "resume");
+    write(join(resume, "claims", "dec_1"), "");
+
     // Uninstall removes a skill-only installation without calling the gateway.
     const removal = makeContext(sandbox);
     expect(await removal.run(["uninstall"])).toBe(0);
@@ -193,6 +197,8 @@ describe("agentdesk skill install (REQ-3)", () => {
       hooks: { SessionStart: [], Stop: [] },
     });
     expect(read(join(sandbox.home, ".codex", "config.toml"))).toBe("");
+    expect(removal.out).toContain(`Removing the resume directory ${resume}`);
+    expect(existsSync(resume)).toBe(false);
     expect(existsSync(statePath(h.ctx))).toBe(false);
     for (const [path, content] of Object.entries(INSTRUCTIONS)) {
       expect(read(join(sandbox.home, path))).toBe(content);

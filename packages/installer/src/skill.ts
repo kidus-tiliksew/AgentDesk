@@ -64,11 +64,9 @@ export function writeSkill(dir: string, content: string): string {
  * resolved anchor. A redirected parent such as a symlinked ~/.claude/skills
  * is refused as well as a symlinked final folder.
  */
-export function assertOwnedDir(dir: string, anchor: string): void {
+export function assertOwnedDir(dir: string, anchor: string, what = "skill folder"): void {
   const refuse = (why: string) =>
-    new InstallerError(
-      `${dir} is not a skill folder the installer owns (${why}); it was not removed.`,
-    );
+    new InstallerError(`${dir} is not a ${what} the installer owns (${why}); it was not removed.`);
   const rel = relative(anchor, dir);
   if (rel.length === 0 || rel.startsWith("..") || isAbsolute(rel))
     throw refuse(`it is outside ${anchor}`);
