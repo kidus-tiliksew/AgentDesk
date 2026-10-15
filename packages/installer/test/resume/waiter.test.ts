@@ -5,12 +5,14 @@ import {
   RETRY_DELAY_MS,
   resumeMessage,
   resumes,
+  type SettledDecision,
   WAIT_TIMEOUT_SECONDS,
 } from "../../src/resume/waiter.js";
 import { allFiles, cleanupSandboxes, mode, SERVER, write } from "../helpers.js";
 import {
   decision,
   installSandbox,
+  malformedDecisions,
   pump,
   resumeContext,
   resumeRoot,
@@ -39,8 +41,9 @@ describe("the resume rule (DEC-15(6))", () => {
     ["expired without a default", { state: "expired", applied_by_default: false }, false],
     ["cancelled", { state: "cancelled" }, false],
     ["pending", { state: "pending" }, false],
+    ["answered with no recorded surface", { state: "answered", answered_via: null }, false],
   ])("%s resumes: %s", (_label, fields, expected) => {
-    expect(resumes({ ...base, ...fields })).toBe(expected);
+    expect(resumes({ ...base, ...fields } as SettledDecision)).toBe(expected);
   });
 
   it("the message names only the decision", () => {
@@ -194,6 +197,53 @@ describe("agentdesk wait", () => {
     expect(h.out).toEqual([]);
     expect(h.err.join("\n")).toMatch(/^agentdesk wait stopped: /);
     expect(existsSync(join(resumeRoot(sandbox), "claims", ID))).toBe(false);
+  });
+
+  it.each(malformedDecisions(ID))(
+    "stops with status 1, no claim, and no resume for a decision with %s",
+    async (_label, malformed) => {
+      const sandbox = installSandbox();
+      const log = stubCodex(sandbox, 0);
+      for (const thread of [undefined, "019a1b2c-3d4e-7f00-8a9b-0c1d2e3f4a5b"]) {
+        const h = resumeContext(sandbox);
+        h.waits.script(ID, [{ decision: malformed }]);
+        const argv = [
+          "wait",
+          "--harness",
+          "codex",
+          ...(thread ? ["--codex-thread", thread] : []),
+          ID,
+        ];
+        const { value } = await pump(h.clock, h.run(argv));
+        expect(value).toBe(1);
+        expect(h.out).toEqual([]);
+        expect(h.err).toEqual([
+          "agentdesk wait stopped: the server sent a decision the waiter cannot read.",
+        ]);
+        expect(h.waits.requests).toHaveLength(1);
+      }
+      expect(existsSync(join(resumeRoot(sandbox), "claims", ID))).toBe(false);
+      expect(existsSync(log)).toBe(false);
+    },
+  );
+
+  it("exits 0 with no claim and no resume for an answer with no recorded surface", async () => {
+    const sandbox = installSandbox();
+    const h = resumeContext(sandbox);
+    h.waits.script(ID, [{ decision: decision(ID, { answered_via: null }) }]);
+    const { value } = await pump(h.clock, h.run(["wait", "--harness", "claude-code", ID]));
+    expect(value).toBe(0);
+    expect(h.output()).toBe("");
+    expect(existsSync(join(resumeRoot(sandbox), "claims", ID))).toBe(false);
+  });
+
+  it("refuses a malformed pending decision instead of waiting on it", async () => {
+    const sandbox = installSandbox();
+    const h = resumeContext(sandbox);
+    h.waits.script(ID, [{ decision: decision(ID, { state: "pending", answered_via: 3 }) }]);
+    const { value } = await pump(h.clock, h.run(["wait", "--harness", "claude-code", ID]));
+    expect(value).toBe(1);
+    expect(h.waits.requests).toHaveLength(1);
   });
 
   it("refuses a decision answered for another id", async () => {

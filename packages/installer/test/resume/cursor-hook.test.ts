@@ -14,6 +14,7 @@ import {
   FIXTURES,
   fakeAdapters,
   installSandbox,
+  malformedDecisions,
   pump,
   resumeContext,
   resumeRoot,
@@ -181,6 +182,45 @@ describe("agentdesk hook stop --harness cursor", () => {
     expect(h.out).toEqual(["{}"]);
     expect(existsSync(join(resumeRoot(sandbox), "claims", "dec_cursor1"))).toBe(false);
     expect(readdirSync(join(resumeRoot(sandbox), "cursor", CONVERSATION))).toEqual(["dec_cursor1"]);
+  });
+
+  it.each(malformedDecisions("dec_cursor1"))(
+    "prints {} with no claim for a decision with %s",
+    async (_label, malformed) => {
+      const sandbox = installSandbox(["cursor"]);
+      recordDecisions(sandbox, "dec_cursor1");
+      const h = resumeContext(sandbox);
+      h.waits.script("dec_cursor1", ["pending", { decision: malformed }]);
+      const { value } = await pump(h.clock, runCursorStop(h.ctx, fakeAdapters(STOP)), {
+        stepMs: 10_000,
+      });
+      expect(value).toBe(0);
+      expect(h.out).toEqual(["{}"]);
+      expect(h.err).toEqual([]);
+      expect(existsSync(join(resumeRoot(sandbox), "claims", "dec_cursor1"))).toBe(false);
+      expect(h.clock.pendingTimers).toBe(0);
+    },
+  );
+
+  it("a malformed decision does not stop another recorded decision from delivering", async () => {
+    const sandbox = installSandbox(["cursor"]);
+    recordDecisions(sandbox, "dec_a_bad", "dec_b_phone");
+    const h = resumeContext(sandbox);
+    h.waits.script("dec_a_bad", [{ decision: decision("dec_a_bad", { answered_via: "sms" }) }]);
+    h.waits.script("dec_b_phone", ["pending", { decision: decision("dec_b_phone", {}) }]);
+    await pump(h.clock, runCursorStop(h.ctx, fakeAdapters(STOP)), { stepMs: 10_000 });
+    expect(h.out).toEqual([JSON.stringify({ followup_message: message("dec_b_phone") })]);
+    expect(existsSync(join(resumeRoot(sandbox), "claims", "dec_a_bad"))).toBe(false);
+  });
+
+  it("prints {} with no claim for an answer with no recorded surface", async () => {
+    const sandbox = installSandbox(["cursor"]);
+    recordDecisions(sandbox, "dec_cursor1");
+    const h = resumeContext(sandbox);
+    h.waits.script("dec_cursor1", [{ decision: decision("dec_cursor1", { answered_via: null }) }]);
+    await pump(h.clock, runCursorStop(h.ctx, fakeAdapters(STOP)));
+    expect(h.out).toEqual(["{}"]);
+    expect(existsSync(join(resumeRoot(sandbox), "claims", "dec_cursor1"))).toBe(false);
   });
 
   it("prints {} when the decision's claim exists", async () => {

@@ -377,3 +377,45 @@ export function stubWaiterScript(sandbox: Sandbox, aliveMs: number): { path: str
   );
   return { path, out };
 }
+
+/** A settled decision with `field` left out of the read shape. */
+export function decisionWithout(
+  id: string,
+  field: string,
+  fields: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const value = decision(id, fields);
+  delete value[field];
+  return value;
+}
+
+/**
+ * Decisions whose settlement fields break the contract's read shape. Each one
+ * would resume if a missing or mistyped field were coerced, so each must
+ * produce no claim and no resume.
+ */
+export function malformedDecisions(id: string): [string, Record<string, unknown>][] {
+  return [
+    ["answered_via omitted", decisionWithout(id, "answered_via")],
+    ["answered_via a number", decision(id, { answered_via: 7 })],
+    ["answered_via an object", decision(id, { answered_via: { surface: "app" } })],
+    ["answered_via an unknown surface", decision(id, { answered_via: "sms" })],
+    ["answered_via in another case", decision(id, { answered_via: "App" })],
+    [
+      "applied_by_default omitted",
+      decisionWithout(id, "applied_by_default", { state: "expired", answered_via: "default" }),
+    ],
+    [
+      "applied_by_default a string",
+      decision(id, { state: "expired", answered_via: "default", applied_by_default: "true" }),
+    ],
+    [
+      "applied_by_default a number",
+      decision(id, { state: "expired", answered_via: "default", applied_by_default: 1 }),
+    ],
+    ["applied_by_default null", decision(id, { applied_by_default: null })],
+    ["an unknown state", decision(id, { state: "settled" })],
+    ["state omitted", decisionWithout(id, "state")],
+    ["a numeric id", decision(id, { id: 1 })],
+  ];
+}

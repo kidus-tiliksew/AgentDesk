@@ -21,11 +21,20 @@ export const RETRY_DELAY_MS = 15_000;
  */
 export const REQUEST_LIMIT_MS = (WAIT_TIMEOUT_SECONDS + 60) * 1000;
 
+/** The contract's decision states and answer surfaces (component-contract §Read shapes). */
+export const DECISION_STATES = ["pending", "answered", "expired", "cancelled"] as const;
+export const ANSWER_SURFACES = ["app", "notification", "api", "chat", "default"] as const;
+export type DecisionState = (typeof DECISION_STATES)[number];
+export type AnswerSurface = (typeof ANSWER_SURFACES)[number];
+
+/** The surfaces outside the agent's chat. */
+const OUTSIDE_CHAT: readonly AnswerSurface[] = ["app", "notification", "api", "default"];
+
 /** The fields of the contract's Decision that decide a resume. */
 export interface SettledDecision {
   id: string;
-  state: string;
-  answered_via: string | null;
+  state: DecisionState;
+  answered_via: AnswerSurface | null;
   applied_by_default: boolean;
 }
 
@@ -40,7 +49,10 @@ export function resumeMessage(decisionId: string): string {
  * AC-12.3). A chat relay, a cancel, and every other settlement resume nothing.
  */
 export function resumes(decision: SettledDecision): boolean {
-  if (decision.state === "answered") return decision.answered_via !== "chat";
+  if (decision.state === "answered") {
+    // An answer with no recorded surface is not known to come from outside chat.
+    return decision.answered_via !== null && OUTSIDE_CHAT.includes(decision.answered_via);
+  }
   if (decision.state === "expired") return decision.applied_by_default === true;
   return false;
 }
@@ -64,6 +76,36 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Reads the settlement fields of a contract Decision, checking each wire type
+ * and allowed value: `id` a string, `state` one of the contract's states,
+ * `answered_via` present and either null or one of the contract's surfaces,
+ * and `applied_by_default` a boolean. A missing or mistyped field is never
+ * coerced into a value, so a malformed decision cannot resume a session.
+ */
+export function readSettlement(d: Record<string, unknown>): SettledDecision | undefined {
+  const { id, state, answered_via: answeredVia, applied_by_default: appliedByDefault } = d;
+  if (typeof id !== "string") return undefined;
+  if (typeof state !== "string" || !(DECISION_STATES as readonly string[]).includes(state)) {
+    return undefined;
+  }
+  if (!("answered_via" in d)) return undefined;
+  if (
+    answeredVia !== null &&
+    (typeof answeredVia !== "string" ||
+      !(ANSWER_SURFACES as readonly string[]).includes(answeredVia))
+  ) {
+    return undefined;
+  }
+  if (typeof appliedByDefault !== "boolean") return undefined;
+  return {
+    id,
+    state: state as DecisionState,
+    answered_via: answeredVia as AnswerSurface | null,
+    applied_by_default: appliedByDefault,
+  };
+}
+
 /** Reads one `message` event's JSON into an attempt result. */
 export function classifyEvent(data: string, decisionId: string): Attempt {
   let value: unknown;
@@ -76,23 +118,15 @@ export function classifyEvent(data: string, decisionId: string): Attempt {
     return { kind: "refused", detail: "the server sent an answer the waiter cannot read" };
   }
   if (isRecord(value.decision)) {
-    const d = value.decision;
-    if (typeof d.id !== "string" || typeof d.state !== "string") {
+    const decision = readSettlement(value.decision);
+    if (!decision) {
       return { kind: "refused", detail: "the server sent a decision the waiter cannot read" };
     }
-    if (d.id !== decisionId) {
+    if (decision.id !== decisionId) {
       return { kind: "refused", detail: "the server answered for another decision" };
     }
-    if (d.state === "pending") return { kind: "pending" };
-    return {
-      kind: "settled",
-      decision: {
-        id: d.id,
-        state: d.state,
-        answered_via: typeof d.answered_via === "string" ? d.answered_via : null,
-        applied_by_default: d.applied_by_default === true,
-      },
-    };
+    if (decision.state === "pending") return { kind: "pending" };
+    return { kind: "settled", decision };
   }
   if (value.state === "pending") return { kind: "pending" };
   if (isRecord(value.error)) {
