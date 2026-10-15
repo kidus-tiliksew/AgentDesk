@@ -148,9 +148,12 @@ describe("bundle dist/agentdesk.mjs", () => {
       readFileSync(SKILL_FILE),
     );
     expect(result.stdout).toContain("skill 2.0.0");
-    // codex is not on PATH, so trust is left to Codex's /hooks.
+    // codex is not on PATH, so trust for each hook is left to Codex's /hooks.
     expect(result.stdout).toContain(
-      "In Codex, run /hooks and trust the AgentDesk session-start hook.",
+      "Codex: the AgentDesk session-start hook is not trusted yet (codex is not on PATH). In Codex, run /hooks and trust the AgentDesk session-start hook.",
+    );
+    expect(result.stdout).toContain(
+      "Codex: the AgentDesk Stop hook is not trusted yet (codex is not on PATH). In Codex, run /hooks and trust the AgentDesk Stop hook.",
     );
     expect(readJson(join(home, ".codex", "hooks.json"))).toEqual({
       hooks: {
@@ -160,8 +163,19 @@ describe("bundle dist/agentdesk.mjs", () => {
             hooks: [{ type: "command", command: `${bundle} context --harness codex` }],
           },
         ],
+        Stop: [
+          {
+            hooks: [
+              { type: "command", command: `${bundle} hook stop --harness codex`, timeout: 10 },
+            ],
+          },
+        ],
       },
     });
+    const status = await runBundle(["status"], { HOME: home, PATH: sandbox.bin });
+    expect(status.stdout).toContain(
+      `; session-start hook in ${join(home, ".codex", "hooks.json")}, trust could not be checked; confirm it in Codex's /hooks; Stop hook in ${join(home, ".codex", "hooks.json")}, trust could not be checked; confirm it in Codex's /hooks`,
+    );
   });
 
   it("signs in against the build's default server and writes the connection and the hook", async () => {
@@ -183,7 +197,16 @@ describe("bundle dist/agentdesk.mjs", () => {
     });
     const hooks = readJson(join(home, ".cursor", "hooks.json"));
     const command = `${bundle} context --harness cursor`;
-    expect(hooks).toEqual({ version: 1, hooks: { sessionStart: [{ command }] } });
+    const afterMcp = `${bundle} hook after-mcp --harness cursor`;
+    const stop = `${bundle} hook stop --harness cursor`;
+    expect(hooks).toEqual({
+      version: 1,
+      hooks: {
+        sessionStart: [{ command }],
+        afterMCPExecution: [{ command: afterMcp }],
+        stop: [{ command: stop, timeout: 3600, loop_limit: null }],
+      },
+    });
     expect(read(join(home, ".cursor", "hooks.json"))).not.toContain(TOKEN);
     expect(existsSync(join(home, ".config", "agentdesk", "state.json"))).toBe(true);
 
@@ -195,5 +218,24 @@ describe("bundle dist/agentdesk.mjs", () => {
     });
     expect(hook.status).toBe(0);
     expect(JSON.parse(hook.stdout)).toEqual({ additional_context: read(GUIDANCE_FILE) });
+
+    // The resume hooks' commands, run the same way, reach the merged hook
+    // commands: input naming no AgentDesk ask, and a turn that did not
+    // complete, each print {} at once.
+    const shellEnv = { HOME: home, PATH: `${dirname(process.execPath)}:/usr/bin:/bin` };
+    const after = spawnSync("/bin/sh", ["-c", afterMcp], {
+      encoding: "utf8",
+      env: shellEnv,
+      input: JSON.stringify({ mcp_server_name: "github", tool_name: "x", conversation_id: "c1" }),
+    });
+    expect(after.status).toBe(0);
+    expect(JSON.parse(after.stdout)).toEqual({});
+    const held = spawnSync("/bin/sh", ["-c", stop], {
+      encoding: "utf8",
+      env: shellEnv,
+      input: JSON.stringify({ status: "aborted", conversation_id: "c1" }),
+    });
+    expect(held.status).toBe(0);
+    expect(JSON.parse(held.stdout)).toEqual({});
   });
 });

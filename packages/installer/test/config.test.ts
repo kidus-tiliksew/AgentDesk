@@ -230,14 +230,22 @@ describe("MCP entries written by install", () => {
     const h = makeContext(sandbox);
     expect(await h.run(["install", "--yes"])).toBe(0);
     const token = h.gateway.tokenFor("codex");
-    const key = `${realpathSync(join(sandbox.home, ".codex", "hooks.json"))}:session_start:0:0`;
+    const hooksFile = realpathSync(join(sandbox.home, ".codex", "hooks.json"));
+    const key = `${hooksFile}:session_start:0:0`;
     const hash = codexHookHash("startup|clear|compact", {
       type: "command",
       command: `${sandbox.executable} context --harness codex`,
     });
+    const stopKey = `${hooksFile}:stop:0:0`;
+    const stopHash = codexHookHash(
+      undefined,
+      { type: "command", command: `${sandbox.executable} hook stop --harness codex`, timeout: 10 },
+      "stop",
+    );
     expect(read(file)).toBe(
       `${CODEX_BEFORE + CODEX_AFTER}\n[mcp_servers.agentdesk]\nurl = "${SERVER}/mcp"\nhttp_headers = { "Authorization" = "Bearer ${token}" }\n` +
-        `\n[hooks.state.${JSON.stringify(key)}]\ntrusted_hash = "${hash}"\n`,
+        `\n[hooks.state.${JSON.stringify(key)}]\ntrusted_hash = "${hash}"\n` +
+        `\n[hooks.state.${JSON.stringify(stopKey)}]\ntrusted_hash = "${stopHash}"\n`,
     );
     expect(read(`${file}.agentdesk-backup`)).toBe(CODEX_BEFORE + CODEX_AFTER);
     // Codex is configured through its files; codex itself only ran app-server to list hooks.

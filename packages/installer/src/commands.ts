@@ -5,7 +5,7 @@ import {
   type HookList,
   listCodexHooks,
   parseHookKey,
-  TRUST_STEP,
+  trustStep,
 } from "./codex-trust.js";
 import {
   applyCodexTrust,
@@ -30,9 +30,13 @@ import {
 import {
   checkHookFile,
   currentHookCommand,
-  findHook,
+  findHooks,
+  type HookEvent,
+  type HookEventId,
+  hookEvent,
+  hookEvents,
   planHookRemoval,
-  writeHook,
+  writeHooks,
 } from "./hooks.js";
 import {
   type Connection,
@@ -47,12 +51,15 @@ import {
   deleteState,
   emptyState,
   type HarnessRecord,
+  HOOK_PATH_FIELDS,
   readState,
+  recordedHookEvents,
   recordedServer,
   recordUnrevoked,
   type State,
   stateIsEmpty,
   statePath,
+  TRUST_KEY_FIELDS,
   type UnrevokedConnection,
   writeState,
 } from "./state.js";
@@ -195,49 +202,79 @@ function installSkills(ctx: Context, harnesses: readonly Harness[], state: State
   return failures;
 }
 
+/** The Codex hooks whose trust the installer records, with the record field of each key. */
+function trustedEvents(
+  events: readonly HookEvent[],
+): (HookEvent & { id: keyof typeof TRUST_KEY_FIELDS })[] {
+  return events.filter(
+    (event): event is HookEvent & { id: keyof typeof TRUST_KEY_FIELDS } =>
+      event.id in TRUST_KEY_FIELDS,
+  );
+}
+
 /**
- * Records trust for the Codex hook that runs `command` (component-installer
- * §Codex trust). When app-server cannot report the hook, it prints the
- * `/hooks` step and does not fail the run (AC-10.3). Returns failure lines.
+ * Records trust for each Codex hook in `commands`, under the key and hash
+ * `hooks/list` reports for it (component-installer §Codex trust). App-server
+ * is asked once for every hook, and config.toml gets one edit that sets each
+ * reported key and removes each recorded key that changed. A hook app-server
+ * cannot report gets the `/hooks` step for that hook and does not fail the
+ * run (AC-10.3). Returns failure lines.
  */
-async function trustCodexHook(
+async function trustCodexHooks(
   ctx: Context,
   harness: Harness,
   record: HarnessRecord,
-  command: string,
+  events: readonly HookEvent[],
+  commands: ReadonlyMap<HookEventId, string>,
   backups: BackupRegistry,
 ): Promise<string[]> {
   const list = await listCodexHooks(ctx);
-  const hook = findListedHook(list, command);
-  if (!hook) {
-    const reason =
-      list.kind === "unavailable" ? list.reason : "codex does not list the AgentDesk hook";
-    ctx.io.out(
-      `${harness.displayName}: the AgentDesk hook is not trusted yet (${reason}). ${TRUST_STEP}`,
-    );
-    return [];
-  }
   const configPath = harness.configPath(ctx);
-  const replaced =
-    record.codexTrustKey !== undefined && record.codexTrustKey !== hook.key
-      ? [record.codexTrustKey]
-      : [];
-  try {
-    applyCodexTrust(configPath, new Map([[hook.key, hook.currentHash]]), replaced, backups);
-  } catch (error) {
-    return [
-      `${harness.displayName}: the AgentDesk hook's trust was not recorded: ${message(error)} ${TRUST_STEP}`,
-    ];
+  const reported: {
+    event: (typeof events)[number] & { id: keyof typeof TRUST_KEY_FIELDS };
+    key: string;
+  }[] = [];
+  const trust = new Map<string, string>();
+  const replaced: string[] = [];
+  for (const event of trustedEvents(events)) {
+    const hook = findListedHook(list, commands.get(event.id) as string);
+    if (!hook) {
+      const reason =
+        list.kind === "unavailable"
+          ? list.reason
+          : `codex does not list the AgentDesk ${event.label}`;
+      ctx.io.out(
+        `${harness.displayName}: the AgentDesk ${event.label} is not trusted yet (${reason}). ${trustStep(event.label)}`,
+      );
+      continue;
+    }
+    const recorded = record[TRUST_KEY_FIELDS[event.id]];
+    if (recorded !== undefined && recorded !== hook.key) replaced.push(recorded);
+    trust.set(hook.key, hook.currentHash);
+    reported.push({ event, key: hook.key });
   }
-  record.codexTrustKey = hook.key;
-  ctx.io.out(`${harness.displayName}: trust for the AgentDesk hook recorded in ${configPath}`);
+  if (reported.length === 0) return [];
+  try {
+    applyCodexTrust(configPath, trust, replaced, backups);
+  } catch (error) {
+    return reported.map(
+      ({ event }) =>
+        `${harness.displayName}: the AgentDesk ${event.label}'s trust was not recorded: ${message(error)} ${trustStep(event.label)}`,
+    );
+  }
+  for (const { event, key } of reported) {
+    record[TRUST_KEY_FIELDS[event.id]] = key;
+    ctx.io.out(
+      `${harness.displayName}: trust for the AgentDesk ${event.label} recorded in ${configPath}`,
+    );
+  }
   return [];
 }
 
 /**
- * Writes or refreshes each harness's session-start hook and, for Codex, its
- * trust, and records them (component-installer §Standing guidance; AC-9.4).
- * Returns failure lines.
+ * Writes or refreshes each harness's session-start hook and resume hooks and,
+ * for Codex, their trust, and records them (component-installer §Standing
+ * guidance and §Resume hooks; AC-9.4, AC-9.9). Returns failure lines.
  */
 async function installGuidance(
   ctx: Context,
@@ -250,19 +287,24 @@ async function installGuidance(
     const record: HarnessRecord = state.harnesses[harness.id] ?? {};
     state.harnesses[harness.id] = record;
     const file = harness.hookPath(ctx);
-    const command = currentHookCommand(ctx, harness.id);
+    const events = hookEvents(harness);
+    const commands = new Map(
+      events.map((event) => [event.id, currentHookCommand(ctx, harness.id, event.id)]),
+    );
     try {
-      writeHook(ctx, harness, command, backups);
+      writeHooks(ctx, harness, (event) => commands.get(event.id) as string, backups);
     } catch (error) {
       failures.push(
-        `${harness.displayName}: its session-start hook in ${file} was not written: ${message(error)}`,
+        `${harness.displayName}: its hooks in ${file} were not written: ${message(error)}`,
       );
       continue;
     }
-    record.hookPath = file;
-    ctx.io.out(`${harness.displayName}: session-start hook written to ${file}`);
+    for (const event of events) {
+      record[HOOK_PATH_FIELDS[event.id]] = file;
+      ctx.io.out(`${harness.displayName}: ${event.label} written to ${file}`);
+    }
     if (harness.id === "codex") {
-      failures.push(...(await trustCodexHook(ctx, harness, record, command, backups)));
+      failures.push(...(await trustCodexHooks(ctx, harness, record, events, commands, backups)));
     }
   }
   return failures;
@@ -270,9 +312,10 @@ async function installGuidance(
 
 /**
  * Carries trust to Codex hooks whose keys a removal changed: each hook that
- * was trusted before and still has the same hash at its new key gets a
- * `hooks.state` table for that key (component-installer §State, re-run, and
- * uninstall). Returns undefined when app-server could not report both lists.
+ * was trusted before and still has the same hash at its new key, in the same
+ * event, gets a `hooks.state` table for that key (component-installer §State,
+ * re-run, and uninstall). Returns undefined when app-server could not report
+ * both lists.
  */
 async function carriedTrust(
   ctx: Context,
@@ -286,11 +329,13 @@ async function carriedTrust(
   const carried = new Map<string, string>();
   for (const hook of before.hooks) {
     const parsed = parseHookKey(hook.key);
-    const target = parsed && parsed.file === file ? moved.get(parsed.position) : undefined;
+    const target =
+      parsed && parsed.file === file ? moved.get(`${parsed.event}:${parsed.position}`) : undefined;
     if (hook.source !== "user" || hook.trustStatus !== "trusted" || !target || !hook.currentHash) {
       continue;
     }
-    const newKey = `${file}:session_start:${target}`;
+    // `target` is `<event>:<group>:<handler>`, so the new key keeps the event.
+    const newKey = `${file}:${target}`;
     const now = after.hooks.find((h) => h.key === newKey);
     if (now?.source === "user" && now.currentHash === hook.currentHash) {
       carried.set(newKey, hook.currentHash);
@@ -299,12 +344,20 @@ async function carriedTrust(
   return carried;
 }
 
+/** The `hooks.state` keys a record holds for its Codex hooks. */
+function recordedTrustKeys(record: HarnessRecord): string[] {
+  return Object.values(TRUST_KEY_FIELDS)
+    .map((field) => record[field])
+    .filter((key): key is string => key !== undefined);
+}
+
 /**
- * Removes the installer's hook, its group when that group then holds no other
- * hook, and for Codex the recorded `hooks.state` table, carrying trust to the
- * later hooks the removal re-keys. Throws when something may remain. When the
- * Codex trust edit fails, the hook file is restored as it was, so a later
- * uninstall finds the installer's hook again and repeats the trust carry.
+ * Removes the installer's recorded hooks, each group that then holds no other
+ * hook, and for Codex the recorded `hooks.state` tables, carrying trust to the
+ * later hooks the removal re-keys in either event. Throws when something may
+ * remain. When the Codex trust edit fails, the hook file is restored as it
+ * was, so a later uninstall finds the installer's hooks again and repeats the
+ * trust carry.
  */
 async function removeGuidance(
   ctx: Context,
@@ -313,13 +366,18 @@ async function removeGuidance(
   backups: BackupRegistry,
 ): Promise<void> {
   const file = harness.hookPath(ctx);
+  const events = recordedHookEvents(harness.id, record).map((id) => hookEvent(harness, id));
   let carried = new Map<string, string>();
-  const removal = record.hookPath ? planHookRemoval(ctx, harness) : undefined;
+  const removal = events.length > 0 ? planHookRemoval(ctx, harness, events) : undefined;
   if (removal) {
     const codexMoves = harness.id === "codex" && removal.moved.size > 0;
     const keyFile = codexMoves ? realpathSync(file) : file;
     const before = codexMoves ? await listCodexHooks(ctx) : undefined;
-    ctx.io.out(`${harness.displayName}: removing the session-start hook from ${file}`);
+    for (const event of events) {
+      if (removal.removed.includes(event.id)) {
+        ctx.io.out(`${harness.displayName}: removing the ${event.label} from ${file}`);
+      }
+    }
     backups.backupOnce(file);
     writeFileAtomic(file, removal.text);
     if (before) {
@@ -332,18 +390,14 @@ async function removeGuidance(
       }
     }
   }
-  if (harness.id !== "codex" || (record.codexTrustKey === undefined && carried.size === 0)) {
+  const recordedKeys = recordedTrustKeys(record);
+  if (harness.id !== "codex" || (recordedKeys.length === 0 && carried.size === 0)) {
     return;
   }
   const configPath = harness.configPath(ctx);
-  ctx.io.out(`${harness.displayName}: removing the AgentDesk hook's trust from ${configPath}`);
+  ctx.io.out(`${harness.displayName}: removing the AgentDesk hooks' trust from ${configPath}`);
   try {
-    applyCodexTrust(
-      configPath,
-      carried,
-      record.codexTrustKey !== undefined ? [record.codexTrustKey] : [],
-      backups,
-    );
+    applyCodexTrust(configPath, carried, recordedKeys, backups);
   } catch (error) {
     if (removal) {
       try {
@@ -605,8 +659,8 @@ const NEW_SESSION =
   "AgentDesk is installed. Start a new agent session: a session that is already running has not loaded the AgentDesk guidance.";
 
 /**
- * `agentdesk skill install`: the skill and the session-start hook, with Codex
- * trust, for every detected harness (REQ-3).
+ * `agentdesk skill install`: the skill, the session-start hook, and the resume
+ * hooks, with Codex trust, for every detected harness (REQ-3).
  */
 export async function skillInstall(ctx: Context): Promise<number> {
   const state = readState(ctx) ?? emptyState();
@@ -630,28 +684,50 @@ export async function skillInstall(ctx: Context): Promise<number> {
 }
 
 /**
- * Describes the recorded hook: whether its file holds the installer's hook
- * and, for Codex, the trust `hooks/list` reports for it.
+ * Describes each recorded hook: whether its file holds the installer's hook
+ * and, for Codex, the trust `hooks/list` reports for it (component-installer
+ * §State, re-run, and uninstall). Returns undefined when no hook is recorded.
  */
-async function hookStatus(ctx: Context, harness: Harness, record: HarnessRecord): Promise<string> {
+async function hookStatus(
+  ctx: Context,
+  harness: Harness,
+  record: HarnessRecord,
+): Promise<string | undefined> {
+  const events = recordedHookEvents(harness.id, record).map((id) => hookEvent(harness, id));
+  if (events.length === 0) return undefined;
   const file = harness.hookPath(ctx);
-  let command: string | undefined;
+  let found: ReturnType<typeof findHooks>;
   try {
-    command = findHook(ctx, harness);
+    found = findHooks(ctx, harness, events);
   } catch (error) {
     return `hook file unreadable (${message(error)})`;
   }
-  if (command === undefined) return `no AgentDesk hook in ${record.hookPath ?? file}`;
-  if (harness.id !== "codex") return `hook in ${file}`;
-  const hook = findListedHook(await listCodexHooks(ctx), command);
-  return hook?.trustStatus
-    ? `hook in ${file}, trust ${hook.trustStatus}`
-    : `hook in ${file}, trust could not be checked; confirm it in Codex's /hooks`;
+  let list: HookList | undefined;
+  const parts: string[] = [];
+  for (const event of events) {
+    const lookup = found.get(event.id) ?? { kind: "missing" };
+    if (lookup.kind === "missing") {
+      parts.push(`no AgentDesk ${event.label} in ${record[HOOK_PATH_FIELDS[event.id]] ?? file}`);
+    } else if (lookup.kind === "unreadable") {
+      parts.push(`${event.label} unreadable (${lookup.reason})`);
+    } else if (harness.id !== "codex" || event.keyName === undefined) {
+      parts.push(`${event.label} in ${file}`);
+    } else {
+      list ??= await listCodexHooks(ctx);
+      const hook = findListedHook(list, lookup.command);
+      parts.push(
+        hook?.trustStatus
+          ? `${event.label} in ${file}, trust ${hook.trustStatus}`
+          : `${event.label} in ${file}, trust could not be checked; confirm it in Codex's /hooks`,
+      );
+    }
+  }
+  return parts.join("; ");
 }
 
 /**
  * `agentdesk status`: each recorded harness, its connection check, its skill
- * version, and its hook with Codex trust.
+ * version, and its session-start and resume hooks with Codex trust.
  */
 export async function status(ctx: Context): Promise<number> {
   const state = readState(ctx);
@@ -703,8 +779,8 @@ export async function status(ctx: Context): Promise<number> {
     } else {
       skill = "no skill installed";
     }
-    const hook = record.hookPath ? `; ${await hookStatus(ctx, harness, record)}` : "";
-    ctx.io.out(`${harness.displayName}: ${connection}; ${skill}${hook}`);
+    const hooks = await hookStatus(ctx, harness, record);
+    ctx.io.out(`${harness.displayName}: ${connection}; ${skill}${hooks ? `; ${hooks}` : ""}`);
   }
   return 0;
 }
@@ -751,9 +827,12 @@ export async function uninstall(
       );
       continue;
     }
-    if (record.hookPath && resolve(record.hookPath) !== hookPath) {
+    const strayHook = Object.values(HOOK_PATH_FIELDS)
+      .map((field) => record[field])
+      .find((path) => path !== undefined && resolve(path) !== hookPath);
+    if (strayHook !== undefined) {
       failures.push(
-        `${harness.displayName}: the recorded hook path ${record.hookPath} is not ${hookPath}; nothing was changed for it.`,
+        `${harness.displayName}: the recorded hook path ${strayHook} is not ${hookPath}; nothing was changed for it.`,
       );
       continue;
     }
@@ -795,19 +874,17 @@ export async function uninstall(
       }
     }
 
-    // The hook goes before the MCP entry, so the Codex trust table appended
-    // after the MCP table leaves config.toml as it was before install.
-    if (record.hookPath || record.codexTrustKey) {
+    // The hooks go before the MCP entry, so the Codex trust tables appended
+    // after the MCP table leave config.toml as it was before install.
+    if (recordedHookEvents(id, record).length > 0 || recordedTrustKeys(record).length > 0) {
       try {
         await removeGuidance(ctx, harness, record, backups);
       } catch (error) {
-        failures.push(
-          `${harness.displayName}: its session-start hook was not removed: ${message(error)}`,
-        );
+        failures.push(`${harness.displayName}: its hooks were not removed: ${message(error)}`);
         continue;
       }
-      delete record.hookPath;
-      delete record.codexTrustKey;
+      for (const field of Object.values(HOOK_PATH_FIELDS)) delete record[field];
+      for (const field of Object.values(TRUST_KEY_FIELDS)) delete record[field];
     }
 
     if (entry) {
