@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { statePath } from "../src/state.js";
+import { readState, statePath, writeState } from "../src/state.js";
 import {
   cleanupSandboxes,
   FakeClock,
@@ -68,13 +68,17 @@ describe("state file (component-installer §State, re-run, and uninstall)", () =
           skillRealPath: realpathSync(join(sandbox.home, ".codex", "skills", "agentdesk")),
           skillVersion: "1.0.0",
           hookPath: join(sandbox.home, ".codex", "hooks.json"),
+          stopHookPath: join(sandbox.home, ".codex", "hooks.json"),
           codexTrustKey: `${realpathSync(join(sandbox.home, ".codex", "hooks.json"))}:session_start:0:0`,
+          codexStopTrustKey: `${realpathSync(join(sandbox.home, ".codex", "hooks.json"))}:stop:0:0`,
         },
         cursor: {
           server: SERVER,
           connectionId: gateway.issued[2]?.connectionId,
           configPath: join(sandbox.home, ".cursor", "mcp.json"),
           hookPath: join(sandbox.home, ".cursor", "hooks.json"),
+          stopHookPath: join(sandbox.home, ".cursor", "hooks.json"),
+          afterMcpHookPath: join(sandbox.home, ".cursor", "hooks.json"),
         },
       },
     });
@@ -221,7 +225,10 @@ describe("state from an installer without hooks", () => {
     const state = readJson(file) as { harnesses: Record<string, Record<string, string>> };
     for (const record of Object.values(state.harnesses)) {
       delete record.hookPath;
+      delete record.stopHookPath;
+      delete record.afterMcpHookPath;
       delete record.codexTrustKey;
+      delete record.codexStopTrustKey;
     }
     write(file, JSON.stringify(state));
     write(join(sandbox.home, ".claude", "settings.json"), "{}\n");
@@ -236,8 +243,104 @@ describe("state from an installer without hooks", () => {
       join(sandbox.home, ".claude", "settings.json"),
     );
     expect(after.harnesses.codex?.codexTrustKey).toMatch(/hooks\.json:session_start:0:0$/);
+    expect(after.harnesses.codex?.codexStopTrustKey).toMatch(/hooks\.json:stop:0:0$/);
+    expect(after.harnesses.cursor?.afterMcpHookPath).toBe(
+      join(sandbox.home, ".cursor", "hooks.json"),
+    );
     expect(gateway.startRequests()).toHaveLength(1);
   });
+});
+
+describe("state from an installer without resume hooks", () => {
+  it("reads a record with only the session-start hook, and a re-run adds the resume hooks", async () => {
+    const { sandbox, gateway, clock } = setup();
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const file = statePath(makeContext(sandbox).ctx);
+    const state = readJson(file) as { harnesses: Record<string, Record<string, string>> };
+    for (const record of Object.values(state.harnesses)) {
+      delete record.stopHookPath;
+      delete record.afterMcpHookPath;
+      delete record.codexStopTrustKey;
+    }
+    write(file, JSON.stringify(state));
+    const status = makeContext(sandbox, { gateway, clock });
+    expect(await status.run(["status"])).toBe(0);
+    expect(status.out.join("\n")).not.toMatch(/Stop hook|stop hook|afterMCPExecution/);
+    expect(status.out.find((l) => l.startsWith("Codex:"))).toMatch(
+      /session-start hook in .*, trust trusted$/,
+    );
+
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const after = readJson(file) as { harnesses: Record<string, Record<string, string>> };
+    expect(after.harnesses.codex?.stopHookPath).toBe(join(sandbox.home, ".codex", "hooks.json"));
+    expect(after.harnesses.codex?.codexStopTrustKey).toMatch(/hooks\.json:stop:0:0$/);
+    expect(after.harnesses.cursor?.stopHookPath).toBe(join(sandbox.home, ".cursor", "hooks.json"));
+    expect(after.harnesses["claude-code"]).not.toHaveProperty("stopHookPath");
+    expect(gateway.startRequests()).toHaveLength(1);
+  });
+
+  it("round-trips every resume hook field through readState and writeState", () => {
+    const sandbox = makeSandbox();
+    const ctx = makeContext(sandbox).ctx;
+    const value = {
+      version: 1,
+      server: SERVER,
+      harnesses: {
+        codex: {
+          hookPath: "/h/.codex/hooks.json",
+          stopHookPath: "/h/.codex/hooks.json",
+          codexTrustKey: "/h/.codex/hooks.json:session_start:0:0",
+          codexStopTrustKey: "/h/.codex/hooks.json:stop:2:0",
+        },
+        cursor: {
+          hookPath: "/h/.cursor/hooks.json",
+          stopHookPath: "/h/.cursor/hooks.json",
+          afterMcpHookPath: "/h/.cursor/hooks.json",
+        },
+      },
+    };
+    write(statePath(ctx), JSON.stringify(value));
+    const state = readState(ctx);
+    expect(state?.harnesses).toEqual(value.harnesses);
+    writeState(ctx, state as NonNullable<typeof state>);
+    expect(readJson(statePath(ctx))).toEqual(value);
+  });
+
+  const unreadable: [string, string, unknown][] = [
+    ["codex", "stopHookPath", 7],
+    ["codex", "stopHookPath", ""],
+    ["codex", "codexStopTrustKey", ["x"]],
+    ["codex", "codexStopTrustKey", ""],
+    ["cursor", "afterMcpHookPath", null],
+    ["cursor", "stopHookPath", { path: "x" }],
+    // A field for a hook the harness does not have.
+    ["claude-code", "stopHookPath", "/h/.claude/settings.json"],
+    ["claude-code", "afterMcpHookPath", "/h/.claude/settings.json"],
+    ["codex", "afterMcpHookPath", "/h/.codex/hooks.json"],
+    ["cursor", "codexStopTrustKey", "/h/.cursor/hooks.json:stop:0:0"],
+  ];
+
+  it.each(unreadable)(
+    "refuses a %s record whose %s is %j, changing nothing",
+    async (id, field, fieldValue) => {
+      const { sandbox, gateway, clock } = setup();
+      expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+      const file = statePath(makeContext(sandbox).ctx);
+      const state = readJson(file) as { harnesses: Record<string, Record<string, unknown>> };
+      (state.harnesses[id] as Record<string, unknown>)[field] = fieldValue;
+      const text = JSON.stringify(state);
+      write(file, text);
+      const hooks = read(join(sandbox.home, ".codex", "hooks.json"));
+      for (const argv of [["install", "--yes"], ["skill", "install"], ["status"], ["uninstall"]]) {
+        const h = makeContext(sandbox, { gateway, clock });
+        expect(await h.run(argv)).toBe(1);
+        expect(h.err.join("\n")).toContain(`has an unreadable ${field} for ${id}`);
+      }
+      expect(read(file)).toBe(text);
+      expect(read(join(sandbox.home, ".codex", "hooks.json"))).toBe(hooks);
+      expect(gateway.revoked).toEqual([]);
+    },
+  );
 });
 
 describe("status", () => {
@@ -249,9 +352,9 @@ describe("status", () => {
     expect(await h.run(["status"])).toBe(0);
     expect(h.out).toEqual([
       `AgentDesk server: ${SERVER}`,
-      `Claude Code: connected; skill 2.0.0 at ${join(sandbox.home, ".claude", "skills", "agentdesk")}; hook in ${join(sandbox.home, ".claude", "settings.json")}`,
-      `Codex: not connected (the server refused its token); skill 2.0.0 at ${join(sandbox.home, ".codex", "skills", "agentdesk")}; hook in ${join(sandbox.home, ".codex", "hooks.json")}, trust trusted`,
-      `Cursor: connected; skill loaded from the Claude Code or Codex folder; hook in ${join(sandbox.home, ".cursor", "hooks.json")}`,
+      `Claude Code: connected; skill 2.0.0 at ${join(sandbox.home, ".claude", "skills", "agentdesk")}; session-start hook in ${join(sandbox.home, ".claude", "settings.json")}`,
+      `Codex: not connected (the server refused its token); skill 2.0.0 at ${join(sandbox.home, ".codex", "skills", "agentdesk")}; session-start hook in ${join(sandbox.home, ".codex", "hooks.json")}, trust trusted; Stop hook in ${join(sandbox.home, ".codex", "hooks.json")}, trust trusted`,
+      `Cursor: connected; skill loaded from the Claude Code or Codex folder; session-start hook in ${join(sandbox.home, ".cursor", "hooks.json")}; afterMCPExecution hook in ${join(sandbox.home, ".cursor", "hooks.json")}; stop hook in ${join(sandbox.home, ".cursor", "hooks.json")}`,
     ]);
     expect(h.output()).not.toContain("adc_");
   });

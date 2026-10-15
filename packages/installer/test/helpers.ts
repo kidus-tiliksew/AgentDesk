@@ -107,15 +107,22 @@ export function appServerMessages(sandbox: Sandbox): Record<string, unknown>[] {
     .map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
-/** The hash the stub `codex app-server` reports; it matches test/fixtures/fake-harness.mjs. */
+/**
+ * The hash the stub `codex app-server` reports for a hook in `event`
+ * (`session_start` or `stop`); it matches test/fixtures/fake-harness.mjs. It
+ * covers the event and the handler's definition, never its position.
+ */
 export function codexHookHash(
   matcher: string | undefined,
-  handler: { type?: string; command?: string },
+  handler: { type?: string; command?: string; timeout?: number },
+  event: "session_start" | "stop" = "session_start",
 ): string {
   const definition = JSON.stringify([
+    event,
     matcher ?? null,
     handler.type ?? null,
     handler.command ?? null,
+    handler.timeout ?? null,
   ]);
   return `sha256:${createHash("sha256").update(definition).digest("hex")}`;
 }

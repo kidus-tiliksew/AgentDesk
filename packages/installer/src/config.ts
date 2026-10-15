@@ -480,8 +480,15 @@ export function editCodexTrust(
   parseCodex(file, text);
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
   let lines = splitLines(text);
-  for (const key of remove) {
-    if (!trust.has(key)) lines = setRegions(lines, isTrustHeader(key), [], eol);
+  // Tables are removed from the end of the file backwards, so each one
+  // removed is last when its turn comes and takes the blank line the
+  // installer added before it, as a single removal does.
+  const removals = remove
+    .filter((key) => !trust.has(key))
+    .map((key) => ({ key, start: tableRegions(lines, isTrustHeader(key))[0]?.start ?? -1 }))
+    .sort((a, b) => b.start - a.start);
+  for (const { key } of removals) {
+    lines = setRegions(lines, isTrustHeader(key), [], eol);
   }
   for (const [key, hash] of trust) {
     const table = [

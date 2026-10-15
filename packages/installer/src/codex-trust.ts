@@ -21,8 +21,13 @@ export type HookList =
   | { kind: "listed"; hooks: ListedHook[] }
   | { kind: "unavailable"; reason: string };
 
-/** The step that trusts the hook by hand (AC-10.3). */
-export const TRUST_STEP = "In Codex, run /hooks and trust the AgentDesk session-start hook.";
+/**
+ * The step that trusts one AgentDesk hook by hand (AC-10.3), such as the
+ * "session-start hook" or the "Stop hook".
+ */
+export function trustStep(label: string): string {
+  return `In Codex, run /hooks and trust the AgentDesk ${label}.`;
+}
 
 const unavailable = (reason: string): HookList => ({ kind: "unavailable", reason });
 
@@ -145,9 +150,21 @@ export function findListedHook(
   return hook as (ListedHook & { currentHash: string }) | undefined;
 }
 
-/** Splits a Codex hook key, `<hooks.json path>:session_start:<group>:<handler>`. */
-export function parseHookKey(key: string): { file: string; position: string } | undefined {
-  const match = /^(.*):session_start:(\d+):(\d+)$/.exec(key);
+/** The events whose Codex hooks the installer writes and whose keys a removal can change. */
+export type KeyedEvent = "session_start" | "stop";
+
+/**
+ * Splits a Codex hook key, `<hooks.json path>:<event>:<group>:<handler>`,
+ * for the events `session_start` and `stop`.
+ */
+export function parseHookKey(
+  key: string,
+): { file: string; event: KeyedEvent; position: string } | undefined {
+  const match = /^(.*):(session_start|stop):(\d+):(\d+)$/.exec(key);
   if (!match) return undefined;
-  return { file: match[1] as string, position: `${match[2]}:${match[3]}` };
+  return {
+    file: match[1] as string,
+    event: match[2] as KeyedEvent,
+    position: `${match[3]}:${match[4]}`,
+  };
 }

@@ -3,6 +3,7 @@ import { isAbsolute, join } from "node:path";
 import { writeFileAtomic } from "./config.js";
 import { type Context, InstallerError } from "./context.js";
 import { type HarnessId, isHarnessId } from "./harnesses.js";
+import { type HookEventId, hookEventIds } from "./hooks.js";
 
 /**
  * One recorded harness. Tokens are never recorded: they live only in the
@@ -24,8 +25,32 @@ export interface HarnessRecord {
   skillVersion?: string;
   /** The file that holds this installation's session-start hook. */
   hookPath?: string;
-  /** Codex only: the `hooks.state` key whose trust this installation recorded. */
+  /** Codex and Cursor: the file that holds this installation's `stop` resume hook. */
+  stopHookPath?: string;
+  /** Cursor only: the file that holds this installation's `afterMCPExecution` resume hook. */
+  afterMcpHookPath?: string;
+  /** Codex only: the `hooks.state` key whose trust this installation recorded for the session-start hook. */
   codexTrustKey?: string;
+  /** Codex only: the `hooks.state` key whose trust this installation recorded for the `Stop` hook. */
+  codexStopTrustKey?: string;
+}
+
+/** The record field that names the file holding each hook (component-installer §State, re-run, and uninstall). */
+export const HOOK_PATH_FIELDS = {
+  "session-start": "hookPath",
+  stop: "stopHookPath",
+  "after-mcp": "afterMcpHookPath",
+} as const satisfies Record<HookEventId, keyof HarnessRecord>;
+
+/** The record field that holds each Codex hook's trusted key. */
+export const TRUST_KEY_FIELDS = {
+  "session-start": "codexTrustKey",
+  stop: "codexStopTrustKey",
+} as const satisfies Partial<Record<HookEventId, keyof HarnessRecord>>;
+
+/** The hooks a record names a file for, in the installer's order. */
+export function recordedHookEvents(id: HarnessId, record: HarnessRecord): HookEventId[] {
+  return hookEventIds(id).filter((event) => record[HOOK_PATH_FIELDS[event]] !== undefined);
 }
 
 /**
@@ -82,8 +107,21 @@ const RECORD_FIELDS = [
   "skillRealPath",
   "skillVersion",
   "hookPath",
+  "stopHookPath",
+  "afterMcpHookPath",
   "codexTrustKey",
+  "codexStopTrustKey",
 ] as const;
+
+/**
+ * Fields an installer before the resume hooks never wrote. Each is a
+ * non-empty string, held only by a harness that has that hook.
+ */
+const RESUME_FIELDS: Readonly<Record<string, (id: HarnessId) => boolean>> = {
+  stopHookPath: (id) => hookEventIds(id).includes("stop"),
+  afterMcpHookPath: (id) => hookEventIds(id).includes("after-mcp"),
+  codexStopTrustKey: (id) => id === "codex",
+};
 
 export function readState(ctx: Context): State | undefined {
   const file = statePath(ctx);
@@ -116,7 +154,11 @@ export function readState(ctx: Context): State | undefined {
       for (const field of RECORD_FIELDS) {
         const fieldValue = (record as Record<string, unknown>)[field];
         if (fieldValue === undefined) continue;
-        if (typeof fieldValue !== "string") {
+        const applies = RESUME_FIELDS[field];
+        if (
+          typeof fieldValue !== "string" ||
+          (applies !== undefined && (fieldValue.length === 0 || !applies(id)))
+        ) {
           throw new InstallerError(
             `${file} has an unreadable ${field} for ${id}. Fix it, then run again.`,
           );

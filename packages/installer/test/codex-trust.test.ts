@@ -38,6 +38,7 @@ afterEach(cleanupSandboxes);
 
 const MATCHER = "startup|clear|compact";
 const TRUST_STEP = "In Codex, run /hooks and trust the AgentDesk session-start hook.";
+const STOP_STEP = "In Codex, run /hooks and trust the AgentDesk Stop hook.";
 const CONFIG = `# mine\nmodel = "x"\n\n[hooks.state."elsewhere:session_start:0:0"] # theirs\ntrusted_hash = "sha256:abc"\n\n[mcp_servers.github]\ncommand = "gh"\n`;
 
 function setup(env: Record<string, string> = {}, onPath = true) {
@@ -59,20 +60,46 @@ function setup(env: Record<string, string> = {}, onPath = true) {
   };
 }
 
-function ourCommand(sandbox: Sandbox): string {
-  return `${sandbox.executable} context --harness codex`;
+function ourCommand(sandbox: Sandbox, executable = sandbox.executable): string {
+  return `${executable} context --harness codex`;
 }
 
-function keyOf(hooksFile: string, group: number): string {
-  return `${realpathSync(hooksFile)}:session_start:${group}:0`;
+function ourStop(sandbox: Sandbox, executable = sandbox.executable): string {
+  return `${executable} hook stop --harness codex`;
+}
+
+type KeyEvent = "session_start" | "stop";
+
+function keyOf(hooksFile: string, group: number, event: KeyEvent = "session_start"): string {
+  return `${realpathSync(hooksFile)}:${event}:${group}:0`;
 }
 
 function hashOf(command: string, matcher = MATCHER): string {
   return codexHookHash(matcher, { type: "command", command });
 }
 
+/** The Stop hook's hash; a `timeout` of null hashes a handler without one. */
+function stopHashOf(command: string, timeout: number | null = 10): string {
+  const handler =
+    timeout === null ? { type: "command", command } : { type: "command", command, timeout };
+  return codexHookHash(undefined, handler, "stop");
+}
+
 function trustTable(key: string, hash: string): string {
   return `\n[hooks.state.${JSON.stringify(key)}]\ntrusted_hash = "${hash}"\n`;
+}
+
+/** The two tables install records: the session-start hook's, then the Stop hook's. */
+function ourTrust(
+  sandbox: Sandbox,
+  hooksFile: string,
+  groups: { session: number; stop: number } = { session: 0, stop: 0 },
+  executable = sandbox.executable,
+): string {
+  return (
+    trustTable(keyOf(hooksFile, groups.session), hashOf(ourCommand(sandbox, executable))) +
+    trustTable(keyOf(hooksFile, groups.stop, "stop"), stopHashOf(ourStop(sandbox, executable)))
+  );
 }
 
 function mcpTable(gateway: FakeGateway): string {
@@ -87,18 +114,30 @@ function stateRecord(sandbox: Sandbox): Record<string, string> {
   return harnesses.codex ?? {};
 }
 
+interface HooksJson {
+  hooks: { SessionStart: unknown[]; Stop: unknown[] };
+}
+
+/** Each listed hook as [command, key, trustStatus]. */
+async function listed(sandbox: Sandbox): Promise<(string | undefined)[][]> {
+  const list = await listCodexHooks(makeContext(sandbox).ctx);
+  expect(list.kind).toBe("listed");
+  return list.kind === "listed" ? list.hooks.map((x) => [x.command, x.key, x.trustStatus]) : [];
+}
+
 describe("trust recorded by install", () => {
-  it("writes the reported key and hash and keeps every other byte of config.toml", async () => {
+  it("writes the reported key and hash of both hooks and keeps every other byte of config.toml", async () => {
     const { sandbox, gateway, context, hooksFile, config } = setup();
     const h = context();
     expect(await h.run(["install", "--yes"])).toBe(0);
-    const key = keyOf(hooksFile, 0);
-    expect(read(config)).toBe(
-      CONFIG + mcpTable(gateway) + trustTable(key, hashOf(ourCommand(sandbox))),
+    expect(read(config)).toBe(CONFIG + mcpTable(gateway) + ourTrust(sandbox, hooksFile));
+    expect(stateRecord(sandbox).codexTrustKey).toBe(keyOf(hooksFile, 0));
+    expect(stateRecord(sandbox).codexStopTrustKey).toBe(keyOf(hooksFile, 0, "stop"));
+    expect(h.out).toContain(
+      `Codex: trust for the AgentDesk session-start hook recorded in ${config}`,
     );
-    expect(stateRecord(sandbox).codexTrustKey).toBe(key);
-    expect(h.out).toContain(`Codex: trust for the AgentDesk hook recorded in ${config}`);
-    // The exchange: initialize, initialized, then hooks/list for the home directory.
+    expect(h.out).toContain(`Codex: trust for the AgentDesk Stop hook recorded in ${config}`);
+    // One exchange covers both hooks: initialize, initialized, then hooks/list for the home directory.
     expect(appServerMessages(sandbox)).toEqual([
       {
         jsonrpc: "2.0",
@@ -109,11 +148,19 @@ describe("trust recorded by install", () => {
       { jsonrpc: "2.0", method: "initialized" },
       { jsonrpc: "2.0", id: 2, method: "hooks/list", params: { cwds: [sandbox.home] } },
     ]);
-    // Codex now reports the hook as trusted.
-    const listed = await listCodexHooks(h.ctx);
-    expect(listed.kind === "listed" && listed.hooks.map((x) => x.trustStatus)).toEqual(["trusted"]);
+    // Codex now reports both hooks as trusted.
+    expect(await listed(sandbox)).toEqual([
+      [ourCommand(sandbox), keyOf(hooksFile, 0), "trusted"],
+      [ourStop(sandbox), keyOf(hooksFile, 0, "stop"), "trusted"],
+    ]);
     expect(read(config)).not.toContain("agentdesk-tmp");
-    for (const issued of gateway.issued) expect(read(hooksFile)).not.toContain(issued.token);
+    // config.toml was copied once, before the run's first edit.
+    expect(read(`${config}.agentdesk-backup`)).toBe(CONFIG);
+    for (const issued of gateway.issued) {
+      expect(read(hooksFile)).not.toContain(issued.token);
+      expect(read(`${config}.agentdesk-backup`)).not.toContain(issued.token);
+      expect(h.output()).not.toContain(issued.token);
+    }
   });
 
   it("uses CODEX_HOME for hooks.json and config.toml", async () => {
@@ -123,61 +170,89 @@ describe("trust recorded by install", () => {
     const h = makeContext(sandbox, { env: { CODEX_HOME: codexHome } });
     expect(await h.run(["skill", "install"])).toBe(0);
     const hooksFile = join(codexHome, "hooks.json");
-    expect(read(join(codexHome, "config.toml"))).toBe(
-      trustTable(keyOf(hooksFile, 0), hashOf(ourCommand(sandbox))).slice(1),
-    );
+    expect(read(join(codexHome, "config.toml"))).toBe(ourTrust(sandbox, hooksFile).slice(1));
+    expect(stateRecord(sandbox).codexStopTrustKey).toBe(keyOf(hooksFile, 0, "stop"));
+    expect(existsSync(join(sandbox.home, ".codex"))).toBe(false);
   });
 
-  it("replaces the recorded table when the hook's key changes", async () => {
+  it("replaces the recorded tables when both hooks' keys change", async () => {
     const { sandbox, gateway, context, hooksFile, config } = setup();
     expect(await context().run(["install", "--yes"])).toBe(0);
-    // The user puts a group before the installer's, which moves its key.
-    const hooks = readJson(hooksFile) as { hooks: { SessionStart: unknown[] } };
+    // The user puts a group before each of the installer's, which moves both keys.
+    const hooks = readJson(hooksFile) as unknown as HooksJson;
     hooks.hooks.SessionStart.unshift({
       matcher: "resume",
       hooks: [{ type: "command", command: "echo first" }],
     });
+    hooks.hooks.Stop.unshift({ hooks: [{ type: "command", command: "echo first-stop" }] });
     write(hooksFile, `${JSON.stringify(hooks, null, 2)}\n`);
 
     expect(await context().run(["install", "--yes"])).toBe(0);
     expect(read(config)).toBe(
-      CONFIG + mcpTable(gateway) + trustTable(keyOf(hooksFile, 1), hashOf(ourCommand(sandbox))),
+      CONFIG + mcpTable(gateway) + ourTrust(sandbox, hooksFile, { session: 1, stop: 1 }),
     );
     expect(stateRecord(sandbox).codexTrustKey).toBe(keyOf(hooksFile, 1));
+    expect(stateRecord(sandbox).codexStopTrustKey).toBe(keyOf(hooksFile, 1, "stop"));
   });
 
-  it("refreshes the hash when the executable moves", async () => {
+  it("replaces only the Stop table when only the Stop hook's key changes", async () => {
+    const { sandbox, gateway, context, hooksFile, config } = setup();
+    expect(await context().run(["install", "--yes"])).toBe(0);
+    const hooks = readJson(hooksFile) as unknown as HooksJson;
+    hooks.hooks.Stop.unshift({ hooks: [{ type: "command", command: "echo first-stop" }] });
+    write(hooksFile, `${JSON.stringify(hooks, null, 2)}\n`);
+    expect(await context().run(["skill", "install"])).toBe(0);
+    expect(read(config)).toBe(
+      CONFIG + mcpTable(gateway) + ourTrust(sandbox, hooksFile, { session: 0, stop: 1 }),
+    );
+    expect(stateRecord(sandbox).codexTrustKey).toBe(keyOf(hooksFile, 0));
+    expect(stateRecord(sandbox).codexStopTrustKey).toBe(keyOf(hooksFile, 1, "stop"));
+  });
+
+  it("refreshes both hashes when the executable moves", async () => {
     const { sandbox, gateway, context, hooksFile, config } = setup();
     expect(await context().run(["install", "--yes"])).toBe(0);
     const moved = join(sandbox.root, "moved", "agentdesk");
     const h = makeContext(sandbox, { gateway, clock: new FakeClock(), executable: moved });
     expect(await h.run(["skill", "install"])).toBe(0);
     expect(read(config)).toBe(
-      CONFIG +
-        mcpTable(gateway) +
-        trustTable(keyOf(hooksFile, 0), hashOf(`${moved} context --harness codex`)),
+      CONFIG + mcpTable(gateway) + ourTrust(sandbox, hooksFile, undefined, moved),
     );
+    expect(await listed(sandbox)).toEqual([
+      [ourCommand(sandbox, moved), keyOf(hooksFile, 0), "trusted"],
+      [ourStop(sandbox, moved), keyOf(hooksFile, 0, "stop"), "trusted"],
+    ]);
   });
 
-  it("reports trustStatus in status", async () => {
+  it("reports each hook's trustStatus in status", async () => {
     const { context, hooksFile, config } = setup();
     expect(await context().run(["install", "--yes"])).toBe(0);
     const trusted = context();
     expect(await trusted.run(["status"])).toBe(0);
     expect(trusted.out.find((l) => l.startsWith("Codex:"))).toMatch(
-      new RegExp(`; hook in ${hooksFile}, trust trusted$`),
+      new RegExp(
+        `; session-start hook in ${hooksFile}, trust trusted; Stop hook in ${hooksFile}, trust trusted$`,
+      ),
     );
+    // Only the Stop hook's recorded hash changes, the last table in the file.
     write(
       config,
       read(config).replace(/trusted_hash = "sha256:[0-9a-f]+"\n$/, 'trusted_hash = "sha256:0"\n'),
     );
     const modified = context();
     expect(await modified.run(["status"])).toBe(0);
-    expect(modified.out.find((l) => l.startsWith("Codex:"))).toMatch(/, trust modified$/);
+    expect(modified.out.find((l) => l.startsWith("Codex:"))).toMatch(
+      /session-start hook in [^;]+, trust trusted; Stop hook in [^;]+, trust modified$/,
+    );
     const unavailable = context({ FAKE_CODEX_APP_SERVER: "fail" });
     expect(await unavailable.run(["status"])).toBe(0);
     expect(unavailable.out.find((l) => l.startsWith("Codex:"))).toMatch(
-      /, trust could not be checked; confirm it in Codex's \/hooks$/,
+      /session-start hook in [^;]+, trust could not be checked; confirm it in Codex's \/hooks; Stop hook in [^;]+, trust could not be checked; confirm it in Codex's \/hooks$/,
+    );
+    const missing = context({ FAKE_CODEX_APP_SERVER: "missing-stop" });
+    expect(await missing.run(["status"])).toBe(0);
+    expect(missing.out.find((l) => l.startsWith("Codex:"))).toMatch(
+      /, trust trusted; Stop hook in [^;]+, trust could not be checked; confirm it in Codex's \/hooks$/,
     );
   });
 
@@ -190,24 +265,65 @@ describe("trust recorded by install", () => {
       "codex app-server exited with status 2",
     ],
     [
-      "the hook is missing from the list",
-      { FAKE_CODEX_APP_SERVER: "missing" },
+      "app-server answers hooks/list with an error",
+      { FAKE_CODEX_APP_SERVER: "error" },
       true,
-      "codex does not list the AgentDesk hook",
+      "codex app-server could not list hooks",
     ],
   ];
 
   it.each(fallbacks)(
-    "prints the /hooks step and exits 0 when %s",
+    "prints the /hooks step for both hooks and exits 0 when %s",
     async (_name, env, onPath, reason) => {
       const { sandbox, gateway, context, config } = setup(env, onPath);
       const h = context();
       expect(await h.run(["install", "--yes"])).toBe(0);
       expect(h.out).toContain(
-        `Codex: the AgentDesk hook is not trusted yet (${reason}). ${TRUST_STEP}`,
+        `Codex: the AgentDesk session-start hook is not trusted yet (${reason}). ${TRUST_STEP}`,
+      );
+      expect(h.out).toContain(
+        `Codex: the AgentDesk Stop hook is not trusted yet (${reason}). ${STOP_STEP}`,
       );
       expect(read(config)).toBe(CONFIG + mcpTable(gateway));
       expect(stateRecord(sandbox).codexTrustKey).toBeUndefined();
+      expect(stateRecord(sandbox).codexStopTrustKey).toBeUndefined();
+      expect(h.err).toEqual([]);
+    },
+  );
+
+  const unlisted: [string, string, ("session" | "stop")[]][] = [
+    ["the session-start hook is missing from the list", "missing", ["session"]],
+    ["the Stop hook is missing from the list", "missing-stop", ["stop"]],
+    ["both hooks are missing from the list", "missing-all", ["session", "stop"]],
+    ["every hook's currentHash is malformed", "malformed", ["session", "stop"]],
+    ["every hook comes from a source other than the user", "project", ["session", "stop"]],
+  ];
+
+  it.each(unlisted)(
+    "writes no invented trust and prints the step for each hook it cannot use when %s",
+    async (_name, mode, missing) => {
+      const { sandbox, gateway, context, hooksFile, config } = setup({
+        FAKE_CODEX_APP_SERVER: mode,
+      });
+      const h = context();
+      expect(await h.run(["install", "--yes"])).toBe(0);
+      const sessionLine = `Codex: the AgentDesk session-start hook is not trusted yet (codex does not list the AgentDesk session-start hook). ${TRUST_STEP}`;
+      const stopLine = `Codex: the AgentDesk Stop hook is not trusted yet (codex does not list the AgentDesk Stop hook). ${STOP_STEP}`;
+      let expected = CONFIG + mcpTable(gateway);
+      if (missing.includes("session")) expect(h.out).toContain(sessionLine);
+      else expected += trustTable(keyOf(hooksFile, 0), hashOf(ourCommand(sandbox)));
+      if (missing.includes("stop")) expect(h.out).toContain(stopLine);
+      else expected += trustTable(keyOf(hooksFile, 0, "stop"), stopHashOf(ourStop(sandbox)));
+      if (!missing.includes("session")) expect(h.out).not.toContain(sessionLine);
+      if (!missing.includes("stop")) expect(h.out).not.toContain(stopLine);
+      expect(read(config)).toBe(expected);
+      const record = stateRecord(sandbox);
+      expect(record.codexTrustKey).toBe(
+        missing.includes("session") ? undefined : keyOf(hooksFile, 0),
+      );
+      expect(record.codexStopTrustKey).toBe(
+        missing.includes("stop") ? undefined : keyOf(hooksFile, 0, "stop"),
+      );
       expect(h.err).toEqual([]);
     },
   );
@@ -228,28 +344,48 @@ describe("trust recorded by install", () => {
     expect(clock.pendingTimers).toBe(1);
     clock.advance(1);
     expect(await run).toBe(0);
+    const reason = "codex app-server did not answer within 10 seconds";
     expect(h.out).toContain(
-      `Codex: the AgentDesk hook is not trusted yet (codex app-server did not answer within 10 seconds). ${TRUST_STEP}`,
+      `Codex: the AgentDesk session-start hook is not trusted yet (${reason}). ${TRUST_STEP}`,
+    );
+    expect(h.out).toContain(
+      `Codex: the AgentDesk Stop hook is not trusted yet (${reason}). ${STOP_STEP}`,
     );
     expect(read(config)).toBe(CONFIG + mcpTable(gateway));
     const pid = Number(readFileSync(`${sandbox.log}.pids`, "utf8").trim());
     await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow(), { timeout: 5_000 });
   });
 
-  it("refuses a hooks.state definition lines cannot replace, keeping it, and exits 1", async () => {
-    const { sandbox, context, hooksFile, config } = setup();
-    // The key the hook will get, defined with a dotted key under [hooks.state].
-    const key = `${realpathSync(join(sandbox.home, ".codex"))}/hooks.json:session_start:0:0`;
-    const dotted = `${CONFIG}\n[hooks.state]\n${JSON.stringify(key)}.trusted_hash = "sha256:old"\n`;
-    write(config, dotted);
-    const h = context();
-    expect(await h.run(["install", "--yes"])).toBe(1);
-    expect(h.err.join("\n")).toContain(
-      `Codex: the AgentDesk hook's trust was not recorded: ${config} defines hooks.state for the AgentDesk hook in a form the installer cannot replace; it was not changed. ${TRUST_STEP}`,
-    );
-    expect(read(config)).toContain(`${JSON.stringify(key)}.trusted_hash = "sha256:old"\n`);
-    expect(keyOf(hooksFile, 0)).toBe(key);
-  });
+  it.each([
+    ["session-start", "session_start", TRUST_STEP],
+    ["Stop", "stop", STOP_STEP],
+  ] as const)(
+    "refuses a hooks.state definition lines cannot replace for the %s hook, keeping it, and exits 1",
+    async (label, event, step) => {
+      const { sandbox, gateway, context, hooksFile, config } = setup();
+      // The key the hook will get, defined with a dotted key under [hooks.state].
+      const key = `${realpathSync(join(sandbox.home, ".codex"))}/hooks.json:${event}:0:0`;
+      const dotted = `${CONFIG}\n[hooks.state]\n${JSON.stringify(key)}.trusted_hash = "sha256:old"\n`;
+      write(config, dotted);
+      const h = context();
+      expect(await h.run(["install", "--yes"])).toBe(1);
+      expect(h.err.join("\n")).toContain(
+        `Codex: the AgentDesk ${label} hook's trust was not recorded: ${config} defines hooks.state for the AgentDesk hook in a form the installer cannot replace; it was not changed. ${step}`,
+      );
+      expect(read(config)).toContain(`${JSON.stringify(key)}.trusted_hash = "sha256:old"\n`);
+      expect(keyOf(hooksFile, 0, event)).toBe(key);
+      // Both hooks' trust goes in one edit, so neither is recorded, and each
+      // gets its own step.
+      expect(h.err.join("\n")).toContain(
+        `in a form the installer cannot replace; it was not changed. ${label === "Stop" ? TRUST_STEP : STOP_STEP}`,
+      );
+      expect(read(config)).toBe(dotted + mcpTable(gateway));
+      const record = stateRecord(sandbox);
+      expect(record.codexTrustKey).toBeUndefined();
+      expect(record.codexStopTrustKey).toBeUndefined();
+      expect(h.output()).not.toContain(gateway.tokenFor("codex"));
+    },
+  );
 });
 
 describe("editCodexTrust", () => {
@@ -279,6 +415,14 @@ describe("editCodexTrust", () => {
     expect(editCodexTrust(file, text, new Map(), ["absent"])).toBe(text);
   });
 
+  it("removes several appended tables with their blank lines, in any order given", () => {
+    const text =
+      'a = 1\n\n[mcp_servers.agentdesk]\nurl = "u"\n\n[hooks.state."one"]\ntrusted_hash = "sha256:1"\n\n[hooks.state."two"]\ntrusted_hash = "sha256:2"\n';
+    const expected = 'a = 1\n\n[mcp_servers.agentdesk]\nurl = "u"\n';
+    expect(editCodexTrust(file, text, new Map(), ["one", "two"])).toBe(expected);
+    expect(editCodexTrust(file, text, new Map(), ["two", "one"])).toBe(expected);
+  });
+
   it("sets one key and removes another in one edit", () => {
     const text = '[hooks.state."old"]\ntrusted_hash = "sha256:1"\n';
     expect(editCodexTrust(file, text, new Map([["new", "sha256:2"]]), ["old"])).toBe(
@@ -304,7 +448,13 @@ describe("editCodexTrust", () => {
 });
 
 describe("trust carried by uninstall", () => {
-  /** Installs, then appends three user groups after the installer's: trusted, modified, untrusted. */
+  const LATER = ["trusted", "modified", "untrusted"];
+
+  /**
+   * Installs, then appends three user groups after each of the installer's
+   * SessionStart and Stop groups: trusted, modified, and untrusted. Both
+   * events' later groups sit at the same positions, 1 to 3.
+   */
   async function installWithLaterGroups(
     env: Record<string, string> = {},
     prepare: (fixture: ReturnType<typeof setup>) => void = () => {},
@@ -313,42 +463,83 @@ describe("trust carried by uninstall", () => {
     const { sandbox, context, hooksFile, config } = fixture;
     prepare(fixture);
     expect(await context().run(["install", "--yes"])).toBe(0);
-    const hooks = readJson(hooksFile) as { hooks: { SessionStart: unknown[] } };
-    const later = ["echo trusted", "echo modified", "echo untrusted"];
-    for (const command of later) {
-      hooks.hooks.SessionStart.push({ matcher: "resume", hooks: [{ type: "command", command }] });
+    const hooks = readJson(hooksFile) as unknown as HooksJson;
+    for (const name of LATER) {
+      hooks.hooks.SessionStart.push({
+        matcher: "resume",
+        hooks: [{ type: "command", command: `echo ${name}` }],
+      });
+      hooks.hooks.Stop.push({ hooks: [{ type: "command", command: `echo ${name}`, timeout: 5 }] });
     }
     write(hooksFile, `${JSON.stringify(hooks, null, 2)}\n`);
-    const before = read(config);
     write(
       config,
-      before +
+      read(config) +
         trustTable(keyOf(hooksFile, 1), hashOf("echo trusted", "resume")) +
-        trustTable(keyOf(hooksFile, 2), "sha256:stale"),
+        trustTable(keyOf(hooksFile, 2), "sha256:stale") +
+        trustTable(keyOf(hooksFile, 1, "stop"), stopHashOf("echo trusted", 5)) +
+        trustTable(keyOf(hooksFile, 2, "stop"), "sha256:stale-stop"),
     );
     const h = makeContext(sandbox, { gateway: fixture.gateway, clock: fixture.clock, env });
-    return { ...fixture, h, later };
+    return { ...fixture, h };
   }
 
-  it("carries trust to the new key of a later hook trusted with an unchanged hash only", async () => {
-    const { sandbox, h, hooksFile, config } = await installWithLaterGroups();
-    expect(await h.run(["uninstall"])).toBe(0);
-    const listed = await listCodexHooks(makeContext(sandbox).ctx);
-    expect(listed.kind).toBe("listed");
-    const status =
-      listed.kind === "listed" ? listed.hooks.map((x) => [x.command, x.key, x.trustStatus]) : [];
-    expect(status).toEqual([
+  /** The listing and config.toml after uninstall carried trust in both events. */
+  function expectCarried(hooksFile: string, config: string, list: (string | undefined)[][]) {
+    expect(list).toEqual([
       ["echo trusted", keyOf(hooksFile, 0), "trusted"],
       ["echo modified", keyOf(hooksFile, 1), "modified"],
       ["echo untrusted", keyOf(hooksFile, 2), "modified"],
+      ["echo trusted", keyOf(hooksFile, 0, "stop"), "trusted"],
+      ["echo modified", keyOf(hooksFile, 1, "stop"), "modified"],
+      ["echo untrusted", keyOf(hooksFile, 2, "stop"), "modified"],
     ]);
-    // The installer's table for key 0 now holds the carried hash, in place; the
-    // MCP table before it is gone, and the user's tables for the old keys are untouched.
+    // The installer's tables for the two 0 keys now hold the carried hashes,
+    // in place; the MCP table before them is gone, and the user's tables for
+    // the old keys are untouched.
     expect(read(config)).toBe(
       `${CONFIG}\n` +
         trustTable(keyOf(hooksFile, 0), hashOf("echo trusted", "resume")) +
+        trustTable(keyOf(hooksFile, 0, "stop"), stopHashOf("echo trusted", 5)) +
         trustTable(keyOf(hooksFile, 1), hashOf("echo trusted", "resume")) +
-        trustTable(keyOf(hooksFile, 2), "sha256:stale"),
+        trustTable(keyOf(hooksFile, 2), "sha256:stale") +
+        trustTable(keyOf(hooksFile, 1, "stop"), stopHashOf("echo trusted", 5)) +
+        trustTable(keyOf(hooksFile, 2, "stop"), "sha256:stale-stop"),
+    );
+  }
+
+  it("carries trust in both events to the new key of a later hook trusted with an unchanged hash only", async () => {
+    const { sandbox, h, hooksFile, config } = await installWithLaterGroups();
+    expect(await h.run(["uninstall"])).toBe(0);
+    expect(h.out).toContain(`Codex: removing the session-start hook from ${hooksFile}`);
+    expect(h.out).toContain(`Codex: removing the Stop hook from ${hooksFile}`);
+    expectCarried(hooksFile, config, await listed(sandbox));
+    expect(existsSync(statePath(h.ctx))).toBe(false);
+  });
+
+  it("never carries trust from one event to the same position in the other", async () => {
+    const { sandbox, context, hooksFile, config } = setup();
+    expect(await context().run(["install", "--yes"])).toBe(0);
+    // One later group in each event, both moving from position 1:0 to 0:0;
+    // only the Stop hook was trusted.
+    const hooks = readJson(hooksFile) as unknown as HooksJson;
+    hooks.hooks.SessionStart.push({ hooks: [{ type: "command", command: "echo same" }] });
+    hooks.hooks.Stop.push({ hooks: [{ type: "command", command: "echo same" }] });
+    write(hooksFile, `${JSON.stringify(hooks, null, 2)}\n`);
+    write(
+      config,
+      read(config) + trustTable(keyOf(hooksFile, 1, "stop"), stopHashOf("echo same", null)),
+    );
+    expect(await context().run(["uninstall"])).toBe(0);
+    expect(await listed(sandbox)).toEqual([
+      ["echo same", keyOf(hooksFile, 0), "untrusted"],
+      ["echo same", keyOf(hooksFile, 0, "stop"), "trusted"],
+    ]);
+    // The session-start table, removed between others, leaves its blank line.
+    expect(read(config)).toBe(
+      `${CONFIG}\n\n` +
+        trustTable(keyOf(hooksFile, 0, "stop"), stopHashOf("echo same", null)) +
+        trustTable(keyOf(hooksFile, 1, "stop"), stopHashOf("echo same", null)),
     );
   });
 
@@ -374,52 +565,51 @@ describe("trust carried by uninstall", () => {
       } finally {
         chmodSync(readOnly, 0o755);
       }
-      expect(h.err.join("\n")).toContain("Codex: its session-start hook was not removed:");
+      expect(h.err.join("\n")).toContain("Codex: its hooks were not removed:");
       expect(h.out).toContain(`Codex: restored ${hooksFile}, because its trust was not updated.`);
       expect(read(hooksFile)).toBe(hooksBefore);
       expect(read(config)).toBe(configBefore);
       const record = stateRecord(sandbox);
       expect(record.hookPath).toBe(hooksFile);
+      expect(record.stopHookPath).toBe(hooksFile);
       expect(record.codexTrustKey).toBe(keyOf(hooksFile, 0));
+      expect(record.codexStopTrustKey).toBe(keyOf(hooksFile, 0, "stop"));
 
-      // The retry finds the installer's hook again and carries the trust.
+      // The retry finds the installer's hooks again and carries the trust in both events.
       const retry = makeContext(sandbox, { gateway, clock });
       expect(await retry.run(["uninstall"])).toBe(0);
-      const listed = await listCodexHooks(makeContext(sandbox).ctx);
-      const status =
-        listed.kind === "listed" ? listed.hooks.map((x) => [x.command, x.key, x.trustStatus]) : [];
-      expect(status).toEqual([
-        ["echo trusted", keyOf(hooksFile, 0), "trusted"],
-        ["echo modified", keyOf(hooksFile, 1), "modified"],
-        ["echo untrusted", keyOf(hooksFile, 2), "modified"],
-      ]);
-      expect(read(config)).toBe(
-        `${CONFIG}\n` +
-          trustTable(keyOf(hooksFile, 0), hashOf("echo trusted", "resume")) +
-          trustTable(keyOf(hooksFile, 1), hashOf("echo trusted", "resume")) +
-          trustTable(keyOf(hooksFile, 2), "sha256:stale"),
-      );
+      expectCarried(hooksFile, config, await listed(sandbox));
       expect(existsSync(statePath(retry.ctx))).toBe(false);
     },
   );
 
   it("warns that later hooks may need trusting again when app-server is unavailable", async () => {
-    const { h, hooksFile } = await installWithLaterGroups({ FAKE_CODEX_APP_SERVER: "fail" });
+    const { h, hooksFile, config } = await installWithLaterGroups({
+      FAKE_CODEX_APP_SERVER: "fail",
+    });
     expect(await h.run(["uninstall"])).toBe(0);
     expect(h.out).toContain(
       `Codex: hooks listed after AgentDesk's in ${hooksFile} may need trusting again. In Codex, run /hooks and trust them.`,
     );
-    expect((readJson(hooksFile).hooks as { SessionStart: unknown[] }).SessionStart).toHaveLength(3);
+    const hooks = readJson(hooksFile) as unknown as HooksJson;
+    expect(hooks.hooks.SessionStart).toHaveLength(3);
+    expect(hooks.hooks.Stop).toHaveLength(3);
+    // Both recorded tables are removed; no trust is invented for the moved hooks.
+    expect(read(config)).not.toContain(`${JSON.stringify(keyOf(hooksFile, 0))}]`);
+    expect(read(config)).not.toContain(`${JSON.stringify(keyOf(hooksFile, 0, "stop"))}]`);
   });
 
-  it("does not start app-server when no later hook moves", async () => {
-    const { sandbox, context, config } = setup();
+  it("does not start app-server when no later hook moves, and removes both recorded tables", async () => {
+    const { sandbox, context, hooksFile, config } = setup();
     expect(await context().run(["install", "--yes"])).toBe(0);
     const started = appServerMessages(sandbox).filter((m) => m.method === "initialize").length;
-    expect(await context().run(["uninstall"])).toBe(0);
+    const h = context();
+    expect(await h.run(["uninstall"])).toBe(0);
     expect(appServerMessages(sandbox).filter((m) => m.method === "initialize")).toHaveLength(
       started,
     );
+    expect(h.out).toContain(`Codex: removing the AgentDesk hooks' trust from ${config}`);
     expect(read(config)).toBe(CONFIG);
+    expect(readJson(hooksFile)).toEqual({ hooks: { SessionStart: [], Stop: [] } });
   });
 });
