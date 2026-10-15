@@ -1,4 +1,12 @@
-import { chmodSync, existsSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { statePath } from "../src/state.js";
@@ -448,6 +456,9 @@ describe("the resume directory", () => {
     write(join(dir, "cursor", "conv_1", "dec_3"), "");
   }
 
+  // The sandbox home sits under the system's temporary directory, which on
+  // macOS is reached through the /var symbolic link: directories above the
+  // home directory are not checked, so an ordinary home is accepted.
   it("is removed with its contents, printed first, keeping its siblings", async () => {
     const { sandbox, gateway, clock } = await installed(["codex", "cursor-agent"]);
     const base = join(sandbox.home, ".config", "agentdesk");
@@ -472,9 +483,12 @@ describe("the resume directory", () => {
     stubExecutable(sandbox, "cursor-agent");
     const clock = new FakeClock();
     const gateway = new FakeGateway(clock);
-    const env = { XDG_CONFIG_HOME: join(sandbox.root, "xdg") };
+    // A base outside the home directory is checked from the filesystem root,
+    // so the test uses the resolved temporary directory.
+    const root = realpathSync(sandbox.root);
+    const env = { XDG_CONFIG_HOME: join(root, "xdg") };
     expect(await makeContext(sandbox, { gateway, clock, env }).run(["install", "--yes"])).toBe(0);
-    const dir = join(sandbox.root, "xdg", "agentdesk", "resume");
+    const dir = join(root, "xdg", "agentdesk", "resume");
     fillResume(dir);
     // A resume directory under ~/.config is not this installation's.
     const other = join(sandbox.home, ".config", "agentdesk", "resume", "claims", "dec_9");
@@ -595,4 +609,74 @@ describe("the resume directory", () => {
       expect(existsSync(statePath(retry.ctx))).toBe(false);
     },
   );
+
+  /**
+   * Installs Cursor with the state under `base`, fills the resume directory,
+   * then moves `redirected` (base itself or a directory above it) elsewhere
+   * and leaves a symbolic link at its path. Uninstall reads the state through
+   * the link, so only the ownership walk can refuse the destination.
+   */
+  async function redirectedBase(
+    sandbox: Sandbox,
+    env: Record<string, string>,
+    base: string,
+    redirected: string,
+  ) {
+    stubExecutable(sandbox, "cursor-agent");
+    const clock = new FakeClock();
+    const gateway = new FakeGateway(clock);
+    expect(await makeContext(sandbox, { gateway, clock, env }).run(["install", "--yes"])).toBe(0);
+    fillResume(join(base, "agentdesk", "resume"));
+    const moved = `${redirected}-moved`;
+    renameSync(redirected, moved);
+    symlinkSync(moved, redirected);
+    // The same files, seen at the link's destination.
+    const external = join(moved, base.slice(redirected.length));
+    const marker = join(external, "agentdesk", "resume", "claims", "dec_1");
+    const state = join(external, "agentdesk", "state.json");
+    expect(existsSync(marker)).toBe(true);
+
+    const h = makeContext(sandbox, { gateway, clock, env });
+    expect(await h.run(["uninstall"])).toBe(1);
+    const dir = join(base, "agentdesk", "resume");
+    expect(h.out).toContain(`Removing the resume directory ${dir}`);
+    expect(h.err.join("\n")).toContain(
+      `The resume directory was not removed: ${dir} is not a resume directory the installer owns (${redirected} is a symbolic link`,
+    );
+    expect(existsSync(marker)).toBe(true);
+    expect(existsSync(join(external, "agentdesk", "resume", "waiters", "dec_2"))).toBe(true);
+    // The state stays for a retry, with nothing left to revoke.
+    expect(readJson(state)).toEqual({
+      version: 1,
+      server: "https://agentdesk.test",
+      harnesses: {},
+    });
+
+    // Once the redirect is corrected, a later uninstall finishes.
+    rmSync(redirected);
+    renameSync(moved, redirected);
+    const retry = makeContext(sandbox, { gateway, clock, env });
+    expect(await retry.run(["uninstall"])).toBe(0);
+    expect(existsSync(dir)).toBe(false);
+    expect(existsSync(join(base, "agentdesk", "state.json"))).toBe(false);
+  }
+
+  it("refuses a resume directory under a redirected ~/.config, keeping the state for a retry", async () => {
+    const sandbox = makeSandbox();
+    const base = join(sandbox.home, ".config");
+    await redirectedBase(sandbox, {}, base, base);
+  });
+
+  it("refuses a resume directory under a redirected XDG_CONFIG_HOME, keeping the state for a retry", async () => {
+    const sandbox = makeSandbox();
+    const base = join(realpathSync(sandbox.root), "xdg");
+    await redirectedBase(sandbox, { XDG_CONFIG_HOME: base }, base, base);
+  });
+
+  it("refuses a resume directory when a directory above a custom base was redirected, keeping the state for a retry", async () => {
+    const sandbox = makeSandbox();
+    const tools = join(realpathSync(sandbox.root), "tools");
+    const base = join(tools, "config");
+    await redirectedBase(sandbox, { XDG_CONFIG_HOME: base }, base, tools);
+  });
 });

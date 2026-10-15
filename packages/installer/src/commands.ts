@@ -1,5 +1,5 @@
 import { lstatSync, realpathSync, rmSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { isAbsolute, parse, relative, resolve } from "node:path";
 import {
   findListedHook,
   type HookList,
@@ -421,12 +421,26 @@ async function removeGuidance(
 }
 
 /**
+ * The directory the resume directory's ownership walk starts from: the home
+ * directory when the configuration base lies inside it, otherwise the
+ * filesystem root. The walk refuses a symbolic link at that directory or at
+ * any component below it.
+ */
+function resumeAnchor(ctx: Context, dir: string): string {
+  const home = resolve(ctx.home);
+  const rel = relative(home, dir);
+  return rel.length > 0 && !rel.startsWith("..") && !isAbsolute(rel) ? home : parse(dir).root;
+}
+
+/**
  * Removes `component-resume`'s `resume` directory beside the state file. The
  * target is derived from the state file's location, never from state
- * content, and is printed before removal. It is removed only when it and
- * `agentdesk` above it are real directories, not symbolic links, below the
- * configuration base (`XDG_CONFIG_HOME` or `~/.config`). Throws when it may
- * remain.
+ * content, and is printed before removal. Like a skill folder, it is removed
+ * only when it and every directory above it, up to and including the home
+ * directory, are real directories and not symbolic links, so a redirected
+ * `~/.config`, `XDG_CONFIG_HOME`, or a directory above either is refused. A
+ * configuration base outside the home directory is checked from the
+ * filesystem root. Throws when it may remain.
  */
 function removeResumeDir(ctx: Context): void {
   const dir = resumeDir(ctx);
@@ -437,7 +451,21 @@ function removeResumeDir(ctx: Context): void {
     return;
   }
   ctx.io.out(`Removing the resume directory ${dir}`);
-  assertOwnedDir(dir, dirname(dirname(statePath(ctx))), "resume directory");
+  const anchor = resumeAnchor(ctx, dir);
+  let anchorStat: ReturnType<typeof lstatSync>;
+  try {
+    anchorStat = lstatSync(anchor);
+  } catch {
+    throw new InstallerError(
+      `${dir} is not a resume directory the installer owns (${anchor} cannot be inspected); it was not removed.`,
+    );
+  }
+  if (anchorStat.isSymbolicLink() || !anchorStat.isDirectory()) {
+    throw new InstallerError(
+      `${dir} is not a resume directory the installer owns (${anchor} is a symbolic link or not a directory); it was not removed.`,
+    );
+  }
+  assertOwnedDir(dir, anchor, "resume directory");
   try {
     rmSync(dir, { recursive: true });
   } catch (error) {
