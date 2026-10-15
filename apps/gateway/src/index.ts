@@ -1,5 +1,6 @@
 import { type ServiceCall, ServiceError, serviceClient, UpstreamError } from "./convex.js";
 import { deleteConnection, devicePoll, deviceStart, getConnection } from "./device.js";
+import { deviceWait } from "./device-wait.js";
 import type { Env } from "./env.js";
 import { serveInstallScript } from "./install.js";
 import { handleMcp } from "./mcp.js";
@@ -17,6 +18,7 @@ const ROUTES: Record<string, Handler> = {
   "POST /device/poll": devicePoll,
   "GET /device/connection": getConnection,
   "DELETE /device/connection": deleteConnection,
+  "POST /device/wait": deviceWait,
   "GET /install.sh": serveInstallScript,
 };
 
