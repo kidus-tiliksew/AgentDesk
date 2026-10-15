@@ -14,8 +14,10 @@ import { launchDetached, processIsAlive } from "../../src/resume/process.js";
 import { ResumeStore } from "../../src/resume/storage.js";
 import { cleanupSandboxes, makeContext, mode, write } from "../helpers.js";
 import {
+  deferred,
   FIXTURES,
   fakeAdapters,
+  flush,
   installSandbox,
   pump,
   resumeRoot,
@@ -86,16 +88,31 @@ describe("transcript checks and cancellation", () => {
     await expect(scanCodexTranscript(TRANSCRIPT, done.signal)).rejects.toBeInstanceOf(
       HookCancelledError,
     );
-    // A large transcript, aborted shortly after the scan starts.
+    // A large transcript, aborted at its tenth line: the reader closes and no
+    // later line is read.
     const big = join(sandbox.root, "big.jsonl");
     const line = `${JSON.stringify({ type: "response_item", payload: { text: "x".repeat(1000) } })}\n`;
     writeFileSync(big, line.repeat(100_000));
     const stop = new AbortController();
-    const scan = scanCodexTranscript(big, stop.signal);
-    setTimeout(() => stop.abort(), 5);
-    const started = Date.now();
+    let seen = 0;
+    const scan = scanCodexTranscript(big, stop.signal, () => {
+      seen++;
+      if (seen === 10) stop.abort();
+    });
     await expect(scan).rejects.toBeInstanceOf(HookCancelledError);
-    expect(Date.now() - started).toBeLessThan(2000);
+    expect(seen).toBe(10);
+  });
+
+  it("rejects with HookCancelledError when aborted while the transcript is being opened", async () => {
+    const stop = new AbortController();
+    let seen = 0;
+    const scan = scanCodexTranscript(TRANSCRIPT, stop.signal, () => {
+      seen++;
+    });
+    // stat has not answered yet: the abort lands before the open.
+    stop.abort();
+    await expect(scan).rejects.toBeInstanceOf(HookCancelledError);
+    expect(seen).toBe(0);
   });
 });
 
@@ -232,41 +249,92 @@ describe("agentdesk hook stop --harness codex", () => {
     expect(h.clock.pendingTimers).toBe(0);
   });
 
-  it("starts no waiter after the budget expires, closes the input read, and asks the process to exit", async () => {
+  it("starts no waiter after the budget expires while a start is in flight, closes the input read, and asks the process to exit", async () => {
     const sandbox = installSandbox(["codex"]);
     const h = makeContext(sandbox);
     const adapters = fakeAdapters(stopInput());
     const exits: number[] = [];
     let readSignal: AbortSignal | undefined;
     const input = stopInput();
-    const withSignal = {
+    const firstStarted = deferred<void>();
+    const releaseFirst = deferred<number>();
+    adapters.launchImpl = async (command, args) => {
+      adapters.launches.push({ command, args: [...args] });
+      firstStarted.resolve();
+      return releaseFirst.promise;
+    };
+    const hook = runCodexStop(h.ctx, {
       ...adapters,
       readInput: async (signal?: AbortSignal) => {
         readSignal = signal;
         return input;
       },
       exitAfterOutput: (code: number) => exits.push(code),
-    };
-    let pid = 60_000;
-    // The first start is still running when the budget expires.
-    adapters.launchImpl = async (command, args) => {
-      adapters.launches.push({ command, args: [...args] });
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      return pid++;
-    };
-    const { value, elapsed } = await pump(h.clock, runCodexStop(h.ctx, withSignal), {
-      stepMs: 1000,
     });
-    expect(value).toBe(0);
-    expect(elapsed).toBe(CODEX_HOOK_BUDGET_MS);
+    let returned = false;
+    hook.then(() => {
+      returned = true;
+    });
+    // The scan reads the real transcript while the fake clock stands still,
+    // so the first start begins before any budget time passes.
+    await firstStarted.promise;
+    expect(h.clock.now).toBe(0);
+    expect(adapters.launches.map((l) => l.args.at(-1))).toEqual(["dec_phone1"]);
+    expect(h.out).toEqual([]);
+
+    // One millisecond before the budget, the hook still waits on the start.
+    h.clock.advance(CODEX_HOOK_BUDGET_MS - 1);
+    await flush();
+    expect(returned).toBe(false);
+    expect(h.out).toEqual([]);
+    expect(readSignal?.aborted).toBe(false);
+
+    // At the budget the hook prints {}, aborts its signal, and asks to exit.
+    h.clock.advance(1);
+    expect(await hook).toBe(0);
     expect(h.out).toEqual(["{}"]);
     expect(exits).toEqual([0]);
     expect(readSignal?.aborted).toBe(true);
+    expect(h.clock.pendingTimers).toBe(0);
+
     // The start in flight finishes and is recorded; the next decision never starts.
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    releaseFirst.resolve(60_000);
+    await flush();
     expect(adapters.launches.map((l) => l.args.at(-1))).toEqual(["dec_phone1"]);
-    expect(new ResumeStore(h.ctx).waiterPid("dec_phone1")).toBe(60_000);
-    expect(existsSync(join(resumeRoot(sandbox), "waiters", "dec_phone2"))).toBe(false);
+    const store = new ResumeStore(h.ctx);
+    expect(store.waiterPid("dec_phone1")).toBe(60_000);
+    expect(store.waiterPid("dec_phone2")).toBeUndefined();
+    // The start lock was released.
+    expect(readdirSync(join(resumeRoot(sandbox), "waiters"))).toEqual(["dec_phone1"]);
+  });
+
+  it("starts nothing when the budget expires before the input arrives", async () => {
+    const sandbox = installSandbox(["codex"]);
+    const h = makeContext(sandbox);
+    const adapters = fakeAdapters(undefined);
+    const exits: number[] = [];
+    const input = deferred<string | undefined>();
+    let readSignal: AbortSignal | undefined;
+    const hook = runCodexStop(h.ctx, {
+      ...adapters,
+      readInput: (signal?: AbortSignal) => {
+        readSignal = signal;
+        return input.promise;
+      },
+      exitAfterOutput: (code: number) => exits.push(code),
+    });
+    await flush();
+    expect(readSignal?.aborted).toBe(false);
+    h.clock.advance(CODEX_HOOK_BUDGET_MS);
+    expect(await hook).toBe(0);
+    expect(h.out).toEqual(["{}"]);
+    expect(exits).toEqual([0]);
+    expect(readSignal?.aborted).toBe(true);
+    // Valid input arriving after the budget starts no scan and no waiter.
+    input.resolve(stopInput());
+    await flush();
+    expect(adapters.launches).toEqual([]);
+    expect(existsSync(resumeRoot(sandbox))).toBe(false);
   });
 
   it("does not ask the process to exit when it finishes within the budget", async () => {

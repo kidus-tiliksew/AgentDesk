@@ -113,11 +113,13 @@ async function openTranscript(path: string, signal: AbortSignal): Promise<number
 /**
  * The distinct `ask` decision ids in a Codex transcript, in order of
  * appearance. Aborting `signal` closes the reader and rejects with
- * HookCancelledError.
+ * HookCancelledError. `onLine` sees each line before it is read, so a test
+ * can abort at a known point of the scan.
  */
 export async function scanCodexTranscript(
   path: string,
   signal: AbortSignal = new AbortController().signal,
+  onLine?: (line: string) => void,
 ): Promise<string[]> {
   if (signal.aborted) throw new HookCancelledError();
   const fd = await openTranscript(path, signal);
@@ -137,6 +139,8 @@ export async function scanCodexTranscript(
   signal.addEventListener("abort", stopReading, { once: true });
   try {
     for await (const line of lines) {
+      if (signal.aborted) break;
+      onLine?.(line);
       if (signal.aborted) break;
       const id = askDecisionId(line);
       if (id) ids.add(id);

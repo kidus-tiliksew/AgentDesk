@@ -419,3 +419,21 @@ export function malformedDecisions(id: string): [string, Record<string, unknown>
     ["a numeric id", decision(id, { id: 1 })],
   ];
 }
+
+/** A promise with its resolve function, for holding a step until a test releases it. */
+export function deferred<T>(): { promise: Promise<T>; resolve(value: T): void } {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
+/**
+ * Lets every pending microtask and one macrotask turn run, without moving the
+ * fake clock. The resume code's steps after a fake fetch or timer are
+ * synchronous or microtask-only, so this settles them.
+ */
+export async function flush(turns = 3): Promise<void> {
+  for (let i = 0; i < turns; i++) await new Promise((resolve) => setImmediate(resolve));
+}
