@@ -34,9 +34,10 @@ Commands:
   install [--server <url>] [--only <harnesses>] [--yes]
                      Detect Claude Code, Codex, and Cursor, sign each in with a
                      short code approved in the AgentDesk app, and install the
-                     MCP connection, the skill, and the session-start hook.
-  skill install      Install or update only the skill and the session-start hook
-                     for every detected harness.
+                     MCP connection, the skill, the session-start hook, and the
+                     resume hooks.
+  skill install      Install or update only the skill, the session-start hook,
+                     and the resume hooks for every detected harness.
   context --harness <id>
                      Print the AgentDesk guidance a session starts with; the
                      session-start hook runs this.
@@ -47,7 +48,7 @@ Commands:
                      Run a resume hook: stop for Codex and Cursor, after-mcp
                      for Cursor. The installer's hooks run this.
   status             Show each recorded harness, its connection, its skill
-                     version, and its hook.
+                     version, and its hooks.
   forget <connection-id>
                      Forget a connection the installer could not revoke, after
                      you revoked it in the AgentDesk app under Settings →
