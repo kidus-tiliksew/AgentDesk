@@ -1,10 +1,15 @@
 {
   "extends": "./tsconfig.test.json",
   "compilerOptions": {
-    // The installer modules this test imports reach Node-only modules through
-    // type imports, so this one test also sees Node types. The Worker and its
-    // other tests stay without them.
+    // The installer modules these tests import reach Node-only modules, so
+    // these tests also see Node types. The Worker and its other tests stay
+    // without them.
     "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types", "node"]
   },
-  "include": ["test/installer-compatibility.test.ts", "test/env.d.ts", "src/modules.d.ts"]
+  "include": [
+    "test/installer-compatibility.test.ts",
+    "test/waiter-compatibility.test.ts",
+    "test/env.d.ts",
+    "src/modules.d.ts"
+  ]
 }

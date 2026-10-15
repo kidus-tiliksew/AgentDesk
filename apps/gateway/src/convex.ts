@@ -17,6 +17,7 @@ export type ServiceRoute =
   | "agents/status"
   | "decisions/create"
   | "decisions/poll"
+  | "decisions/watch"
   | "decisions/check"
   | "decisions/cancel"
   | "decisions/resolve";

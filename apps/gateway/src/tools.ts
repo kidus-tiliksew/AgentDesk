@@ -101,8 +101,8 @@ const TOOLS: Tool[] = [
       const input = parse(awaitInputSchema.safeParse(args));
       const decision = await pollDecision(
         svc,
-        caller,
-        input.decision_id,
+        "decisions/poll",
+        { ...caller, decisionId: input.decision_id },
         input.timeout_seconds,
         signal,
       );

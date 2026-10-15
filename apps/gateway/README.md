@@ -14,12 +14,14 @@ The `agentdesk` installer (`packages/installer`) signs each harness in by short 
 | `POST /device/poll` | `{device_secret}` | 200 `{status}`, where `status` is `pending`, `declined`, `expired`, `not_found`, or `approved` with `connections: [{harness, connection_id, token}]`; 400 `invalid` |
 | `GET /device/connection` | `Authorization: Bearer adc_…` | 200 `{connection_id, harness}`; 401 `unauthenticated` |
 | `DELETE /device/connection` | `Authorization: Bearer adc_…` | 200 `null` once revoked; 401 `unauthenticated` |
+| `POST /device/wait` | `Authorization: Bearer adc_…`, `{decision_id, timeout_seconds}` | 200 `text/event-stream` with one `message` event; 400 `invalid` naming the field; 401 `unauthenticated` |
 | `GET /install.sh` | none | 200, the install script as `text/plain` |
 
 - `/device/start` trims `machine_name` and requires 1 to 255 characters. `harnesses` must be a non-empty list of distinct ids from `claude-code`, `codex`, and `cursor`. The `DEVICE_START_LIMIT` binding allows 10 starts a minute per `CF-Connecting-IP`, counted before the body is read. Without the binding or that header, the route answers 503 rather than run unlimited.
 - `/device/poll` passes identity's status through. `not_found` means the secret is unknown or its outcome was already collected: an approved request's tokens are returned once. Both `/device/start` and `/device/poll` answer with `Cache-Control: no-store`, since they carry secrets.
 - `/device/connection` resolves the token on every request, so a revoked connection fails its next check. `DELETE` sends Convex only the token's SHA-256. Its 401, unlike `/mcp`'s, carries no `WWW-Authenticate` challenge, because the challenge starts browser sign-in.
-- `test/installer-compatibility.test.ts` runs the installer's own `signIn` (`packages/installer/src/signin.ts`) through these routes with Convex faked, so a wire-format change on either side fails here.
+- `/device/wait` serves the resume waiter (`agentdesk wait`) and opens no agent session. `timeout_seconds` is an integer from 1 to 600, 300 when omitted. It polls `/svc/decisions/watch` at once and every 15 seconds on `await`'s schedule and sends a `: keepalive` comment every 15 seconds. The single event is `{"decision": <Decision>}` once settled, `{"state": "pending", "decision_id"}` at the limit, or `{"error": …}`: `not_found` for an unknown decision, and `unavailable` when Convex fails after the stream opened.
+- `test/installer-compatibility.test.ts` runs the installer's own `signIn` (`packages/installer/src/signin.ts`) through these routes with Convex faked, so a wire-format change on either side fails here. `test/waiter-compatibility.test.ts` does the same for the installer's `runWait` (`packages/installer/src/resume/waiter.ts`) through `/device/wait`.
 - `/install.sh` serves `packages/installer/install.sh`, bundled at build time by the Text module rule in `wrangler.toml`, with `__AGENTDESK_PUBLIC_ORIGIN__` replaced by `PUBLIC_ORIGIN` without trailing slashes. The gateway keeps no copy of the script.
 
 ## Configuration

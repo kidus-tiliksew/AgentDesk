@@ -1,9 +1,10 @@
 import type { Decision } from "@agentdesk/contract";
-import type { ServiceCall } from "./convex.js";
+import type { ServiceCall, ServiceRoute } from "./convex.js";
 
-// component-gateway §Tools: the `await` poll loop. Each call owns its loop,
-// deadline, and timers, and keeps nothing between polls (DEC-4), so several
-// waits on one decision each read its settlement (req-agent-tools AC-3.5).
+// component-gateway §Tools and §Waiter endpoint: the poll loop behind `await`
+// and `POST /device/wait`. Each call owns its loop, deadline, and timers, and
+// keeps nothing between polls (DEC-4), so several waits on one decision each
+// read its settlement (req-agent-tools AC-3.5).
 
 // Poll starts are 15 seconds apart on the call's own clock, so service
 // latency does not accumulate into the interval. The poll after a settlement
@@ -11,21 +12,17 @@ import type { ServiceCall } from "./convex.js";
 // so `await` returns within 25 seconds of the settlement (AC-3.1).
 export const POLL_INTERVAL_MS = 15_000;
 
-export interface AwaitCaller {
-  userId: string;
-  agentSessionId: string;
-}
-
-// Polls `/svc/decisions/poll` at once and every 15 seconds until the decision
+// Polls `route` with `body` at once and every 15 seconds until the decision
 // is no longer pending, and returns it. Returns null when `timeoutSeconds`
 // elapse first: the deadline cancels a poll in flight, and no poll starts at
-// or after it. Each poll touches the agent session in Convex, so a waiting
-// agent never goes stale (req-agent-status AC-3.4). Aborting `signal` stops
-// the loop, cancels a poll in flight, and rejects.
+// or after it. `await` polls `/svc/decisions/poll`, which touches the agent
+// session, so a waiting agent never goes stale (req-agent-status AC-3.4); the
+// waiter endpoint polls `/svc/decisions/watch`. Aborting `signal` stops the
+// loop, cancels a poll in flight, and rejects.
 export async function pollDecision(
   svc: ServiceCall,
-  caller: AwaitCaller,
-  decisionId: string,
+  route: ServiceRoute,
+  body: Record<string, unknown>,
   timeoutSeconds: number,
   signal: AbortSignal,
 ): Promise<Decision | null> {
@@ -46,10 +43,7 @@ export async function pollDecision(
 
   try {
     for (let polls = 1; ; polls++) {
-      const decision = (await untilAborted(
-        svc("decisions/poll", { ...caller, decisionId }, stop.signal),
-        stop.signal,
-      )) as Decision;
+      const decision = (await untilAborted(svc(route, body, stop.signal), stop.signal)) as Decision;
       if (decision.state !== "pending") {
         return decision;
       }

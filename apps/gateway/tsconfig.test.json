@@ -5,5 +5,5 @@
   },
   "include": ["src", "test"],
   // Checked by tsconfig.compat.json, which adds the Node types it needs.
-  "exclude": ["test/installer-compatibility.test.ts"]
+  "exclude": ["test/installer-compatibility.test.ts", "test/waiter-compatibility.test.ts"]
 }
