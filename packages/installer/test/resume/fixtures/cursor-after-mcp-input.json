@@ -1,0 +1,15 @@
+{
+  "conversation_id": "c0ffee00-1111-4222-8333-444455556666",
+  "generation_id": "gen-1",
+  "model": "auto",
+  "hook_event_name": "afterMCPExecution",
+  "cursor_version": "2026.10.14",
+  "workspace_roots": ["/work/app"],
+  "user_email": null,
+  "transcript_path": null,
+  "tool_name": "ask",
+  "tool_input": "{\"title\": \"Ship it?\"}",
+  "mcp_server_name": "agentdesk",
+  "result_json": "{\"content\": [{\"type\": \"text\", \"text\": \"{\\\"decision_id\\\": \\\"dec_cursor1\\\", \\\"state\\\": \\\"pending\\\"}\"}], \"isError\": false}",
+  "duration": 412
+}

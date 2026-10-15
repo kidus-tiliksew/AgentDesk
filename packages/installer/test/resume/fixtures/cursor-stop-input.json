@@ -1,0 +1,12 @@
+{
+  "conversation_id": "c0ffee00-1111-4222-8333-444455556666",
+  "generation_id": "gen-1",
+  "model": "auto",
+  "hook_event_name": "stop",
+  "cursor_version": "2026.10.14",
+  "workspace_roots": ["/work/app"],
+  "user_email": null,
+  "transcript_path": "/home/u/.cursor/projects/app/agent-transcripts/c0ffee00.txt",
+  "status": "completed",
+  "loop_count": 0
+}
