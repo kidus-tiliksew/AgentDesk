@@ -2,7 +2,7 @@
 name: agentdesk
 description: Use when you start a task, finish a stage, become blocked, or finish a task, to report status through AgentDesk. Use when you have a question you should not decide alone, such as an irreversible or destructive action, a choice that depends on the user's preference, or ambiguity the repository and task cannot resolve, to ask it through AgentDesk. AgentDesk reaches the user outside this session and returns the answer.
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 AgentDesk reaches the user outside this session. Its MCP server offers `ask`, `await`, `check`, `cancel`, `resolve`, and `status`.
@@ -77,19 +77,37 @@ When you call `ask`, show the same question in this chat: the title, the context
 
 ## Waiting
 
+Wait for the answer in resume mode or in await mode. Resume mode applies when all three hold:
+
+- The session is interactive.
+- The harness is Claude Code, Codex, or Cursor.
+- `command -v agentdesk` finds the installed binary.
+
+Await mode applies in every other session. In both modes, never ask the same question twice, and never create a second decision while the first is `pending`.
+
+In resume mode, after you call `ask` and show the question in this chat:
+
+1. Call `status` with `state` set to `waiting`.
+2. In Claude Code, start `Monitor` with the command `agentdesk wait --harness claude-code <decision_id>`, a description that names the question, and the maximum timeout of 30 minutes. When it expires without an event, start it again the same way.
+3. In Codex and Cursor, start nothing. The installed hooks resume the session.
+4. End your turn without calling `await`.
+
+A turn that begins with `AgentDesk decision <id> settled` is a resume. Call `check` with that id in `decision_ids`. In your first chat message, state the answer and where it was given, from `answered_via`. Then act on it.
+
+In await mode:
+
 1. Call `await` with the `decision_id`. It waits up to `timeout_seconds`. Set `timeout_seconds` to 60 when the session is interactive, so a chat answer reaches you within a minute. Otherwise use a value up to 600.
 2. When it returns `pending`, call `await` again with the same `decision_id`. Repeat until the state is `answered`, `expired`, or `cancelled`.
-3. Never ask the same question twice. Never create a second decision while the first is `pending`.
-4. Act on the returned `answer` and read its `note`. An `expired` decision with `applied_by_default` carries the `default` as its `answer`.
+3. Act on the returned `answer` and read its `note`. An `expired` decision with `applied_by_default` carries the `default` as its `answer`.
 
 A coordinator that runs several tasks may call `check` with `decision_ids` between tasks instead of waiting on each decision.
 
 When a pending question no longer matters, call `cancel` with its `decision_id`.
 
-When a chat message arrives while you wait:
+When a chat message arrives while the decision is `pending`, in either mode:
 
-- If it answers the decision, call `resolve` with the `decision_id`, the `answer`, and `chat_message` holding the user's message word for word. Write the `answer` in the shapes shown above for `recommendation` and `default`. Never relay an answer the user did not write.
-- If it does not answer the decision, handle the message, then call `await` again with the same `decision_id`. When the message makes the question moot, call `cancel` with the `decision_id` instead.
+- If it answers the decision, call `resolve` with the `decision_id`, the `answer`, and `chat_message` holding the user's message word for word. Write the `answer` in the shapes shown above for `recommendation` and `default`. In Claude Code, stop the running `Monitor` with `TaskStop`. Never relay an answer the user did not write.
+- If it does not answer the decision, handle the message and leave the decision pending. In await mode, call `await` again with the same `decision_id`. In resume mode, end your turn again and leave any running `Monitor` in place. When the message makes the question moot, call `cancel` with the `decision_id` instead.
 - If `resolve` is rejected because the decision is already settled, act on the `answer` in the decision it returns.
 
 ## Status
