@@ -1,3 +1,4 @@
+import type { ErrorCode } from "@agentdesk/contract";
 import { z } from "zod";
 import { authenticate, type Caller, unauthorized } from "./auth.js";
 import { type ServiceCall, ServiceError, UpstreamError } from "./convex.js";
@@ -59,6 +60,28 @@ type Message =
   | { kind: "request"; id: Id; method: string; params: Record<string, unknown> }
   | { kind: "notification" }
   | { kind: "response" };
+// A POST body: a JSON-RPC message, or why it is not one.
+type Body = Message | { kind: "not_json" } | { kind: "parse_error" } | { kind: "invalid" };
+
+const UNAVAILABLE = "AgentDesk is temporarily unavailable";
+
+// A service refusal on a transport step, such as `initialize`, stated without
+// the service's own message.
+const REFUSALS: Record<ErrorCode, string> = {
+  invalid: "AgentDesk refused the request as invalid",
+  unauthenticated: "AgentDesk refused the credential",
+  not_found: "AgentDesk could not find what the request names",
+  conflict: "The request conflicts with AgentDesk's current state",
+  locked: "The account is locked",
+  rate_limited: "Too many requests; try again later",
+};
+
+// The request fields behind service fields a transport step can be refused
+// on. Any other service field is left out of the error.
+const TRANSPORT_FIELDS: Readonly<Record<string, string>> = {
+  clientName: "clientInfo.name",
+  clientVersion: "clientInfo.version",
+};
 
 export async function handleMcp(request: Request, env: Env, svc: ServiceCall): Promise<Response> {
   // Streamable HTTP requires an Origin check against DNS rebinding. Native
@@ -73,41 +96,69 @@ export async function handleMcp(request: Request, env: Env, svc: ServiceCall): P
     );
   }
 
-  const caller = await authenticate(request, svc);
-  if (caller === null) {
-    return unauthorized(env);
-  }
+  // The body is read before the credential so that any failure after it can
+  // answer with the request's id. Reading it calls nothing, and a refused
+  // credential still answers 401 whatever the body holds.
+  const body = request.method === "POST" ? await readBody(request) : null;
+  const id = body?.kind === "request" ? body.id : null;
 
-  switch (request.method) {
-    case "POST":
-      return await post(request, svc, caller);
-    case "DELETE": {
-      // The session ends by going stale; Convex has no route that deletes it.
-      const session = await resolveSession(request, svc, caller, null);
-      return session instanceof Response ? session : new Response(null, { status: 200 });
+  try {
+    const caller = await authenticate(request, svc);
+    if (caller === null) {
+      return unauthorized(env);
     }
-    default:
-      // The server never opens its own event stream.
-      return new Response(null, { status: 405, headers: { Allow: "POST, DELETE" } });
+
+    switch (request.method) {
+      case "POST":
+        return await post(request, svc, caller, body ?? { kind: "invalid" });
+      case "DELETE": {
+        // The session ends by going stale; Convex has no route that deletes it.
+        const session = await resolveSession(request, svc, caller, null);
+        return session instanceof Response ? session : new Response(null, { status: 200 });
+      }
+      default:
+        // The server never opens its own event stream.
+        return new Response(null, { status: 405, headers: { Allow: "POST, DELETE" } });
+    }
+  } catch (error) {
+    // Once a request is parsed, Convex failing or refusing a step answers a
+    // JSON-RPC error carrying its id. Without a request id, `handle` answers.
+    if (id === null) {
+      throw error;
+    }
+    return Response.json({ jsonrpc: "2.0", id, error: failure(error) }, { status: 200 });
   }
 }
 
-async function post(request: Request, svc: ServiceCall, caller: Caller): Promise<Response> {
+async function readBody(request: Request): Promise<Body> {
   if (!isJson(request.headers.get("Content-Type"))) {
+    return { kind: "not_json" };
+  }
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return { kind: "parse_error" };
+  }
+  return classify(body) ?? { kind: "invalid" };
+}
+
+async function post(
+  request: Request,
+  svc: ServiceCall,
+  caller: Caller,
+  message: Body,
+): Promise<Response> {
+  if (message.kind === "not_json") {
     return rpcError(null, INVALID_REQUEST, "Content-Type must be application/json", 415);
   }
   if (!acceptsJson(request.headers.get("Accept"))) {
     return rpcError(null, INVALID_REQUEST, "Accept must allow application/json", 406);
   }
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
+  if (message.kind === "parse_error") {
     return rpcError(null, PARSE_ERROR, "Parse error", 400);
   }
-  const message = classify(body);
-  if (message === null) {
+  if (message.kind === "invalid") {
     // Protocol versions 2025-06-18 and later send no batches.
     return rpcError(null, INVALID_REQUEST, "Invalid JSON-RPC message", 400);
   }
@@ -181,8 +232,8 @@ async function initialize(
 
 // `await` answers `text/event-stream` whatever its outcome, including a tool
 // error. The stream is open before the first poll, so Convex failing during
-// the wait ends it with a JSON-RPC error rather than the 503 that `handle`
-// returns before a response starts. The error names no credential or secret.
+// the wait ends it with the same JSON-RPC error a JSON response carries. The
+// error names no credential or secret.
 function awaitStream(
   request: Request,
   svc: ServiceCall,
@@ -197,14 +248,35 @@ function awaitStream(
       if (signal.aborted) {
         throw error;
       }
-      const unavailable = error instanceof UpstreamError || error instanceof ServiceError;
-      if (!unavailable) {
-        console.error(error);
-      }
-      const message = unavailable ? "AgentDesk is temporarily unavailable" : "Internal error";
-      return { jsonrpc: "2.0", id, error: { code: INTERNAL_ERROR, message } };
+      return { jsonrpc: "2.0", id, error: failure(error) };
     }
   });
+}
+
+// The JSON-RPC error for a failure that escaped a request: Convex unreachable
+// (`unavailable`), a service refusal on a transport step (its own code), or a
+// fault in the gateway. `data.code` carries the code; the message names no
+// route, credential, session, or secret.
+function failure(error: unknown): {
+  code: number;
+  message: string;
+  data?: { code: string; field?: string };
+} {
+  if (error instanceof UpstreamError) {
+    return { code: INTERNAL_ERROR, message: UNAVAILABLE, data: { code: "unavailable" } };
+  }
+  if (error instanceof ServiceError) {
+    const field = error.field === undefined ? undefined : TRANSPORT_FIELDS[error.field];
+    return field === undefined
+      ? { code: INTERNAL_ERROR, message: REFUSALS[error.code], data: { code: error.code } }
+      : {
+          code: INTERNAL_ERROR,
+          message: `${REFUSALS[error.code]}: ${field}`,
+          data: { code: error.code, field },
+        };
+  }
+  console.error(error);
+  return { code: INTERNAL_ERROR, message: "Internal error" };
 }
 
 // Checks a request made after initialization, POST or DELETE, and resolves

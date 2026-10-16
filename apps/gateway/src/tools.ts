@@ -47,6 +47,12 @@ interface Tool {
   description: string;
   // Published as the tool's inputSchema.
   schema: z.ZodType;
+  // The tool's argument for each service field it renames, such as
+  // `decisionId` for `decision_id`. A service refusal names the argument.
+  fields?: Readonly<Record<string, string>>;
+  // The argument a service `Decision not found` names, for a tool that takes
+  // decision ids.
+  decisionArgument?: string;
   // `signal` aborts when the client disconnects; only `await` outlives a
   // single service call.
   run(
@@ -97,6 +103,8 @@ const TOOLS: Tool[] = [
     description:
       "Wait until a decision is answered, expires, or is cancelled, or until timeout_seconds elapse.",
     schema: awaitInputSchema,
+    fields: { decisionId: "decision_id" },
+    decisionArgument: "decision_id",
     async run(svc, caller, args, signal) {
       const input = parse(awaitInputSchema.safeParse(args));
       const decision = await pollDecision(
@@ -128,6 +136,8 @@ const TOOLS: Tool[] = [
     name: "check",
     description: "Read the current state, answer, and note of up to 50 decisions without waiting.",
     schema: checkInputSchema,
+    fields: { decisionIds: "decision_ids" },
+    decisionArgument: "decision_ids",
     async run(svc, caller, args) {
       const input = parse(checkInputSchema.safeParse(args));
       const decisions = (await svc("decisions/check", {
@@ -141,6 +151,8 @@ const TOOLS: Tool[] = [
     name: "cancel",
     description: "Cancel a pending decision.",
     schema: cancelInputSchema,
+    fields: { decisionId: "decision_id" },
+    decisionArgument: "decision_id",
     async run(svc, caller, args) {
       const input = parse(cancelInputSchema.safeParse(args));
       const decision = (await svc("decisions/cancel", {
@@ -155,6 +167,8 @@ const TOOLS: Tool[] = [
     description:
       "Record an answer the user gave in this chat to a pending decision. Pass the user's message word for word as chat_message. Never record an answer the user did not write.",
     schema: resolveInputSchema,
+    fields: { decisionId: "decision_id", chatMessage: "chat_message" },
+    decisionArgument: "decision_id",
     async run(svc, caller, args) {
       const input = parse(resolveInputSchema.safeParse(args));
       try {
@@ -198,13 +212,24 @@ export const AWAIT_AGAIN = "Call await again with the same decision_id";
 
 const BY_NAME = new Map(TOOLS.map((tool) => [tool.name, tool]));
 
+// Each tool's top-level argument names, from its published input schema.
+const ARGUMENTS = new Map(
+  TOOLS.map((tool) => [tool.name, new Set(Object.keys(inputSchema(tool).properties ?? {}))]),
+);
+
+function inputSchema(tool: Tool) {
+  const { $schema: _, ...schema } = z.toJSONSchema(tool.schema, { io: "input" });
+  return schema;
+}
+
 // The `tools/list` result: exactly ask, await, check, cancel, resolve, and
 // status (req-agent-tools AC-1.2), with input schemas generated from the contract.
 export function listTools() {
-  return TOOLS.map((tool) => {
-    const { $schema: _, ...inputSchema } = z.toJSONSchema(tool.schema, { io: "input" });
-    return { name: tool.name, description: tool.description, inputSchema };
-  });
+  return TOOLS.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: inputSchema(tool),
+  }));
 }
 
 export function hasTool(name: string): boolean {
@@ -212,8 +237,9 @@ export function hasTool(name: string): boolean {
 }
 
 // Runs one tool. Invalid arguments and service errors become tool results with
-// `isError: true` carrying the contract error body, so `not_found` for another
-// user's decision passes through unchanged (AC-7.1). An UpstreamError
+// `isError: true` carrying the contract error body. A service error keeps its
+// code, so `not_found` for another user's decision reads as for a missing one
+// (AC-7.1), and its field names the tool's own argument. An UpstreamError
 // propagates to the transport.
 export async function callTool(
   svc: ServiceCall,
@@ -233,10 +259,86 @@ export async function callTool(
       return error("invalid", caught.message, caught.field);
     }
     if (caught instanceof ServiceError) {
-      return error(caught.code, caught.message, caught.field);
+      const refusal = publicServiceError(
+        caught,
+        tool.fields ?? {},
+        ARGUMENTS.get(name) ?? new Set(),
+        tool.decisionArgument,
+      );
+      return error(refusal.code, refusal.message, refusal.field);
     }
     throw caught;
   }
+}
+
+export interface PublicError {
+  code: ErrorCode;
+  message: string;
+  field?: string;
+}
+
+// Service fields the gateway fills in from the credential and the session. No
+// tool takes one as an argument, so a refusal on one names no field.
+const CALLER_FIELDS: Readonly<Record<string, string>> = {
+  userId: "The connection's user could not be resolved",
+  credentialId: "The connection could not be resolved",
+  agentSessionId: "This MCP session could not be resolved; initialize a new session",
+};
+
+// Service fields that carry decision ids. Convex refuses a malformed one with
+// `Invalid <field>` (convex/decisions/model.ts#parseId).
+const DECISION_ID_FIELDS = new Set(["decisionId", "decisionIds"]);
+
+const DECISION_NOT_FOUND = "Decision not found";
+
+// Restates a service error in the caller's terms. `fields` renames service
+// fields to arguments; a field already named as an argument stays. A caller
+// field, or one the caller never sent, is left out, and a message about a
+// field the caller never sent is replaced, so no Convex argument name reaches
+// the caller. The code never changes.
+export function publicServiceError(
+  error: ServiceError,
+  fields: Readonly<Record<string, string>>,
+  args: ReadonlySet<string>,
+  decisionArgument?: string,
+): PublicError {
+  const { code, message, field } = error;
+  if (field === undefined) {
+    // Convex names no field for a missing or foreign decision.
+    return code === "not_found" && message === DECISION_NOT_FOUND && decisionArgument !== undefined
+      ? { code, message, field: decisionArgument }
+      : { code, message };
+  }
+  const [head = "", ...rest] = field.split(".");
+  const callerMessage = CALLER_FIELDS[head];
+  if (callerMessage !== undefined) {
+    return { code, message: callerMessage };
+  }
+  const renamed = fields[head];
+  if (renamed !== undefined) {
+    if (DECISION_ID_FIELDS.has(head)) {
+      // `decisionIds.3` names the fourth of `decision_ids`; the field names
+      // the argument and the message names the member.
+      const member = rest.length === 0 ? renamed : `${renamed}[${rest.join(".")}]`;
+      return {
+        code,
+        message:
+          message === `Invalid ${field}`
+            ? `${member} is not a valid decision id`
+            : message.replaceAll(head, renamed),
+        field: renamed,
+      };
+    }
+    return {
+      code,
+      message: message.replaceAll(head, renamed),
+      field: [renamed, ...rest].join("."),
+    };
+  }
+  if (args.has(head)) {
+    return { code, message, field };
+  }
+  return { code, message: "AgentDesk refused the request" };
 }
 
 function result(value: unknown): ToolResult {

@@ -4,6 +4,7 @@ import { pollDecision } from "./await.js";
 import { type ServiceCall, ServiceError, UpstreamError } from "./convex.js";
 import type { Env } from "./env.js";
 import { eventStream } from "./sse.js";
+import { publicServiceError } from "./tools.js";
 
 // component-gateway §Waiter endpoint: `POST /device/wait` serves
 // component-resume's waiter, which runs outside any MCP session (DEC-15(2)).
@@ -23,6 +24,10 @@ type WaitEvent =
 const UNAVAILABLE: WaitEvent = {
   error: { code: "unavailable", message: "AgentDesk is temporarily unavailable" },
 };
+
+// The body's fields, and the one `/svc/decisions/watch` renames.
+const ARGUMENTS: ReadonlySet<string> = new Set(["decision_id", "timeout_seconds"]);
+const FIELDS = { decisionId: "decision_id" };
 
 // Authentication and the body checks answer before the stream opens. A
 // Convex outage while resolving the credential throws, and `handle` answers
@@ -55,14 +60,16 @@ export async function deviceWait(request: Request, _env: Env, svc: ServiceCall):
         throw error;
       }
       // A service error body, such as `not_found` for an unknown decision or
-      // another user's, passes through as the contract states it.
+      // another user's, keeps its code, with its field restated as the body
+      // field the waiter sent.
       if (error instanceof ServiceError) {
-        return {
-          error:
-            error.field === undefined
-              ? { code: error.code, message: error.message }
-              : { code: error.code, message: error.message, field: error.field },
-        };
+        const { code, message, field } = publicServiceError(
+          error,
+          FIELDS,
+          ARGUMENTS,
+          "decision_id",
+        );
+        return { error: field === undefined ? { code, message } : { code, message, field } };
       }
       // The stream is open, so `handle` can no longer answer 503. The event
       // names no route, credential, or secret.

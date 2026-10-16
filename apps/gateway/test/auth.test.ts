@@ -94,19 +94,72 @@ describe("credential dispatch", () => {
     expect(convex.routes().filter((route) => route === "identity/resolve-token")).toHaveLength(2);
   });
 
-  it("answers a Convex outage with 503 rather than 401, naming no secret", async () => {
+  it("answers a Convex outage with a JSON-RPC error rather than 401, naming no secret", async () => {
     const convex = fakeConvex({
       "identity/resolve-token": () => {
         throw new UpstreamError("Service call identity/resolve-token timed out");
       },
     });
 
-    const response = await handle(mcpRequest(rpc("tools/list")), env, convex.svc);
+    const response = await handle(mcpRequest(rpc("tools/list", undefined, 3)), env, convex.svc);
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("WWW-Authenticate")).toBeNull();
     const text = await response.text();
+    expect(JSON.parse(text)).toEqual({
+      jsonrpc: "2.0",
+      id: 3,
+      error: {
+        code: -32603,
+        message: "AgentDesk is temporarily unavailable",
+        data: { code: "unavailable" },
+      },
+    });
     expect(text).not.toContain(TOKEN);
     expect(text).not.toContain(env.SERVICE_SECRET);
+    expect(text).not.toContain("identity/resolve-token");
+  });
+
+  it("answers a Convex outage on a request without a JSON-RPC id with 503", async () => {
+    const convex = fakeConvex({
+      "identity/resolve-token": () => {
+        throw new UpstreamError("Service call identity/resolve-token timed out");
+      },
+    });
+
+    for (const request of [
+      mcpRequest({ jsonrpc: "2.0", method: "notifications/initialized" }),
+      mcpRequest("{not json"),
+      new Request("https://agentdesk.example/mcp", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${TOKEN}` },
+      }),
+    ]) {
+      const response = await handle(request, env, convex.svc);
+
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({
+        error: { code: "unavailable", message: "AgentDesk is temporarily unavailable" },
+      });
+    }
+  });
+
+  it.each([
+    ["no credential", null],
+    ["a malformed credential", "Bearer adc_!!"],
+    ["a revoked credential", `Bearer adc_${"b".repeat(43)}`],
+  ])("answers %s with 401 whatever the body holds, before any other call", async (_, auth) => {
+    for (const body of [rpc("tools/list"), "{not json", { jsonrpc: "2.0", method: "x" }]) {
+      const convex = fakeConvex();
+
+      const response = await handle(mcpRequest(body, { Authorization: auth }), env, convex.svc);
+
+      expect(response.status).toBe(401);
+      expect(response.headers.get("WWW-Authenticate")).toBe(CHALLENGE);
+      expect(convex.routes()).toEqual(
+        auth === `Bearer adc_${"b".repeat(43)}` ? ["identity/resolve-token"] : [],
+      );
+    }
   });
 
   describe("through the service client", () => {
@@ -136,20 +189,30 @@ describe("credential dispatch", () => {
       [429, "rate_limited"],
       [400, "invalid"],
       [409, "conflict"],
-    ])("answers a resolution failing with %i %s with 503, not 401", async (status, code) => {
-      const response = await handle(
-        mcpRequest(rpc("tools/list")),
-        env,
-        convexAnswering(status, code),
-      );
+    ])(
+      "answers a resolution failing with %i %s with a JSON-RPC error keeping the code, not 401",
+      async (status, code) => {
+        const response = await handle(
+          mcpRequest(rpc("tools/list", undefined, "list-1")),
+          env,
+          convexAnswering(status, code),
+        );
 
-      expect(response.status).toBe(503);
-      expect(response.headers.get("WWW-Authenticate")).toBeNull();
-      const text = await response.text();
-      expect(text).not.toContain(code);
-      expect(text).not.toContain(TOKEN);
-      expect(text).not.toContain(env.SERVICE_SECRET);
-    });
+        expect(response.status).toBe(200);
+        expect(response.headers.get("WWW-Authenticate")).toBeNull();
+        const text = await response.text();
+        expect(JSON.parse(text)).toMatchObject({
+          jsonrpc: "2.0",
+          id: "list-1",
+          error: { code: -32603, data: { code } },
+        });
+        // The service's own message stays inside the gateway.
+        expect(text).not.toContain("from identity");
+        expect(text).not.toContain("unavailable");
+        expect(text).not.toContain(TOKEN);
+        expect(text).not.toContain(env.SERVICE_SECRET);
+      },
+    );
   });
 
   it("challenges with the deployed PUBLIC_ORIGIN through the Worker entrypoint", async () => {

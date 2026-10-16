@@ -573,11 +573,72 @@ describe("await", () => {
       {
         jsonrpc: "2.0",
         id: 1,
-        error: { code: -32603, message: "AgentDesk is temporarily unavailable" },
+        error: {
+          code: -32603,
+          message: "AgentDesk is temporarily unavailable",
+          data: { code: "unavailable" },
+        },
       },
     ]);
     expect(wait.state.text).not.toContain("service-secret-value");
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("ends the stream with Internal error, without detail, for an unexpected failure", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const convex = fakeConvex({
+      "decisions/poll": () => {
+        throw new Error("secret detail at /svc/decisions/poll");
+      },
+    });
+
+    const wait = await start(convex.svc, { decision_id: "decision_1" }, { id: 7 });
+
+    expect(wait.events().messages).toEqual([
+      { jsonrpc: "2.0", id: 7, error: { code: -32603, message: "Internal error" } },
+    ]);
+    expect(wait.state.text).not.toContain("secret detail");
+    expect(wait.state.text).not.toContain("/svc/");
+  });
+
+  it.each([
+    [
+      "a malformed id",
+      new ServiceError("invalid", "Invalid decisionId", "decisionId"),
+      { code: "invalid", message: "decision_id is not a valid decision id", field: "decision_id" },
+    ],
+    [
+      "an unknown or foreign id",
+      new ServiceError("not_found", "Decision not found"),
+      { code: "not_found", message: "Decision not found", field: "decision_id" },
+    ],
+    [
+      "a malformed caller session",
+      new ServiceError("invalid", "Invalid agentSessionId", "agentSessionId"),
+      {
+        code: "invalid",
+        message: "This MCP session could not be resolved; initialize a new session",
+      },
+    ],
+    [
+      "a missing caller session",
+      new ServiceError("not_found", "Agent session not found"),
+      { code: "not_found", message: "Agent session not found" },
+    ],
+  ])("names the tool's own argument for %s", async (_, failure, expected) => {
+    const convex = fakeConvex({
+      "decisions/poll": () => {
+        throw failure;
+      },
+    });
+
+    const wait = await start(convex.svc, { decision_id: "abc" });
+
+    const result = resultOf(wait.events().messages[0]);
+    expect(result.isError).toBe(true);
+    expect(JSON.parse(result.content[0]?.text ?? "")).toEqual({ error: expected });
+    expect(wait.state.text).not.toContain("decisionId");
+    expect(wait.state.text).not.toContain("agentSessionId");
   });
 });
 

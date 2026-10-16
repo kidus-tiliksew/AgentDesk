@@ -457,13 +457,15 @@ describe("POST /device/wait stream", () => {
     expect(wait.state.ended).toBe(true);
     expect(wait.events()).toEqual({
       comments: [],
-      messages: [{ error: { code: "not_found", message: "Decision not found" } }],
+      messages: [
+        { error: { code: "not_found", message: "Decision not found", field: "decision_id" } },
+      ],
     });
     expect(vi.getTimerCount()).toBe(0);
     expectNoAgentCalls(convex);
   });
 
-  it("passes another service error through with its field", async () => {
+  it("passes another service error through with its field named as the body field", async () => {
     const convex = fakeConvex({
       "decisions/watch": () => {
         throw new ServiceError("invalid", "decisionId is not an id", "decisionId");
@@ -473,8 +475,45 @@ describe("POST /device/wait stream", () => {
     const wait = await start(convex.svc, { decision_id: "decision_1" });
 
     expect(wait.events().messages).toEqual([
-      { error: { code: "invalid", message: "decisionId is not an id", field: "decisionId" } },
+      { error: { code: "invalid", message: "decision_id is not an id", field: "decision_id" } },
     ]);
+  });
+
+  it("restates Convex's malformed id refusal with decision_id", async () => {
+    const convex = fakeConvex({
+      "decisions/watch": () => {
+        throw new ServiceError("invalid", "Invalid decisionId", "decisionId");
+      },
+    });
+
+    const wait = await start(convex.svc, { decision_id: "abc" });
+
+    expect(wait.events().messages).toEqual([
+      {
+        error: {
+          code: "invalid",
+          message: "decision_id is not a valid decision id",
+          field: "decision_id",
+        },
+      },
+    ]);
+    expect(wait.state.text).not.toContain("decisionId");
+  });
+
+  it("names no field for a refusal of the caller's user", async () => {
+    const convex = fakeConvex({
+      "decisions/watch": () => {
+        throw new ServiceError("invalid", "Invalid userId", "userId");
+      },
+    });
+
+    const wait = await start(convex.svc, { decision_id: "decision_1" });
+
+    expect(wait.events().messages).toEqual([
+      { error: { code: "invalid", message: "The connection's user could not be resolved" } },
+    ]);
+    expect(wait.state.text).not.toContain("userId");
+    expect(wait.state.text).not.toContain(USER);
   });
 
   it.each([

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { ServiceError, UpstreamError } from "../src/convex.js";
+import { describe, expect, it, vi } from "vitest";
+import { ServiceError, type ServiceRoute, UpstreamError } from "../src/convex.js";
 import { handle } from "../src/index.js";
 import {
   CREDENTIAL,
@@ -405,16 +405,214 @@ describe("transport headers", () => {
 
     expect(response.status).toBe(406);
   });
+});
 
-  it("answers a Convex outage during session lookup with 503", async () => {
-    const convex = fakeConvex({
-      "agents/session": () => {
-        throw new UpstreamError("Service call agents/session failed");
+// Once a body parses as a JSON-RPC request, a failure at any step answers a
+// JSON-RPC error carrying the request's id: `unavailable` for an outage, the
+// service's own code for a refusal, and "Internal error" for a gateway fault.
+describe("failures after parsing", () => {
+  const STEPS = [
+    ["identity resolution", "identity/resolve-token", () => rpc("tools/list"), {}],
+    ["initialize", "agents/open", () => initialize("2025-11-25"), FIRST],
+    ["session lookup", "agents/session", () => rpc("ping"), {}],
+    [
+      "a non-await tool call",
+      "decisions/check",
+      () => rpc("tools/call", { name: "check", arguments: { decision_ids: ["d1"] } }),
+      {},
+    ],
+  ] as const;
+
+  const IDS = [7, "req-7"] as const;
+
+  function failing(route: ServiceRoute, failure: Error) {
+    return fakeConvex({
+      [route]: () => {
+        throw failure;
       },
     });
+  }
 
-    const response = await handle(mcpRequest(rpc("ping")), env, convex.svc);
+  async function send(
+    body: { jsonrpc: string; id: string | number; method: string },
+    headers: Record<string, string | null>,
+    id: string | number,
+    convex: ReturnType<typeof fakeConvex>,
+  ) {
+    const response = await handle(mcpRequest({ ...body, id }, headers), env, convex.svc);
+    const text = await response.text();
+    return { response, text, json: JSON.parse(text) as unknown };
+  }
+
+  describe.each(STEPS)("during %s", (_, route, body, headers) => {
+    it.each(IDS)("answers an outage with unavailable and id %j", async (id) => {
+      const convex = failing(route, new UpstreamError(`Service call ${route} timed out`));
+
+      const { response, text, json } = await send(body(), headers, id, convex);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Content-Type")).toBe("application/json");
+      expect(json).toEqual({
+        jsonrpc: "2.0",
+        id,
+        error: {
+          code: -32603,
+          message: "AgentDesk is temporarily unavailable",
+          data: { code: "unavailable" },
+        },
+      });
+      expect(text).not.toContain(route);
+      expect(text).not.toContain(TOKEN);
+      expect(text).not.toContain(env.SERVICE_SECRET);
+    });
+
+    it.each(IDS)("answers an unexpected fault with Internal error and id %j", async (id) => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const convex = failing(route, new Error(`stack at /svc/${route} with ${env.SERVICE_SECRET}`));
+
+      const { response, text, json } = await send(body(), headers, id, convex);
+
+      expect(response.status).toBe(200);
+      expect(json).toEqual({
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32603, message: "Internal error" },
+      });
+      expect(text).not.toContain("/svc/");
+      expect(text).not.toContain(env.SERVICE_SECRET);
+      vi.restoreAllMocks();
+    });
+  });
+
+  describe.each(STEPS.filter(([, route]) => route !== "decisions/check"))(
+    "a service refusal during %s",
+    (_, route, body, headers) => {
+      it.each(IDS)("keeps its own code, not unavailable, with id %j", async (id) => {
+        const convex = failing(
+          route,
+          new ServiceError("rate_limited", `rate_limited at /svc/${route}`),
+        );
+
+        const { response, text, json } = await send(body(), headers, id, convex);
+
+        expect(response.status).toBe(200);
+        expect(json).toEqual({
+          jsonrpc: "2.0",
+          id,
+          error: {
+            code: -32603,
+            message: "Too many requests; try again later",
+            data: { code: "rate_limited" },
+          },
+        });
+        expect(text).not.toContain("unavailable");
+        expect(text).not.toContain("/svc/");
+      });
+    },
+  );
+
+  it("names clientInfo when initialize is refused on the client name", async () => {
+    const convex = failing(
+      "agents/open",
+      new ServiceError(
+        "invalid",
+        "Too big: expected string to have <=100 characters",
+        "clientName",
+      ),
+    );
+
+    const { json, text } = await send(initialize("2025-11-25"), FIRST, 1, convex);
+
+    expect(json).toEqual({
+      jsonrpc: "2.0",
+      id: 1,
+      error: {
+        code: -32603,
+        message: "AgentDesk refused the request as invalid: clientInfo.name",
+        data: { code: "invalid", field: "clientInfo.name" },
+      },
+    });
+    expect(text).not.toContain("clientName");
+  });
+
+  it("leaves out a refusal's internal field during session lookup", async () => {
+    const convex = failing(
+      "agents/session",
+      new ServiceError("invalid", "Invalid userId", "userId"),
+    );
+
+    const { json, text } = await send(rpc("ping"), {}, 2, convex);
+
+    expect(json).toEqual({
+      jsonrpc: "2.0",
+      id: 2,
+      error: {
+        code: -32603,
+        message: "AgentDesk refused the request as invalid",
+        data: { code: "invalid" },
+      },
+    });
+    expect(text).not.toContain("userId");
+  });
+
+  it("keeps a tool's service refusal in the tool result", async () => {
+    const convex = failing("decisions/check", new ServiceError("not_found", "Decision not found"));
+
+    const { response, json } = await send(
+      rpc("tools/call", { name: "check", arguments: { decision_ids: ["d1"] } }),
+      {},
+      "c1",
+      convex,
+    );
+
+    expect(response.status).toBe(200);
+    expect(json).toEqual({
+      jsonrpc: "2.0",
+      id: "c1",
+      result: {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              error: { code: "not_found", message: "Decision not found", field: "decision_ids" },
+            }),
+          },
+        ],
+        isError: true,
+      },
+    });
+  });
+
+  it("keeps 404 and -32001 for an unknown session", async () => {
+    const response = await handle(
+      mcpRequest(rpc("ping", undefined, 5), { "Mcp-Session-Id": "mcp_session_other" }),
+      env,
+      fakeConvex().svc,
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      id: 5,
+      error: { code: -32001, message: "Session not found" },
+    });
+  });
+
+  it("answers a failing notification without inventing an id", async () => {
+    const convex = failing(
+      "agents/session",
+      new UpstreamError("Service call agents/session failed"),
+    );
+
+    const response = await handle(
+      mcpRequest({ jsonrpc: "2.0", method: "notifications/initialized" }),
+      env,
+      convex.svc,
+    );
 
     expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: { code: "unavailable", message: "AgentDesk is temporarily unavailable" },
+    });
   });
 });
