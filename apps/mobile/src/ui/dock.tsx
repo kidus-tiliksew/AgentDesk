@@ -17,12 +17,13 @@ const useStyles = makeStyles((theme) => ({
 // A bar pinned to the bottom of a screen for its main actions, such as the
 // answer buttons on a decision. It clears the tab bar and the home indicator:
 // the native safe area inside a tab includes the tab bar, which the window
-// insets from useSafeAreaInsets do not. "maximum" keeps the 12 pt padding
-// where the safe area is smaller.
+// insets from useSafeAreaInsets do not. "additive" sets the bottom padding to
+// that safe area plus 12 pt, so a gap always separates the actions from the
+// tab bar, or from the screen's edge where there is no safe area.
 export function Dock({ children }: { children: ReactNode }) {
   const styles = useStyles();
   return (
-    <SafeAreaView edges={{ bottom: "maximum" }} style={styles.dock}>
+    <SafeAreaView edges={{ bottom: "additive" }} style={styles.dock}>
       {children}
     </SafeAreaView>
   );
