@@ -6,6 +6,8 @@ import {
   type InputType,
   type Option,
   validateAnswer,
+  validateAnswerSubmission,
+  validateDecisionInput,
 } from "../src/index.js";
 
 const OPTIONS: Option[] = [
@@ -148,5 +150,179 @@ describe("answer submission", () => {
 
   test("requires an answer", () => {
     expect(answerSubmissionSchema.safeParse({ note: "hi" }).success).toBe(false);
+  });
+});
+
+// Every message validateAnswer and validateAnswerSubmission raise is written
+// for the person answering (req-mobile-app REQ-3): one sentence, with no Zod
+// default text, schema syntax, type names, or field identifiers.
+const DEVELOPER_TEXT =
+  /invalid input|expected|received|too small|too big|unrecognized|discriminator|>=|<=|option_ids?|input type|\bkind\b|string|array|object|undefined|null/i;
+
+// A case's input for a test name, cut short so an over-limit text stays legible.
+function brief(value: unknown): string {
+  const text = JSON.stringify(value) ?? String(value);
+  return text.length > 60 ? `${text.slice(0, 57)}...` : text;
+}
+
+function expectHuman(messages: string[]) {
+  expect(messages.length).toBeGreaterThan(0);
+  for (const message of messages) {
+    expect(message).not.toMatch(DEVELOPER_TEXT);
+    expect(message).toMatch(/^[A-Z][^.]*\.$/);
+  }
+}
+
+describe("validateAnswer messages", () => {
+  const cases = [
+    ["single_choice", null, ["Choose an answer."]],
+    ["single_choice", undefined, ["Choose an answer."]],
+    ["approve_reject", "approve", ["Choose an answer."]],
+    ["approve_reject", 7, ["Choose an answer."]],
+    ["approve_reject", [], ["Choose an answer."]],
+    ["approve_reject", {}, ["Choose an answer."]],
+    ["approve_reject", { kind: "maybe" }, ["Choose an answer."]],
+    ["approve_reject", { kind: 3 }, ["Choose an answer."]],
+    ["single_choice", { kind: "option" }, ["Choose an option."]],
+    ["single_choice", { kind: "option", option_id: 3 }, ["Choose an option from the list."]],
+    ["single_choice", { kind: "option", option_id: "z" }, ["Choose an option from the list."]],
+    [
+      "single_choice_or_text",
+      { kind: "option", option_id: "z" },
+      ["Choose an option from the list."],
+    ],
+    ["multiple_choice", { kind: "options" }, ["Choose at least one option."]],
+    ["multiple_choice", { kind: "options", option_ids: "a" }, ["Choose at least one option."]],
+    ["multiple_choice", { kind: "options", option_ids: [] }, ["Choose at least one option."]],
+    ["multiple_choice", { kind: "options", option_ids: [1] }, ["Choose an option from the list."]],
+    [
+      "multiple_choice",
+      { kind: "options", option_ids: ["a", "a", "z"] },
+      ["Choose each option only once.", "Choose an option from the list."],
+    ],
+    ["free_text", { kind: "text" }, ["Enter an answer."]],
+    ["free_text", { kind: "text", text: 5 }, ["Enter an answer."]],
+    ["free_text", { kind: "text", text: "" }, ["Enter an answer."]],
+    [
+      "free_text",
+      { kind: "text", text: "x".repeat(4001) },
+      ["Keep your answer to 4,000 characters or fewer."],
+    ],
+    ["single_choice_or_text", { kind: "text", text: "" }, ["Enter an answer."]],
+    [
+      "single_choice_or_text",
+      { kind: "option", option_id: "a", text: "also text" },
+      ["Remove the extra details from this answer."],
+    ],
+    [
+      "approve_reject",
+      { kind: "approve", text: "why" },
+      ["Remove the extra details from this answer."],
+    ],
+    ["approve_reject", { kind: "text", text: "yes" }, ["Approve or reject this decision."]],
+    ["single_choice", { kind: "approve" }, ["Choose one option."]],
+    ["multiple_choice", { kind: "option", option_id: "a" }, ["Choose one or more options."]],
+    ["free_text", { kind: "reject" }, ["Enter a text answer."]],
+    [
+      "single_choice_or_text",
+      { kind: "options", option_ids: ["a"] },
+      ["Choose one option or enter a text answer."],
+    ],
+  ] as const;
+  test.each(
+    cases.map(
+      ([inputType, answer, messages]) => [inputType, brief(answer), messages, answer] as const,
+    ),
+  )("%s with %s reads %j", (inputType, _name, messages, answer) => {
+    const result = validateAnswer(inputType, OPTIONS, answer);
+    expect(result.success).toBe(false);
+    const actual = result.error?.issues.map((issue) => issue.message) ?? [];
+    expect(actual).toEqual(messages);
+    expectHuman(actual);
+  });
+
+  test("keeps each issue on the field it names", () => {
+    const result = validateAnswer("multiple_choice", OPTIONS, {
+      kind: "options",
+      option_ids: ["a", "a", "z"],
+    });
+    expect(result.error?.issues.map((issue) => [issue.path, issue.message])).toEqual([
+      [["option_ids", 1], "Choose each option only once."],
+      [["option_ids", 2], "Choose an option from the list."],
+    ]);
+  });
+
+  test("every answer table row that fails reads as a person would", () => {
+    for (const [inputType, answer, valid] of ROWS) {
+      const result = validateAnswer(inputType, OPTIONS, answer);
+      if (!valid) {
+        expectHuman(result.error?.issues.map((issue) => issue.message) ?? []);
+      }
+    }
+  });
+});
+
+describe("validateAnswerSubmission", () => {
+  const cases = [
+    [null, ["Choose an answer."]],
+    [{}, ["Choose an answer."]],
+    [{ note: "hi" }, ["Choose an answer."]],
+    [{ answer: null }, ["Choose an answer."]],
+    [{ answer: { kind: "text", text: "" } }, ["Enter an answer."]],
+    [{ answer: { kind: "approve" }, note: 5 }, ["Write the note as text."]],
+    [
+      { answer: { kind: "approve" }, note: "n".repeat(2001) },
+      ["Keep your note to 2,000 characters or fewer."],
+    ],
+  ] as const;
+  test.each(
+    cases.map(([submission, messages]) => [brief(submission), messages, submission] as const),
+  )("%s reads %j", (_name, messages, submission) => {
+    const result = validateAnswerSubmission(submission);
+    expect(result.success).toBe(false);
+    const actual = result.error?.issues.map((issue) => issue.message) ?? [];
+    expect(actual).toEqual(messages);
+    expectHuman(actual);
+  });
+
+  test("accepts what answerSubmissionSchema accepts", () => {
+    for (const submission of [
+      { answer: { kind: "approve" } },
+      { answer: { kind: "text", text: " " }, note: "" },
+      { answer: { kind: "reject" }, note: "n".repeat(2000) },
+    ]) {
+      expect(validateAnswerSubmission(submission)).toEqual(
+        answerSubmissionSchema.safeParse(submission),
+      );
+    }
+  });
+});
+
+// The person-facing messages are scoped to validateAnswer and
+// validateAnswerSubmission; agent-facing parses keep theirs.
+describe("messages outside the answer validators", () => {
+  test("the bare schemas keep their own messages", () => {
+    expect(answerSchema.safeParse(null).error?.issues[0]?.message).toMatch(/expected object/);
+    expect(
+      answerSubmissionSchema.safeParse({ answer: { kind: "approve" }, note: "n".repeat(2001) })
+        .error?.issues[0]?.message,
+    ).toMatch(/<=2000/);
+  });
+
+  test("decision creation keeps the answer table's field names", () => {
+    const result = validateDecisionInput(
+      {
+        title: "Pick one",
+        topic: "repo/feature",
+        input_type: "single_choice",
+        options: OPTIONS,
+        recommendation: { kind: "option", option_id: "z" },
+      },
+      0,
+    );
+    expect(result.error?.issues.map((issue) => [issue.path, issue.message])).toContainEqual([
+      ["recommendation", "option_id"],
+      "option_id names no option",
+    ]);
   });
 });
