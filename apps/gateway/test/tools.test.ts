@@ -6,7 +6,7 @@ import {
 } from "@agentdesk/contract";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { ServiceError, UpstreamError } from "../src/convex.js";
+import { ServiceError, type ServiceRoute, UpstreamError } from "../src/convex.js";
 import { handle } from "../src/index.js";
 import {
   AGENT_SESSION,
@@ -530,7 +530,7 @@ describe("resolve", () => {
     ]);
   });
 
-  it("answers a Convex outage during the conflict read with 503", async () => {
+  it("answers a Convex outage during the conflict read with a JSON-RPC error", async () => {
     const convex = fakeConvex({
       "decisions/resolve": () => {
         throw new ServiceError("conflict", "Decision is not pending");
@@ -555,7 +555,47 @@ describe("resolve", () => {
       convex.svc,
     );
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      id: 1,
+      error: {
+        code: -32603,
+        message: "AgentDesk is temporarily unavailable",
+        data: { code: "unavailable" },
+      },
+    });
+  });
+
+  it("names decision_id when the conflict read refuses the id", async () => {
+    const convex = fakeConvex({
+      "decisions/resolve": () => {
+        throw new ServiceError("conflict", "Decision is not pending");
+      },
+      "decisions/poll": () => {
+        throw new ServiceError("invalid", "Invalid decisionId", "decisionId");
+      },
+    });
+
+    const { result, payload, calls } = await call(
+      "resolve",
+      { decision_id: "abc", answer: { kind: "approve" }, chat_message: "yes" },
+      convex,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(payload).toEqual({
+      error: {
+        code: "invalid",
+        message: "decision_id is not a valid decision id",
+        field: "decision_id",
+      },
+    });
+    expect(calls.map((c) => c.route)).toEqual([
+      ...TRANSPORT_ROUTES,
+      "decisions/resolve",
+      "decisions/poll",
+    ]);
   });
 });
 
@@ -740,5 +780,196 @@ describe("await", () => {
 
     expect(result.isError).toBe(true);
     expect(payload).toEqual({ error: { code: "not_found", message: "Not found" } });
+  });
+});
+
+// Convex names its own arguments, such as `decisionId`; each tool's error names
+// the argument the agent sent instead (req-agent-tools AC-1.3).
+describe("service error fields", () => {
+  const RESOLVE_ARGS = { decision_id: "abc", answer: { kind: "approve" }, chat_message: "yes" };
+  const STATUS_ARGS = { topic: "repo/main", state: "working", line: "Running tests" };
+  const ASK_ARGS = { title: "Ship it?", input_type: "approve_reject", topic: "repo/main" };
+
+  const DECISION_TOOLS = [
+    ["await", "decisions/poll", { decision_id: "abc" }, "decision_id"],
+    ["cancel", "decisions/cancel", { decision_id: "abc" }, "decision_id"],
+    ["resolve", "decisions/resolve", RESOLVE_ARGS, "decision_id"],
+  ] as const;
+
+  const ALL_TOOLS = [
+    ...DECISION_TOOLS,
+    ["check", "decisions/check", { decision_ids: ["abc"] }, "decision_ids"],
+    ["status", "agents/status", STATUS_ARGS, undefined],
+    ["ask", "decisions/create", ASK_ARGS, undefined],
+  ] as const;
+
+  function refusing(route: ServiceRoute, failure: ServiceError) {
+    return fakeConvex({
+      [route]: () => {
+        throw failure;
+      },
+    });
+  }
+
+  it.each(DECISION_TOOLS)("%s names decision_id for a malformed id", async (name, route, args) => {
+    const convex = refusing(route, new ServiceError("invalid", "Invalid decisionId", "decisionId"));
+
+    const { result, payload } = await call(name, args, convex);
+
+    expect(result.isError).toBe(true);
+    expect(payload).toEqual({
+      error: {
+        code: "invalid",
+        message: "decision_id is not a valid decision id",
+        field: "decision_id",
+      },
+    });
+  });
+
+  it.each(ALL_TOOLS.filter(([, , , argument]) => argument !== undefined))(
+    "%s names %s for an unknown or foreign decision",
+    async (name, route, args, argument) => {
+      const convex = refusing(route, new ServiceError("not_found", "Decision not found"));
+
+      const { result, payload } = await call(name, args, convex);
+
+      expect(result.isError).toBe(true);
+      expect(payload).toEqual({
+        error: { code: "not_found", message: "Decision not found", field: argument },
+      });
+    },
+  );
+
+  it.each([0, 1, 7])("check names decision_ids for a malformed member %i", async (index) => {
+    const ids = Array.from({ length: 8 }, (_, i) => `d${i}`);
+    const convex = refusing(
+      "decisions/check",
+      new ServiceError("invalid", `Invalid decisionIds.${index}`, `decisionIds.${index}`),
+    );
+
+    const { payload } = await call("check", { decision_ids: ids }, convex);
+
+    expect(payload).toEqual({
+      error: {
+        code: "invalid",
+        message: `decision_ids[${index}] is not a valid decision id`,
+        field: "decision_ids",
+      },
+    });
+  });
+
+  it("check names decision_ids for a refusal of the whole list", async () => {
+    const convex = refusing(
+      "decisions/check",
+      new ServiceError("invalid", "At most 50 decision ids per call", "decisionIds"),
+    );
+
+    const { payload } = await call("check", { decision_ids: ["d0"] }, convex);
+
+    expect(payload).toEqual({
+      error: {
+        code: "invalid",
+        message: "At most 50 decision ids per call",
+        field: "decision_ids",
+      },
+    });
+  });
+
+  it.each(ALL_TOOLS)("%s names no field for a refusal of the caller", async (name, route, args) => {
+    for (const [failure, message] of [
+      [
+        new ServiceError("invalid", "Invalid userId", "userId"),
+        "The connection's user could not be resolved",
+      ],
+      [
+        new ServiceError("invalid", "Invalid agentSessionId", "agentSessionId"),
+        "This MCP session could not be resolved; initialize a new session",
+      ],
+      [
+        new ServiceError("invalid", "Too small: expected string to have >=1 characters", "userId"),
+        "The connection's user could not be resolved",
+      ],
+    ] as const) {
+      const { result, payload } = await call(name, args, refusing(route, failure));
+
+      expect(result.isError).toBe(true);
+      expect(payload).toEqual({ error: { code: "invalid", message } });
+      const text = result.content[0]?.text ?? "";
+      expect(text).not.toContain("userId");
+      expect(text).not.toContain("agentSessionId");
+      expect(text).not.toContain(USER);
+      expect(text).not.toContain(AGENT_SESSION);
+    }
+  });
+
+  it.each(ALL_TOOLS)(
+    "%s never names a decision for a missing agent session",
+    async (name, route, args) => {
+      const convex = refusing(route, new ServiceError("not_found", "Agent session not found"));
+
+      const { payload } = await call(name, args, convex);
+
+      expect(payload).toEqual({ error: { code: "not_found", message: "Agent session not found" } });
+    },
+  );
+
+  it.each([
+    ["topic", "Invalid topic"],
+    ["state", "Invalid option"],
+    ["line", "Too big: expected string to have <=200 characters"],
+    ["link", "Invalid URL"],
+    ["display_name", "Too big: expected string to have <=60 characters"],
+  ])("status keeps its own %s field", async (field, message) => {
+    const convex = refusing("agents/status", new ServiceError("invalid", message, field));
+
+    const { payload } = await call("status", STATUS_ARGS, convex);
+
+    expect(payload).toEqual({ error: { code: "invalid", message, field } });
+  });
+
+  it("ask keeps parent_id for an unknown parent", async () => {
+    const convex = refusing(
+      "decisions/create",
+      new ServiceError("invalid", "parent_id names no decision", "parent_id"),
+    );
+
+    const { payload } = await call("ask", { ...ASK_ARGS, parent_id: "decision_x" }, convex);
+
+    expect(payload).toEqual({
+      error: { code: "invalid", message: "parent_id names no decision", field: "parent_id" },
+    });
+  });
+
+  it("resolve keeps the answer path and renames chatMessage", async () => {
+    const answer = refusing(
+      "decisions/resolve",
+      new ServiceError("invalid", "Unknown option", "answer.option_id"),
+    );
+    const message = refusing(
+      "decisions/resolve",
+      new ServiceError("invalid", "chatMessage must not be blank", "chatMessage"),
+    );
+
+    expect((await call("resolve", RESOLVE_ARGS, answer)).payload).toEqual({
+      error: { code: "invalid", message: "Unknown option", field: "answer.option_id" },
+    });
+    expect((await call("resolve", RESOLVE_ARGS, message)).payload).toEqual({
+      error: { code: "invalid", message: "chat_message must not be blank", field: "chat_message" },
+    });
+  });
+
+  it.each(ALL_TOOLS)("%s hides a field the caller never sent", async (name, route, args) => {
+    const convex = refusing(
+      route,
+      new ServiceError("invalid", "answeredVia failed at /svc/decisions/resolve", "answeredVia"),
+    );
+
+    const { result, payload } = await call(name, args, convex);
+
+    expect(payload).toEqual({
+      error: { code: "invalid", message: "AgentDesk refused the request" },
+    });
+    expect(result.content[0]?.text).not.toContain("answeredVia");
+    expect(result.content[0]?.text).not.toContain("/svc/");
   });
 });
