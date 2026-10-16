@@ -1,9 +1,9 @@
 import {
   type Answer,
   type AnswerSubmission,
-  answerSubmissionSchema,
   type Decision,
   validateAnswer,
+  validateAnswerSubmission,
 } from "@agentdesk/contract";
 import { HeaderHeightContext } from "expo-router/react-navigation";
 import { type ReactNode, useContext, useEffect, useRef, useState } from "react";
@@ -90,23 +90,34 @@ function candidate(decision: Decision, draft: Draft, choice: Choice | null): unk
   }
 }
 
-const FIELD_LABELS: Record<string, string> = {
-  option_id: "Option",
-  option_ids: "Options",
-  text: "Text",
-  note: "Note",
-};
-
-function issueMessage(issue: { path: PropertyKey[]; message: string }, fallback: string) {
-  const field = issue.path.find((part) => typeof part === "string" && part in FIELD_LABELS);
-  const label = typeof field === "string" ? FIELD_LABELS[field] : fallback;
-  return `${label}: ${issue.message}`;
+// What the person still has to do before "Send answer" can send, or null
+// once the draft forms an answer. Only the active mode of
+// single_choice_or_text counts. Text that is only whitespace is an answer,
+// because the contract accepts it. Approve and Reject always form an answer.
+function missingAnswer(decision: Decision, draft: Draft): string | null {
+  switch (decision.input_type) {
+    case "approve_reject":
+      return null;
+    case "single_choice":
+      return draft.optionId === null ? "Choose an option." : null;
+    case "multiple_choice":
+      return (decision.options ?? []).some((option) => draft.optionIds.includes(option.id))
+        ? null
+        : "Choose at least one option.";
+    case "free_text":
+      return draft.text === "" ? "Enter an answer." : null;
+    case "single_choice_or_text":
+      if (draft.mode === "text") {
+        return draft.text === "" ? "Enter an answer." : null;
+      }
+      return draft.optionId === null ? "Choose an option." : null;
+  }
 }
 
 // Validates the draft with the contract before anything is sent: the answer
 // against the decision's input type and options with validateAnswer, and the
-// note with answerSubmissionSchema. On failure it returns the contract's
-// messages and no submission.
+// note with validateAnswerSubmission. On failure it returns the contract's
+// messages, each naming its own subject, and no submission.
 function validate(
   decision: Decision,
   draft: Draft,
@@ -117,10 +128,8 @@ function validate(
     decision.options ?? undefined,
     candidate(decision, draft, choice),
   );
-  const errors = answer.success
-    ? []
-    : answer.error.issues.map((issue) => issueMessage(issue, "Answer"));
-  const submission = answerSubmissionSchema.safeParse({
+  const errors = answer.success ? [] : answer.error.issues.map((issue) => issue.message);
+  const submission = validateAnswerSubmission({
     answer: answer.success ? answer.data : { kind: "approve" },
     note: draft.note === "" ? undefined : draft.note,
   });
@@ -128,11 +137,12 @@ function validate(
     errors.push(
       ...submission.error.issues
         .filter((issue) => issue.path[0] === "note")
-        .map((issue) => issueMessage(issue, "Note")),
+        .map((issue) => issue.message),
     );
   }
   if (errors.length > 0 || !submission.success) {
-    return { errors };
+    // Two issues can share a message, such as two unknown options.
+    return { errors: [...new Set(errors)] };
   }
   return { submission: submission.data };
 }
@@ -333,7 +343,9 @@ function LimitedInput({
 //
 // The parent mounts it once per decision id, so the draft survives reactive
 // updates to the same decision and never carries over to another one. While
-// `submitting` is set every control is disabled.
+// `submitting` is set every control is disabled. "Send answer" is also
+// disabled until the draft forms an answer, with a hint above it saying what
+// to do.
 export function AnswerForm({
   decision,
   submitting,
@@ -382,8 +394,10 @@ export function AnswerForm({
     (recommendation?.kind === "option" && recommendation.option_id === id) ||
     (recommendation?.kind === "options" && recommendation.option_ids.includes(id));
 
+  const missing = missingAnswer(decision, draft);
+
   const submit = (choice: Choice | null) => {
-    if (submitting) {
+    if (submitting || (choice === null && missing !== null)) {
       return;
     }
     const result = validate(decision, draft, choice);
@@ -599,11 +613,19 @@ export function AnswerForm({
             {choiceOrder.map(choiceButton)}
           </View>
         ) : (
-          <Button
-            label={submitting ? "Sending" : "Send answer"}
-            disabled={submitting}
-            onPress={() => submit(null)}
-          />
+          <>
+            {missing === null ? null : (
+              <AppText variant="footnote" tone="secondary">
+                {missing}
+              </AppText>
+            )}
+            <Button
+              label={submitting ? "Sending" : "Send answer"}
+              accessibilityHint={missing ?? undefined}
+              disabled={submitting || missing !== null}
+              onPress={() => submit(null)}
+            />
+          </>
         )}
       </Dock>
     </KeyboardAvoidingView>

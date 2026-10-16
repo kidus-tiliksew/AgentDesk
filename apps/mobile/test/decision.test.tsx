@@ -813,9 +813,8 @@ describe("limits and validation", () => {
     choose("Approve");
     await flush();
 
-    expect(
-      screen.getByText("Note: Too big: expected string to have <=2000 characters"),
-    ).toBeOnTheScreen();
+    expect(screen.getByText("Keep your note to 2,000 characters or fewer.")).toBeOnTheScreen();
+    expect(announce).toHaveBeenCalledWith("Keep your note to 2,000 characters or fewer.");
     expect(answerDecision).not.toHaveBeenCalled();
   });
 
@@ -825,9 +824,8 @@ describe("limits and validation", () => {
     fireEvent.changeText(screen.getByLabelText("Answer text"), "t".repeat(4001));
     submit();
     await flush();
-    expect(
-      screen.getByText("Text: Too big: expected string to have <=4000 characters"),
-    ).toBeOnTheScreen();
+    expect(screen.getByText("Keep your answer to 4,000 characters or fewer.")).toBeOnTheScreen();
+    expect(announce).toHaveBeenCalledWith("Keep your answer to 4,000 characters or fewer.");
     expect(answerDecision).not.toHaveBeenCalled();
 
     fireEvent.changeText(screen.getByLabelText("Answer text"), "t".repeat(4000));
@@ -837,45 +835,158 @@ describe("limits and validation", () => {
     expect(lastAnswer()?.answer).toEqual({ kind: "text", text: "t".repeat(4000) });
   });
 
-  test("submitting with nothing chosen shows the contract message and sends nothing", async () => {
+  test("an over-long answer and note each show their own message", async () => {
+    await open(decision({ id: "d_1", title: "Name it", input_type: "free_text" }));
+
+    fireEvent.changeText(screen.getByLabelText("Answer text"), "t".repeat(4001));
+    addNote("n".repeat(2001));
+    submit();
+    await flush();
+
+    expect(screen.getByText("Keep your answer to 4,000 characters or fewer.")).toBeOnTheScreen();
+    expect(screen.getByText("Keep your note to 2,000 characters or fewer.")).toBeOnTheScreen();
+    expect(announce).toHaveBeenCalledWith(
+      "Keep your answer to 4,000 characters or fewer. Keep your note to 2,000 characters or fewer.",
+    );
+    expect(answerDecision).not.toHaveBeenCalled();
+  });
+});
+
+// "Send answer" stays disabled until the draft forms an answer, with a hint
+// saying what to do, so an empty draft never reaches validation.
+describe("an empty draft", () => {
+  beforeEach(() => {
+    answerDecision.mockImplementation(async (args) =>
+      answered({ id: args.decisionId, title: "Done" }),
+    );
+  });
+
+  function send() {
+    return screen.getByRole("button", { name: "Send answer" });
+  }
+
+  // The button is disabled for presses and for VoiceOver, its hint repeats
+  // the visible one, and a press sends and announces nothing.
+  async function expectBlocked(hint: string) {
+    expect(send()).toBeDisabled();
+    expect(send().props.accessibilityState).toEqual({ disabled: true });
+    expect(send().props.accessibilityHint).toBe(hint);
+    expect(screen.getByText(hint)).toBeOnTheScreen();
+    submit();
+    await flush();
+    expect(answerDecision).not.toHaveBeenCalled();
+    expect(announce).not.toHaveBeenCalled();
+  }
+
+  function expectReady(hint: string) {
+    expect(send()).toBeEnabled();
+    expect(send().props.accessibilityState).toEqual({ disabled: false });
+    expect(send().props.accessibilityHint).toBeUndefined();
+    expect(screen.queryByText(hint)).not.toBeOnTheScreen();
+  }
+
+  test("single choice waits for an option", async () => {
     await open(
       decision({ id: "d_1", title: "Pick", input_type: "single_choice", options: choices }),
     );
 
+    await expectBlocked("Choose an option.");
+
+    fireEvent.press(screen.getByRole("radio", { name: "Beta" }));
+    expectReady("Choose an option.");
     submit();
     await flush();
-
-    expect(
-      screen.getByText("Answer: Invalid input: expected object, received null"),
-    ).toBeOnTheScreen();
-    expect(announce).toHaveBeenCalledWith("Answer: Invalid input: expected object, received null");
-    expect(answerDecision).not.toHaveBeenCalled();
+    expect(lastAnswer()?.answer).toEqual({ kind: "option", option_id: "b" });
   });
 
-  test("multiple choice with no option checked is refused", async () => {
+  test("multiple choice waits for a checked option and blocks again when all are cleared", async () => {
     await open(
       decision({ id: "d_1", title: "Pick", input_type: "multiple_choice", options: choices }),
     );
 
+    await expectBlocked("Choose at least one option.");
+
+    fireEvent.press(screen.getByRole("checkbox", { name: "Alpha" }));
+    expectReady("Choose at least one option.");
+    fireEvent.press(screen.getByRole("checkbox", { name: "Alpha" }));
+    await expectBlocked("Choose at least one option.");
+
+    fireEvent.press(screen.getByRole("checkbox", { name: "Gamma" }));
+    expectReady("Choose at least one option.");
     submit();
     await flush();
-
-    expect(
-      screen.getByText("Options: Too small: expected array to have >=1 items"),
-    ).toBeOnTheScreen();
-    expect(answerDecision).not.toHaveBeenCalled();
+    expect(lastAnswer()?.answer).toEqual({ kind: "options", option_ids: ["c"] });
   });
 
-  test("empty text is refused", async () => {
+  test("free text waits for text and blocks again when it is cleared", async () => {
     await open(decision({ id: "d_1", title: "Name it", input_type: "free_text" }));
 
+    await expectBlocked("Enter an answer.");
+
+    fireEvent.changeText(screen.getByLabelText("Answer text"), "Blue");
+    expectReady("Enter an answer.");
+    fireEvent.changeText(screen.getByLabelText("Answer text"), "");
+    await expectBlocked("Enter an answer.");
+  });
+
+  // The contract accepts text that is only whitespace, so the form sends it
+  // exactly as typed.
+  test("text that is only whitespace is an answer and is sent unchanged", async () => {
+    await open(decision({ id: "d_1", title: "Name it", input_type: "free_text" }));
+
+    fireEvent.changeText(screen.getByLabelText("Answer text"), "  ");
+    expectReady("Enter an answer.");
     submit();
     await flush();
+    expect(lastAnswer()?.answer).toEqual({ kind: "text", text: "  " });
+  });
 
-    expect(
-      screen.getByText("Text: Too small: expected string to have >=1 characters"),
-    ).toBeOnTheScreen();
-    expect(answerDecision).not.toHaveBeenCalled();
+  test("single choice or text follows the active mode", async () => {
+    await open(
+      decision({
+        id: "d_1",
+        title: "Pick",
+        input_type: "single_choice_or_text",
+        options: choices,
+      }),
+    );
+
+    await expectBlocked("Choose an option.");
+
+    fireEvent.press(screen.getByRole("radio", { name: "Other answer" }));
+    await expectBlocked("Enter an answer.");
+    fireEvent.changeText(screen.getByLabelText("Answer text"), "Neither");
+    expectReady("Enter an answer.");
+
+    // Picking an option drops the text; the option alone forms the answer.
+    fireEvent.press(screen.getByRole("radio", { name: "Alpha" }));
+    expectReady("Choose an option.");
+
+    // Back on Other answer the option no longer counts.
+    fireEvent.press(screen.getByRole("radio", { name: "Other answer" }));
+    await expectBlocked("Enter an answer.");
+  });
+
+  test("a recommended option is ready to send at once", async () => {
+    await open(
+      decision({
+        id: "d_1",
+        title: "Pick",
+        input_type: "single_choice",
+        options: choices,
+        recommendation: { kind: "option", option_id: "a" },
+      }),
+    );
+
+    expectReady("Choose an option.");
+  });
+
+  test("approve and reject are never blocked", async () => {
+    await open(decision({ id: "d_1", title: "Ship?" }));
+
+    expect(screen.getByRole("button", { name: "Approve" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Reject" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Send answer" })).not.toBeOnTheScreen();
   });
 });
 

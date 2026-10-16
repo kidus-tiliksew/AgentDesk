@@ -22,6 +22,7 @@ describe("public exports", () => {
       "answerSchema",
       "answerSubmissionSchema",
       "validateAnswer",
+      "validateAnswerSubmission",
       "decisionInputFieldsSchema",
       "decisionInputSchema",
       "validateDecisionInput",
