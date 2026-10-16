@@ -612,6 +612,24 @@ describe("one-tap answers", () => {
     expect(haptic.success).toHaveBeenCalledTimes(1);
   });
 
+  test("a refusal restores the card with fixed copy for its code, never the backend's message", async () => {
+    setQuery(listPending, [decision({ id: "d_1", title: "Ship it?" })]);
+    answerDecision.mockRejectedValueOnce(
+      new ConvexError({ code: "unauthenticated", message: "Not signed in" }),
+    );
+    await openInbox();
+
+    fireEvent.press(screen.getByRole("button", { name: "Approve: Ship it?" }));
+    await background();
+
+    const message = "Your session ended. Sign in again.";
+    expect(screen.getByText(message)).toBeOnTheScreen();
+    expect(decisionTitles()).toEqual(["Decision: Ship it?"]);
+    expect(announced()).toContain(message);
+    expect(screen.queryByText("Not signed in")).not.toBeOnTheScreen();
+    expect(announced()).not.toContain("Not signed in");
+  });
+
   test("a second tap before the re-render sends one answer", async () => {
     setQuery(listPending, [decision({ id: "d_1", title: "Ship it?" })]);
     await openInbox();

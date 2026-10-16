@@ -242,6 +242,68 @@ test("a failure restores the card with its message, an error haptic, and an anno
   expect(mockPush).not.toHaveBeenCalled();
 });
 
+// The backend's `data.message` is written for developers, so a refused quick
+// answer shows fixed copy for its code on the restored card. Each message
+// differs from every copy, so a pass-through would show.
+test.each([
+  ["invalid", "answer.kind must be approve", "Check your answer and try again."],
+  ["unauthenticated", "Not signed in", "Your session ended. Sign in again."],
+  ["not_found", "Decision not found", "This decision no longer exists."],
+  [
+    "locked",
+    "Locked until 2026-10-16T10:00:00Z",
+    "This decision cannot accept an answer right now.",
+  ],
+  [
+    "rate_limited",
+    "Rate limit exceeded for usr_123",
+    "Too many attempts. Wait a moment and try again.",
+  ],
+  ["quota_exceeded", "Quota exceeded for usr_123", "Could not send your answer. Try again."],
+])(
+  "the %s refusal restores the card with fixed copy, never the backend's message",
+  async (code, message, copy) => {
+    answerDecision.mockRejectedValue(new ConvexError({ code, message }));
+    renderCards([ship]);
+
+    fireEvent.press(screen.getByRole("button", { name: "Approve: Ship it?" }));
+    await hold(HOLD_MS);
+
+    expect(cardTitles()).toEqual(["Decision: Ship it?"]);
+    expect(screen.getByText(copy)).toBeOnTheScreen();
+    expect(announced()).toContain(copy);
+    for (const text of [message, "Check your connection"]) {
+      expect(screen.queryByText(text, { exact: false })).not.toBeOnTheScreen();
+      expect(screen.queryByLabelText(text, { exact: false })).not.toBeOnTheScreen();
+      expect(announced().filter((said) => said.includes(text))).toEqual([]);
+    }
+    expect(haptic.error).toHaveBeenCalledTimes(1);
+    expect(mockPush).not.toHaveBeenCalled();
+  },
+);
+
+test.each([
+  ["a malformed code", new ConvexError({ code: 409, message: "Conflict at /v1/answer" })],
+  ["no code", new ConvexError({ message: "Conflict at /v1/answer" })],
+  ["a plain Error", new Error("Conflict at /v1/answer")],
+])(
+  "a failure with %s restores the card with the connection copy, never its text",
+  async (_, error) => {
+    answerDecision.mockRejectedValue(error);
+    renderCards([ship]);
+
+    fireEvent.press(screen.getByRole("button", { name: "Approve: Ship it?" }));
+    await hold(HOLD_MS);
+
+    const copy = "Could not send your answer. Check your connection.";
+    expect(screen.getByText(copy)).toBeOnTheScreen();
+    expect(announced()).toContain(copy);
+    expect(screen.queryByText(/Conflict at/)).not.toBeOnTheScreen();
+    expect(announced().filter((said) => said.includes("Conflict at"))).toEqual([]);
+    expect(mockPush).not.toHaveBeenCalled();
+  },
+);
+
 test("a decision settled elsewhere opens the decision screen while the screen is in focus", async () => {
   const settled = decision({ id: "d_1", state: "answered", answer: { kind: "reject" } });
   answerDecision.mockRejectedValue(

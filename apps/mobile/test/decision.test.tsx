@@ -1321,17 +1321,82 @@ describe("submission", () => {
     expect(screen.getByText("Rejected")).toBeOnTheScreen();
   });
 
-  test("a backend refusal shows the backend's message", async () => {
-    answerDecision.mockRejectedValue(
-      new ConvexError({ code: "invalid", message: "option_id names no option", field: "answer" }),
-    );
+  // The backend's `data.message` is written for developers, so a refusal shows
+  // fixed copy for its code. Each message differs from every copy, so a
+  // pass-through would show on screen or in the announcement.
+  const refusals = [
+    ["invalid", "option_id names no option", "Check your answer and try again."],
+    ["unauthenticated", "Not signed in", "Your session ended. Sign in again."],
+    ["not_found", "Decision not found", "This decision no longer exists."],
+    [
+      "locked",
+      "Locked until 2026-10-16T10:00:00Z",
+      "This decision cannot accept an answer right now.",
+    ],
+    [
+      "rate_limited",
+      "Rate limit exceeded for usr_123",
+      "Too many attempts. Wait a moment and try again.",
+    ],
+    ["quota_exceeded", "Quota exceeded for usr_123", "Could not send your answer. Try again."],
+  ] as const;
+
+  // Fails the test if `text` reached the screen or a VoiceOver announcement.
+  function expectNotShown(text: string) {
+    expect(screen.queryByText(text, { exact: false })).not.toBeOnTheScreen();
+    expect(screen.queryByLabelText(text, { exact: false })).not.toBeOnTheScreen();
+    for (const [announced] of announce.mock.calls) {
+      expect(announced).not.toContain(text);
+    }
+  }
+
+  test.each(refusals)(
+    "the %s refusal shows fixed copy and never the backend's message",
+    async (code, message, copy) => {
+      answerDecision.mockRejectedValue(new ConvexError({ code, message, field: "answer" }));
+      await open(decision({ id: "d_1", title: "Ship?" }));
+
+      choose("Approve");
+      await flush();
+
+      expect(screen.getByText(copy)).toBeOnTheScreen();
+      expect(announce).toHaveBeenCalledWith(copy);
+      expectNotShown(message);
+      // Connection wording is only for failures without a code.
+      expectNotShown("Check your connection");
+      expect(haptic.error).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Approve" })).toBeEnabled();
+    },
+  );
+
+  test("a refusal without a message shows the fixed copy for its code", async () => {
+    answerDecision.mockRejectedValue(new ConvexError({ code: "not_found" }));
     await open(decision({ id: "d_1", title: "Ship?" }));
 
     choose("Approve");
     await flush();
 
-    expect(screen.getByText("option_id names no option")).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "Approve" })).toBeOnTheScreen();
+    expect(screen.getByText("This decision no longer exists.")).toBeOnTheScreen();
+    expect(announce).toHaveBeenCalledWith("This decision no longer exists.");
+  });
+
+  test.each([
+    ["a malformed code", new ConvexError({ code: 409, message: "Conflict at /v1/answer" })],
+    ["no code", new ConvexError({ message: "Conflict at /v1/answer" })],
+    ["string data", new ConvexError("Conflict at /v1/answer")],
+    ["a plain Error", new Error("Conflict at /v1/answer")],
+  ])("a failure with %s shows the connection copy and never its text", async (_, error) => {
+    answerDecision.mockRejectedValue(error);
+    await open(decision({ id: "d_1", title: "Ship?" }));
+
+    choose("Approve");
+    await flush();
+
+    const copy = "Could not send your answer. Check your connection.";
+    expect(screen.getByText(copy)).toBeOnTheScreen();
+    expect(announce).toHaveBeenCalledWith(copy);
+    expectNotShown("Conflict at /v1/answer");
+    expect(screen.getByRole("button", { name: "Approve" })).toBeEnabled();
   });
 
   test("a settlement arriving while editing removes the draft and shows the outcome", async () => {

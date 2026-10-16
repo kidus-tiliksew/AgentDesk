@@ -2,7 +2,15 @@ import { act, fireEvent, screen } from "expo-router/testing-library";
 import { AccessibilityInfo, StyleSheet } from "react-native";
 import { PRIVACY_POLICY_URL } from "../src/config";
 import { haptic } from "../src/haptics";
-import { clerkApiError, deferred, ensureAccount, signIn, signUp, webBrowser } from "./fakes";
+import {
+  clerkApiError,
+  clerkNetworkError,
+  deferred,
+  ensureAccount,
+  signIn,
+  signUp,
+  webBrowser,
+} from "./fakes";
 import { findInbox, renderApp } from "./render";
 
 beforeEach(() => {
@@ -19,6 +27,25 @@ afterEach(() => {
 
 function announced() {
   return jest.mocked(AccessibilityInfo.announceForAccessibility).mock.calls.map(([text]) => text);
+}
+
+const WRONG_CODE = "That code is not correct. Check the email and try again.";
+const RATE_LIMITED = "Too many attempts. Wait a moment and try again.";
+const NO_CONNECTION = "Could not connect. Check your connection and try again.";
+
+// Clerk's own text, written for developers, as clerk-js reports it. Each
+// differs from the app's copy, so a pass-through would show.
+const TOO_MANY = ["Too many requests", "Too many requests. Please try again in a bit."] as const;
+// The offline Error's message holds the request URL.
+const NETWORK_TEXT = ["ClerkJS", "Network error at", "clerk.agentdesk.example", "/v1/client/"];
+
+// Fails the test if any of `texts` reached the screen or VoiceOver.
+function expectNotShown(...texts: readonly string[]) {
+  for (const text of texts) {
+    expect(screen.queryByText(text, { exact: false })).not.toBeOnTheScreen();
+    expect(screen.queryByLabelText(text, { exact: false })).not.toBeOnTheScreen();
+    expect(announced().filter((said) => said.includes(text))).toEqual([]);
+  }
 }
 
 async function submitEmail(address: string) {
@@ -90,27 +117,31 @@ describe("sign-in", () => {
 
   test("a wrong code shows an error and keeps the person on the code step", async () => {
     signIn.emailCode.verifyCode.mockResolvedValueOnce({
-      error: clerkApiError("form_code_incorrect", "Incorrect code"),
+      error: clerkApiError("form_code_incorrect", "is incorrect", "Incorrect code"),
     });
     renderApp("/sign-in");
     await submitEmail("a@example.com");
 
     submitCode("000000");
 
-    const wrong = "That code is not correct. Check the email and try again.";
-    expect(await screen.findByText(wrong)).toBeOnTheScreen();
+    expect(await screen.findByText(WRONG_CODE)).toBeOnTheScreen();
     expect(screen.getByLabelText("Code")).toBeOnTheScreen();
     expect(signIn.finalize).not.toHaveBeenCalled();
     // The error is felt and spoken to VoiceOver as it appears.
     expect(haptic.error).toHaveBeenCalledTimes(1);
     expect(haptic.success).not.toHaveBeenCalled();
-    expect(announced()).toEqual([wrong]);
+    expect(announced()).toEqual([WRONG_CODE]);
+    expectNotShown("is incorrect", "Incorrect code");
     expect(screen).toHavePathname("/sign-in");
   });
 
   test("an expired code shows an error, keeps the code step, and can send a new code", async () => {
     signUp.verifications.verifyEmailCode.mockResolvedValueOnce({
-      error: clerkApiError("verification_expired", "Code expired"),
+      error: clerkApiError(
+        "verification_expired",
+        "expired",
+        "This verification has expired. You must create a new one.",
+      ),
     });
     signIn.emailCode.sendCode.mockResolvedValueOnce({
       error: clerkApiError("form_identifier_not_found", "Couldn't find your account."),
@@ -121,6 +152,8 @@ describe("sign-in", () => {
     submitCode("111111");
 
     expect(await screen.findByText("That code has expired. Send a new code.")).toBeOnTheScreen();
+    expect(announced()).toEqual(["That code has expired. Send a new code."]);
+    expectNotShown("This verification has expired", "create a new one");
     expect(screen.getByLabelText("Code")).toBeOnTheScreen();
     expect(signUp.finalize).not.toHaveBeenCalled();
 
@@ -131,9 +164,13 @@ describe("sign-in", () => {
     expect(signUp.verifications.sendEmailCode).toHaveBeenCalledTimes(2);
   });
 
-  test("a failed send keeps the email step and shows Clerk's message", async () => {
+  test("an invalid address keeps the email step with fixed copy, never Clerk's text", async () => {
     signIn.emailCode.sendCode.mockResolvedValueOnce({
-      error: clerkApiError("form_param_format_invalid", "Enter a valid email address."),
+      error: clerkApiError(
+        "form_param_format_invalid",
+        "is invalid",
+        "email_address must be a valid email address.",
+      ),
     });
     renderApp("/sign-in");
 
@@ -143,6 +180,133 @@ describe("sign-in", () => {
     expect(await screen.findByText("Enter a valid email address.")).toBeOnTheScreen();
     expect(screen.queryByLabelText("Code")).not.toBeOnTheScreen();
     expect(announced()).toEqual(["Enter a valid email address."]);
+    expectNotShown("is invalid", "email_address");
+  });
+
+  // Each failure of the send, returned or thrown, shows only fixed copy:
+  // Clerk's codes choose it, and Clerk's text and an Error's message never
+  // reach the screen or VoiceOver.
+  test.each([
+    {
+      name: "rate limiting",
+      fail: async () => ({ error: clerkApiError("too_many_requests", ...TOO_MANY, 429) }),
+      copy: RATE_LIMITED,
+      clerkText: TOO_MANY,
+    },
+    {
+      name: "an unknown Clerk code",
+      fail: async () => ({
+        error: clerkApiError(
+          "captcha_invalid",
+          "CAPTCHA failed",
+          "Sign up unsuccessful due to failed security validations.",
+        ),
+      }),
+      copy: "Something went wrong. Try again.",
+      clerkText: ["CAPTCHA failed", "security validations"],
+    },
+    {
+      name: "an error entry without a code",
+      fail: async () => ({ error: { errors: [{ message: "Clerk refused the request" }] } }),
+      copy: "Something went wrong. Try again.",
+      clerkText: ["Clerk refused the request"],
+    },
+    {
+      name: "an error entry with a malformed code",
+      fail: async () => ({
+        error: { errors: [{ code: 422, message: "Clerk refused the request" }] },
+      }),
+      copy: "Something went wrong. Try again.",
+      clerkText: ["Clerk refused the request"],
+    },
+    {
+      name: "an empty errors list",
+      fail: async () => ({
+        error: Object.assign(new Error("Clerk refused the request"), { errors: [] }),
+      }),
+      copy: "Something went wrong. Try again.",
+      clerkText: ["Clerk refused the request"],
+    },
+    {
+      name: "a returned network error",
+      fail: async () => ({ error: clerkNetworkError() }),
+      copy: NO_CONNECTION,
+      clerkText: NETWORK_TEXT,
+    },
+    {
+      name: "a thrown network error",
+      fail: async () => {
+        throw clerkNetworkError();
+      },
+      copy: NO_CONNECTION,
+      clerkText: NETWORK_TEXT,
+    },
+  ])("a send failing with $name keeps the email step with fixed copy", async (failure) => {
+    signIn.emailCode.sendCode.mockImplementationOnce(failure.fail);
+    renderApp("/sign-in");
+
+    fireEvent.changeText(await screen.findByLabelText("Email address"), "a@example.com");
+    fireEvent.press(screen.getByRole("button", { name: "Continue" }));
+
+    expect(await screen.findByText(failure.copy)).toBeOnTheScreen();
+    expect(announced()).toEqual([failure.copy]);
+    expectNotShown(...failure.clerkText);
+    expect(screen.getByLabelText("Email address")).toBeOnTheScreen();
+    expect(screen.queryByLabelText("Code")).not.toBeOnTheScreen();
+    expect(signUp.create).not.toHaveBeenCalled();
+  });
+
+  test("a first sign-in whose code cannot be sent shows the connection copy", async () => {
+    signIn.emailCode.sendCode.mockResolvedValueOnce({
+      error: clerkApiError("form_identifier_not_found", "Couldn't find your account."),
+    });
+    signUp.verifications.sendEmailCode.mockResolvedValueOnce({
+      error: clerkNetworkError("sign_ups/sua_1/prepare_verification"),
+    });
+    renderApp("/sign-in");
+
+    fireEvent.changeText(await screen.findByLabelText("Email address"), "new@example.com");
+    fireEvent.press(screen.getByRole("button", { name: "Continue" }));
+
+    expect(await screen.findByText(NO_CONNECTION)).toBeOnTheScreen();
+    expect(announced()).toEqual([NO_CONNECTION]);
+    expectNotShown(...NETWORK_TEXT, "Couldn't find your account");
+    expect(signUp.create).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText("Code")).not.toBeOnTheScreen();
+  });
+
+  test("a thrown verification failure keeps the code step with the connection copy", async () => {
+    signIn.emailCode.verifyCode.mockRejectedValueOnce(
+      clerkNetworkError("sign_ins/sia_1/attempt_first_factor"),
+    );
+    renderApp("/sign-in");
+    await submitEmail("a@example.com");
+
+    submitCode("123456");
+
+    expect(await screen.findByText(NO_CONNECTION)).toBeOnTheScreen();
+    expect(announced()).toEqual([NO_CONNECTION]);
+    expectNotShown(...NETWORK_TEXT);
+    expect(screen.getByLabelText("Code")).toBeOnTheScreen();
+    expect(signIn.finalize).not.toHaveBeenCalled();
+  });
+
+  test("a resend for an account removed since the first send says the account was not found", async () => {
+    renderApp("/sign-in");
+    await submitEmail("a@example.com");
+    signIn.emailCode.sendCode.mockResolvedValueOnce({
+      error: clerkApiError("form_identifier_not_found", "Couldn't find your account."),
+    });
+
+    act(() => jest.advanceTimersByTime(30_000));
+    fireEvent.press(screen.getByRole("button", { name: "Send a new code" }));
+
+    const notFound = "We could not find that account. Check your email address.";
+    expect(await screen.findByText(notFound)).toBeOnTheScreen();
+    expect(announced()).toEqual([notFound]);
+    expectNotShown("Couldn't find your account");
+    expect(screen.getByLabelText("Code")).toBeOnTheScreen();
+    expect(signUp.create).not.toHaveBeenCalled();
   });
 
   test("a second press while the code is being sent sends nothing", async () => {
@@ -203,7 +367,7 @@ describe("sign-in", () => {
     expect(ensureAccount).toHaveBeenCalledTimes(1);
   });
 
-  test("a failed fresh sign-up keeps the recovery step and shows Clerk's message", async () => {
+  test("a failed fresh sign-up keeps the recovery step with fixed copy", async () => {
     signIn.emailCode.sendCode.mockResolvedValueOnce({
       error: clerkApiError("form_identifier_not_found", "Couldn't find your account."),
     });
@@ -214,11 +378,12 @@ describe("sign-in", () => {
     await screen.findByText("Signing up new@example.com did not finish.");
 
     signUp.create.mockResolvedValueOnce({
-      error: clerkApiError("too_many_requests", "Too many requests. Try again later."),
+      error: clerkApiError("too_many_requests", ...TOO_MANY, 429),
     });
     fireEvent.press(screen.getByRole("button", { name: "Start sign-up again" }));
 
-    expect(await screen.findByText("Too many requests. Try again later.")).toBeOnTheScreen();
+    expect(await screen.findByText(RATE_LIMITED)).toBeOnTheScreen();
+    expectNotShown(...TOO_MANY);
     expect(screen.getByRole("button", { name: "Start sign-up again" })).toBeOnTheScreen();
     expect(screen.queryByLabelText("Code")).not.toBeOnTheScreen();
     expect(signUp.verifications.sendEmailCode).toHaveBeenCalledTimes(1);
@@ -228,18 +393,17 @@ describe("sign-in", () => {
   });
 
   test("Verify after a failed finalize finalizes again without re-submitting the code", async () => {
-    signIn.finalize.mockResolvedValueOnce({
-      error: clerkApiError("network_error", "Could not reach Clerk."),
-    });
+    signIn.finalize.mockResolvedValueOnce({ error: clerkNetworkError("sessions/sess_1/touch") });
     renderApp("/sign-in");
     await submitEmail("a@example.com");
 
     submitCode("123456");
 
-    expect(await screen.findByText("Could not reach Clerk.")).toBeOnTheScreen();
+    expect(await screen.findByText(NO_CONNECTION)).toBeOnTheScreen();
     expect(signIn.emailCode.verifyCode).toHaveBeenCalledTimes(1);
     expect(haptic.error).toHaveBeenCalledTimes(1);
-    expect(announced()).toEqual(["Could not reach Clerk."]);
+    expect(announced()).toEqual([NO_CONNECTION]);
+    expectNotShown(...NETWORK_TEXT);
 
     fireEvent.press(screen.getByRole("button", { name: "Verify" }));
 
@@ -253,14 +417,13 @@ describe("sign-in", () => {
     signIn.emailCode.sendCode.mockResolvedValueOnce({
       error: clerkApiError("form_identifier_not_found", "Couldn't find your account."),
     });
-    signUp.finalize.mockResolvedValueOnce({
-      error: clerkApiError("network_error", "Could not reach Clerk."),
-    });
+    signUp.finalize.mockResolvedValueOnce({ error: clerkNetworkError("sessions/sess_1/touch") });
     renderApp("/sign-in");
     await submitEmail("new@example.com");
 
     submitCode("654321");
-    expect(await screen.findByText("Could not reach Clerk.")).toBeOnTheScreen();
+    expect(await screen.findByText(NO_CONNECTION)).toBeOnTheScreen();
+    expectNotShown(...NETWORK_TEXT);
 
     fireEvent.press(screen.getByRole("button", { name: "Verify" }));
 
@@ -375,7 +538,7 @@ describe("sign-in", () => {
 
   test("an email error and a code error stay shown with the Privacy Policy link", async () => {
     signIn.emailCode.verifyCode.mockResolvedValueOnce({
-      error: clerkApiError("form_code_incorrect", "Incorrect code"),
+      error: clerkApiError("form_code_incorrect", "is incorrect", "Incorrect code"),
     });
     renderApp("/sign-in");
 
@@ -385,8 +548,7 @@ describe("sign-in", () => {
 
     await submitEmail("a@example.com");
     submitCode("000000");
-    const wrong = "That code is not correct. Check the email and try again.";
-    expect(await screen.findByText(wrong)).toBeOnTheScreen();
+    expect(await screen.findByText(WRONG_CODE)).toBeOnTheScreen();
     expect(screen.getByRole("link", { name: "Privacy Policy" })).toBeOnTheScreen();
     expect(webBrowser.openBrowserAsync).not.toHaveBeenCalled();
   });

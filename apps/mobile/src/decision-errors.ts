@@ -1,4 +1,9 @@
-import { type Decision, decisionSchema, errorCodeSchema } from "@agentdesk/contract";
+import {
+  type Decision,
+  decisionSchema,
+  type ErrorCode,
+  errorCodeSchema,
+} from "@agentdesk/contract";
 import { ConvexError } from "convex/values";
 import { errorData } from "./query-error-boundary";
 
@@ -8,24 +13,30 @@ import { errorData } from "./query-error-boundary";
 // - `malformed_conflict`: the backend reported `conflict` without a readable
 //   stored decision. The screen shows no outcome and allows no resubmission
 //   until the decision query reports the settlement.
-// - `failed`: any other failure, with a message to show. The draft stays.
+// - `failed`: any other failure, with fixed copy for its code to show. The
+//   draft stays.
 export type AnswerFailure =
   | { kind: "conflict"; decision: Decision }
   | { kind: "malformed_conflict" }
   | { kind: "failed"; message: string };
 
-function dataMessage(error: unknown): string | null {
-  if (
-    error instanceof ConvexError &&
-    typeof error.data === "object" &&
-    error.data !== null &&
-    typeof error.data.message === "string" &&
-    error.data.message !== ""
-  ) {
-    return error.data.message;
-  }
-  return null;
-}
+// Fixed copy for each refusal code the answer mutation can return. The
+// backend's `data.message` is written for developers and API clients, so it is
+// never shown.
+const CODE_MESSAGES: Partial<Record<ErrorCode, string>> = {
+  invalid: "Check your answer and try again.",
+  unauthenticated: "Your session ended. Sign in again.",
+  not_found: "This decision no longer exists.",
+  locked: "This decision cannot accept an answer right now.",
+  rate_limited: "Too many attempts. Wait a moment and try again.",
+};
+
+// A refusal with a code this app does not know.
+const UNKNOWN_CODE_MESSAGE = "Could not send your answer. Try again.";
+
+// A failure with no `ConvexError` code, such as a transport error or a plain
+// `Error` that Convex redacts in production.
+const NO_CODE_MESSAGE = "Could not send your answer. Check your connection.";
 
 function storedDecision(error: unknown): unknown {
   if (
@@ -52,8 +63,12 @@ export function answerFailure(error: unknown): AnswerFailure {
     }
     return { kind: "malformed_conflict" };
   }
+  if (data === null) {
+    return { kind: "failed", message: NO_CODE_MESSAGE };
+  }
+  const parsed = errorCodeSchema.safeParse(data.code);
   return {
     kind: "failed",
-    message: dataMessage(error) ?? "Could not send your answer. Check your connection.",
+    message: (parsed.success ? CODE_MESSAGES[parsed.data] : undefined) ?? UNKNOWN_CODE_MESSAGE,
   };
 }
