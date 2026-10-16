@@ -337,9 +337,29 @@ export function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-// A Clerk API failure as the sign-in and sign-up methods return it.
-export function clerkApiError(code: string, message: string) {
-  return { errors: [{ code, message, longMessage: message }] };
+// A Clerk API failure as the sign-in and sign-up methods return it: clerk-js's
+// ClerkAPIResponseError, an Error whose `errors` carry Clerk's code and
+// Clerk's own English text, which the app must never show.
+export function clerkApiError(
+  code: string,
+  message: string,
+  longMessage: string = message,
+  status = 422,
+) {
+  return Object.assign(new Error(longMessage), {
+    name: "ClerkAPIResponseError",
+    code: "api_response_error",
+    status,
+    errors: [{ code, message, longMessage, meta: {} }],
+  });
+}
+
+// clerk-js's failure when a request cannot reach Clerk, for example offline:
+// a bare Error with no `errors` whose message holds the request's URL.
+export function clerkNetworkError(path = "sign_ins") {
+  return new Error(
+    `ClerkJS: Network error at "https://clerk.agentdesk.example/v1/client/${path}?__clerk_api_version=2025-11-10&_clerk_js_version=6.39.0" - TypeError: Network request failed. Please try again.`,
+  );
 }
 
 // Convex query results by function name, as useQuery returns them. A test sets

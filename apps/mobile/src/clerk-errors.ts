@@ -1,48 +1,74 @@
-// Reads the errors Clerk's sign-in and sign-up methods return. An API failure
-// carries `errors`, each with a Clerk error code; any other failure carries
-// only a message.
+// Reads the errors Clerk's sign-in and sign-up methods return or throw. An API
+// failure carries `errors`, each with a Clerk error code; any other failure,
+// such as clerk-js's offline `Error` whose message holds the request URL,
+// carries only a message. Only the codes are read: Clerk's `message` and
+// `longMessage` and an `Error`'s message are written for developers, so the
+// screen shows fixed copy instead.
 
-type ClerkApiError = { code: string; message: string; longMessage?: string };
+type ClerkApiError = { code: string };
 
-function apiErrors(error: unknown): ClerkApiError[] {
+// Clerk returns this code when no user holds the email address.
+export const IDENTIFIER_NOT_FOUND = "form_identifier_not_found";
+
+const CODE_INCORRECT = "form_code_incorrect";
+const CODE_EXPIRED = "verification_expired";
+const CODE_INCORRECT_MESSAGE = "That code is not correct. Check the email and try again.";
+const CODE_EXPIRED_MESSAGE = "That code has expired. Send a new code.";
+
+// Fixed copy for each Clerk error code the email-code flow can meet. A Map, so
+// a code such as "constructor" finds nothing.
+const CODE_MESSAGES = new Map<string, string>([
+  [CODE_INCORRECT, CODE_INCORRECT_MESSAGE],
+  [CODE_EXPIRED, CODE_EXPIRED_MESSAGE],
+  ["form_param_format_invalid", "Enter a valid email address."],
+  ["too_many_requests", "Too many attempts. Wait a moment and try again."],
+  [IDENTIFIER_NOT_FOUND, "We could not find that account. Check your email address."],
+]);
+
+// An API failure with a code this app does not know, or a malformed one.
+const UNKNOWN_CODE_MESSAGE = "Something went wrong. Try again.";
+
+// A failure with no API errors, such as no network.
+const NO_API_MESSAGE = "Could not connect. Check your connection and try again.";
+
+// The error's `errors` array, or null when it has none.
+function errorList(error: unknown): unknown[] | null {
   if (typeof error === "object" && error !== null && "errors" in error) {
     const { errors } = error;
     if (Array.isArray(errors)) {
-      return errors.filter(
-        (item): item is ClerkApiError =>
-          typeof item === "object" && item !== null && typeof item.code === "string",
-      );
+      return errors;
     }
   }
-  return [];
+  return null;
+}
+
+function apiErrors(error: unknown): ClerkApiError[] {
+  return (errorList(error) ?? []).filter(
+    (item): item is ClerkApiError =>
+      typeof item === "object" && item !== null && "code" in item && typeof item.code === "string",
+  );
 }
 
 export function hasClerkCode(error: unknown, code: string) {
   return apiErrors(error).some((item) => item.code === code);
 }
 
-// Clerk returns this code when no user holds the email address.
-export const IDENTIFIER_NOT_FOUND = "form_identifier_not_found";
-
 export function clerkMessage(error: unknown) {
+  if (errorList(error) === null) {
+    return NO_API_MESSAGE;
+  }
   const first = apiErrors(error)[0];
-  if (first !== undefined) {
-    return first.longMessage ?? first.message;
-  }
-  if (error instanceof Error && error.message !== "") {
-    return error.message;
-  }
-  return "Something went wrong. Try again.";
+  return (first === undefined ? undefined : CODE_MESSAGES.get(first.code)) ?? UNKNOWN_CODE_MESSAGE;
 }
 
 // The message for a failed code verification. A wrong code and an expired
 // code each get their own message; both keep the person on the code step.
 export function codeMessage(error: unknown) {
-  if (hasClerkCode(error, "form_code_incorrect")) {
-    return "That code is not correct. Check the email and try again.";
+  if (hasClerkCode(error, CODE_INCORRECT)) {
+    return CODE_INCORRECT_MESSAGE;
   }
-  if (hasClerkCode(error, "verification_expired")) {
-    return "That code has expired. Send a new code.";
+  if (hasClerkCode(error, CODE_EXPIRED)) {
+    return CODE_EXPIRED_MESSAGE;
   }
   return clerkMessage(error);
 }
