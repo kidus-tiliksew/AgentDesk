@@ -45,7 +45,13 @@ export function LargeTitleScreen({
   );
 }
 
-// A pushed screen's scrolling body under the stack header.
+// A pushed screen's scrolling body under the stack header. The page runs
+// behind the translucent tab bar, so the scroll view adjusts its insets for
+// it as LargeTitleScreen's does: the last item scrolls clear of the tab bar
+// and stays there when the drag is released. `bottomInset` is the space
+// below the last item, on top of that adjustment. The opaque header sits
+// above the scroll view rather than over it, so the adjustment adds no top
+// inset.
 export function StackScreen({
   children,
   bottomInset = 32,
@@ -57,6 +63,7 @@ export function StackScreen({
   return (
     <ScrollView
       style={styles.screen}
+      contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingBottom: bottomInset, paddingTop: 4 }}
       keyboardShouldPersistTaps="handled"
     >
