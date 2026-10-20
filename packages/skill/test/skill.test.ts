@@ -20,7 +20,7 @@ const GATEWAY_TOOLS_PATH = fileURLToPath(
   new URL("../../../apps/gateway/src/tools.ts", import.meta.url),
 );
 
-const SECTIONS = ["Topic", "When to ask", "How to ask", "Waiting", "Status"] as const;
+const SECTIONS = ["Topic", "When to ask", "Wording", "How to ask", "Waiting", "Status"] as const;
 
 // The body stays under 140 lines: 139 passes and 140 fails.
 const MAX_BODY_LINES = 139;
@@ -34,10 +34,11 @@ const MAX_GUIDANCE_LINES = 8;
 // a harness without skills.
 const SKILL_POINTER = "Load the `agentdesk` skill";
 
-// component-agent-skill v3 §Standing guidance, exactly.
+// component-agent-skill v5 §Standing guidance, exactly.
 const CONFIRMED_GUIDANCE = [
   "AgentDesk is connected. It reaches the user outside this session, wherever they have it set up, through the `agentdesk` MCP tools (`ask`, `await`, `check`, `cancel`, `resolve`, `status`).",
-  "- Report status through AgentDesk when you start a task, finish a stage, become blocked, and finish.",
+  "- Report status through AgentDesk when you start a task, finish a stage, become blocked, and finish, and at least every 10 minutes while you work.",
+  "- Write every status line and question for someone who has not seen this session: name work by its title, not by an identifier alone.",
   "- When you have a question you should not decide alone, ask it through AgentDesk and show the same question in this chat. The user may answer in either place.",
   "- If you are a subagent, leave AgentDesk to the agent that started you.",
   "Load the `agentdesk` skill before your first AgentDesk call. It says how to pick a topic, word a question, wait, and relay an answer given in chat.",
@@ -483,6 +484,10 @@ const VALID_FIXTURE = [
   "",
   "Ask only for irreversible actions.",
   "",
+  "## Wording",
+  "",
+  "Name each task by its title in every status `line`.",
+  "",
   "## How to ask",
   "",
   "Call `ask` with a `topic` and a `recommendation`.",
@@ -707,7 +712,7 @@ describe("package export", () => {
     const split = splitSkill(readFileSync(resolved, "utf8"));
     const data: unknown = parseYaml(split?.frontmatter ?? "");
     const version = isRecord(data) && isRecord(data.metadata) ? data.metadata.version : undefined;
-    expect(version).toBe("2.1.0");
+    expect(version).toBe("2.2.0");
   });
 
   it("resolves @agentdesk/skill/agentdesk/GUIDANCE.md to the guidance file", () => {
@@ -802,7 +807,7 @@ describe("validator fixtures", () => {
       "## Topic\n",
     ).replace("## TEMP\n", "## Status\n");
     expect(validateSkill(fixture, TOOL_NAMES)).toEqual([
-      "sections must appear in the order Topic, When to ask, How to ask, Waiting, Status",
+      "sections must appear in the order Topic, When to ask, Wording, How to ask, Waiting, Status",
     ]);
   });
 
