@@ -1,8 +1,8 @@
 ---
 name: agentdesk
-description: Use when you start a task, finish a stage, become blocked, or finish a task, to report status through AgentDesk. Use when you have a question you should not decide alone, such as an irreversible or destructive action, a choice that depends on the user's preference, or ambiguity the repository and task cannot resolve, to ask it through AgentDesk. AgentDesk reaches the user outside this session and returns the answer.
+description: Use when you start a task, finish a stage, become blocked, or finish a task, and every 10 minutes of work, to report status through AgentDesk. Use when you have a question you should not decide alone, such as an irreversible or destructive action, a choice that depends on the user's preference, or ambiguity the repository and task cannot resolve, to ask it through AgentDesk. AgentDesk reaches the user outside this session and returns the answer.
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
 ---
 
 AgentDesk reaches the user outside this session. Its MCP server offers `ask`, `await`, `check`, `cancel`, `resolve`, and `status`.
@@ -30,6 +30,18 @@ Ask only when one of these holds:
 
 Otherwise decide yourself. Name the choice in your next `status` line.
 
+## Wording
+
+These rules apply to every status `line`, decision `title`, and decision `body`:
+
+- Write for a user who has not seen this session, its repository, or the system that tracks the work.
+- Name each task, pull request, issue, or document by its title. Put any identifier after the title, never in its place.
+- Keep to the facts the user needs to follow or decide. Link to the full context, such as a pull request or a task page, instead of restating it.
+
+A status line that follows these rules:
+
+> Login retry fix: tests pass. Pull request "Retry expired sessions" (#142) is open for review.
+
 ## How to ask
 
 Call `ask` with these arguments:
@@ -38,7 +50,7 @@ Call `ask` with these arguments:
 - `input_type`: `approve_reject`, `single_choice`, `multiple_choice`, `single_choice_or_text`, or `free_text`.
 - `options`: 2 to 10 `{id, label}` entries for the three choice types. Omit it for the other types.
 - `title`: the question, shorter than 120 characters.
-- `body`: the context the user needs to decide, in Markdown.
+- `body`: the context the user needs to decide, in Markdown. State what each answer will cause.
 - `recommendation`: the answer you would choose. Set it on every decision.
 - `deadline` and `default`: set both when the default action is reversible. `deadline` is an ISO 8601 time in the future. `default` is the answer applied when the deadline passes.
 - `interactive`: set `interactive: true` when the session is interactive, one the user may be watching. Omit it otherwise.
@@ -116,8 +128,13 @@ Call `status` with `topic`, `state`, and `line`:
 
 - When you start a task, set `working`.
 - When you finish a stage, set `working` and name the finished stage.
+- While the state is `working`, call `status` whenever 10 minutes have passed since the last one, with a `line` that says what is happening now.
 - When you become blocked, set `blocked` and name the blocker.
 - While you wait on a decision, set `waiting`.
 - When you finish the task, set `done`.
 
-Keep `line` shorter than 200 characters. Set `link` to an http or https URL, such as a pull request, when one exists.
+Keep `line` shorter than 200 characters. Set `link` to the http or https URL of the page that holds the full context, such as a pull request or a task page, when one exists.
+
+On your first `status` call, set `display_name` to a plain-words name of the work, at most 60 characters. Set a new one when you move to different work.
+
+When you coordinate other agents, summarize in your own `line` the current step of each work item you track, from the progress those agents report to you or to the system that tracks the work.
