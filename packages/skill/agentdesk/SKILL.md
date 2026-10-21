@@ -2,7 +2,7 @@
 name: agentdesk
 description: Use when you start a task, finish a stage, become blocked, or finish a task, and every 10 minutes of work, to report status through AgentDesk. Use when you have a question you should not decide alone, such as an irreversible or destructive action, a choice that depends on the user's preference, or ambiguity the repository and task cannot resolve, to ask it through AgentDesk. AgentDesk reaches the user outside this session and returns the answer.
 metadata:
-  version: "2.2.0"
+  version: "2.3.0"
 ---
 
 AgentDesk reaches the user outside this session. Its MCP server offers `ask`, `await`, `check`, `cancel`, `resolve`, and `status`.
@@ -132,6 +132,8 @@ Call `status` with `topic`, `state`, and `line`:
 - When you become blocked, set `blocked` and name the blocker.
 - While you wait on a decision, set `waiting`.
 - When you finish the task, set `done`.
+
+Before you end a turn while the state is `working` and work you track goes on without you, such as other agents or a long build, arrange to be woken within 10 minutes. In Claude Code, keep a `Monitor` running with a timeout of at most 10 minutes. A watch you already run serves when you start it with that timeout; otherwise use the command `sleep 600`. When that `Monitor` expires, call `status` before anything else, then start it again. In any other harness, do not end the turn while that work goes on: wait in steps of at most 10 minutes and call `status` between them.
 
 Keep `line` shorter than 200 characters. Set `link` to the http or https URL of the page that holds the full context, such as a pull request or a task page, when one exists.
 

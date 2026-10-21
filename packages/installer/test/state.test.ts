@@ -352,8 +352,8 @@ describe("status", () => {
     expect(await h.run(["status"])).toBe(0);
     expect(h.out).toEqual([
       `AgentDesk server: ${SERVER}`,
-      `Claude Code: connected; skill 2.2.0 at ${join(sandbox.home, ".claude", "skills", "agentdesk")}; session-start hook in ${join(sandbox.home, ".claude", "settings.json")}`,
-      `Codex: not connected (the server refused its token); skill 2.2.0 at ${join(sandbox.home, ".codex", "skills", "agentdesk")}; session-start hook in ${join(sandbox.home, ".codex", "hooks.json")}, trust trusted; Stop hook in ${join(sandbox.home, ".codex", "hooks.json")}, trust trusted`,
+      `Claude Code: connected; skill 2.3.0 at ${join(sandbox.home, ".claude", "skills", "agentdesk")}; session-start hook in ${join(sandbox.home, ".claude", "settings.json")}`,
+      `Codex: not connected (the server refused its token); skill 2.3.0 at ${join(sandbox.home, ".codex", "skills", "agentdesk")}; session-start hook in ${join(sandbox.home, ".codex", "hooks.json")}, trust trusted; Stop hook in ${join(sandbox.home, ".codex", "hooks.json")}, trust trusted`,
       `Cursor: connected; skill loaded from the Claude Code or Codex folder; session-start hook in ${join(sandbox.home, ".cursor", "hooks.json")}; afterMCPExecution hook in ${join(sandbox.home, ".cursor", "hooks.json")}; stop hook in ${join(sandbox.home, ".cursor", "hooks.json")}`,
     ]);
     expect(h.output()).not.toContain("adc_");
