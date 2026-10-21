@@ -1,6 +1,12 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { screen as appScreen } from "expo-router/testing-library";
-import { KeyboardAvoidingView, Platform, StyleSheet } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  type StyleProp,
+  StyleSheet,
+  type ViewStyle,
+} from "react-native";
 import { Button } from "../src/button";
 import { linkHitSlop, minTouchTarget, placeholderOnFill, themes } from "../src/theme";
 import { Chip } from "../src/ui/chip";
@@ -21,8 +27,8 @@ function on(os: Os) {
   jest.replaceProperty(Platform, "OS", os);
 }
 
-function minHeight(element: { props: { style?: unknown } }) {
-  return StyleSheet.flatten(element.props.style as never)?.minHeight;
+function minHeight(element: { props: { style?: StyleProp<ViewStyle> } }) {
+  return StyleSheet.flatten(element.props.style)?.minHeight;
 }
 
 afterEach(() => {
