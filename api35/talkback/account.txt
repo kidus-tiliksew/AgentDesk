@@ -1,0 +1,8 @@
+10-21 13:20:54.823 Inbox, 3 new notifications. Tab. Inbox. 1 of 3. In list. 3 items
+10-21 13:20:56.662 History. Tab. 2 of 3
+10-21 13:20:58.443 selected. Settings. Tab. 3 of 3
+10-21 13:21:02.031 Navigate up. Button. Out of list
+10-21 13:21:03.825 Account
+10-21 13:21:05.556 Signed in with an email code
+10-21 13:21:07.332 THIS DEVICE. Heading
+10-21 13:21:09.137 sdk_gphone64_arm64, Push not set up, Notifications need a physical iPhone or Android phone.

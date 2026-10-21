@@ -1,0 +1,13 @@
+10-21 13:44:02.803 Verify. Button
+10-21 13:44:04.555 Resend code in 0:03
+10-21 13:44:04.698 Resend code in 0:02
+10-21 13:44:05.713 Resend code in 0:01
+10-21 13:44:06.356 Privacy Policy. Link
+10-21 13:44:09.899 Tools. Image
+10-21 13:44:11.624 Check your email. Heading
+10-21 13:44:13.422 We sent a code to
+10-21 13:44:15.170 agentdesk-android-check+clerk_test@example.com
+10-21 13:44:16.938 Use a different email. Button
+10-21 13:44:18.650 Editing. Code. Edit box
+10-21 13:44:20.418 Verify. Button
+10-21 13:44:22.187 Send a new code. Button

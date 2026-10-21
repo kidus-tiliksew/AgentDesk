@@ -1,0 +1,15 @@
+10-21 13:45:47.814 History. Tab. 2 of 3
+10-21 13:45:49.608 Settings. Tab. 3 of 3
+10-21 13:45:53.136 Navigate up. Button. Out of list
+10-21 13:45:54.883 Decision
+10-21 13:45:56.669 Agent: Billing migration. Link
+10-21 13:45:58.484 · Working
+10-21 13:46:00.239 · 1h ago
+10-21 13:46:02.016 Which region for the new replica?, Normal priority. Heading
+10-21 13:46:03.803 No deadline
+10-21 13:46:05.569 No default
+10-21 13:46:07.355 acme/infra
+10-21 13:46:09.118 checked. eu-west-1, Recommended. Radio button
+10-21 13:46:10.869 not checked. us-east-1. Radio button
+10-21 13:46:12.688 not checked. ap-south-1. Radio button
+10-21 13:46:14.406 Recommended: eu-west-1

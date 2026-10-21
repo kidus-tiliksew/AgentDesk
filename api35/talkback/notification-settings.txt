@@ -1,0 +1,18 @@
+10-21 13:22:02.467 AgentDesk
+10-21 13:22:02.549 Navigate up. Button
+10-21 13:22:02.579 Notifications
+10-21 13:22:04.417 Push is not set up
+10-21 13:22:06.185 Notifications need a physical iPhone or Android phone.
+10-21 13:22:07.969 Set up push again. Button
+10-21 13:22:09.753 QUIET HOURS. Heading
+10-21 13:22:11.554 Quiet hours
+10-21 13:22:13.386 OFF. Quiet hours. Switch
+10-21 13:22:15.173 Urgent decisions still push
+10-21 13:22:16.921 ON. Urgent decisions still push. Switch
+10-21 13:22:18.732 During quiet hours, notifications that would push go to the daily digest instead.
+10-21 13:22:20.532 Urgent decisions still push during quiet hours.
+10-21 13:22:22.335 DAILY DIGEST. Heading
+10-21 13:22:24.139 Digest time, 09:00. Button
+10-21 13:22:25.917 The digest arrives at this time each day when it has something to report.
+10-21 13:22:27.702 AGENTS. Heading
+10-21 13:22:29.509 Mark stale after

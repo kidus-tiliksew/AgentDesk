@@ -1,0 +1,15 @@
+10-21 13:19:50.657 Search titles, bodies, answers, notes. Edit box
+10-21 13:19:52.307 selected. All states. Tab
+10-21 13:19:54.271 State: Answered. Tab
+10-21 13:19:56.084 State: Expired. Tab
+10-21 13:19:57.835 State: Cancelled. Tab
+10-21 13:19:59.611 selected. All topics. Button
+10-21 13:20:01.354 Topic: acme. Button
+10-21 13:20:03.148 Topic: acme/billing. Button
+10-21 13:20:05.127 Other topic. Button
+10-21 13:20:07.069 TODAY. Heading
+10-21 13:20:08.471 Decision: Drop the legacy invoices column?, Answered. Answer: Reject acme/billing, settled 12:19 PM. Button. Touch and hold to delete.
+10-21 13:20:10.241 Tools. Image
+10-21 13:20:12.014 Inbox, 3 new notifications. Tab. Inbox. 1 of 3. In list. 3 items
+10-21 13:20:13.857 selected. History. Tab. 2 of 3
+10-21 13:20:15.569 Settings. Tab. 3 of 3

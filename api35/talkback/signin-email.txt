@@ -1,0 +1,7 @@
+10-21 13:16:44.788 AgentDesk. Heading
+10-21 13:16:46.573 Answer your coding agents from anywhere.
+10-21 13:16:48.465 you@example.com. Edit box
+10-21 13:16:50.106 Continue. Button
+10-21 13:16:51.941 We'll email you a 6-digit code. No password.
+10-21 13:16:53.702 Privacy Policy. Link
+10-21 13:16:57.255 Tools. Image

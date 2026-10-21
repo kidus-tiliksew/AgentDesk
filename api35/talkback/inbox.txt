@@ -1,0 +1,23 @@
+10-21 13:18:57.891 selected. All topics. Button
+10-21 13:18:59.705 Topic: acme. Button
+10-21 13:19:01.472 Topic: acme/billing. Button
+10-21 13:19:03.242 Topic: acme/infra. Button
+10-21 13:19:05.478 Topic: acme/release. Button
+10-21 13:19:06.802 Needs you. Heading
+10-21 13:19:08.549 3
+10-21 13:19:10.316 Decision: Drop the legacy invoices column?, Urgent, 5h 7m left, Billing migration, Topic acme/billing, Approve or reject, Recommends Approve. Button
+10-21 13:19:12.117 Reject: Drop the legacy invoices column?. Button
+10-21 13:19:13.942 Approve: Drop the legacy invoices column?. Button. Recommended by the agent
+10-21 13:19:15.757 Decision: Which region for the new replica?, No deadline, Billing migration, Topic acme/infra, Choose one of 3 options, Recommends eu-west-1. Button
+10-21 13:19:17.516 Decision: Name the release branch, No deadline, Billing migration, Topic acme/release, Written answer. Button
+10-21 13:19:19.254 Agents. Heading
+10-21 13:19:21.050 1 live
+10-21 13:19:22.797 Agent: Billing migration, Working, Migrating the invoices table, Topic acme/billing, Stale, 3 pending decisions, Updated 1h ago. Button
+10-21 13:19:24.591 Tools. Image
+10-21 13:19:26.390 selected. Inbox, 3 new notifications. Tab. Inbox. 1 of 3. In list. 3 items
+10-21 13:19:28.134 History. Tab. 2 of 3
+10-21 13:19:29.871 Settings. Tab. 3 of 3
+10-21 13:19:33.390 Inbox. Out of list
+10-21 13:19:35.135 Topic: acme. Button
+10-21 13:19:36.883 Topic: acme/billing. Button
+10-21 13:19:38.651 Topic: acme/infra. Button

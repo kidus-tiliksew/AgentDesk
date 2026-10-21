@@ -1,0 +1,12 @@
+Wed Oct 21 10:09:16 UTC 2026
+serial=emulator-5556 avd=Pixel_7_API_35
+sdk=35
+release=15
+fingerprint=google/sdk_gphone64_arm64/emu64a:15/AE3A.240806.043/12960925:userdebug/dev-keys
+Physical density: 420
+Physical size: 1080x2400
+navmode=2
+Night mode: no
+font_scale=1.0
+package:com.google.android.marvin.talkbackoverlay
+package:com.google.android.marvin.talkback

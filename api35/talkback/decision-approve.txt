@@ -1,0 +1,17 @@
+10-21 13:24:09.146 Navigate up. Button. Window AgentDesk
+10-21 13:24:09.259 AgentDesk
+10-21 13:24:10.996 Decision
+10-21 13:24:12.796 Agent: Billing migration. Link
+10-21 13:24:14.626 · Stale
+10-21 13:24:16.398 · 57m ago
+10-21 13:24:18.164 Urgent priority. Heading
+10-21 13:24:19.989 Deadline 10/21/2026, 6:26:41 PM, 5h 2m left
+10-21 13:24:21.739 Urgent
+10-21 13:24:23.532 Default: Reject
+10-21 13:24:25.310 acme/billing
+10-21 13:24:27.138 The legacy_total column has had no reads for 30 days.
+10-21 13:24:28.933 Recommended: Approve
+10-21 13:24:30.700 Add note. Button
+10-21 13:24:32.486 Reject. Button
+10-21 13:24:34.250 Approve. Button. Recommended by the agent
+10-21 13:24:36.037 Tools. Image

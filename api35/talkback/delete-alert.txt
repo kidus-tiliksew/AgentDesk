@@ -1,0 +1,5 @@
+10-21 13:21:36.141 Delete your AgentDesk account?. Heading. Window AgentDesk
+10-21 13:21:36.161 AgentDesk
+10-21 13:21:37.951 This permanently deletes your account. Every connected machine and device is disconnected now, and your decisions, agents, rules, and notification settings are removed within 24 hours. This cannot be undone.
+10-21 13:21:39.720 CANCEL. Button
+10-21 13:21:41.547 DELETE ACCOUNT. Button

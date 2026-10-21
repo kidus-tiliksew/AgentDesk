@@ -1,0 +1,6 @@
+10-21 13:22:35.838 30. Edit box. 30
+10-21 13:22:37.527 min
+10-21 13:22:39.584 An agent with no status update for this many minutes is marked stale. From 5 to 240.
+10-21 13:22:41.661 TIME ZONE. Heading
+10-21 13:22:43.057 Time zone, Africa/Addis_Ababa. Button
+10-21 13:22:44.818 Quiet hours and the digest time use this time zone.

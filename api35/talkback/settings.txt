@@ -1,0 +1,13 @@
+10-21 13:20:27.455 Settings. Out of list
+10-21 13:20:29.271 NOTIFICATIONS. Heading
+10-21 13:20:31.098 Notifications. Button
+10-21 13:20:32.867 Rules. Button
+10-21 13:20:34.618 MACHINES. Heading
+10-21 13:20:36.364 Connections. Button
+10-21 13:20:38.150 Add machine. Button
+10-21 13:20:39.889 ACCOUNT. Heading
+10-21 13:20:41.689 Account. Button
+10-21 13:20:43.470 ABOUT. Heading
+10-21 13:20:45.223 Privacy Policy. Link
+10-21 13:20:47.000 AgentDesk 1.0
+10-21 13:20:48.782 Tools. Image

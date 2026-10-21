@@ -1,0 +1,16 @@
+10-21 13:45:12.066 Decision
+10-21 13:45:13.901 Agent: Billing migration. Link
+10-21 13:45:15.675 · Working
+10-21 13:45:17.434 · just now
+10-21 13:45:19.222 Drop the legacy invoices column?, Urgent priority. Heading
+10-21 13:45:20.981 Deadline 10/21/2026, 7:44:48 PM, 5h 59m left
+10-21 13:45:22.767 Urgent
+10-21 13:45:24.531 Default: Reject
+10-21 13:45:26.278 acme/billing
+10-21 13:45:28.049 The legacy_total column has had no reads for 30 days.
+10-21 13:45:29.815 Recommended: Approve
+10-21 13:45:31.604 Add note. Button
+10-21 13:45:33.375 Reject. Button
+10-21 13:45:35.136 Approve. Button. Recommended by the agent
+10-21 13:45:36.904 Tools. Image
+10-21 13:45:38.670 selected. Inbox, 3 new notifications. Tab. Inbox. 1 of 3. In list. 3 items

@@ -1,0 +1,5 @@
+10-21 13:21:14.992 Try notifications again. Button
+10-21 13:21:16.774 Sign out. Button
+10-21 13:21:18.552 Delete Account. Button
+10-21 13:21:20.334 Tools. Image
+10-21 13:21:22.119 Inbox, 3 new notifications. Tab. Inbox. 1 of 3. In list. 3 items
