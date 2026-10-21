@@ -330,9 +330,12 @@ function SettingsForm({ settings }: { settings: NotificationSettings }) {
         : {}),
     });
 
+  // Padding on both platforms keeps the fields and the dock above the
+  // keyboard. Android draws edge to edge (DEC-17(2)), so the window no longer
+  // resizes for the keyboard and the view has to make the room itself.
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
       keyboardVerticalOffset={headerHeight}
       style={styles.root}
     >

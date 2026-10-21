@@ -121,6 +121,16 @@ const darkHigh: Theme = {
 
 export const themes = { light, dark, lightHigh, darkHigh };
 
+// Placeholder text on a field filled with `fill`. In the light scheme the fill
+// darkens the field below the secondary color's 4.5:1, so Android, which
+// DEC-17(4) holds to 4.5:1 in both schemes, uses the Increase Contrast
+// secondary color there. Every other case keeps the secondary color.
+export function placeholderOnFill(theme: Theme): string {
+  return Platform.OS === "android" && theme.scheme === "light" && theme.contrast !== "high"
+    ? lightHigh.textSecondary
+    : theme.textSecondary;
+}
+
 // Whether iOS Increase Contrast ("darker system colors") is on, shared by
 // every themed component and updated when the setting changes. Android
 // reports false.
@@ -172,6 +182,19 @@ export function tint(hex: string, alpha: number): string {
 
 export const radius = { card: 16, control: 12, small: 10, pill: 999 };
 export const spacing = { screen: 16, gap: 10 };
+
+// The smallest touch target: 44x44 pt on iOS (Apple HIG Buttons) and 48x48 dp
+// on Android (DEC-17(4)). Controls read it while rendering.
+export function minTouchTarget(): number {
+  return Platform.OS === "android" ? 48 : 44;
+}
+
+// The hit slop of a one-line text link, which draws about 20 pt tall. It
+// grows the link's hit region to the smallest touch target.
+export function linkHitSlop() {
+  const vertical = Platform.OS === "android" ? 14 : 12;
+  return { top: vertical, bottom: vertical, left: 8, right: 8 };
+}
 
 // Builds a hook that returns a StyleSheet for the current color scheme and
 // contrast. Each combination's sheet is created once.

@@ -5,7 +5,6 @@ import {
   AccessibilityInfo,
   Image,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   TextInput,
   View,
@@ -22,7 +21,7 @@ import { PRIVACY_POLICY_URL } from "../../src/config";
 import { haptic } from "../../src/haptics";
 import { HeaderlessScreen } from "../../src/headerless-screen";
 import { formatCooldown, useResendCooldown } from "../../src/sign-in-cooldown";
-import { makeStyles, radius, useTheme } from "../../src/theme";
+import { linkHitSlop, makeStyles, radius, useTheme } from "../../src/theme";
 import { CodeInput } from "../../src/ui/code-input";
 import { AppText } from "../../src/ui/text";
 
@@ -273,11 +272,11 @@ export default function SignInScreen() {
     setError(null);
   };
 
+  // Padding on both platforms keeps the form above the keyboard. Android
+  // draws edge to edge (DEC-17(2)), so the window no longer resizes for the
+  // keyboard and the view has to make the room itself.
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.keyboard}
-    >
+    <KeyboardAvoidingView behavior="padding" style={styles.keyboard}>
       <HeaderlessScreen style={styles.screen}>
         {step.kind === "email" ? (
           <>
@@ -355,8 +354,7 @@ export default function SignInScreen() {
                   accessibilityLabel="Use a different email"
                   accessibilityState={{ disabled: busy }}
                   disabled={busy}
-                  // Apple HIG Buttons: the text link's hit region is 44pt.
-                  hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                  hitSlop={linkHitSlop()}
                   onPress={changeEmail}
                 >
                   <AppText variant="callout" tone="accent">
@@ -405,8 +403,7 @@ export default function SignInScreen() {
         <Pressable
           accessibilityRole="link"
           accessibilityLabel="Privacy Policy"
-          // Apple HIG Buttons: the text link's hit region is 44pt.
-          hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+          hitSlop={linkHitSlop()}
           onPress={() => WebBrowser.openBrowserAsync(PRIVACY_POLICY_URL)}
           style={styles.privacy}
         >

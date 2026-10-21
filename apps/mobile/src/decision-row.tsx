@@ -4,7 +4,7 @@ import { Pressable, useWindowDimensions, View } from "react-native";
 import { Button } from "./button";
 import { formatAnswer } from "./decision-outcome";
 import { type QuickChoice, STACK_FONT_SCALE, useQuickAnswers } from "./inbox-undo";
-import { makeStyles, useTheme } from "./theme";
+import { makeStyles, minTouchTarget, useTheme } from "./theme";
 import { Card } from "./ui/card";
 import { Icon } from "./ui/icon";
 import { Pill } from "./ui/pill";
@@ -185,7 +185,13 @@ export function DecisionCard({
         accessibilityLabel={accessibilityLabel ?? `Decision: ${decision.title}`}
         accessibilityValue={{ text: cardDescription(decision, agentName, now) }}
         onPress={() => router.push({ pathname: "/decision/[id]", params: { id: decision.id } })}
-        style={({ pressed }) => [styles.body, pressed && styles.pressed]}
+        // The body is the card's button, at least the smallest touch target
+        // tall even with a one-line title and no recommendation.
+        style={({ pressed }) => [
+          styles.body,
+          { minHeight: minTouchTarget() },
+          pressed && styles.pressed,
+        ]}
       >
         <UrgencyPill decision={decision} now={now} />
         <AppText variant="headline">{decision.title}</AppText>

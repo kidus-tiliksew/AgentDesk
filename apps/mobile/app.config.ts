@@ -19,7 +19,8 @@ const config: ExpoConfig = {
   // The Prompt bubble mark on the Indigo Ink gradient. iOS masks the square
   // icon itself and uses the dark and tinted variants for those Home Screen
   // appearances (Apple HIG App icons); Android draws the white mark over the
-  // adaptive background.
+  // adaptive background and uses the white-on-transparent monochrome layer
+  // for themed icons (DEC-17(5)).
   icon: "./assets/icon.png",
   ios: {
     bundleIdentifier: "sh.kidus.agentdesk",
@@ -35,7 +36,11 @@ const config: ExpoConfig = {
   },
   android: {
     package: "sh.kidus.agentdesk",
-    adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#4f46e5" },
+    adaptiveIcon: {
+      foregroundImage: "./assets/adaptive-icon.png",
+      monochromeImage: "./assets/adaptive-icon-monochrome.png",
+      backgroundColor: "#4f46e5",
+    },
     ...(googleServicesFile ? { googleServicesFile } : {}),
   },
   // expo-notifications adds the push entitlement and names the Android

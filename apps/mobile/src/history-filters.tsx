@@ -1,8 +1,8 @@
 import { normalizeTopic } from "@agentdesk/contract";
 import { type ReactNode, useEffect, useState } from "react";
-import { AccessibilityInfo, Pressable, TextInput, View } from "react-native";
+import { AccessibilityInfo, Platform, Pressable, TextInput, View } from "react-native";
 import { Button } from "./button";
-import { makeStyles, radius, spacing, useTheme } from "./theme";
+import { makeStyles, minTouchTarget, placeholderOnFill, radius, spacing, useTheme } from "./theme";
 import { topicChips } from "./topic-chips";
 import { Chip, ChipRow } from "./ui/chip";
 import { Icon } from "./ui/icon";
@@ -49,6 +49,10 @@ const useStyles = makeStyles((theme) => ({
     paddingVertical: 8,
   },
   searchInput: { color: theme.text, flex: 1, fontSize: 16, paddingVertical: 0 },
+  // On Android the text field itself fills the 48 dp bar, so a touch
+  // anywhere on the bar focuses it (DEC-17(4)).
+  searchAndroid: { minHeight: 48, paddingVertical: 0 },
+  searchInputAndroid: { alignSelf: "stretch", minHeight: 48 },
   topicField: { gap: 6, marginHorizontal: spacing.screen },
   topicRow: { alignItems: "center", flexDirection: "row", gap: 8 },
   topicInput: {
@@ -57,8 +61,6 @@ const useStyles = makeStyles((theme) => ({
     color: theme.text,
     flex: 1,
     fontSize: 16,
-    // As tall as the Apply button beside it, a 44pt target.
-    minHeight: 44,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
@@ -96,7 +98,7 @@ function SearchField({
   const styles = useStyles();
   const theme = useTheme();
   return (
-    <View style={styles.search}>
+    <View style={[styles.search, Platform.OS === "android" && styles.searchAndroid]}>
       <Icon name="search" size={17} color={theme.textSecondary} />
       <TextInput
         accessibilityLabel="Search history"
@@ -105,10 +107,10 @@ function SearchField({
         editable={!disabled}
         onChangeText={onChangeText}
         placeholder="Search titles, bodies, answers, notes"
-        placeholderTextColor={theme.textSecondary}
+        placeholderTextColor={placeholderOnFill(theme)}
         returnKeyType="search"
         selectionColor={theme.accent}
-        style={styles.searchInput}
+        style={[styles.searchInput, Platform.OS === "android" && styles.searchInputAndroid]}
         value={text}
       />
       {text === "" ? null : (
@@ -117,7 +119,8 @@ function SearchField({
           accessibilityLabel="Clear search"
           accessibilityState={{ disabled }}
           disabled={disabled}
-          hitSlop={14}
+          // The 17 pt icon's hit region is the smallest touch target.
+          hitSlop={Platform.OS === "android" ? 16 : 14}
           onPress={() => onChangeText("")}
         >
           <Icon name="close-circle" size={17} color={theme.textTertiary} />
@@ -184,7 +187,8 @@ function OtherTopicField({
           placeholderTextColor={theme.textSecondary}
           returnKeyType="done"
           selectionColor={theme.accent}
-          style={styles.topicInput}
+          // As tall as the Apply button beside it, the smallest touch target.
+          style={[styles.topicInput, { minHeight: minTouchTarget() }]}
           value={draft}
         />
         <Button
