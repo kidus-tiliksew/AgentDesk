@@ -33,7 +33,7 @@ const providers = [
       "Everything AgentDesk stores, listed above. Convex runs AgentDesk's database and backend.",
   },
   {
-    name: "Expo and Apple",
+    name: "Expo, Apple, and Google",
     receives: "The content of each push notification and your device's push token.",
   },
   {
@@ -100,11 +100,11 @@ const providers = [
     <section aria-labelledby="push">
       <h2 id="push">Push notifications</h2>
       <p>
-        Push notifications travel through the Expo push service and Apple Push Notification
-        service. A notification can carry a decision's title and option labels, its topic, an
-        agent's name and status line, and, when a deadline passes, the answer applied by default.
-        A notification never carries a decision's body. The daily digest notification carries only
-        counts.
+        Push notifications travel through the Expo push service and then Apple Push Notification
+        service to an iPhone or Firebase Cloud Messaging to an Android device. A notification can
+        carry a decision's title and option labels, its topic, an agent's name and status line,
+        and, when a deadline passes, the answer applied by default. A notification never carries a
+        decision's body. The daily digest notification carries only counts.
       </p>
     </section>
 
