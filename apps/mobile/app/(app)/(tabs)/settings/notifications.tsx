@@ -421,6 +421,15 @@ function SettingsForm({ settings }: { settings: NotificationSettings }) {
               <View style={styles.threshold}>
                 <TextInput
                   accessibilityLabel="Stale threshold in minutes"
+                  // TalkBack reads an edit box's value in place of its label,
+                  // so on Android a hint, which React Native hands TalkBack as
+                  // a tooltip it reads after the value, names the field. A
+                  // hint equal to the label is dropped.
+                  accessibilityHint={
+                    Platform.OS === "android"
+                      ? "Minutes without a status update before an agent is stale"
+                      : undefined
+                  }
                   editable={!pending}
                   inputAccessoryViewID={THRESHOLD_TOOLBAR}
                   keyboardType="number-pad"

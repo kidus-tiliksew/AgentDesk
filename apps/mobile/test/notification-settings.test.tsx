@@ -1114,6 +1114,10 @@ describe("touch targets", () => {
           expect(style.minWidth).toBeGreaterThanOrEqual(48);
         }
       }
+      // TalkBack reads the field's value in place of its label, then the hint.
+      expect(input("Stale threshold in minutes").props.accessibilityHint).toBe(
+        os === "android" ? "Minutes without a status update before an agent is stale" : undefined,
+      );
     },
   );
 });

@@ -5,6 +5,7 @@ import {
   AccessibilityInfo,
   Image,
   KeyboardAvoidingView,
+  Platform,
   Pressable,
   TextInput,
   View,
@@ -289,6 +290,11 @@ export default function SignInScreen() {
               )}
               <TextInput
                 accessibilityLabel="Email address"
+                // TalkBack reads an edit box's placeholder in place of its
+                // label, so on Android a hint, which React Native hands
+                // TalkBack as a tooltip it reads after the field, names it. A
+                // hint equal to the label is dropped.
+                accessibilityHint={Platform.OS === "android" ? "Your email address" : undefined}
                 autoCapitalize="none"
                 autoComplete="email"
                 autoCorrect={false}
@@ -346,7 +352,8 @@ export default function SignInScreen() {
                 <AppText variant="callout" weight="600">
                   {step.email}
                 </AppText>
-                <AppText variant="callout" tone="secondary">
+                {/* A separator only; TalkBack skips it. */}
+                <AppText variant="callout" tone="secondary" importantForAccessibility="no">
                   {" · "}
                 </AppText>
                 <Pressable

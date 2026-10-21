@@ -108,6 +108,10 @@ describe("screens on Android", () => {
 
     expect(link.props.hitSlop).toEqual({ top: 14, bottom: 14, left: 8, right: 8 });
     expect(appScreen.UNSAFE_getByType(KeyboardAvoidingView).props.behavior).toBe("padding");
+    // TalkBack reads the placeholder in place of the label, then the hint.
+    expect(appScreen.getByLabelText("Email address").props.accessibilityHint).toBe(
+      "Your email address",
+    );
   });
 
   test("an inbox card's button is at least 48 dp tall", async () => {
@@ -138,6 +142,10 @@ describe("screens on Android", () => {
     const note = await appScreen.findByRole("button", { name: "Add note" });
 
     expect(note.props.hitSlop).toEqual({ top: 14, bottom: 14, left: 8, right: 8 });
+    // A text's accessibility value would replace the title for TalkBack.
+    expect(
+      appScreen.getByRole("header", { name: /^Drop the column\?, (Urgent|Normal) priority$/ }),
+    ).toBeOnTheScreen();
     expect(appScreen.UNSAFE_getByType(KeyboardAvoidingView).props.behavior).toBe("padding");
     act(() => fireEvent.press(note));
     expect(appScreen.getByLabelText("Note").props.placeholderTextColor).toBe(

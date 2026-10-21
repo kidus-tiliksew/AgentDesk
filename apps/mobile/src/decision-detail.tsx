@@ -1,5 +1,5 @@
 import type { Decision } from "@agentdesk/contract";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { DecisionAgent } from "./decision-agent";
 import { DecisionBody } from "./decision-markdown";
 import { formatAnswer, formatWhen } from "./decision-outcome";
@@ -49,6 +49,10 @@ function formatAge(createdAt: string, now: number): string {
 // Under five minutes left the countdown turns red like an urgent one
 // (prototype "Decision: approve / reject").
 const SOON_MS = 5 * 60_000;
+
+function priorityText(decision: Decision): string {
+  return decision.priority === "urgent" ? "Urgent priority" : "Normal priority";
+}
 
 const useStyles = makeStyles(() => ({
   context: {
@@ -124,11 +128,13 @@ export function DecisionDetail({ decision, now }: { decision: Decision; now: num
       </View>
       <AppText
         accessibilityRole="header"
-        // Only urgency is drawn, as a pill; VoiceOver hears the priority
-        // either way (req-mobile-app AC-3.1).
-        accessibilityValue={{
-          text: decision.priority === "urgent" ? "Urgent priority" : "Normal priority",
-        }}
+        // Only urgency is drawn, as a pill; VoiceOver and TalkBack hear the
+        // priority either way (req-mobile-app AC-3.1). On Android a text's
+        // accessibility value replaces its words, so TalkBack gets the title
+        // and the priority as one label.
+        {...(Platform.OS === "android"
+          ? { accessibilityLabel: `${decision.title}, ${priorityText(decision)}` }
+          : { accessibilityValue: { text: priorityText(decision) } })}
         variant="title2"
         weight="700"
         style={styles.title}
