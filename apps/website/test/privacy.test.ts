@@ -40,7 +40,7 @@ describe("operator and contact (AC-3.1)", () => {
   });
 
   test("shows the effective date and how changes are published", () => {
-    expect(text()).toContain("Effective 14 October 2026");
+    expect(text()).toContain("Effective 21 October 2026");
     expect(text()).toContain("published on this page with a new effective date");
   });
 });
@@ -90,7 +90,9 @@ describe("content", () => {
 
   test("says what push notifications carry and that they carry no body (AC-3.3)", () => {
     const body = text();
-    expect(body).toContain("Expo push service and Apple Push Notification service");
+    expect(body).toContain(
+      "through the Expo push service and then Apple Push Notification service to an iPhone or Firebase Cloud Messaging to an Android device",
+    );
     expect(body).toContain("title and option labels, its topic, an agent's name and status line");
     expect(body).toContain("never carries a decision's body");
   });
@@ -100,13 +102,20 @@ describe("content", () => {
     expect(rows).toEqual([
       "Clerk",
       "Convex",
-      "Expo and Apple",
+      "Expo, Apple, and Google",
       "Cloudflare",
       "PostHog",
       "Vercel",
       "GitHub",
     ]);
     expect(text()).toContain("shares your data with no one else");
+  });
+
+  test("names Google with Expo and Apple as receiving push content (AC-3.4)", () => {
+    const row = html.match(/<th scope="row">Expo, Apple, and Google<\/th>\s*<td>([^<]*)<\/td>/);
+    expect(row?.[1]?.replace(/&#39;/g, "'")).toBe(
+      "The content of each push notification and your device's push token.",
+    );
   });
 
   test("describes anonymous app analytics and a website without cookies (AC-3.5)", () => {

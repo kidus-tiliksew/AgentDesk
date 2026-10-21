@@ -7,4 +7,4 @@ export const SITE_DESCRIPTION =
 export const PRIVACY_OPERATOR = "Kidus Tiliksew";
 export const PRIVACY_CONTACT = "privacy@kidus.sh";
 // The date the privacy policy takes effect, as YYYY-MM-DD (AC-3.1).
-export const PRIVACY_EFFECTIVE_DATE = "2026-10-14";
+export const PRIVACY_EFFECTIVE_DATE = "2026-10-21";

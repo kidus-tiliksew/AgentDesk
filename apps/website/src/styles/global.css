@@ -384,7 +384,7 @@ a.brand {
 
 .policy tbody th {
   font-weight: 600;
-  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .policy p + p,
