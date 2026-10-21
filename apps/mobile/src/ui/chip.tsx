@@ -1,13 +1,19 @@
 import type { ReactNode } from "react";
-import { Pressable, ScrollView } from "react-native";
+import { Platform, Pressable, ScrollView } from "react-native";
 import { haptic } from "../haptics";
 import { makeStyles, radius, spacing } from "../theme";
 import { AppText } from "./text";
 
+// A chip draws about 34 pt tall. The slop makes its hit region the smallest
+// touch target: 44 pt on iOS, 48 dp on Android (DEC-17(4)).
+function chipSlop() {
+  return Platform.OS === "android" ? 7 : 5;
+}
+
 const useStyles = makeStyles((theme) => ({
-  // The vertical padding leaves room for each chip's 5 pt hit slop, which a
+  // The row's vertical padding leaves room for each chip's hit slop, which a
   // ScrollView would otherwise clip.
-  row: { gap: 8, paddingHorizontal: spacing.screen, paddingVertical: 5 },
+  row: { gap: 8, paddingHorizontal: spacing.screen },
   chip: {
     backgroundColor: theme.card,
     borderRadius: radius.pill,
@@ -37,8 +43,7 @@ export function Chip({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected }}
-      // The chip draws about 34 pt tall; the slop makes its hit region 44 pt.
-      hitSlop={{ top: 5, bottom: 5 }}
+      hitSlop={{ top: chipSlop(), bottom: chipSlop() }}
       onPress={() => {
         if (!selected) {
           haptic.selection();
@@ -65,7 +70,7 @@ export function ChipRow({ children }: { children: ReactNode }) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.row}
+      contentContainerStyle={[styles.row, { paddingVertical: chipSlop() }]}
     >
       {children}
     </ScrollView>

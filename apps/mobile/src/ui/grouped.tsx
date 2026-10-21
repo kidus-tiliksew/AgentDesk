@@ -1,6 +1,6 @@
 import { Children, Fragment, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
-import { makeStyles, radius, spacing, useTheme } from "../theme";
+import { makeStyles, minTouchTarget, radius, spacing, useTheme } from "../theme";
 import { Icon, type IconName } from "./icon";
 import { AppText } from "./text";
 
@@ -14,11 +14,12 @@ const useStyles = makeStyles((theme) => ({
     overflow: "hidden",
   },
   separator: { backgroundColor: theme.separator, height: 0.5 },
+  // Rows are at least 46 pt tall, and at least the 48 dp touch target on
+  // Android (DEC-17(4)); see rowHeight below.
   row: {
     alignItems: "center",
     flexDirection: "row",
     gap: 12,
-    minHeight: 46,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
@@ -33,6 +34,12 @@ const useStyles = makeStyles((theme) => ({
   },
   value: { alignItems: "center", flexDirection: "row", gap: 4, flexShrink: 1 },
 }));
+
+// A row's minimum height: 46 pt, raised to the smallest touch target where
+// that is taller.
+function rowHeight() {
+  return { minHeight: Math.max(46, minTouchTarget()) };
+}
 
 // An iOS-style grouped list section: an optional uppercase label, rows on a
 // rounded card with hairline separators, and an optional footnote.
@@ -145,7 +152,7 @@ export function GroupedRow({
       <View
         accessible={accessibilityLabel !== undefined}
         accessibilityLabel={accessibilityLabel}
-        style={styles.row}
+        style={[styles.row, rowHeight()]}
       >
         {content}
       </View>
@@ -158,7 +165,12 @@ export function GroupedRow({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed, disabled && { opacity: 0.5 }]}
+      style={({ pressed }) => [
+        styles.row,
+        rowHeight(),
+        pressed && styles.pressed,
+        disabled && { opacity: 0.5 },
+      ]}
     >
       {content}
     </Pressable>

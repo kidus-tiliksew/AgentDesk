@@ -1,4 +1,4 @@
-import { Pressable, View } from "react-native";
+import { Platform, Pressable, View } from "react-native";
 import { haptic } from "../haptics";
 import { makeStyles, spacing } from "../theme";
 import { AppText } from "./text";
@@ -42,9 +42,11 @@ export function SegmentedControl<T extends string>({
             accessibilityRole="tab"
             accessibilityLabel={option.accessibilityLabel ?? option.label}
             accessibilityState={{ selected }}
-            // Segments draw about 32 pt tall, like the system control; the
-            // slop makes each hit region 44 pt (Apple HIG Buttons).
-            hitSlop={{ top: 6, bottom: 6 }}
+            // Segments draw about 32 pt tall on iOS, like the system control,
+            // and 30 dp on Android. The slop makes each hit region the
+            // smallest touch target: 44 pt on iOS (Apple HIG Buttons), 48 dp
+            // on Android (DEC-17(4)).
+            hitSlop={Platform.OS === "android" ? { top: 9, bottom: 9 } : { top: 6, bottom: 6 }}
             onPress={() => {
               if (!selected) {
                 haptic.selection();

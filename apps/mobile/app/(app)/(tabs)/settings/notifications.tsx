@@ -93,6 +93,12 @@ const useStyles = makeStyles((theme) => ({
     paddingVertical: 6,
     textAlign: "right",
   },
+  // On Android the switch draws 46x27 dp and the field about 35 dp tall, and
+  // a native control takes touches only inside its own bounds. Each control
+  // takes the grouped row's full 48 dp height, the row's 10 dp vertical
+  // padding cancelled, so the control itself is a 48x48 dp target
+  // (DEC-17(4)) and the row stays 48 dp tall.
+  androidRowControl: { height: 48, marginVertical: -10, minWidth: 48 },
   status: { alignItems: "center", flexDirection: "row", gap: 6, justifyContent: "center" },
   toolbar: {
     alignItems: "flex-end",
@@ -145,12 +151,14 @@ function Toggle({
   onChange: (value: boolean) => void;
 }) {
   const theme = useTheme();
+  const styles = useStyles();
   return (
     <Switch
       accessibilityLabel={label}
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}
       onValueChange={onChange}
+      style={Platform.OS === "android" ? styles.androidRowControl : undefined}
       trackColor={{ true: theme.green }}
       value={value}
     />
@@ -330,9 +338,12 @@ function SettingsForm({ settings }: { settings: NotificationSettings }) {
         : {}),
     });
 
+  // Padding on both platforms keeps the fields and the dock above the
+  // keyboard. Android draws edge to edge (DEC-17(2)), so the window no longer
+  // resizes for the keyboard and the view has to make the room itself.
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
       keyboardVerticalOffset={headerHeight}
       style={styles.root}
     >
@@ -410,6 +421,15 @@ function SettingsForm({ settings }: { settings: NotificationSettings }) {
               <View style={styles.threshold}>
                 <TextInput
                   accessibilityLabel="Stale threshold in minutes"
+                  // TalkBack reads an edit box's value in place of its label,
+                  // so on Android a hint, which React Native hands TalkBack as
+                  // a tooltip it reads after the value, names the field. A
+                  // hint equal to the label is dropped.
+                  accessibilityHint={
+                    Platform.OS === "android"
+                      ? "Minutes without a status update before an agent is stale"
+                      : undefined
+                  }
                   editable={!pending}
                   inputAccessoryViewID={THRESHOLD_TOOLBAR}
                   keyboardType="number-pad"
@@ -421,7 +441,10 @@ function SettingsForm({ settings }: { settings: NotificationSettings }) {
                   placeholderTextColor={theme.textSecondary}
                   returnKeyType="done"
                   selectTextOnFocus
-                  style={styles.thresholdInput}
+                  style={[
+                    styles.thresholdInput,
+                    Platform.OS === "android" && styles.androidRowControl,
+                  ]}
                   value={draft.staleThreshold}
                 />
                 <AppText tone="secondary">min</AppText>

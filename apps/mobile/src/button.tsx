@@ -1,5 +1,5 @@
 import { Pressable } from "react-native";
-import { makeStyles, radius, tint, useTheme } from "./theme";
+import { makeStyles, minTouchTarget, radius, tint, useTheme } from "./theme";
 import { Icon, type IconName } from "./ui/icon";
 import { AppText, toneColor } from "./ui/text";
 
@@ -15,8 +15,9 @@ const useStyles = makeStyles((theme) => ({
     minHeight: 48,
     paddingHorizontal: 16,
   },
-  // Apple HIG Buttons: a hit region of at least 44x44 pt, small buttons too.
-  small: { borderRadius: radius.small, minHeight: 44, paddingHorizontal: 12 },
+  // A hit region of at least the smallest touch target, small buttons too:
+  // 44 pt on iOS, 48 dp on Android.
+  small: { borderRadius: radius.small, paddingHorizontal: 12 },
   primary: { backgroundColor: theme.accentFill },
   secondary: { backgroundColor: theme.fill },
   tinted: { backgroundColor: tint(theme.accentFill, theme.scheme === "dark" ? 0.3 : 0.12) },
@@ -72,7 +73,7 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
-        size === "small" && styles.small,
+        size === "small" && [styles.small, { minHeight: minTouchTarget() }],
         styles[variant],
         grow && styles.grow,
         disabled && styles.disabled,

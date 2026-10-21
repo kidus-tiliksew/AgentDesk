@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { act, fireEvent, screen, waitFor } from "expo-router/testing-library";
-import { AccessibilityInfo, AppState, type AppStateStatus } from "react-native";
+import { AccessibilityInfo, AppState, type AppStateStatus, Platform } from "react-native";
 import { startNotificationActions } from "../src/notification-actions";
 import { DeviceRegistration, FOREGROUND_BEHAVIOR } from "../src/notifications";
 import { agent, decision } from "./data";
@@ -120,6 +120,30 @@ describe("device registration", () => {
       name: "Kidus's iPhone",
     });
     expect(secureStore.values.get("agentdesk.installId")).toBe(installId);
+    // iOS has no notification channels.
+    expect(push.setNotificationChannelAsync).not.toHaveBeenCalled();
+  });
+
+  test("on Android creates the private, high-importance default channel before asking", async () => {
+    jest.replaceProperty(Platform, "OS", "android");
+    await openInbox();
+    await continueIntro();
+
+    await waitFor(() => expect(registerDevice).toHaveBeenCalledTimes(1));
+    // DEC-17(6): the device's lock-screen setting decides what a locked
+    // phone shows.
+    expect(push.setNotificationChannelAsync).toHaveBeenCalledTimes(1);
+    expect(push.setNotificationChannelAsync).toHaveBeenCalledWith("default", {
+      name: "Decisions and agents",
+      importance: 6,
+      lockscreenVisibility: 2,
+    });
+    // The channel exists before the permission read and the prompt, so
+    // Android 13 shows the prompt.
+    const channelCall = push.setNotificationChannelAsync.mock.invocationCallOrder[0] ?? 0;
+    expect(channelCall).toBeLessThan(push.getPermissionsAsync.mock.invocationCallOrder[0] ?? 0);
+    expect(channelCall).toBeLessThan(push.requestPermissionsAsync.mock.invocationCallOrder[0] ?? 0);
+    expect(registerDevice.mock.calls[0]?.[0].platform).toBe("android");
   });
 
   test("falls back to the model name and then the platform for the device name", async () => {

@@ -134,6 +134,7 @@ jest.mock("expo-notifications", () => {
     __esModule: true,
     DEFAULT_ACTION_IDENTIFIER: fakes.DEFAULT_ACTION,
     AndroidImportance: { HIGH: 6 },
+    AndroidNotificationVisibility: { PUBLIC: 1, PRIVATE: 2, SECRET: 3 },
     getPermissionsAsync: push.getPermissionsAsync,
     requestPermissionsAsync: push.requestPermissionsAsync,
     getExpoPushTokenAsync: push.getExpoPushTokenAsync,

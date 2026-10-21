@@ -11,7 +11,6 @@ import {
   AccessibilityInfo,
   Keyboard,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   TextInput,
@@ -20,7 +19,7 @@ import {
 } from "react-native";
 import { Button } from "./button";
 import { formatAnswer } from "./decision-outcome";
-import { makeStyles, radius, spacing, useTheme } from "./theme";
+import { linkHitSlop, makeStyles, placeholderOnFill, radius, spacing, useTheme } from "./theme";
 import { Dock } from "./ui/dock";
 import { Icon } from "./ui/icon";
 import { Pill } from "./ui/pill";
@@ -150,9 +149,6 @@ function validate(
 // Apple HIG Typography: past this text size the two answer buttons and the
 // dock's recommendation line stack vertically instead of truncating.
 const STACK_FONT_SCALE = 1.35;
-
-// Apple HIG Buttons: a text link keeps a 44 pt hit region.
-const LINK_HIT_SLOP = { top: 12, bottom: 12, left: 8, right: 8 };
 
 const useStyles = makeStyles((theme) => ({
   flex: { flex: 1 },
@@ -315,8 +311,9 @@ function LimitedInput({
         onFocus={onFocus}
         placeholder={placeholder}
         // Apple HIG Accessibility: text, a placeholder and the counter
-        // included, meets 4.5:1, which the tertiary color does not.
-        placeholderTextColor={theme.textSecondary}
+        // included, meets 4.5:1, which the tertiary color does not. The
+        // note field is filled.
+        placeholderTextColor={compact ? placeholderOnFill(theme) : theme.textSecondary}
         style={[styles.input, compact && styles.noteInput]}
         value={value}
       />
@@ -535,9 +532,12 @@ export function AnswerForm({
     ? [prominent, prominent === "approve" ? "reject" : "approve"]
     : ["reject", "approve"];
 
+  // Padding on both platforms keeps the dock above the keyboard. Android
+  // draws edge to edge (DEC-17(2)), so the window no longer resizes for the
+  // keyboard and the view has to make the room itself.
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
       keyboardVerticalOffset={headerHeight}
       style={styles.flex}
     >
@@ -577,7 +577,7 @@ export function AnswerForm({
               accessibilityRole="button"
               accessibilityLabel="Add note"
               disabled={submitting}
-              hitSlop={LINK_HIT_SLOP}
+              hitSlop={linkHitSlop()}
               onPress={() => setNoteOpen(true)}
               style={stacked ? styles.addNote : undefined}
             >

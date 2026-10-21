@@ -2,7 +2,14 @@ import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { router } from "expo-router";
 import { act, fireEvent, screen } from "expo-router/testing-library";
-import { AccessibilityInfo, ActionSheetIOS, Keyboard, Linking } from "react-native";
+import {
+  AccessibilityInfo,
+  ActionSheetIOS,
+  Keyboard,
+  Linking,
+  Platform,
+  StyleSheet,
+} from "react-native";
 import type { NotificationSettings } from "../../../convex/notifications/settings";
 import { haptic } from "../src/haptics";
 import {
@@ -1080,4 +1087,37 @@ describe("the picker without Intl.supportedValuesOf", () => {
     await pressSave();
     expect(mockUpdate.mock.calls[0]?.[0].timeZone).toBe("Asia/Kathmandu");
   });
+});
+
+describe("touch targets", () => {
+  // A native switch or text field takes touches only inside its own bounds,
+  // so on Android each is itself 48 dp tall and at least 48 dp wide, spanning
+  // the grouped row's height (DEC-17(4)). iOS keeps the system sizes.
+  test.each([
+    ["android", 48, -10],
+    ["ios", undefined, undefined],
+  ] as const)(
+    "on %s the switches and the stale threshold field are %s dp tall",
+    async (os, height, margin) => {
+      jest.replaceProperty(Platform, "OS", os);
+      await open();
+
+      for (const label of [
+        "Quiet hours",
+        "Urgent decisions still push",
+        "Stale threshold in minutes",
+      ]) {
+        const style = StyleSheet.flatten(input(label).props.style) ?? {};
+        expect(style.height).toBe(height);
+        expect(style.marginVertical).toBe(margin);
+        if (os === "android") {
+          expect(style.minWidth).toBeGreaterThanOrEqual(48);
+        }
+      }
+      // TalkBack reads the field's value in place of its label, then the hint.
+      expect(input("Stale threshold in minutes").props.accessibilityHint).toBe(
+        os === "android" ? "Minutes without a status update before an agent is stale" : undefined,
+      );
+    },
+  );
 });

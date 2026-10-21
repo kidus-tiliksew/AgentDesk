@@ -283,10 +283,14 @@ export class DeviceRegistration {
       const platform = Platform.OS;
       if (platform === "android") {
         // The channel exists before the permission prompt, so Android 13
-        // shows the prompt.
+        // shows the prompt. Private lock-screen visibility lets the device's
+        // own lock-screen setting decide whether a locked phone shows the
+        // text and action buttons (DEC-17(6)). Android fixes this value when
+        // it first creates the channel.
         await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
           name: "Decisions and agents",
           importance: Notifications.AndroidImportance.HIGH,
+          lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
         });
       }
       let permission = await Notifications.getPermissionsAsync();
