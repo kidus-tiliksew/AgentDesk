@@ -67,6 +67,11 @@ async function openInbox() {
 
 type Host = ReturnType<typeof screen.getByText>;
 
+// A host element's native type, such as "Text" or "View".
+function hostType(node: Host): unknown {
+  return node.type;
+}
+
 // The text inside an element, nested text included.
 function textOf(node: Host | string): string {
   return typeof node === "string" ? node : node.children.map(textOf).join("");
@@ -74,7 +79,7 @@ function textOf(node: Host | string): string {
 
 function insideText(node: Host, top: Host) {
   for (let parent = node.parent; parent !== null && parent !== top; parent = parent.parent) {
-    if (parent.type === "Text") {
+    if (hostType(parent) === "Text") {
       return true;
     }
   }
@@ -86,7 +91,7 @@ function insideText(node: Host, top: Host) {
 function agentRowLines(name: string) {
   const row = screen.getByRole("button", { name: `Agent: ${name}` });
   let column = within(row).getByText(name).parent;
-  while (column !== null && column.type !== "View") {
+  while (column !== null && hostType(column) !== "View") {
     column = column.parent;
   }
   if (column === null) {
@@ -94,7 +99,7 @@ function agentRowLines(name: string) {
   }
   const top = column;
   return top
-    .findAll((node) => node.type === "Text")
+    .findAll((node) => hostType(node) === "Text")
     .filter((text) => !insideText(text, top))
     .map((text) => ({
       text: textOf(text),
