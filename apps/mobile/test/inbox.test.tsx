@@ -65,6 +65,49 @@ async function openInbox() {
   await findInbox();
 }
 
+type Host = ReturnType<typeof screen.getByText>;
+
+// A host element's native type, such as "Text" or "View".
+function hostType(node: Host): unknown {
+  return node.type;
+}
+
+// The text inside an element, nested text included.
+function textOf(node: Host | string): string {
+  return typeof node === "string" ? node : node.children.map(textOf).join("");
+}
+
+function insideText(node: Host, top: Host) {
+  for (let parent = node.parent; parent !== null && parent !== top; parent = parent.parent) {
+    if (hostType(parent) === "Text") {
+      return true;
+    }
+  }
+  return false;
+}
+
+// An agent row's text lines from top to bottom, each with its line limit and
+// weight: the outermost texts in the column that holds the row's name.
+function agentRowLines(name: string) {
+  const row = screen.getByRole("button", { name: `Agent: ${name}` });
+  let column = within(row).getByText(name).parent;
+  while (column !== null && hostType(column) !== "View") {
+    column = column.parent;
+  }
+  if (column === null) {
+    throw new Error(`No text column in the row of ${name}`);
+  }
+  const top = column;
+  return top
+    .findAll((node) => hostType(node) === "Text")
+    .filter((text) => !insideText(text, top))
+    .map((text) => ({
+      text: textOf(text),
+      lines: text.props.numberOfLines,
+      weight: StyleSheet.flatten(text.props.style).fontWeight,
+    }));
+}
+
 describe("inbox sections", () => {
   test("lists pending decisions, then live agents, each in the order the query returns", async () => {
     // Deliberately not in any sorted order: the screen must not reorder.
@@ -193,7 +236,7 @@ describe("inbox sections", () => {
     expect(screen.getByRole("button", { name: "Approve: Ship it?" })).toBeOnTheScreen();
   });
 
-  test("an agent row shows every field in two lines and marks a stale session", async () => {
+  test("an agent row shows its name, then its status line, then topic, state, and time", async () => {
     setQuery(liveAgents, [
       agent({
         id: "a_1",
@@ -211,14 +254,17 @@ describe("inbox sections", () => {
     await openInbox();
 
     // req-mobile-app AC-2.2: display name, topic, state, status line, time
-    // since the last update, pending count, and the stale marker.
+    // since the last update, pending count, and the stale marker. The name is
+    // the bold title, the status line is the second line, and both stop at
+    // two lines; the meta line holds topic, state, and time.
     const staleRow = screen.getByRole("button", { name: "Agent: Claude on laptop" });
     const stale = within(staleRow);
-    expect(stale.getByText("Waiting on the migration review")).toBeOnTheScreen();
-    expect(
-      stale.getByText("Claude on laptop · acme/billing · Blocked · 3m ago · Stale"),
-    ).toBeOnTheScreen();
-    expect(stale.getByText("Stale")).toBeOnTheScreen();
+    expect(agentRowLines("Claude on laptop")).toEqual([
+      { text: "Claude on laptop", lines: 2, weight: "600" },
+      { text: "Waiting on the migration review", lines: 2, weight: undefined },
+      { text: "acme/billing · Blocked · 3m ago · Stale", lines: undefined, weight: undefined },
+    ]);
+    expect(StyleSheet.flatten(stale.getByText("Stale").props.style).color).toBe(themes.light.amber);
     expect(stale.getByText("2 pending")).toBeOnTheScreen();
     expect(staleRow).toHaveAccessibilityValue({
       text: "Blocked, Waiting on the migration review, Topic acme/billing, Stale, 2 pending decisions, Updated 3m ago",
@@ -226,7 +272,11 @@ describe("inbox sections", () => {
 
     const freshRow = screen.getByRole("button", { name: "Agent: Codex" });
     const fresh = within(freshRow);
-    expect(fresh.getByText(/^Codex · acme · Working · \d+s ago$/)).toBeOnTheScreen();
+    expect(agentRowLines("Codex").map((line) => line.text)).toEqual([
+      "Codex",
+      "Running the test suite",
+      expect.stringMatching(/^acme · Working · \d+s ago$/),
+    ]);
     expect(fresh.queryByText("Stale")).not.toBeOnTheScreen();
     // No pending decisions draws no count, but VoiceOver still reads it.
     expect(fresh.queryByText(/pending/)).not.toBeOnTheScreen();
@@ -242,21 +292,48 @@ describe("inbox sections", () => {
 
     await openInbox();
 
-    const row = within(screen.getByRole("button", { name: "Agent: New agent" }));
-    expect(row.getByText("No status yet")).toBeOnTheScreen();
-    expect(row.getByText("New agent · acme · No update yet")).toBeOnTheScreen();
+    // The name stays the title; the state label fills the status line and
+    // stays in the meta line.
+    expect(agentRowLines("New agent").map((line) => line.text)).toEqual([
+      "New agent",
+      "No status yet",
+      "acme · No status yet · No update yet",
+    ]);
+    expect(screen.getByRole("button", { name: "Agent: New agent" })).toHaveAccessibilityValue({
+      text: "No status yet, Topic acme, 0 pending decisions, No update yet",
+    });
   });
 
-  test("a session with a state but no line shows the state as its title", async () => {
+  test("a session with a state but no line shows the state under its name", async () => {
     setQuery(liveAgents, [
       agent({ id: "a_1", display_name: "Fresh", state: "working", line: null }),
     ]);
 
     await openInbox();
 
-    const row = within(screen.getByRole("button", { name: "Agent: Fresh" }));
-    expect(row.getByText("Working")).toBeOnTheScreen();
-    expect(row.getByText(/^Fresh · acme · \d+s ago$/)).toBeOnTheScreen();
+    expect(agentRowLines("Fresh").map((line) => line.text)).toEqual([
+      "Fresh",
+      "Working",
+      expect.stringMatching(/^acme · Working · \d+s ago$/),
+    ]);
+  });
+
+  test("a long name and status line stop at two lines, and VoiceOver reads them whole", async () => {
+    const name = "Context proposal UI: checklist + preview panel for the testing strategy document";
+    const line = `Waiting for your call on attaching ${"the testing strategy ".repeat(8).trim()}`;
+    setQuery(liveAgents, [
+      agent({ id: "a_1", display_name: name, state: "waiting", line, pending_decision_count: 1 }),
+    ]);
+
+    await openInbox();
+
+    const [title, status] = agentRowLines(name);
+    expect(title).toEqual({ text: name, lines: 2, weight: "600" });
+    expect(status).toEqual({ text: line, lines: 2, weight: undefined });
+    const row = screen.getByRole("button", { name: `Agent: ${name}` });
+    expect(row.props.accessibilityValue.text).toMatch(
+      new RegExp(`^Waiting, ${line}, Topic acme, 1 pending decision, Updated \\d+s ago$`),
+    );
   });
 
   test("an empty section says so while the other has items", async () => {
@@ -770,7 +847,11 @@ describe("reactive updates", () => {
   test("re-renders when an agent's status changes or it leaves the live set", async () => {
     setQuery(liveAgents, [agent({ id: "a_1", display_name: "Builder", line: "Compiling" })]);
     await openInbox();
-    expect(screen.getByText("Compiling")).toBeOnTheScreen();
+    expect(agentRowLines("Builder").map((line) => line.text)).toEqual([
+      "Builder",
+      "Compiling",
+      expect.stringMatching(/^acme · Working · \d+s ago$/),
+    ]);
 
     act(() =>
       setQuery(liveAgents, [
@@ -784,8 +865,12 @@ describe("reactive updates", () => {
       ]),
     );
     expect(screen.queryByText("Compiling")).not.toBeOnTheScreen();
-    expect(screen.getByText("Needs a decision")).toBeOnTheScreen();
-    expect(screen.getByText(/^Builder · acme · Waiting · \d+s ago · Stale$/)).toBeOnTheScreen();
+    // The name stays the title while the status line under it changes.
+    expect(agentRowLines("Builder").map((line) => line.text)).toEqual([
+      "Builder",
+      "Needs a decision",
+      expect.stringMatching(/^acme · Waiting · \d+s ago · Stale$/),
+    ]);
     expect(screen.getByText("Stale")).toBeOnTheScreen();
 
     act(() => setQuery(liveAgents, []));
@@ -953,10 +1038,10 @@ describe("elapsed time", () => {
     ]);
 
     await openInbox();
-    expect(screen.getByText(/^Builder · acme · Working · 5[89]s ago$/)).toBeOnTheScreen();
+    expect(screen.getByText(/^acme · Working · 5[89]s ago$/)).toBeOnTheScreen();
 
     expect(
-      await screen.findByText("Builder · acme · Working · 1m ago", {}, { timeout: 3_000 }),
+      await screen.findByText("acme · Working · 1m ago", {}, { timeout: 3_000 }),
     ).toBeOnTheScreen();
   });
 });
