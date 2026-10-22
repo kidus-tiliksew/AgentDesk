@@ -28,6 +28,11 @@ const config: ExpoConfig = {
     // which is exempt from export documentation, so App Store Connect asks no
     // encryption question per build.
     config: { usesNonExemptEncryption: false },
+    // An urgent decision's push asks for the time-sensitive interruption level
+    // (component-notifications §Push sound), which iOS honors only with this
+    // entitlement, so it can break through Focus. The App ID needs the Time
+    // Sensitive Notifications capability before a build can sign with it.
+    entitlements: { "com.apple.developer.usernotifications.time-sensitive": true },
     icon: {
       light: "./assets/icon.png",
       dark: "./assets/icon-dark.png",

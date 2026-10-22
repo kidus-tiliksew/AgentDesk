@@ -20,8 +20,12 @@ type NotificationFields = Parameters<
 >[1]["notification"];
 
 // What a caller supplies for one push. deliverPush and deliverDigestPush add
-// the routing fields to `data`.
-export type PushMessage = Pick<NotificationFields, "title" | "body" | "categoryId"> & {
+// the routing fields to `data`. `interruptionLevel` is set only for an urgent
+// `decision.created` push (§Push sound); every other push leaves it unset.
+export type PushMessage = Pick<
+  NotificationFields,
+  "title" | "body" | "categoryId" | "interruptionLevel"
+> & {
   data?: Record<string, unknown>;
 };
 
@@ -48,6 +52,9 @@ function notificationFor(
   }
   if (message.categoryId !== undefined) {
     notification.categoryId = message.categoryId;
+  }
+  if (message.interruptionLevel !== undefined) {
+    notification.interruptionLevel = message.interruptionLevel;
   }
   return notification;
 }

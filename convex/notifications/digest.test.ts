@@ -218,6 +218,8 @@ describe("dispatchUser", () => {
     expect(await Promise.all(excluded.map((id) => eventOf(t, id)))).toEqual(before);
     const [push] = await queued(t, "install-1");
     expect(push?.body).toBe("2 events · 2 pending decisions");
+    // A digest holding an urgent decision is still not time-sensitive.
+    expect(push).not.toHaveProperty("interruptionLevel");
   });
 
   // REQ-7

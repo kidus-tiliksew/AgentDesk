@@ -151,6 +151,30 @@ describe("deliverPush", () => {
     expect(agentPush?.data).toEqual({ eventId: agentEventId, kind: "agent.stale", agentSessionId });
   });
 
+  test("passes an interruption level through and sets none when the caller gives none", async () => {
+    const { t, userA, asA } = await setup();
+    await register(asA, "install-1", "ExponentPushToken[1]");
+    const { decisionEventId, agentEventId } = await insertEvents(t, userA);
+
+    await t.run((ctx) =>
+      deliverPush(ctx, decisionEventId, {
+        title: "Release bot",
+        body: "Ship it?",
+        interruptionLevel: "time-sensitive",
+      }),
+    );
+    await deliver(t, agentEventId, "Release bot");
+
+    const [agentPush, decisionPush] = await queued(t, "install-1");
+    expect(decisionPush).toMatchObject({
+      title: "Release bot",
+      interruptionLevel: "time-sensitive",
+      sound: "default",
+    });
+    expect(agentPush?.sound).toBe("default");
+    expect(agentPush).not.toHaveProperty("interruptionLevel");
+  });
+
   test("sends to the install's replacement token", async () => {
     const { t, userA, asA } = await setup();
     await register(asA, "install-1", "ExponentPushToken[old]");
@@ -268,6 +292,7 @@ describe("deliverDigestPush", () => {
         state: "awaiting_delivery",
       });
       expect(pushes[0]?.categoryId).toBeUndefined();
+      expect(pushes[0]).not.toHaveProperty("interruptionLevel");
       expect(pushes[0]?.data).toEqual({ kind: "digest", digestId, extra: 1 });
     }
   });

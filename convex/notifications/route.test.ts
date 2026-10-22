@@ -21,7 +21,14 @@ afterEach(() => {
 type DecisionFields = Partial<
   Pick<
     Doc<"decisions">,
-    "title" | "inputType" | "options" | "recommendation" | "priority" | "interactive" | "deadline"
+    | "title"
+    | "inputType"
+    | "options"
+    | "recommendation"
+    | "priority"
+    | "interactive"
+    | "deadline"
+    | "default"
   >
 >;
 
@@ -204,12 +211,18 @@ describe("route", () => {
 });
 
 describe("push messages", () => {
-  async function pushDecision(fields: DecisionFields, displayName?: string) {
+  async function pushDecision(fields: DecisionFields, displayName?: string, occurredAt = START) {
     const { t, userA, asA } = await setup();
     await register(asA, "install-1", "ExponentPushToken[1]");
     const agentSessionId = await openSession(t, userA, displayName);
     const decisionId = await insertDecision(t, userA, agentSessionId, fields);
-    const eventId = await insertEvent(t, userA, "decision.created", { decisionId, agentSessionId });
+    const eventId = await insertEvent(
+      t,
+      userA,
+      "decision.created",
+      { decisionId, agentSessionId },
+      occurredAt,
+    );
     await route(t, eventId);
     const [push] = await queued(t, "install-1");
     return { t, push, eventId, decisionId, agentSessionId };
@@ -218,20 +231,27 @@ describe("push messages", () => {
   const options = (count: number) =>
     Array.from({ length: count }, (_, i) => ({ id: `o${i + 1}`, label: `Option ${i + 1}` }));
 
-  test("an approve-or-reject decision: title, topic and agent, category, data", async () => {
+  test("an approve-or-reject decision: agent title, question body, category, data", async () => {
     const { push, eventId, decisionId, agentSessionId } = await pushDecision(
       { title: "Ship it?" },
       "Release bot",
     );
     expect(push).toMatchObject({
-      title: "Ship it?",
-      body: "repo/x · Release bot",
+      title: "Release bot",
+      body: "Ship it?",
       categoryId: "decision-approve-reject",
+      sound: "default",
     });
+    expect(push?.interruptionLevel).toBeUndefined();
     expect(push?.data).toEqual({ eventId, kind: "decision.created", decisionId, agentSessionId });
   });
 
-  test("numbers the options and marks the recommendation", async () => {
+  test("a session without a display name is titled with the card name", async () => {
+    const { push } = await pushDecision({ title: "Ship it?" });
+    expect(push).toMatchObject({ title: "Claude Code · repo/x", body: "Ship it?" });
+  });
+
+  test("numbers the options after the question and marks the recommendation", async () => {
     const { push } = await pushDecision({
       title: "Which database?",
       inputType: "single_choice",
@@ -241,9 +261,9 @@ describe("push messages", () => {
       ],
       recommendation: { kind: "option", option_id: "sq" },
     });
-    expect(push?.title).toBe("Which database?");
+    expect(push?.title).toBe("Claude Code · repo/x");
     expect(push?.body).toBe(
-      ["repo/x · Claude Code · repo/x", "1. Postgres", "2. SQLite (recommended)"].join("\n"),
+      ["Which database?", "1. Postgres", "2. SQLite (recommended)"].join("\n"),
     );
     expect(push?.categoryId).toBe("decision-choice-2");
   });
@@ -255,12 +275,9 @@ describe("push messages", () => {
       recommendation: { kind: "options", option_ids: ["o1", "o3"] },
     });
     expect(push?.body).toBe(
-      [
-        "repo/x · Claude Code · repo/x",
-        "1. Option 1 (recommended)",
-        "2. Option 2",
-        "3. Option 3 (recommended)",
-      ].join("\n"),
+      ["Ship it?", "1. Option 1 (recommended)", "2. Option 2", "3. Option 3 (recommended)"].join(
+        "\n",
+      ),
     );
     expect(push?.categoryId).toBeUndefined();
   });
@@ -275,34 +292,224 @@ describe("push messages", () => {
     expect(push?.body?.split("\n")).toHaveLength(count + 1);
   });
 
-  test("a free-text decision lists no options", async () => {
-    const { push } = await pushDecision({ inputType: "free_text" });
-    expect(push?.body).toBe("repo/x · Claude Code · repo/x");
+  test("keeps every option of a long list in order", async () => {
+    const { push } = await pushDecision({ inputType: "single_choice", options: options(7) });
+    expect(push?.body?.split("\n")).toEqual([
+      "Ship it?",
+      ...options(7).map((o, i) => `${i + 1}. ${o.label}`),
+    ]);
     expect(push?.categoryId).toBeUndefined();
   });
 
-  test("a decision whose asking session is gone still pushes", async () => {
+  test("a 120-character question is the whole first body line", async () => {
+    const title = `${"Should the release pipeline wait for the canary? ".repeat(3).slice(0, 119)}?`;
+    expect(title).toHaveLength(120);
+    const { push } = await pushDecision({ title }, "Release bot");
+    expect(push?.title).toBe("Release bot");
+    expect(push?.body).toBe(title);
+  });
+
+  // The body for each input type, with and without a recommendation and with
+  // and without a deadline and default. The event occurs at START and the
+  // deadline is 25 minutes later.
+  type Shape = {
+    fields: DecisionFields;
+    options: string[];
+    recommendation: Pick<DecisionFields, "recommendation">;
+    recommendedOptions: string[];
+    recommendationLine: string[];
+    default: Pick<DecisionFields, "default">;
+    defaultText: string;
+  };
+  const shapes: Record<Doc<"decisions">["inputType"], Shape> = {
+    approve_reject: {
+      fields: { inputType: "approve_reject" },
+      options: [],
+      recommendation: { recommendation: { kind: "approve" } },
+      recommendedOptions: [],
+      recommendationLine: ["Recommended: Approve"],
+      default: { default: { kind: "reject" } },
+      defaultText: "Reject",
+    },
+    free_text: {
+      fields: { inputType: "free_text" },
+      options: [],
+      recommendation: { recommendation: { kind: "text", text: "Use the cache" } },
+      recommendedOptions: [],
+      recommendationLine: ["Recommended: Use the cache"],
+      default: { default: { kind: "text", text: "Skip the cache" } },
+      defaultText: "Skip the cache",
+    },
+    single_choice: {
+      fields: { inputType: "single_choice", options: options(2) },
+      options: ["1. Option 1", "2. Option 2"],
+      recommendation: { recommendation: { kind: "option", option_id: "o2" } },
+      recommendedOptions: ["1. Option 1", "2. Option 2 (recommended)"],
+      recommendationLine: [],
+      default: { default: { kind: "option", option_id: "o1" } },
+      defaultText: "Option 1",
+    },
+    multiple_choice: {
+      fields: { inputType: "multiple_choice", options: options(3) },
+      options: ["1. Option 1", "2. Option 2", "3. Option 3"],
+      recommendation: { recommendation: { kind: "options", option_ids: ["o1", "o3"] } },
+      recommendedOptions: ["1. Option 1 (recommended)", "2. Option 2", "3. Option 3 (recommended)"],
+      recommendationLine: [],
+      default: { default: { kind: "options", option_ids: ["o3", "o1"] } },
+      defaultText: "Option 3, Option 1",
+    },
+    single_choice_or_text: {
+      fields: { inputType: "single_choice_or_text", options: options(2) },
+      options: ["1. Option 1", "2. Option 2"],
+      recommendation: { recommendation: { kind: "option", option_id: "o1" } },
+      recommendedOptions: ["1. Option 1 (recommended)", "2. Option 2"],
+      recommendationLine: [],
+      default: { default: { kind: "text", text: "Decide later" } },
+      defaultText: "Decide later",
+    },
+  };
+  const matrix = Object.keys(shapes).flatMap((inputType) =>
+    [true, false].flatMap((recommended) =>
+      [true, false].map(
+        (defaulted) =>
+          [inputType as Doc<"decisions">["inputType"], recommended, defaulted] as const,
+      ),
+    ),
+  );
+
+  test.each(matrix)(
+    "a %s decision body (recommendation %s, deadline and default %s)",
+    async (inputType, recommended, defaulted) => {
+      const shape = shapes[inputType];
+      const { push } = await pushDecision({
+        ...shape.fields,
+        ...(recommended ? shape.recommendation : {}),
+        ...(defaulted ? { deadline: START + 25 * MINUTE, ...shape.default } : {}),
+      });
+      expect(push?.title).toBe("Claude Code · repo/x");
+      expect(push?.body?.split("\n")).toEqual([
+        "Ship it?",
+        ...(recommended ? shape.recommendedOptions : shape.options),
+        ...(recommended ? shape.recommendationLine : []),
+        ...(defaulted ? [`Defaults to ${shape.defaultText} in 25 min`] : []),
+      ]);
+    },
+  );
+
+  test("the target urgent single choice: agent, question, options, default", async () => {
+    const { push } = await pushDecision(
+      {
+        title: "Set up Firebase before the first Android production build?",
+        inputType: "single_choice",
+        priority: "urgent",
+        options: [
+          { id: "firebase", label: "Set up Firebase first, then build" },
+          { id: "build", label: "Build now, add Firebase later" },
+        ],
+        recommendation: { kind: "option", option_id: "firebase" },
+        deadline: START + 25 * MINUTE,
+        default: { kind: "option", option_id: "firebase" },
+      },
+      "First Android production build",
+    );
+    expect(push).toMatchObject({
+      title: "First Android production build",
+      body: [
+        "Set up Firebase before the first Android production build?",
+        "1. Set up Firebase first, then build (recommended)",
+        "2. Build now, add Firebase later",
+        "Defaults to Set up Firebase first, then build in 25 min",
+      ].join("\n"),
+      categoryId: "decision-choice-2",
+      interruptionLevel: "time-sensitive",
+      sound: "default",
+    });
+  });
+
+  test.each<[string, DecisionFields]>([
+    ["a deadline without a default", { deadline: START + 25 * MINUTE }],
+    ["a default without a deadline", { default: { kind: "approve" } }],
+  ])("%s adds no default line", async (_, fields) => {
+    const { push } = await pushDecision(fields);
+    expect(push?.body).toBe("Ship it?");
+  });
+
+  // The time left counts from the event's occurredAt: minutes rounded up below
+  // an hour, whole hours rounded down from an hour on, and 0 min for a
+  // deadline at or before the event.
+  test.each<[number, string]>([
+    [-5 * MINUTE, "0 min"],
+    [0, "0 min"],
+    [1, "1 min"],
+    [30_000, "1 min"],
+    [25 * MINUTE, "25 min"],
+    [59 * MINUTE + 59_000, "60 min"],
+    [60 * MINUTE, "1 h"],
+    [119 * MINUTE, "1 h"],
+    [120 * MINUTE, "2 h"],
+  ])("a deadline %i ms after the event defaults in %s", async (delta, text) => {
+    const { push } = await pushDecision({ deadline: START + delta, default: { kind: "approve" } });
+    expect(push?.body).toBe(`Ship it?\nDefaults to Approve in ${text}`);
+  });
+
+  test("a later route counts the time left from the event, not the clock", async () => {
     const { t, userA, asA } = await setup();
     await register(asA, "install-1", "ExponentPushToken[1]");
     const agentSessionId = await openSession(t, userA);
-    const decisionId = await insertDecision(t, userA, agentSessionId);
+    const decisionId = await insertDecision(t, userA, agentSessionId, {
+      deadline: START + 25 * MINUTE,
+      default: { kind: "approve" },
+    });
     const eventId = await insertEvent(t, userA, "decision.created", { decisionId, agentSessionId });
-    await t.run((ctx) => ctx.db.delete("agentSessions", agentSessionId));
+    vi.setSystemTime(START + 20 * MINUTE);
 
     await route(t, eventId);
 
     const [push] = await queued(t, "install-1");
-    expect(push).toMatchObject({ title: "Ship it?", body: "repo/x · Ended agent" });
+    expect(push?.body).toBe("Ship it?\nDefaults to Approve in 25 min");
   });
 
-  test("a stale agent: name, last status line, and minutes of silence", async () => {
+  test.each<["normal" | "urgent", string | undefined]>([
+    ["normal", undefined],
+    ["urgent", "time-sensitive"],
+  ])("a %s decision has interruption level %s", async (priority, level) => {
+    const { push } = await pushDecision({ priority });
+    expect(push?.interruptionLevel).toBe(level);
+    expect(push?.sound).toBe("default");
+  });
+
+  test("a decision whose asking session is gone or foreign is titled Ended agent", async () => {
+    const { t, userA, userB, asA } = await setup();
+    await register(asA, "install-1", "ExponentPushToken[1]");
+    const gone = await openSession(t, userA, "Release bot");
+    const foreign = await openSession(t, userB, "Other bot");
+    for (const agentSessionId of [gone, foreign]) {
+      const decisionId = await insertDecision(t, userA, gone);
+      const eventId = await insertEvent(t, userA, "decision.created", {
+        decisionId,
+        agentSessionId,
+      });
+      if (agentSessionId === gone) {
+        await t.run((ctx) => ctx.db.delete("agentSessions", gone));
+      }
+      await route(t, eventId);
+    }
+
+    const pushes = await queued(t, "install-1");
+    expect(pushes).toHaveLength(2);
+    for (const push of pushes) {
+      expect(push).toMatchObject({ title: "Ended agent", body: "Ship it?" });
+    }
+  });
+
+  async function pushStale(line: string | undefined) {
     const { t, userA, asA } = await setup();
     await register(asA, "install-1", "ExponentPushToken[1]");
     const agentSessionId = await openSession(t, userA, "Release bot");
     await t.run((ctx) =>
       ctx.db.patch("agentSessions", agentSessionId, {
         state: "working",
-        line: "Running migrations",
+        line,
         lastActivityAt: START,
       }),
     );
@@ -313,29 +520,45 @@ describe("push messages", () => {
       { agentSessionId },
       START + 30 * MINUTE + 59_000,
     );
-
     await route(t, eventId);
-
     const [push] = await queued(t, "install-1");
+    return { push, eventId, agentSessionId };
+  }
+
+  test("a stale agent: agent title, minutes of silence, then the last status line", async () => {
+    const { push, eventId, agentSessionId } = await pushStale("Running migrations");
     expect(push).toMatchObject({
-      title: "Release bot looks stuck",
-      body: "Running migrations\nSilent for 30 min",
+      title: "Release bot",
+      body: "Looks stuck · silent for 30 min\nRunning migrations",
     });
     expect(push?.categoryId).toBeUndefined();
+    expect(push?.interruptionLevel).toBeUndefined();
     expect(push?.data).toEqual({ eventId, kind: "agent.stale", agentSessionId });
   });
 
-  test("reads only rows the event's owner owns", async () => {
+  test("a stale agent without a status line has the silence line only", async () => {
+    const { push } = await pushStale(undefined);
+    expect(push).toMatchObject({ title: "Release bot", body: "Looks stuck · silent for 30 min" });
+  });
+
+  test("reads only rows the event's owner owns; a gone or foreign stale agent is Ended agent", async () => {
     const { t, userA, userB, asA } = await setup();
     await register(asA, "install-1", "ExponentPushToken[1]");
     const foreignSession = await openSession(t, userB, "Other bot");
-    const eventId = await insertEvent(t, userA, "agent.stale", { agentSessionId: foreignSession });
+    await t.run((ctx) => ctx.db.patch("agentSessions", foreignSession, { line: "Secret work" }));
+    const gone = await openSession(t, userA, "Release bot");
+    await t.run((ctx) => ctx.db.delete("agentSessions", gone));
 
-    await route(t, eventId);
+    for (const agentSessionId of [foreignSession, gone]) {
+      await route(t, await insertEvent(t, userA, "agent.stale", { agentSessionId }));
+    }
 
-    const [push] = await queued(t, "install-1");
-    expect(push?.title).toBe("Ended agent looks stuck");
-    expect(push?.body).toBeUndefined();
+    const pushes = await queued(t, "install-1");
+    expect(pushes).toHaveLength(2);
+    for (const push of pushes) {
+      expect(push).toMatchObject({ title: "Ended agent", body: "Looks stuck" });
+      expect(push.interruptionLevel).toBeUndefined();
+    }
   });
 });
 
@@ -686,11 +909,55 @@ describe("rule-driven push messages", () => {
     { id: "my", label: "MySQL" },
   ];
 
-  test("an expired decision with no applied answer: Expired, title, no category, data", async () => {
+  test("an expired decision with no applied answer: agent title, Expired body, no category, data", async () => {
     const { push, eventId, decisionId, agentSessionId } = await pushExpired({});
-    expect(push).toMatchObject({ title: "Expired", body: "Ship it?" });
+    expect(push).toMatchObject({ title: "Claude Code · repo/x", body: "Expired: Ship it?" });
     expect(push?.categoryId).toBeUndefined();
+    expect(push?.interruptionLevel).toBeUndefined();
     expect(push?.data).toEqual({ eventId, kind: "decision.expired", decisionId, agentSessionId });
+  });
+
+  test.each<"normal" | "urgent">(["normal", "urgent"])(
+    "an expired %s decision sets no interruption level",
+    async (priority) => {
+      const { push } = await pushExpired({
+        priority,
+        appliedByDefault: true,
+        answer: { kind: "approve" },
+      });
+      expect(push).toMatchObject({
+        title: "Claude Code · repo/x",
+        body: "Decided by default: Ship it?\nApprove",
+        sound: "default",
+      });
+      expect(push?.interruptionLevel).toBeUndefined();
+    },
+  );
+
+  test("an expired decision whose asking session is gone or foreign is titled Ended agent", async () => {
+    const { t, userA, userB, asA } = await setup();
+    await register(asA, "install-1", "ExponentPushToken[1]");
+    await insertRule(t, userA, { eventKind: "decision.expired", action: "push" });
+    const gone = await openSession(t, userA, "Release bot");
+    const foreign = await openSession(t, userB, "Other bot");
+    const decisionId = await insertDecision(t, userA, gone);
+    await t.run(async (ctx) => {
+      await ctx.db.patch("decisions", decisionId, { state: "expired", settledAt: START });
+      await ctx.db.delete("agentSessions", gone);
+    });
+
+    for (const agentSessionId of [gone, foreign]) {
+      await route(
+        t,
+        await insertEvent(t, userA, "decision.expired", { decisionId, agentSessionId }),
+      );
+    }
+
+    const pushes = await queued(t, "install-1");
+    expect(pushes).toHaveLength(2);
+    for (const push of pushes) {
+      expect(push).toMatchObject({ title: "Ended agent", body: "Expired: Ship it?" });
+    }
   });
 
   test.each<[string, Partial<Doc<"decisions">>, string]>([
@@ -722,7 +989,10 @@ describe("rule-driven push messages", () => {
     ],
   ])("a decision decided by default with an %s answer", async (_, fields, answer) => {
     const { push } = await pushExpired({ appliedByDefault: true, ...fields });
-    expect(push).toMatchObject({ title: "Decided by default", body: `Ship it?\n${answer}` });
+    expect(push).toMatchObject({
+      title: "Claude Code · repo/x",
+      body: `Decided by default: Ship it?\n${answer}`,
+    });
     expect(push?.categoryId).toBeUndefined();
   });
 
@@ -763,6 +1033,7 @@ describe("rule-driven push messages", () => {
       const [push] = await queued(t, "install-1");
       expect(push).toMatchObject({ title: "Release bot", body: "Shipped v2" });
       expect(push?.categoryId).toBeUndefined();
+      expect(push?.interruptionLevel).toBeUndefined();
       expect(push?.data).toEqual({ eventId, kind, agentSessionId });
     },
   );
@@ -1150,11 +1421,35 @@ describe("interactive hold", () => {
 
     const [push] = await queued(t, "install-1");
     expect(push).toMatchObject({
-      title: "Ship it?",
-      body: "repo/x · Claude Code · repo/x",
+      title: "Claude Code · repo/x",
+      body: "Ship it?",
       categoryId: "decision-approve-reject",
     });
+    expect(push?.interruptionLevel).toBeUndefined();
     expect(push?.data).toEqual({ eventId, kind: "decision.created", decisionId, agentSessionId });
+  });
+
+  test("a held urgent push is time-sensitive and counts its default from the event", async () => {
+    const { t, eventId } = await holdSetup({
+      interactive: true,
+      priority: "urgent",
+      deadline: START + 25 * MINUTE,
+      default: { kind: "reject" },
+    });
+    await route(t, eventId);
+    expect(await queuedBoth(t)).toEqual([0, 0]);
+    await runScheduled(t, INTERACTIVE_HOLD_MS);
+
+    for (const deviceId of ["install-1", "install-2"]) {
+      const [push] = await queued(t, deviceId);
+      expect(push).toMatchObject({
+        title: "Claude Code · repo/x",
+        body: "Ship it?\nDefaults to Reject in 25 min",
+        categoryId: "decision-approve-reject",
+        interruptionLevel: "time-sensitive",
+        sound: "default",
+      });
+    }
   });
 
   // req-notification-rules AC-8.1; req-decision-requests AC-8.1

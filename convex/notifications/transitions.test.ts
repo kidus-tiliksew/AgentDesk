@@ -134,7 +134,11 @@ describe("decision transitions", () => {
     }
 
     const [push] = await queued(t, "install-1");
-    expect(push).toMatchObject({ title: "Ship it?", categoryId: "decision-approve-reject" });
+    expect(push).toMatchObject({
+      title: "Claude Code · repo/x",
+      body: "Ship it?",
+      categoryId: "decision-approve-reject",
+    });
     expect((await eventsOf(t))[0]?.action).toBe("push");
   });
 });
