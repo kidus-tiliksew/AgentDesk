@@ -2,7 +2,7 @@
 name: agentdesk
 description: Use when you start a task, finish a stage, become blocked, or finish a task, and every 10 minutes of work, to report status through AgentDesk. Use when you have a question you should not decide alone, such as an irreversible or destructive action, a choice that depends on the user's preference, or ambiguity the repository and task cannot resolve, to ask it through AgentDesk. AgentDesk reaches the user outside this session and returns the answer.
 metadata:
-  version: "2.4.0"
+  version: "2.5.0"
 ---
 
 AgentDesk reaches the user outside this session. Its MCP server offers `ask`, `await`, `check`, `cancel`, `resolve`, and `status`.
@@ -137,6 +137,8 @@ Before you end a turn while the state is `working` and work you track goes on wi
 
 Keep `line` shorter than 200 characters. Set `link` to the http or https URL of the page that holds the full context, such as a pull request or a task page, when one exists.
 
-On your first `status` call, set `display_name` to a plain-words name of the work, at most 60 characters. Set a new one when you move to different work.
+Always set `display_name` on your first `status` call. The user tells sessions apart by it, so name the thing being changed, then the change: "Inbox decision cards redesign", not "Coordinate three Conveyor tasks". Leave out process verbs that fit any session, such as "coordinate", "handle", "work on", and "implement task", counts such as "three tasks", and bare identifiers. Keep status such as "CI green" or "waiting" out of the name; it belongs in `line`. When you coordinate other agents, name what their work items share, or list them when they are short: "Inbox cards, triage retry, plan push recovery".
+
+Aim for about 40 characters, because a phone notification shows the name on one line, and never exceed 60. Keep the name when the stage or status changes. Set a new one only when you move to different work.
 
 When you coordinate other agents, summarize in your own `line` the current step of each work item you track, from the progress those agents report to you or to the system that tracks the work.

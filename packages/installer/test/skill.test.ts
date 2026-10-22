@@ -29,7 +29,7 @@ const cursorSkill = (home: string) => join(home, ".cursor", "skills", "agentdesk
 
 describe("skill version", () => {
   it("reads metadata.version from the published skill", () => {
-    expect(skillVersionOf(readFileSync(SKILL_FILE, "utf8"))).toBe("2.4.0");
+    expect(skillVersionOf(readFileSync(SKILL_FILE, "utf8"))).toBe("2.5.0");
   });
 
   it("returns undefined without frontmatter or version", () => {
