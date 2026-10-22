@@ -2,7 +2,7 @@
 name: agentdesk
 description: Use when you start a task, finish a stage, become blocked, or finish a task, and every 10 minutes of work, to report status through AgentDesk. Use when you have a question you should not decide alone, such as an irreversible or destructive action, a choice that depends on the user's preference, or ambiguity the repository and task cannot resolve, to ask it through AgentDesk. AgentDesk reaches the user outside this session and returns the answer.
 metadata:
-  version: "2.3.0"
+  version: "2.4.0"
 ---
 
 AgentDesk reaches the user outside this session. Its MCP server offers `ask`, `await`, `check`, `cancel`, `resolve`, and `status`.
@@ -51,7 +51,7 @@ Call `ask` with these arguments:
 - `options`: 2 to 10 `{id, label}` entries for the three choice types. Omit it for the other types.
 - `title`: the question, shorter than 120 characters.
 - `body`: the context the user needs to decide, in Markdown. State what each answer will cause.
-- `recommendation`: the answer you would choose. Set it on every decision.
+- `recommendation`: the answer you would choose. Set it on every decision. If a workflow governing your work forbids recommending an answer to this question, omit `recommendation` and `default` and state in the body that the choice is the user's alone.
 - `deadline` and `default`: set both when the default action is reversible. `deadline` is an ISO 8601 time in the future. `default` is the answer applied when the deadline passes.
 - `interactive`: set `interactive: true` when the session is interactive, one the user may be watching. Omit it otherwise.
 
@@ -83,7 +83,7 @@ Example arguments:
 }
 ```
 
-When you call `ask`, show the same question in this chat: the title, the context, the options, and your recommendation. The user may answer in either place.
+When you call `ask`, show the same question in this chat: the title, the context, the options, and your recommendation, if any. The user may answer in either place.
 
 `ask` returns a `decision_id` at once. It does not wait for the answer.
 
