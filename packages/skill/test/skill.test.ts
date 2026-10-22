@@ -712,7 +712,7 @@ describe("package export", () => {
     const split = splitSkill(readFileSync(resolved, "utf8"));
     const data: unknown = parseYaml(split?.frontmatter ?? "");
     const version = isRecord(data) && isRecord(data.metadata) ? data.metadata.version : undefined;
-    expect(version).toBe("2.3.0");
+    expect(version).toBe("2.4.0");
   });
 
   it("resolves @agentdesk/skill/agentdesk/GUIDANCE.md to the guidance file", () => {
