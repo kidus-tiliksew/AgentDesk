@@ -47,7 +47,7 @@ const CONFIRMED_GUIDANCE = [
 
 // Identifiers the skill and the guidance may write as standalone inline code
 // without naming a tool: the gateway's argument and result fields, the topic
-// environment variable, the enumerated input-type, answer-kind,
+// and parent-session environment variables, the enumerated input-type, answer-kind,
 // decision-state, status-state, and priority values, `agentdesk`, the name of
 // the MCP server, the skill, and the command, and the Claude Code tools the
 // Waiting section starts and stops. Any other standalone identifier in inline
@@ -84,7 +84,7 @@ const SCHEMA_FIELDS = [
   "interactive",
   "chat_message",
 ];
-const ENVIRONMENT_IDENTIFIERS = ["AGENTDESK_TOPIC"];
+const ENVIRONMENT_IDENTIFIERS = ["AGENTDESK_TOPIC", "AGENTDESK_PARENT_SESSION"];
 const SERVER_AND_SKILL_NAMES = ["agentdesk"];
 // Claude Code's own tools, which resume mode uses to run and stop the waiter
 // (component-agent-skill §Skill file). They are not gateway tools, so prose
@@ -686,6 +686,26 @@ describe("delivered Waiting section", () => {
   });
 });
 
+// component-agent-skill §Skill file, Status row: child-session instructions
+// (req-installation-and-agent-guidance AC-8.3, AC-11.4, AC-11.5). Per
+// component-agent-skill §Verification, no test matches the wording of the
+// child-session instructions; review checks the Status paragraph against the
+// Status row. These checks cover only the section's place and the variable's
+// name in inline code.
+describe("delivered Status section", () => {
+  const text = readFileSync(SKILL_PATH, "utf8").replace(/\r\n?/g, "\n");
+  const status = text.slice(text.indexOf("\n## Status\n"));
+
+  it("is the last section", () => {
+    expect(text.indexOf("\n## Status\n")).toBeGreaterThan(text.indexOf("\n## Waiting\n"));
+    expect(status.slice(1).includes("\n## ")).toBe(false);
+  });
+
+  it("names AGENTDESK_PARENT_SESSION in inline code", () => {
+    expect(status).toContain("`AGENTDESK_PARENT_SESSION`");
+  });
+});
+
 describe("delivered GUIDANCE.md", () => {
   const raw = readFileSync(GUIDANCE_PATH, "utf8");
 
@@ -712,7 +732,7 @@ describe("package export", () => {
     const split = splitSkill(readFileSync(resolved, "utf8"));
     const data: unknown = parseYaml(split?.frontmatter ?? "");
     const version = isRecord(data) && isRecord(data.metadata) ? data.metadata.version : undefined;
-    expect(version).toBe("2.5.0");
+    expect(version).toBe("2.6.0");
   });
 
   it("resolves @agentdesk/skill/agentdesk/GUIDANCE.md to the guidance file", () => {

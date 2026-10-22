@@ -139,6 +139,39 @@ describe("bundle dist/agentdesk.mjs", () => {
     expect(existsSync(join(sandbox.root, "no-home"))).toBe(false);
   });
 
+  // component-installer §`agentdesk context` (AC-10.5): the built bundle reads
+  // AGENTDESK_PARENT_SESSION from an explicit environment and an isolated HOME.
+  it.each(["claude-code", "codex", "cursor"])(
+    "prints the standing or child guidance from context for %s by AGENTDESK_PARENT_SESSION",
+    async (id) => {
+      const home = join(sandbox.root, `child-home-${id}`);
+      const base = { HOME: home, PATH: sandbox.bin };
+      const child =
+        "AgentDesk belongs to the agent that started this session. Report progress and questions to that agent. Do not call any AgentDesk tool.";
+      const standing = read(GUIDANCE_FILE);
+      const requestsBefore = requests.length;
+      const cases: [string, NodeJS.ProcessEnv, string][] = [
+        ["unset", base, standing],
+        ["empty", { ...base, AGENTDESK_PARENT_SESSION: "" }, standing],
+        ["nonempty", { ...base, AGENTDESK_PARENT_SESSION: "parent-label-1" }, child],
+        ["zero", { ...base, AGENTDESK_PARENT_SESSION: "0" }, child],
+      ];
+      for (const [, env, text] of cases) {
+        const result = await runBundle(["context", "--harness", id], env);
+        expect(result.code).toBe(0);
+        expect(result.stderr).toBe("");
+        if (id === "cursor") {
+          expect(result.stdout).toBe(`${JSON.stringify({ additional_context: text })}\n`);
+        } else {
+          expect(result.stdout).toBe(text === standing ? standing : `${text}\n`);
+        }
+        expect(result.stdout).not.toContain("parent-label-1");
+      }
+      expect(existsSync(home)).toBe(false);
+      expect(requests.length).toBe(requestsBefore);
+    },
+  );
+
   it("installs the embedded skill byte for byte with the hook", async () => {
     const home = join(sandbox.root, "skill-home");
     mkdirSync(join(home, ".codex"), { recursive: true });
@@ -147,7 +180,7 @@ describe("bundle dist/agentdesk.mjs", () => {
     expect(readFileSync(join(home, ".codex", "skills", "agentdesk", "SKILL.md"))).toEqual(
       readFileSync(SKILL_FILE),
     );
-    expect(result.stdout).toContain("skill 2.5.0");
+    expect(result.stdout).toContain("skill 2.6.0");
     // codex is not on PATH, so trust for each hook is left to Codex's /hooks.
     expect(result.stdout).toContain(
       "Codex: the AgentDesk session-start hook is not trusted yet (codex is not on PATH). In Codex, run /hooks and trust the AgentDesk session-start hook.",
