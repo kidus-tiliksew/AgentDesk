@@ -4,11 +4,13 @@ import type { QueryCtx } from "../_generated/server";
 import { getOwned } from "../lib/owned";
 import type { PushMessage } from "./push";
 
-// component-notifications §Push: the title, body, and category of each pushed
-// event. Related rows are read at routing time within the event owner's
-// account. A missing session does not stop a push.
+// component-notifications §Push: the title, body, category, and interruption
+// level of each pushed event. Every event title is the agent name. Related
+// rows are read at routing time within the event owner's account. A missing
+// session does not stop a push.
 
 const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
 // The agent name when the asking session no longer exists, as after the
 // purge of an ended session.
 const ENDED_AGENT = "Ended agent";
@@ -64,6 +66,47 @@ export function decisionCategory(decision: Doc<"decisions">): string | undefined
   return undefined;
 }
 
+// The time from the event to the decision's deadline, as "25 min" or "2 h".
+// Under an hour it counts whole minutes rounded up, so any time left shows at
+// least "1 min"; from an hour on it counts whole hours rounded down. A deadline
+// at or before the event shows "0 min". It is counted from the event's
+// `occurredAt`, never the send time, so a held or retried push reads the same.
+export function durationText(ms: number): string {
+  if (ms <= 0) {
+    return "0 min";
+  }
+  if (ms < HOUR_MS) {
+    return `${Math.ceil(ms / MINUTE_MS)} min`;
+  }
+  return `${Math.floor(ms / HOUR_MS)} h`;
+}
+
+// Choice types list the recommendation in their option lines; the other two
+// input types state it on a line of its own.
+function recommendationLine(decision: Doc<"decisions">): string | undefined {
+  if (decision.recommendation === undefined) {
+    return undefined;
+  }
+  if (decision.inputType !== "approve_reject" && decision.inputType !== "free_text") {
+    return undefined;
+  }
+  return `Recommended: ${answerText(decision, decision.recommendation)}`;
+}
+
+// A decision that will apply its default: the default answer and the time
+// left from the event to the deadline. A decision with only one of the two
+// fields has no such line.
+function defaultLine(decision: Doc<"decisions">, event: Doc<"events">): string | undefined {
+  if (decision.deadline === undefined || decision.default === undefined) {
+    return undefined;
+  }
+  const remaining = durationText(decision.deadline - event.occurredAt);
+  return `Defaults to ${answerText(decision, decision.default)} in ${remaining}`;
+}
+
+// The title is the asking agent; the body leads with the full question, then
+// the options or recommendation, then the default. An urgent decision is
+// presented as time-sensitive, so iOS can show it through Focus.
 async function decisionCreated(ctx: ReaderCtx, event: Doc<"events">): Promise<PushMessage | null> {
   if (event.decisionId === undefined) {
     return null;
@@ -73,32 +116,37 @@ async function decisionCreated(ctx: ReaderCtx, event: Doc<"events">): Promise<Pu
     return null;
   }
   const session = await loadSession(ctx, event);
-  const message: PushMessage = {
-    title: decision.title,
-    body: [`${decision.topic} · ${agentName(session)}`, ...optionLines(decision)].join("\n"),
-  };
+  const lines = [
+    decision.title,
+    ...optionLines(decision),
+    recommendationLine(decision),
+    defaultLine(decision, event),
+  ].filter((line) => line !== undefined);
+  const message: PushMessage = { title: agentName(session), body: lines.join("\n") };
   const categoryId = decisionCategory(decision);
   if (categoryId !== undefined) {
     message.categoryId = categoryId;
+  }
+  if (decision.priority === "urgent") {
+    message.interruptionLevel = "time-sensitive";
   }
   return message;
 }
 
 // Silence runs from the session's last activity to the moment the sweep
-// marked it stale.
+// marked it stale. A missing or foreign session has no known silence.
 async function agentStale(ctx: ReaderCtx, event: Doc<"events">): Promise<PushMessage> {
   const session = await loadSession(ctx, event);
-  const message: PushMessage = { title: `${agentName(session)} looks stuck` };
-  if (session !== null) {
-    const minutes = Math.max(
-      0,
-      Math.floor((event.occurredAt - session.lastActivityAt) / MINUTE_MS),
-    );
-    message.body = [session.line, `Silent for ${minutes} min`]
-      .filter((part) => part !== undefined)
-      .join("\n");
+  if (session === null) {
+    return { title: agentName(session), body: "Looks stuck" };
   }
-  return message;
+  const minutes = Math.max(0, Math.floor((event.occurredAt - session.lastActivityAt) / MINUTE_MS));
+  return {
+    title: agentName(session),
+    body: [`Looks stuck · silent for ${minutes} min`, session.line]
+      .filter((part) => part !== undefined)
+      .join("\n"),
+  };
 }
 
 // The applied answer as the person reads it: option labels in answer order,
@@ -120,9 +168,9 @@ export function answerText(decision: Doc<"decisions">, answer: Answer): string {
   }
 }
 
-// A decision whose deadline passed: "Decided by default" when the default was
-// applied and stored as the answer, otherwise "Expired". The body is the
-// decision title, then the applied answer when there is one.
+// A decision whose deadline passed, titled with the asking agent. The body is
+// "Decided by default: <title>" then the applied answer when the default was
+// applied and stored as the answer, otherwise "Expired: <title>".
 async function decisionExpired(ctx: ReaderCtx, event: Doc<"events">): Promise<PushMessage | null> {
   if (event.decisionId === undefined) {
     return null;
@@ -131,12 +179,13 @@ async function decisionExpired(ctx: ReaderCtx, event: Doc<"events">): Promise<Pu
   if (decision === null) {
     return null;
   }
+  const title = agentName(await loadSession(ctx, event));
   if (decision.answer === undefined) {
-    return { title: "Expired", body: decision.title };
+    return { title, body: `Expired: ${decision.title}` };
   }
   return {
-    title: "Decided by default",
-    body: `${decision.title}\n${answerText(decision, decision.answer)}`,
+    title,
+    body: `Decided by default: ${decision.title}\n${answerText(decision, decision.answer)}`,
   };
 }
 
