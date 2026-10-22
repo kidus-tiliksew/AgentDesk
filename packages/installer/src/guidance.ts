@@ -26,10 +26,37 @@ export function guidanceFor(text: string, harness: Harness): string {
 }
 
 /**
+ * The environment variable a launching agent sets, for one child agent process
+ * it starts, to mark that process's session as a child session
+ * (component-installer §`agentdesk context`).
+ */
+export const PARENT_SESSION_ENV = "AGENTDESK_PARENT_SESSION";
+
+/**
+ * The guidance a child session starts with in place of the whole standing
+ * guidance. It is the same for every harness, with or without skills.
+ */
+export const CHILD_GUIDANCE =
+  "AgentDesk belongs to the agent that started this session. Report progress and questions to that agent. Do not call any AgentDesk tool.";
+
+/**
+ * Whether `env` marks a child session: `AGENTDESK_PARENT_SESSION` set to any
+ * value other than the empty string. The value is not trimmed, no value means
+ * false, and the value itself is never used.
+ */
+export function isChildSession(env: Context["env"]): boolean {
+  const value = env[PARENT_SESSION_ENV];
+  return value !== undefined && value !== "";
+}
+
+/**
  * `agentdesk context --harness <id>`: prints the standing guidance compiled
- * into the build, as plain text for Claude Code and Codex and as
- * `{"additional_context": ...}` for Cursor. It reads no state or
- * configuration and makes no network call.
+ * into the build, or the child guidance when `AGENTDESK_PARENT_SESSION` marks
+ * a child session, as plain text for Claude Code and Codex and as
+ * `{"additional_context": ...}` for Cursor. Besides its embedded inputs it
+ * reads only that variable from the process environment: it reads no state
+ * file or other persisted configuration, writes no file, and makes no network
+ * call.
  */
 export function printContext(ctx: Context, harness: Harness): number {
   if (ctx.guidance === undefined) {
@@ -37,7 +64,9 @@ export function printContext(ctx: Context, harness: Harness): number {
       "This build carries no standing guidance; build it with scripts/build.mjs.",
     );
   }
-  const text = guidanceFor(ctx.guidance, harness);
+  // The child guidance never passes through guidanceFor: its last-line
+  // omission belongs to the standing guidance's skill pointer.
+  const text = isChildSession(ctx.env) ? CHILD_GUIDANCE : guidanceFor(ctx.guidance, harness);
   if (harness.hookFormat === "cursor") {
     ctx.io.out(JSON.stringify({ additional_context: text }));
   } else {
