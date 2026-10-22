@@ -687,8 +687,11 @@ describe("delivered Waiting section", () => {
 });
 
 // component-agent-skill §Skill file, Status row: child-session instructions
-// (req-installation-and-agent-guidance AC-8.3, AC-11.4, AC-11.5). These checks
-// prove the shipped text, not that a live agent obeys it.
+// (req-installation-and-agent-guidance AC-8.3, AC-11.4, AC-11.5). Per
+// component-agent-skill §Verification, no test matches the wording of the
+// child-session instructions; review checks the Status paragraph against the
+// Status row. These checks cover only the section's place and the variable's
+// name in inline code.
 describe("delivered Status section", () => {
   const text = readFileSync(SKILL_PATH, "utf8").replace(/\r\n?/g, "\n");
   const status = text.slice(text.indexOf("\n## Status\n"));
@@ -700,25 +703,6 @@ describe("delivered Status section", () => {
 
   it("names AGENTDESK_PARENT_SESSION in inline code", () => {
     expect(status).toContain("`AGENTDESK_PARENT_SESSION`");
-  });
-
-  it("scopes the variable to one child launch and never to the agent's own environment", () => {
-    expect(status).toContain("in that process's environment only, for that one launch");
-    expect(status).toContain(
-      "Never export it, write it into a shell profile or configuration, or set it in your own environment.",
-    );
-  });
-
-  it("makes a marked session report to its parent and use no AgentDesk tool, ahead of every other instruction", () => {
-    expect(status).toContain(
-      "you are a child session: report progress and questions to the agent that started you and use none of the AgentDesk tools.",
-    );
-    expect(status).toContain(
-      "This rule takes precedence over every other instruction in this skill to report status or ask through AgentDesk.",
-    );
-    expect(status).toContain(
-      "A session the user starts independently runs with the variable unset or empty and follows this whole skill.",
-    );
   });
 });
 
