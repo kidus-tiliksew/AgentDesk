@@ -92,9 +92,10 @@ function agentDescription(agent: AgentSession, now: number): string {
     .join(", ");
 }
 
-// One live agent as a row: its state dot, its status line as the title (or
-// its state before it has a line), then "name · topic · state · 2m ago" with
-// the stale marker, and a pending count on the right when there are pending
+// One live agent as a row: its state dot, its display name as the title, so
+// the row keeps its name while status updates arrive, then its status line (or
+// its state before it has a line), then "topic · state · 2m ago" with the
+// stale marker, and a pending count on the right when there are pending
 // decisions (req-mobile-app AC-2.2). Pressing it opens the agent screen.
 function AgentRow({ agent, now }: { agent: AgentSession; now: number }) {
   const styles = useStyles();
@@ -102,12 +103,7 @@ function AgentRow({ agent, now }: { agent: AgentSession; now: number }) {
   const router = useRouter();
   const state = stateLabel(agent.state);
   const pending = agent.pending_decision_count;
-  const meta = [
-    agent.display_name,
-    agent.topic,
-    ...(agent.line === null ? [] : [state]),
-    elapsedLabel(agent, now),
-  ].join(" · ");
+  const meta = [agent.topic, state, elapsedLabel(agent, now)].join(" · ");
   return (
     <Pressable
       accessibilityRole="button"
@@ -119,6 +115,9 @@ function AgentRow({ agent, now }: { agent: AgentSession; now: number }) {
       <StatusDot tone={agentTone(agent)} />
       <View style={styles.grow}>
         <AppText weight="600" numberOfLines={2}>
+          {agent.display_name}
+        </AppText>
+        <AppText variant="subhead" tone="secondary" numberOfLines={2}>
           {agent.line ?? state}
         </AppText>
         <AppText variant="footnote" tone="secondary">
