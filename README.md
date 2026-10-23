@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/readme/header-dark.png">
+  <img alt="Coding agents on your machine call AgentDesk over MCP. AgentDesk pushes each decision to the phone app, and other clients can connect through the HTTP API and webhooks." src=".github/readme/header-light.png">
+</picture>
+
 # AgentDesk
 
 AgentDesk is an inbox for your coding agents. Agents ask you for decisions and report their status over MCP. You answer from your phone, and the agent picks up the answer and keeps going.
@@ -8,7 +13,7 @@ AgentDesk is an inbox for your coding agents. Agents ask you for decisions and r
 - One install per machine covers every repository. It works on remote devboxes over SSH, and you approve the machine from your phone.
 - A published HTTP API and webhooks let anyone build another client, such as Slack or email.
 
-AgentDesk is in early development. Nothing is released yet.
+AgentDesk is in early development. The Android app is on [Google Play](https://play.google.com/store/apps/details?id=sh.kidus.agentdesk). The iOS app is not in the App Store yet.
 
 ## Install
 
