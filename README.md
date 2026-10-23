@@ -10,7 +10,7 @@ AgentDesk is an inbox for your coding agents. Agents can work all day now, but t
 - Agents ask approve-or-reject, multiple-choice, or free-text questions, with a recommendation and an optional deadline and default.
 - Live status cards show what each agent is doing and flag agents that have gone quiet.
 - Server-side notification rules decide what notifies you right away, what waits for the daily digest, and what stays silent.
-- One install per machine covers every repository. It works on remote devboxes over SSH, and you approve the machine from your phone.
+- One install per machine covers every repository, and it works across all your machines. You approve each machine from your phone.
 - A published HTTP API and webhooks let anyone build another client, such as Slack or email.
 
 AgentDesk is in early development. The Android app is on [Google Play](https://play.google.com/store/apps/details?id=sh.kidus.agentdesk). The iOS app is not in the App Store yet. To run it on a simulator, follow [apps/mobile/README.md](apps/mobile/README.md).
