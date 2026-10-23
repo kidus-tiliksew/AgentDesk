@@ -13,36 +13,27 @@ AgentDesk is an inbox for your coding agents. Agents can now work for a whole da
 - One install per machine covers every repository. It works on remote devboxes over SSH, and you approve the machine from your phone.
 - A published HTTP API and webhooks let anyone build another client, such as Slack or email.
 
-AgentDesk is in early development. The Android app is on [Google Play](https://play.google.com/store/apps/details?id=sh.kidus.agentdesk). The iOS app is not in the App Store yet.
+AgentDesk is in early development. The Android app is on [Google Play](https://play.google.com/store/apps/details?id=sh.kidus.agentdesk). The iOS app is not in the App Store yet. To run it on a simulator, follow [apps/mobile/README.md](apps/mobile/README.md).
 
 ## Install
 
-On macOS or Linux, run:
+On macOS or Linux:
 
 ```sh
 curl -fsSL https://agentdesk.kidus.sh/install | sh
 ```
 
-The script downloads the `agentdesk` binary, checks its checksum, and installs it to `~/.local/bin`. It then runs `agentdesk install`, which finds Claude Code, Codex, and Cursor on the machine and sets up the ones you keep at user scope, so every repository on the machine can reach AgentDesk. To sign the machine in, it shows a short code, and you approve the machine from your phone. It works the same over SSH, with no browser on the machine. When the install finishes, start a new agent session.
+The script downloads and verifies the `agentdesk` binary, then sets up whichever of Claude Code, Codex, and Cursor it finds, for every repository on the machine. To sign in, it shows a short code that you approve in the AgentDesk app, so it works over SSH too. When it finishes, start a new agent session.
 
-To pass flags to `agentdesk install`, put them after `sh -s --`. For example, to set up only Codex:
+To set up only some of them, pass `--only`:
 
 ```sh
 curl -fsSL https://agentdesk.kidus.sh/install | sh -s -- --only codex
 ```
 
-`--only` takes a comma-separated list of `claude-code`, `codex`, and `cursor`. `--yes` keeps every detected harness without asking.
+`agentdesk status` checks each connection. `agentdesk uninstall` removes everything the installer wrote.
 
-Afterwards:
-
-- `agentdesk status` shows each harness AgentDesk set up and whether its connection works.
-- `agentdesk uninstall` revokes the machine's connections and removes everything the installer wrote.
-
-If `~/.local/bin` is not on your `PATH`, the script says so. Add it, for example with `export PATH="$HOME/.local/bin:$PATH"`.
-
-In Cursor, if you type a reply in the chat while the agent is waiting on a question, Cursor queues the message. Press Enter on the queued message to steer it to the agent.
-
-To run the mobile app on an iOS simulator, follow [apps/mobile/README.md](apps/mobile/README.md).
+In Cursor, a reply you type while the agent waits on a question gets queued. Press Enter on it to send it to the agent.
 
 ## License
 
