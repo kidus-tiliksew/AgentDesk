@@ -7,6 +7,14 @@
 
 AgentDesk is an inbox for your coding agents. Agents ask you for decisions and report their status over MCP. You answer from an AgentDesk client, such as the mobile app, and the agent picks up the answer and keeps going.
 
+## Why AgentDesk
+
+Coding agents can now work through a task list for a whole day. What stops them is you. Sooner or later an agent reaches a call it shouldn't make alone, like running a migration on production or picking between two libraries. It asks in the terminal and waits. If you're at lunch, in a meeting, or asleep, it waits until you're back at your desk, and so does every other agent with a question.
+
+AgentDesk sends those questions to wherever you are. You answer in a tap or two from the mobile app or another client, and the agent continues where it stopped. A question can carry the agent's recommendation, a deadline, and a default. If you don't answer by the deadline, the agent goes ahead with the default instead of sitting idle.
+
+## What it does
+
 - Agents ask approve-or-reject, multiple-choice, or free-text questions, with a recommendation and an optional deadline and default.
 - Live status cards show what each agent is doing and flag agents that have gone quiet.
 - Server-side notification rules decide what notifies you right away, what waits for the daily digest, and what stays silent.
