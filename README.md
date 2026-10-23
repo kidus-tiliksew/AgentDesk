@@ -33,8 +33,6 @@ curl -fsSL https://agentdesk.kidus.sh/install | sh -s -- --only codex
 
 `agentdesk status` checks each connection. `agentdesk uninstall` removes everything the installer wrote.
 
-In Cursor, a reply you type while the agent waits on a question gets queued. Press Enter on it to send it to the agent.
-
 ## License
 
 MIT. See [LICENSE](LICENSE).
