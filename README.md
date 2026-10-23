@@ -1,6 +1,6 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/header-dark.png">
-  <img alt="Coding agents on your machine call AgentDesk over MCP. AgentDesk pushes each decision to the phone app, and other clients can connect through the HTTP API and webhooks." src=".github/readme/header-light.png">
+  <img alt="Claude Code, Codex, Cursor, and any other MCP client connect to AgentDesk over MCP. AgentDesk sends their questions to the AgentDesk phone app, and other clients such as Slack, email, or your own can connect through the HTTP API and webhooks." src=".github/readme/header-light.png">
 </picture>
 
 # AgentDesk
