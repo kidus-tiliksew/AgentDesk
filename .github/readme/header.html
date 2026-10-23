@@ -1,0 +1,49 @@
+<!doctype html>
+<!--
+  Source for header-light.png and header-dark.png, the README header.
+  Render both from the repository root with Chrome:
+
+  for t in light dark; do
+    sed "s/class=\"THEME\"/class=\"$t\"/" .github/readme/header.html > .github/readme/header-$t.html
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars \
+      --force-device-scale-factor=2 --default-background-color=00000000 --window-size=1600,720 \
+      --screenshot="$PWD/.github/readme/header-$t.png" "file://$PWD/.github/readme/header-$t.html"
+    rm .github/readme/header-$t.html
+  done
+-->
+
+<html lang="en"><head><meta charset="utf-8"><style>
+html,body{margin:0;background:transparent}
+.b{width:1600px;height:720px;position:relative;overflow:hidden;border-radius:20px;box-sizing:border-box;
+ font-family:-apple-system,"SF Pro Text",system-ui,sans-serif;
+ --bg:#fff;--fg:#0b0b0f;--muted:#6c6c72;--faint:#9a9aa1;--line:rgba(0,0,0,.09);--edge:#c7c7d1;--accent:#4f46e5;
+ --card:#f7f7f9;--term:#111116;--tm:#8a8a94;--glow:rgba(79,70,229,.08);--bezel:#1b1b22;--be:#2e2e38;--pill:#fff;
+ background:radial-gradient(900px 500px at 55% 60%,var(--glow),transparent 70%),var(--bg);border:1px solid var(--line);color:var(--fg)}
+.dark .b{--bg:#0d0d12;--fg:#f5f5f7;--muted:#9a9aa1;--faint:#6c6c75;--line:rgba(255,255,255,.08);--edge:#3b3b48;--accent:#8f8aff;
+ --card:#15151c;--term:#16161d;--tm:#7d7d88;--glow:rgba(99,102,241,.16);--bezel:#1e1e26;--be:#3a3a46;--pill:#15151c}
+.grid{position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+ background-size:40px 40px;-webkit-mask-image:radial-gradient(900px 520px at 55% 60%,#000,transparent 75%);opacity:.55}
+.brand{position:absolute;left:72px;top:52px;display:flex;align-items:center;gap:14px}
+.brand img{width:40px;height:40px;border-radius:9px}.brand b{font-size:24px;font-weight:600}.brand span{font-size:20px;color:var(--muted);margin-left:6px}
+.cap{position:absolute;font:600 12px/1 -apple-system,system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.term{position:absolute;border-radius:14px;background:var(--term);border:1px solid var(--be);box-shadow:0 30px 70px -30px rgba(10,10,30,.5);overflow:hidden}
+.term .bar{height:36px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+.term .bar i{width:11px;height:11px;border-radius:50%;background:#3a3a44;display:block}
+.term .bar em{margin:0 auto;font:500 13px ui-monospace,"SF Mono",Menlo,monospace;color:var(--tm);font-style:normal;transform:translateX(-26px)}
+.term pre{margin:0;padding:18px 22px 20px;font:14px/1.75 ui-monospace,"SF Mono",Menlo,monospace;color:#e8e8ee;white-space:pre}
+.m{color:var(--tm)}.a{color:#a5a1ff}.g{color:#7ee2a8}.y{color:#f2c46d}.r{color:#ff8f8f}
+.pill{position:absolute;font:600 12px ui-monospace,"SF Mono",Menlo,monospace;color:var(--accent);background:var(--pill);border:1px solid var(--edge);border-radius:999px;padding:5px 10px;transform:translate(-50%,-50%);white-space:nowrap;z-index:3}
+svg{position:absolute;inset:0}
+.phone{position:absolute;padding:8px;background:var(--bezel);border:1px solid var(--be);border-radius:15%/7%;box-shadow:0 30px 70px -25px rgba(10,10,30,.45);z-index:2}
+.phone .scr{border-radius:12.5%/5.8%;overflow:hidden;aspect-ratio:906/1968}
+.phone img{width:100%;height:100%;display:block;object-fit:cover;transform:scale(1.012)}
+.chip{position:absolute;box-sizing:border-box;border:1px solid var(--edge);border-radius:12px;background:var(--card);display:flex;align-items:center;gap:12px;padding:0 16px;font-size:16px;font-weight:500;z-index:2}
+.chip.d{border:1.5px dashed var(--edge);background:var(--bg);color:var(--muted)}
+.chip .ic{width:28px;height:28px;border-radius:7px;border:1px solid var(--edge);display:flex;align-items:center;justify-content:center;color:var(--muted);font:600 13px ui-monospace,Menlo,monospace;flex:none}
+.hub{position:absolute;border-radius:28px;background:var(--card);border:1px solid var(--edge);display:flex;align-items:center;justify-content:center;box-shadow:0 20px 50px -20px rgba(79,70,229,.45);z-index:2}
+.hub img{width:62%;border-radius:22%}
+.lbl{position:absolute;text-align:center;font-size:15px;font-weight:600}
+.sub{position:absolute;text-align:center;font-size:13px;color:var(--muted)}
+.num{display:inline-flex;width:24px;height:24px;border-radius:50%;border:1px solid var(--edge);align-items:center;justify-content:center;font:600 12px ui-monospace,Menlo,monospace;color:var(--accent);margin-right:10px}
+.step{position:absolute;font-size:17px;font-weight:600;display:flex;align-items:center}
+</style></head><body class="THEME"><div class="b"><div class="grid"></div><div class="brand"><img src="../../apps/mobile/assets/icon.png" alt=""><b>AgentDesk</b><span>An inbox for your coding agents</span></div><div class="cap" style="left:112px;top:186px">Agents · on any machine</div><svg width="1600" height="720" fill="none" aria-hidden="true"><path d="M352 246 C 500 246, 520 380, 680 380" stroke="var(--accent)" stroke-width="2" opacity=".8"/><path d="M352 326 C 500 326, 520 380, 680 380" stroke="var(--accent)" stroke-width="2" opacity=".8"/><path d="M352 406 C 500 406, 520 380, 680 380" stroke="var(--accent)" stroke-width="2" opacity=".8"/><path d="M352 486 C 500 486, 520 380, 680 380" stroke="var(--accent)" stroke-width="2" opacity=".8"/><path d="M800 380 H 980" stroke="var(--accent)" stroke-width="2"/><path d="M800 380 C 900 380, 900 290, 1000 290 H 1290 C 1330 290, 1300 326, 1330 326" stroke="var(--edge)" stroke-width="2" stroke-dasharray="6 6"/><path d="M800 380 C 900 380, 900 370, 1000 370 H 1290 C 1330 370, 1300 406, 1330 406" stroke="var(--edge)" stroke-width="2" stroke-dasharray="6 6"/><path d="M800 380 C 900 380, 900 450, 1000 450 H 1290 C 1330 450, 1300 486, 1330 486" stroke="var(--edge)" stroke-width="2" stroke-dasharray="6 6"/></svg><div class="chip" style="left:112px;top:220px;width:240px;height:52px"><div class="ic">›_</div>Claude Code</div><div class="chip" style="left:112px;top:300px;width:240px;height:52px"><div class="ic">›_</div>Codex</div><div class="chip" style="left:112px;top:380px;width:240px;height:52px"><div class="ic">›_</div>Cursor</div><div class="chip d" style="left:112px;top:460px;width:240px;height:52px"><div class="ic">…</div>Any MCP client</div><div class="pill" style="left:560px;top:300px">MCP</div><div class="hub" style="left:680px;top:320px;width:120px;height:120px"><img src="../../apps/mobile/assets/icon.png" alt="AgentDesk"></div><div class="lbl" style="left:640px;top:456px;width:200px">AgentDesk</div><div class="sub" style="left:620px;top:478px;width:240px">Decisions, status, notification rules</div><div class="phone" style="left:990px;top:150px;width:240px"><div class="scr"><img src="../../apps/website/public/screens/inbox.webp" alt="The AgentDesk inbox"></div></div><div class="cap" style="left:1330px;top:250px">More clients</div><div class="chip d" style="left:1330px;top:300px;width:200px;height:52px"><div class="ic">#</div>Slack</div><div class="chip d" style="left:1330px;top:380px;width:200px;height:52px"><div class="ic">@</div>Email</div><div class="chip d" style="left:1330px;top:460px;width:200px;height:52px"><div class="ic">{ }</div>Your own client</div><div class="pill" style="left:1410px;top:560px">HTTP API · webhooks</div></div></body></html>
