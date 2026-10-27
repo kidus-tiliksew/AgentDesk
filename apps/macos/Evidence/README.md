@@ -19,7 +19,7 @@ It runs three steps and records each command, exit status, and log in `output/ma
    The harness exits non-zero when a popover exceeds 340 × 560 pt, an ink falls below 4.5:1, or a label image is not a template.
 3. Runs `SyncFreshnessTests`, `DotPresenceTests`, and `SyncTests` (`tests.log`). `freshness.txt` holds the measured time from a server change to a published snapshot, open and closed.
 
-The manifest names the Git tree hashes of `AgentDesk/`, `AgentDeskKit/`, `Harness/`, and `run.sh` at the commit the run used, and the SHA-256 of every output. Compare them with `git rev-parse <commit>:apps/macos/AgentDesk` and the like to confirm the outputs belong to a later commit's sources. `sources_dirty` is true when those paths had uncommitted changes.
+The run fails when Git would ignore any output, so every file the manifest names is committed with it. The manifest names the Git tree hashes of `AgentDesk/`, `AgentDeskKit/`, `Harness/`, and `run.sh` at the commit the run used, and the SHA-256 of every output. Compare them with `git rev-parse <commit>:apps/macos/AgentDesk` and the like to confirm the outputs belong to a later commit's sources. `sources_dirty` is true when those paths had uncommitted changes.
 
 ## Limits
 

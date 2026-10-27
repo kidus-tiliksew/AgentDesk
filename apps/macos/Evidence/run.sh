@@ -83,5 +83,14 @@ fi
   printf '}\n'
 } >"$out/manifest.json"
 
-echo "build=$build_exit harness=$harness_exit tests=$tests_exit dirty=$dirty -> $out"
-[ "$build_exit" -eq 0 ] && [ "$harness_exit" -eq 0 ] && [ "$tests_exit" -eq 0 ]
+# Every output the manifest names must be committable; an ignore rule that
+# drops one fails the run instead of leaving the manifest unresolvable.
+ignored=$(cd "$out" && git -C "$root" check-ignore --no-index -- "$out"/* 2>/dev/null | sed "s#^$out/##")
+ignored_exit=0
+if [ -n "$ignored" ]; then
+  echo "git ignores these outputs: $(echo "$ignored" | tr '\n' ' ')" >&2
+  ignored_exit=1
+fi
+
+echo "build=$build_exit harness=$harness_exit tests=$tests_exit ignored=$ignored_exit dirty=$dirty -> $out"
+[ "$build_exit" -eq 0 ] && [ "$harness_exit" -eq 0 ] && [ "$tests_exit" -eq 0 ] && [ "$ignored_exit" -eq 0 ]
