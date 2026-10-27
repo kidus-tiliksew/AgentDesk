@@ -28,6 +28,7 @@ const decision: Decision = {
   recommendation: null,
   priority: "normal",
   interactive: false,
+  notification_action: null,
   deadline: null,
   default: null,
   state: "pending",

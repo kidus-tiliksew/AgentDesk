@@ -20,6 +20,7 @@ const PENDING: Decision = {
   recommendation: null,
   priority: "normal",
   interactive: false,
+  notification_action: null,
   deadline: null,
   default: null,
   state: "pending",
@@ -107,6 +108,7 @@ describe("Decision", () => {
       "recommendation",
       "priority",
       "interactive",
+      "notification_action",
       "deadline",
       "default",
       "state",
@@ -152,7 +154,12 @@ describe("Decision", () => {
     expect(parsed.relayed_by_agent_session_id).toBeNull();
   });
 
-  test.each(["interactive", "chat_message", "relayed_by_agent_session_id"])(
+  test.each(["push", "digest", "mute", null])("accepts notification_action %s", (action) => {
+    const decision = { ...PENDING, notification_action: action };
+    expect(decisionSchema.parse(decision)).toEqual(decision);
+  });
+
+  test.each(["interactive", "notification_action", "chat_message", "relayed_by_agent_session_id"])(
     "requires %s and supplies no default",
     (field) => {
       const { [field]: _omitted, ...rest } = PENDING as Record<string, unknown>;
@@ -189,6 +196,8 @@ describe("Decision", () => {
     ["interactive", "false"],
     ["chat_message", 1],
     ["relayed_by_agent_session_id", 1],
+    ["notification_action", "email"],
+    ["notification_action", "Push"],
   ])("rejects %s %j", (field, value) => {
     expect(decisionSchema.safeParse({ ...PENDING, [field]: value }).success).toBe(false);
   });
@@ -337,5 +346,15 @@ describe("JSON Schema conversion", () => {
       /relayed the chat answer when answered_via is chat; null otherwise/,
     );
     expect(properties.relayed_by_agent_session_id.type).toEqual(["string", "null"]);
+  });
+
+  test("Decision publishes the described notification_action", () => {
+    // biome-ignore lint/suspicious/noExplicitAny: walking a generated JSON Schema.
+    const properties = z.toJSONSchema(decisionSchema).properties as any;
+    expect(properties.notification_action).toEqual({
+      anyOf: [{ type: "string", enum: ["push", "digest", "mute"] }, { type: "null" }],
+      description:
+        "The action the user's notification rules chose for this decision's creation; null until routing has run.",
+    });
   });
 });

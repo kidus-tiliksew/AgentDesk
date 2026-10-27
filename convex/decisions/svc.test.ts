@@ -76,7 +76,12 @@ async function setup() {
   const ask = async (agentSessionId: Id<"agentSessions">, input: object = approve) => {
     const response = await post(t, "/svc/decisions/create", { userId, agentSessionId, ...input });
     expect(response.status).toBe(200);
-    return decisionSchema.parse(await response.json());
+    const created = decisionSchema.parse(await response.json());
+    // The create response precedes routing; later reads carry the routed
+    // action, `push` by default (req-notification-rules REQ-4).
+    expect(created.notification_action).toBeNull();
+    await t.finishAllScheduledFunctions(() => {});
+    return created;
   };
   return { t, userId, otherUserId, open, session, ask };
 }
@@ -281,7 +286,10 @@ describe("/svc/decisions/poll", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(decisionSchema.parse(await response.json())).toEqual(decision);
+    expect(decisionSchema.parse(await response.json())).toEqual({
+      ...decision,
+      notification_action: "push",
+    });
     expect(await session(reader)).toMatchObject({
       topic: "repo/x",
       activatedAt: START + MINUTE,
@@ -636,6 +644,7 @@ describe("/svc/decisions/resolve", () => {
       expect(response.status).toBe(200);
       expect(decisionSchema.parse(await response.json())).toEqual({
         ...pending,
+        notification_action: "push",
         state: "answered",
         answer,
         note: null,
@@ -1170,7 +1179,10 @@ describe("/svc/decisions/watch", () => {
     const response = await watch({ decisionId: decision.id, agentSessionId: bystander });
 
     expect(response.status).toBe(200);
-    expect(decisionSchema.parse(await response.json())).toEqual(decision);
+    expect(decisionSchema.parse(await response.json())).toEqual({
+      ...decision,
+      notification_action: "push",
+    });
     const touched = await session(asker);
     expect(touched).toMatchObject({
       topic: askerBefore?.topic,
@@ -1283,7 +1295,10 @@ describe("/svc/decisions/watch", () => {
     const response = await watch({ decisionId: decision.id });
 
     expect(response.status).toBe(200);
-    expect(decisionSchema.parse(await response.json())).toEqual(decision);
+    expect(decisionSchema.parse(await response.json())).toEqual({
+      ...decision,
+      notification_action: "push",
+    });
     expect(await sessions()).toEqual(sessionsBefore);
     expect(await decisionState()).toEqual(before);
   });

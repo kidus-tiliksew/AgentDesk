@@ -107,6 +107,7 @@ describe("create", () => {
       recommendation: null,
       priority: "normal",
       interactive: false,
+      notification_action: null,
       deadline: null,
       default: null,
       state: "pending",
@@ -530,4 +531,144 @@ test("a decision stays readable and answerable after its session is purged", asy
 
   expect(polled).toMatchObject({ state: "pending", agent_session_id: sessionId });
   expect(answered).toMatchObject({ state: "answered", agent_session_id: sessionId });
+});
+
+// req-public-api-and-webhooks AC-2.3: every Decision read carries the action
+// routing stored on the decision's own `decision.created` event.
+describe("notification_action", () => {
+  type Action = "push" | "digest" | "mute";
+
+  // A rule of the owner that routes every decision.created to `action`.
+  const routeCreatedTo = (
+    s: Awaited<ReturnType<typeof setup>>,
+    owner: Id<"users">,
+    action: Action,
+  ) =>
+    s.t.run((ctx) =>
+      ctx.db.insert("rules", {
+        userId: owner,
+        eventKind: "decision.created",
+        action,
+        updatedAt: START,
+      }),
+    );
+  // Runs the scheduled routes. Fake timers hold them until now.
+  const runRoutes = (s: Awaited<ReturnType<typeof setup>>) =>
+    s.t.finishAllScheduledFunctions(vi.runAllTimers);
+  const read = (s: Awaited<ReturnType<typeof setup>>, owner: Id<"users">, id: string) =>
+    s.t.run((ctx) => getDecision(ctx, owner, id as Id<"decisions">));
+
+  test.each<Action>(["push", "digest", "mute"])(
+    "reads %s once routing stores it on the created event",
+    async (action) => {
+      const s = await setup();
+      await routeCreatedTo(s, s.userId, action);
+      const decision = await s.ask(approve);
+
+      await runRoutes(s);
+
+      expect(await read(s, s.userId, decision.id)).toEqual({
+        ...decision,
+        notification_action: action,
+      });
+    },
+  );
+
+  test("reads null before routing runs, from create and from every later read", async () => {
+    const s = await setup();
+
+    const decision = await s.ask(approve);
+
+    expect(decision.notification_action).toBeNull();
+    expect((await read(s, s.userId, decision.id)).notification_action).toBeNull();
+    const events = await s.t.run((ctx) => ctx.db.query("events").collect());
+    expect(events.map((event) => [event.kind, event.action])).toEqual([
+      ["decision.created", undefined],
+    ]);
+  });
+
+  test("carries the action on settled reads", async () => {
+    const s = await setup();
+    await routeCreatedTo(s, s.userId, "digest");
+    const decision = await s.ask(approve);
+    await runRoutes(s);
+
+    const answered = await s.answer(decision.id, { kind: "approve" });
+
+    expect(answered).toMatchObject({ state: "answered", notification_action: "digest" });
+  });
+
+  test("each account reads only its own decision's action", async () => {
+    const s = await setup();
+    const otherSession = await s.openSession(s.otherUserId);
+    await routeCreatedTo(s, s.userId, "mute");
+    const mine = await s.ask(approve);
+    const theirs = await s.ask(approve, s.otherUserId, otherSession);
+
+    await runRoutes(s);
+
+    expect((await read(s, s.userId, mine.id)).notification_action).toBe("mute");
+    // The other account has no rule, so its decision takes the default.
+    expect((await read(s, s.otherUserId, theirs.id)).notification_action).toBe("push");
+    await expect(read(s, s.userId, theirs.id)).rejects.toMatchObject({
+      data: { code: "not_found" },
+    });
+    await expect(read(s, s.otherUserId, mine.id)).rejects.toMatchObject({
+      data: { code: "not_found" },
+    });
+  });
+
+  test("ignores a created event of another account that names the decision", async () => {
+    const s = await setup();
+    const decision = await s.ask(approve);
+    await s.t.run((ctx) =>
+      ctx.db.insert("events", {
+        userId: s.otherUserId,
+        kind: "decision.created",
+        decisionId: decision.id as Id<"decisions">,
+        occurredAt: START,
+        action: "mute",
+      }),
+    );
+
+    expect((await read(s, s.userId, decision.id)).notification_action).toBeNull();
+    await runRoutes(s);
+    expect((await read(s, s.userId, decision.id)).notification_action).toBe("push");
+  });
+
+  test("ignores the actions of the decision's other events", async () => {
+    const s = await setup();
+    const decision = await s.ask({ ...approve, deadline: new Date(START + HOUR).toISOString() });
+    await s.t.run((ctx) =>
+      ctx.db.insert("events", {
+        userId: s.userId,
+        kind: "decision.expired",
+        decisionId: decision.id as Id<"decisions">,
+        occurredAt: START,
+        action: "digest",
+      }),
+    );
+
+    expect((await read(s, s.userId, decision.id)).notification_action).toBeNull();
+  });
+
+  // req-agent-tools AC-2.2: a retry emits no event and reads the first one.
+  test("an idempotent retry returns the first decision's routed action", async () => {
+    const s = await setup();
+    await routeCreatedTo(s, s.userId, "digest");
+    const input = { ...approve, idempotency_key: "k1" };
+    const first = await s.ask(input);
+    await runRoutes(s);
+
+    const retried = await s.ask(input);
+
+    expect(retried).toEqual({ ...first, notification_action: "digest" });
+    const created = await s.t.run((ctx) =>
+      ctx.db
+        .query("events")
+        .filter((q) => q.eq(q.field("kind"), "decision.created"))
+        .collect(),
+    );
+    expect(created).toHaveLength(1);
+  });
 });

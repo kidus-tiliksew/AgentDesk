@@ -71,6 +71,8 @@ export const tables = {
   // `digestId` stays unset until the digest dispatch puts the event in a
   // digest (§Digests). `by_user_action_digest` finds a person's digest events
   // that no digest holds yet: action `digest` and no `digestId`.
+  // `by_decision_kind` finds a decision's `decision.created` event, whose
+  // action every Decision read carries as `notification_action`.
   events: defineTable({
     userId: v.id("users"),
     kind: eventKindValidator,
@@ -83,7 +85,9 @@ export const tables = {
     occurredAt: v.number(),
     action: v.optional(actionValidator),
     digestId: v.optional(v.id("digests")),
-  }).index("by_user_action_digest", ["userId", "action", "digestId"]),
+  })
+    .index("by_user_action_digest", ["userId", "action", "digestId"])
+    .index("by_decision_kind", ["decisionId", "kind"]),
 
   // One row per notification rule (req-notification-rules REQ-3). At least
   // one of the four match fields is set; `save` refuses a rule with none

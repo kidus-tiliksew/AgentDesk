@@ -375,6 +375,8 @@ describe("answer", () => {
       expect(jsonToConvex(JSON.parse(JSON.stringify(convexToJson(data as Value))))).toEqual(data);
       expect(await asA.query(decisions.app.get, { decisionId: id })).toEqual(before);
     }
+    // `stored` was read before routing ran. The route has since stored push,
+    // the default action for decision.created.
     expect(
       (
         (await answer(answered.id, { kind: "option", option_id: "sq" }).catch(
@@ -383,7 +385,7 @@ describe("answer", () => {
           data: { decision: Decision };
         }
       ).data.decision,
-    ).toEqual(stored);
+    ).toEqual({ ...stored, notification_action: "push" });
     expect(stored).toMatchObject({ answer: { kind: "option", option_id: "pg" }, note: "First" });
     expect(
       (await asA.query(decisions.app.get, { decisionId: expired.id })).applied_by_default,

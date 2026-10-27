@@ -24,6 +24,10 @@ export type DecisionState = z.infer<typeof decisionStateSchema>;
 export const answeredViaSchema = z.enum(["app", "notification", "api", "chat", "default"]);
 export type AnsweredVia = z.infer<typeof answeredViaSchema>;
 
+// null for kinds that notification rules do not route.
+export const webhookActionSchema = z.enum(["push", "digest", "mute"]).nullable();
+export type WebhookAction = z.infer<typeof webhookActionSchema>;
+
 export const decisionSchema = z.object({
   id: z.string(),
   topic: topicSchema,
@@ -34,6 +38,9 @@ export const decisionSchema = z.object({
   recommendation: answerSchema.nullable(),
   priority: prioritySchema,
   interactive: interactiveSchema,
+  notification_action: webhookActionSchema.describe(
+    "The action the user's notification rules chose for this decision's creation; null until routing has run.",
+  ),
   deadline: instantSchema.nullable(),
   default: answerSchema.nullable(),
   state: decisionStateSchema,
@@ -88,10 +95,6 @@ export const webhookEventKindSchema = z.enum([
   ...agentEventKindSchema.options,
 ]);
 export type WebhookEventKind = z.infer<typeof webhookEventKindSchema>;
-
-// null for kinds that notification rules do not route.
-export const webhookActionSchema = z.enum(["push", "digest", "mute"]).nullable();
-export type WebhookAction = z.infer<typeof webhookActionSchema>;
 
 const webhookEventBase = {
   id: z.string(),

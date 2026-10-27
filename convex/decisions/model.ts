@@ -12,7 +12,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { appError } from "../lib/errors";
 import { getOwned } from "../lib/owned";
-import { decisionEvent, emit } from "../notifications/events";
+import { createdActionOf, decisionEvent, emit } from "../notifications/events";
 import { decisions } from "./refs";
 
 // component-decisions: the decision state machine, owned reads, and the
@@ -76,8 +76,14 @@ function instant(at: number | undefined): string | null {
 // false (req-agent-tools AC-10.1). Only `relayAnswer` sets the relay fields,
 // so they are null on every decision not answered in chat
 // (req-decision-requests AC-8.3). Neither session is loaded, so a purged
-// asking or relaying session never breaks a read (REQ-7).
-export function toDecision(doc: Doc<"decisions">, followUpIds: Id<"decisions">[]): Decision {
+// asking or relaying session never breaks a read (REQ-7). `notificationAction`
+// is the routed action of the decision's `decision.created` event, null until
+// routing runs (req-public-api-and-webhooks AC-2.3).
+export function toDecision(
+  doc: Doc<"decisions">,
+  followUpIds: Id<"decisions">[],
+  notificationAction: Decision["notification_action"],
+): Decision {
   return {
     id: doc._id,
     topic: doc.topic,
@@ -88,6 +94,7 @@ export function toDecision(doc: Doc<"decisions">, followUpIds: Id<"decisions">[]
     recommendation: doc.recommendation ?? null,
     priority: doc.priority,
     interactive: doc.interactive ?? false,
+    notification_action: notificationAction,
     deadline: instant(doc.deadline),
     default: doc.default ?? null,
     state: doc.state,
@@ -116,7 +123,7 @@ async function followUpIdsOf(ctx: ReaderCtx, doc: Doc<"decisions">): Promise<Id<
 }
 
 export async function serialize(ctx: ReaderCtx, doc: Doc<"decisions">): Promise<Decision> {
-  return toDecision(doc, await followUpIdsOf(ctx, doc));
+  return toDecision(doc, await followUpIdsOf(ctx, doc), await createdActionOf(ctx, doc));
 }
 
 // Loads an owned decision. A missing decision and another user's decision
@@ -290,7 +297,9 @@ export async function insertDecision(
   if (doc === null) {
     throw new Error("Inserted decision is missing");
   }
-  return toDecision(doc, []);
+  // `route` runs after this mutation commits, so the new event has no action
+  // yet.
+  return toDecision(doc, [], null);
 }
 
 // A settled decision refuses every act. The error carries the stored decision

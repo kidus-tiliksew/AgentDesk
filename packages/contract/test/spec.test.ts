@@ -291,6 +291,20 @@ describe("decision relay fields", () => {
     }
   });
 
+  test("publish the described notification_action", () => {
+    for (const [where, decision] of decisionSchemas()) {
+      const { properties, required } = decision;
+      expect(required, where).toContain("notification_action");
+      expect(properties.notification_action, where).toEqual({
+        anyOf: [{ type: "string", enum: ["push", "digest", "mute"] }, { type: "null" }],
+        description: decisionSchema.shape.notification_action.description,
+      });
+      expect(properties.notification_action.description, where).toMatch(
+        /chose for this decision's creation; null until routing has run/,
+      );
+    }
+  });
+
   test("the resolve input is not published and the request bodies are unchanged", () => {
     const doc = parse("openapi.json");
     expect(Object.keys(doc.components.schemas).sort()).toEqual([

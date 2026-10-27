@@ -471,6 +471,18 @@
           "note": {
             "type": ["string", "null"]
           },
+          "notification_action": {
+            "anyOf": [
+              {
+                "enum": ["push", "digest", "mute"],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The action the user's notification rules chose for this decision's creation; null until routing has run."
+          },
           "options": {
             "anyOf": [
               {
@@ -612,6 +624,7 @@
           "recommendation",
           "priority",
           "interactive",
+          "notification_action",
           "deadline",
           "default",
           "state",
