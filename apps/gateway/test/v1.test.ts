@@ -416,6 +416,37 @@ describe("decisions.list", () => {
     ]);
   });
 
+  // The service refuses a cursor it did not issue, such as an envelope whose
+  // native cursor was altered, as `invalid` naming `cursor`.
+  it("passes a forged cursor through and answers the service's refusal with 400 naming cursor", async () => {
+    const forged = btoa(
+      JSON.stringify({ v: 1, state: null, topic: null, cursor: "not-a-native-cursor", sig: "x" }),
+    ).replace(/=+$/, "");
+    const convex = fakeApi({
+      "decisions/list": () => {
+        throw new ServiceError(
+          "invalid",
+          "cursor is not a cursor of this list with these filters",
+          "cursor",
+        );
+      },
+    });
+
+    const response = await handle(
+      v1("GET", `/v1/decisions?cursor=${encodeURIComponent(forged)}`),
+      withLimit(),
+      convex.svc,
+    );
+
+    expect(response.status).toBe(400);
+    expect(await errorOf(response)).toEqual({
+      code: "invalid",
+      message: "cursor is not a cursor of this list with these filters",
+      field: "cursor",
+    });
+    expect(convex.calls[1]?.body).toEqual({ userId: USER, cursor: forged, limit: 50 });
+  });
+
   it("defaults limit to 50 and omits absent filters", async () => {
     const convex = fakeApi();
 

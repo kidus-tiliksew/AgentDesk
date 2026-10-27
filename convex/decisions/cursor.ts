@@ -8,21 +8,27 @@ export function encodeCursorJson(value: unknown): string {
 
 // The JSON value inside a cursor, or undefined when the text is not one.
 export function decodeCursorJson(cursor: string): unknown {
+  const bytes = fromBase64url(cursor);
+  if (bytes === null) {
+    return undefined;
+  }
   try {
-    return JSON.parse(new TextDecoder().decode(fromBase64url(cursor)));
+    return JSON.parse(new TextDecoder().decode(bytes));
   } catch {
     return undefined;
   }
 }
 
-function base64url(bytes: Uint8Array): string {
+// base64url without padding.
+export function base64url(bytes: Uint8Array): string {
   const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
 
-function fromBase64url(text: string): Uint8Array {
+// The bytes of base64url text, or null when the text is not base64url.
+export function fromBase64url(text: string): Uint8Array<ArrayBuffer> | null {
   if (!/^[A-Za-z0-9_-]+$/.test(text)) {
-    throw new Error("not base64url");
+    return null;
   }
   const base64 = text.replaceAll("-", "+").replaceAll("_", "/");
   return Uint8Array.from(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")), (c) =>

@@ -9,7 +9,7 @@ import { z } from "zod";
 import type { Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { appError } from "../lib/errors";
-import { decodeCursorJson, encodeCursorJson } from "./cursor";
+import { base64url, decodeCursorJson, encodeCursorJson, fromBase64url } from "./cursor";
 import { topicBounds } from "./history";
 import { serialize } from "./model";
 
@@ -19,7 +19,8 @@ import { serialize } from "./model";
 // with state equality when a state is given and `by_user` otherwise, both in
 // descending order, so rows come newest created first. The topic rule is one
 // post-index `.filter`, and native `.paginate` runs once, so the engine reads
-// past excluded rows until it fills the page.
+// past excluded rows until it fills the page. The cursor is signed, so only a
+// native cursor this list issued ever reaches `.paginate`.
 
 type ReaderCtx = Pick<QueryCtx, "db">;
 
@@ -29,14 +30,20 @@ export type ApiListFilters = {
 };
 
 // The service cursor wraps Convex's native cursor with the filters it was
-// issued for, so a cursor reused with other filters is `invalid` rather than a
-// native cursor error.
+// issued for and an HMAC-SHA256 signature over both, keyed by the
+// deployment's SERVICE_SECRET. A cursor reused with other filters, and one
+// whose native cursor was altered or forged, is `invalid` rather than a native
+// cursor error.
 const cursorSchema = z.object({
   v: z.literal(1),
   state: decisionStateSchema.nullable(),
   topic: z.string().nullable(),
-  cursor: z.string(),
+  cursor: z.string().min(1),
+  sig: z.string().min(1),
 });
+
+// Separates this signature from any other use of the secret.
+const SIGNATURE_CONTEXT = "agentdesk decisions.list cursor v1";
 
 // Validates the raw list arguments the route passes through, naming the
 // failing field.
@@ -72,7 +79,7 @@ export async function listForApi(
   limit: number,
 ): Promise<DecisionPage> {
   const { state, topic } = filters;
-  const nativeCursor = cursor === undefined ? null : decodeCursor(cursor, filters);
+  const nativeCursor = cursor === undefined ? null : await decodeCursor(cursor, filters);
   const source =
     state === undefined
       ? ctx.db
@@ -100,15 +107,17 @@ export async function listForApi(
   }
   return {
     items,
-    next_cursor: result.isDone ? null : encodeCursor(result.continueCursor, filters),
+    next_cursor: result.isDone ? null : await encodeCursor(result.continueCursor, filters),
   };
 }
 
-function encodeCursor(native: string, { state, topic }: ApiListFilters): string {
-  return encodeCursorJson({ v: 1, state: state ?? null, topic: topic ?? null, cursor: native });
+async function encodeCursor(native: string, { state, topic }: ApiListFilters): Promise<string> {
+  const signed = { v: 1, state: state ?? null, topic: topic ?? null, cursor: native } as const;
+  const signature = await crypto.subtle.sign("HMAC", await signingKey(), signedBytes(signed));
+  return encodeCursorJson({ ...signed, sig: base64url(new Uint8Array(signature)) });
 }
 
-function decodeCursor(cursor: string, { state, topic }: ApiListFilters): string {
+async function decodeCursor(cursor: string, { state, topic }: ApiListFilters): Promise<string> {
   const parsed = cursorSchema.safeParse(decodeCursorJson(cursor));
   if (
     !parsed.success ||
@@ -117,7 +126,46 @@ function decodeCursor(cursor: string, { state, topic }: ApiListFilters): string 
   ) {
     throw invalidCursor();
   }
+  const signature = fromBase64url(parsed.data.sig);
+  if (
+    signature === null ||
+    !(await crypto.subtle.verify("HMAC", await signingKey(), signature, signedBytes(parsed.data)))
+  ) {
+    throw invalidCursor();
+  }
   return parsed.data.cursor;
+}
+
+function signedBytes(fields: {
+  v: 1;
+  state: DecisionState | null;
+  topic: string | null;
+  cursor: string;
+}): Uint8Array<ArrayBuffer> {
+  const message = JSON.stringify([
+    SIGNATURE_CONTEXT,
+    fields.v,
+    fields.state,
+    fields.topic,
+    fields.cursor,
+  ]);
+  return new TextEncoder().encode(message);
+}
+
+// The service routes refuse every call without SERVICE_SECRET, so a missing
+// secret here is a deployment fault, not a client error.
+async function signingKey(): Promise<CryptoKey> {
+  const secret = process.env.SERVICE_SECRET;
+  if (!secret) {
+    throw new Error("SERVICE_SECRET is not set");
+  }
+  return await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
 }
 
 function invalidCursor() {

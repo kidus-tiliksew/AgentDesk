@@ -10,6 +10,7 @@ import type { Id } from "../_generated/dataModel";
 import { agents } from "../agents/refs";
 import { modules } from "../lib/test.modules";
 import schema from "../schema";
+import { decodeCursorJson, encodeCursorJson } from "./cursor";
 import { decisions } from "./refs";
 
 const SECRET = "test-service-secret";
@@ -1617,6 +1618,59 @@ describe("public API routes", () => {
         expect(response.status).toBe(400);
         expect((await errorOf(response)).field).toBe("cursor");
       }
+    });
+
+    // A structurally valid envelope whose native cursor was not issued by
+    // this list never reaches `.paginate`.
+    test("refuses an envelope with a corrupt, empty, or re-signed native cursor as invalid", async () => {
+      const { t, userId } = await askAll(["repo/a", "repo/b", "repo/c"]);
+      const first = page.parse(
+        await (await post(t, "/svc/decisions/list", { userId, limit: 1 })).json(),
+      );
+      const issued = decodeCursorJson(first.next_cursor as string) as Record<string, unknown>;
+      expect(issued).toMatchObject({ v: 1, state: null, topic: null });
+
+      const forged = [
+        // No signature, as before signing.
+        { v: 1, state: null, topic: null, cursor: "not-a-native-cursor" },
+        // The issued signature over another native cursor.
+        { ...issued, cursor: "not-a-native-cursor" },
+        { ...issued, cursor: "" },
+        // A signature that is not the list's.
+        { ...issued, sig: "AAAA" },
+        { ...issued, sig: "" },
+      ];
+      for (const envelope of forged) {
+        const response = await post(t, "/svc/decisions/list", {
+          userId,
+          cursor: encodeCursorJson(envelope),
+          limit: 1,
+        });
+        expect(response.status).toBe(400);
+        expect(await errorOf(response)).toEqual({
+          code: "invalid",
+          message: "cursor is not a cursor of this list with these filters",
+          field: "cursor",
+        });
+      }
+    });
+
+    test("refuses a cursor signed under another service secret", async () => {
+      const { t, userId } = await askAll(["repo/a", "repo/b"]);
+      const first = page.parse(
+        await (await post(t, "/svc/decisions/list", { userId, limit: 1 })).json(),
+      );
+      vi.stubEnv("SERVICE_SECRET", "rotated-secret");
+
+      const response = await post(
+        t,
+        "/svc/decisions/list",
+        { userId, cursor: first.next_cursor, limit: 1 },
+        "Bearer rotated-secret",
+      );
+
+      expect(response.status).toBe(400);
+      expect((await errorOf(response)).field).toBe("cursor");
     });
 
     test("returns 400 naming state, topic, or limit", async () => {
