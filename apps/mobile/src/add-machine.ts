@@ -1,10 +1,12 @@
 import type { FunctionReturnType } from "convex/server";
+import { MAC_CLIENT } from "../../../convex/identity/clients";
 import { harnessName, parseHarnesses } from "../../../convex/identity/harnesses";
 import type { identity } from "../../../convex/identity/refs";
 
 // component-mobile-app §Screens: code normalization, result checks, and the
 // local lock window for settings/add-machine (req-accounts-and-connections
-// AC-6.2, AC-6.5, AC-6.6).
+// AC-6.2, AC-6.5, AC-6.6). A Mac's request names its client instead of
+// harnesses (req-mac-app AC-2.2).
 
 export type LookupResult = FunctionReturnType<typeof identity.deviceRequests.lookupDeviceRequest>;
 export type ApproveResult = FunctionReturnType<typeof identity.deviceRequests.approveDeviceRequest>;
@@ -59,6 +61,15 @@ export function checkLookup(value: unknown): LookupResult | null {
   ) {
     return null;
   }
+  // component-identity §Short-code sign-in: a Mac request carries the Mac
+  // client and an empty harness list. Any other client, or a client with
+  // harnesses, is outside the contract.
+  if (value.client !== undefined) {
+    if (value.client !== MAC_CLIENT || value.harnesses.length !== 0) {
+      return null;
+    }
+    return { status: "found", machineName: value.machineName, harnesses: [], client: MAC_CLIENT };
+  }
   const harnesses = parseHarnesses(value.harnesses);
   if (harnesses === null) {
     return null;
@@ -78,6 +89,12 @@ export function checkOutcome(value: unknown, success: Outcome["status"]): Outcom
     return { status: success } as Outcome;
   }
   return isRefusal(value) ? ({ status: value.status } as Refusal) : null;
+}
+
+// True for a request from AgentDesk for Mac, which connects one app rather
+// than a list of harnesses.
+export function isMacRequest(request: FoundRequest): boolean {
+  return request.client === MAC_CLIENT;
 }
 
 export function harnessNames(request: FoundRequest): string[] {

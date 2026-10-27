@@ -2,6 +2,7 @@ import { useMutation } from "convex/react";
 import { Stack, useRouter } from "expo-router";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, AppState, useWindowDimensions, View } from "react-native";
+import { MAC_CLIENT_NAME } from "../../../../../../convex/identity/clients";
 import { identity } from "../../../../../../convex/identity/refs";
 import {
   CODE_LENGTH,
@@ -10,6 +11,7 @@ import {
   cleanCodeInput,
   type FoundRequest,
   harnessNames,
+  isMacRequest,
   LOCK_WINDOW_MS,
   normalizeCode,
   type Refusal,
@@ -30,9 +32,12 @@ import { AppText } from "../../../../src/ui/text";
 // (req-accounts-and-connections AC-6.2, AC-6.5, AC-6.6). Lookup records a
 // wrong-code attempt on the backend, so only a press of Find machine sends
 // it; filling the last box does not, so a typo can still be fixed for free.
+// A Mac's request shows AgentDesk for Mac in place of harnesses, and approves
+// and declines the same way (req-mac-app AC-2.2).
 
 const ENTRY_GUIDANCE = "Enter the code shown by the installer";
 const FOUND_NOTE = "Each harness gets its own connection, which you can revoke separately.";
+const MAC_NOTE = `Approve to connect ${MAC_CLIENT_NAME} on this machine.`;
 const NOT_FOUND = "That code is wrong or no longer available. Check the code and try again.";
 const EXPIRED = "That code expired. Run the installer again for a new code.";
 const LOCKED = "Too many wrong codes. Try again in 10 minutes.";
@@ -147,9 +152,11 @@ function Retry({
   );
 }
 
-// The requesting machine and the harnesses it would connect.
+// The requesting machine and the harnesses it would connect, or AgentDesk for
+// Mac for a Mac's request.
 function RequestCard({ request }: { request: FoundRequest }) {
   const styles = useStyles();
+  const mac = isMacRequest(request);
   return (
     <Card style={styles.card}>
       <View style={styles.machine}>
@@ -163,16 +170,28 @@ function RequestCard({ request }: { request: FoundRequest }) {
           </AppText>
         </View>
       </View>
-      <View accessibilityLabel="Harnesses" style={styles.harnesses}>
-        {harnessNames(request).map((name, index) => (
-          <View key={name}>
-            {index === 0 ? null : <View style={styles.separator} />}
-            <HarnessLine name={name} />
-          </View>
-        ))}
-      </View>
+      {mac ? (
+        // DEC-9(2), DEC-17(4): VoiceOver and TalkBack read the app and the
+        // machine it connects on as one description.
+        <View
+          accessible
+          accessibilityLabel={`${MAC_CLIENT_NAME} on ${request.machineName}`}
+          style={styles.harnesses}
+        >
+          <HarnessLine name={MAC_CLIENT_NAME} />
+        </View>
+      ) : (
+        <View accessibilityLabel="Harnesses" style={styles.harnesses}>
+          {harnessNames(request).map((name, index) => (
+            <View key={name}>
+              {index === 0 ? null : <View style={styles.separator} />}
+              <HarnessLine name={name} />
+            </View>
+          ))}
+        </View>
+      )}
       <AppText variant="footnote" tone="secondary">
-        {FOUND_NOTE}
+        {mac ? MAC_NOTE : FOUND_NOTE}
       </AppText>
     </Card>
   );
