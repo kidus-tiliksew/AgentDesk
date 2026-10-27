@@ -66,9 +66,10 @@ fi
   printf '  "toolchain": "%s; %s",\n' "$(xcodebuild -version | tr '\n' ' ' | sed 's/ *$//')" "$(swift --version 2>&1 | head -1)"
   printf '  "macos": "%s",\n' "$(sw_vers -productVersion)"
   printf '  "commands": [\n'
-  printf '    {"command": "%s", "exit": %d, "log": "build.log"},\n' "$build_cmd" "$build_exit"
-  printf '    {"command": "<tmp>/evidence apps/macos/Evidence/output", "exit": %d, "log": "harness.log", "report": "report.txt"},\n' "$harness_exit"
-  printf '    {"command": "%s", "exit": %d, "log": "tests.log", "summary": "freshness.txt"}\n' "$tests_cmd" "$tests_exit"
+  # One key per line, as the repository's Biome formatter writes JSON.
+  printf '    {\n      "command": "%s",\n      "exit": %d,\n      "log": "build.log"\n    },\n' "$build_cmd" "$build_exit"
+  printf '    {\n      "command": "<tmp>/evidence apps/macos/Evidence/output",\n      "exit": %d,\n      "log": "harness.log",\n      "report": "report.txt"\n    },\n' "$harness_exit"
+  printf '    {\n      "command": "%s",\n      "exit": %d,\n      "log": "tests.log",\n      "summary": "freshness.txt"\n    }\n' "$tests_cmd" "$tests_exit"
   printf '  ],\n'
   printf '  "outputs": {\n'
   first=true
