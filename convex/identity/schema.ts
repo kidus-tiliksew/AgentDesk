@@ -33,16 +33,21 @@ export const tables = {
     .index("by_user_kind", ["userId", "kind"])
     .index("by_user_oauth", ["userId", "oauthClientId"]),
 
-  // One installer short-code sign-in request (component-identity §Short-code
-  // sign-in). The request acts for no account until a person approves it.
+  // One short-code sign-in request from the installer or the Mac app
+  // (component-identity §Short-code sign-in). The request acts for no account
+  // until a person approves it.
   deviceRequests: defineTable({
     // The 8-character code without its display hyphen.
     userCode: v.string(),
-    // SHA-256 hex of the installer's device secret; the plaintext is never stored.
+    // SHA-256 hex of the requester's device secret; the plaintext is never stored.
     deviceSecretHash: v.string(),
     machineName: v.string(),
-    // Harness ids from convex/identity/harnesses.ts, in the installer's order.
+    // Harness ids from convex/identity/harnesses.ts, in the installer's order;
+    // empty for a Mac request.
     harnesses: v.array(v.string()),
+    // Set for a Mac request, which collects one API token instead of
+    // connection tokens.
+    client: v.optional(v.literal("macos")),
     status: v.union(
       v.literal("pending"),
       v.literal("approved"),

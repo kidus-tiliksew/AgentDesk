@@ -5,13 +5,18 @@ import { ServiceError, UpstreamError } from "../src/convex.js";
 import { handle } from "../src/index.js";
 import { CREDENTIAL, env, fakeConvex, fakeLimiter, routeRequest, TOKEN, USER } from "./fake.js";
 
-// component-gateway §Sign-in endpoints: the installer's short-code sign-in,
-// connection check, and connection revoke, with Convex faked.
+// component-gateway §Sign-in endpoints: short-code sign-in for the installer
+// and the Mac app, connection check, and connection revoke, with Convex faked.
 
 const IP = "203.0.113.7";
 const SECRET = "s".repeat(43);
 const CODE = "K7Q2M9XD";
 const OTHER_TOKEN = `adc_${"b".repeat(43)}`;
+// The API token a Mac sign-in minted, and two API tokens it did not mint.
+const MAC_TOKEN = `adp_${"m".repeat(43)}`;
+const MAC_CREDENTIAL = "cred_mac";
+const SCRIPT_TOKEN = `adp_${"h".repeat(43)}`;
+const PLAIN_API_TOKEN = `adp_${"p".repeat(43)}`;
 
 function startRequest(body: unknown, headers: Record<string, string | null> = {}): Request {
   return routeRequest("POST", "/device/start", body, { "CF-Connecting-IP": IP, ...headers });
@@ -33,31 +38,76 @@ function bearer(token: string | null): Record<string, string | null> {
   return { Authorization: token === null ? null : `Bearer ${token}` };
 }
 
-// Identity's credential table for one connection token: resolve-token refuses
-// it once revoke-self has revoked it, as component-identity does.
+// Identity's credential table: one connection token, the Mac's API token, and
+// two other API tokens. resolve-token refuses a token once revoke-self has
+// revoked it, and revoke-self accepts only the connection token and the Mac's
+// token, as component-identity does.
 async function connectionConvex(
   overrides: Parameters<typeof fakeConvex>[0] = {},
 ): Promise<ReturnType<typeof fakeConvex>> {
-  const live = await hashToken(TOKEN);
+  const credentials = new Map<string, { resolved: Record<string, string>; revocable: boolean }>([
+    [
+      await hashToken(TOKEN),
+      {
+        resolved: {
+          userId: USER,
+          credentialId: CREDENTIAL,
+          kind: "connection_token",
+          harness: "codex",
+          name: "Codex",
+        },
+        revocable: true,
+      },
+    ],
+    [
+      await hashToken(MAC_TOKEN),
+      {
+        resolved: {
+          userId: USER,
+          credentialId: MAC_CREDENTIAL,
+          kind: "api_token",
+          harness: "macos",
+          name: "AgentDesk for Mac",
+        },
+        revocable: true,
+      },
+    ],
+    [
+      await hashToken(SCRIPT_TOKEN),
+      {
+        resolved: {
+          userId: USER,
+          credentialId: "cred_script",
+          kind: "api_token",
+          harness: "codex",
+          name: "Script",
+        },
+        revocable: false,
+      },
+    ],
+    [
+      await hashToken(PLAIN_API_TOKEN),
+      {
+        resolved: { userId: USER, credentialId: "cred_plain", kind: "api_token", name: "CI" },
+        revocable: false,
+      },
+    ],
+  ]);
   const revoked = new Set<string>();
+  const live = (hash: unknown) => {
+    const credential = typeof hash === "string" ? credentials.get(hash) : undefined;
+    if (credential === undefined || revoked.has(hash as string)) {
+      throw new ServiceError("unauthenticated", "Invalid credential");
+    }
+    return credential;
+  };
   return fakeConvex({
-    "identity/resolve-token": (body) => {
-      if (body.token_hash !== live || revoked.has(live)) {
-        throw new ServiceError("unauthenticated", "Invalid credential");
-      }
-      return {
-        userId: USER,
-        credentialId: CREDENTIAL,
-        kind: "connection_token",
-        harness: "codex",
-        name: "Codex",
-      };
-    },
+    "identity/resolve-token": (body) => live(body.token_hash).resolved,
     "identity/revoke-self": (body) => {
-      if (body.token_hash !== live || revoked.has(live)) {
+      if (!live(body.token_hash).revocable) {
         throw new ServiceError("unauthenticated", "Invalid credential");
       }
-      revoked.add(live);
+      revoked.add(body.token_hash as string);
       return null;
     },
     ...overrides,
@@ -162,6 +212,71 @@ describe("POST /device/start", () => {
 
     expect(response.status).toBe(200);
     expect(convex.calls[0]?.body.harnesses).toEqual(["cursor", "codex", "claude-code"]);
+  });
+
+  // req-mac-app AC-2.1
+  it("starts a Mac request and sends identity the client alone", async () => {
+    const convex = startConvex();
+
+    const response = await handle(
+      startRequest({ machine_name: " Studio Mac ", client: "macos" }),
+      withLimiter(),
+      convex.svc,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      user_code: "K7Q2M9XD",
+      device_secret: SECRET,
+      interval: 2,
+      expires_in: 600,
+    });
+    expect(convex.calls).toEqual([
+      { route: "identity/device-start", body: { machine_name: "Studio Mac", client: "macos" } },
+    ]);
+  });
+
+  it.each([
+    ["with harnesses", { client: "macos", harnesses: ["codex"] }],
+    ["with an empty harness list", { client: "macos", harnesses: [] }],
+    ["with harnesses null", { client: "macos", harnesses: null }],
+    ["an unknown client", { client: "windows" }],
+    ["a harness id as the client", { client: "codex" }],
+    ["a client in another case", { client: "macOS" }],
+    ["a null client", { client: null }],
+    ["a non-string client", { client: 1 }],
+  ])("answers a client %s with 400 naming client and calls nothing", async (_name, fields) => {
+    const convex = startConvex();
+
+    const response = await handle(
+      startRequest({ machine_name: "Studio Mac", ...fields }),
+      withLimiter(),
+      convex.svc,
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "invalid",
+        message: "client must be macos, without harnesses",
+        field: "client",
+      },
+    });
+    expect(convex.calls).toEqual([]);
+  });
+
+  it("checks the machine name before the client", async () => {
+    const convex = startConvex();
+
+    const response = await handle(
+      startRequest({ machine_name: "", client: "windows" }),
+      withLimiter(),
+      convex.svc,
+    );
+
+    expect(((await response.json()) as { error: { field: string } }).error.field).toBe(
+      "machine_name",
+    );
   });
 
   it("answers the 11th start in a minute from one IP with 429 and calls nothing", async () => {
@@ -300,6 +415,30 @@ describe("POST /device/poll", () => {
     expect(await again.json()).toEqual({ status: "not_found" });
   });
 
+  // req-mac-app AC-2.3
+  it("returns a Mac request's API token once approved, then not_found", async () => {
+    const apiToken = { credential_id: MAC_CREDENTIAL, token: MAC_TOKEN };
+    let consumed = false;
+    const convex = fakeConvex({
+      "identity/device-collect": () => {
+        if (consumed) {
+          return { status: "not_found" };
+        }
+        consumed = true;
+        return { status: "approved", api_token: apiToken };
+      },
+    });
+
+    const response = await handle(pollRequest(), env, convex.svc);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(await response.json()).toEqual({ status: "approved", api_token: apiToken });
+
+    const again = await handle(pollRequest(), env, convex.svc);
+    expect(await again.json()).toEqual({ status: "not_found" });
+  });
+
   it.each([
     ["malformed JSON", "{"],
     ["a missing secret", {}],
@@ -342,13 +481,31 @@ describe("POST /device/poll", () => {
         ],
       },
     ],
+    [
+      "an API token that is a connection token",
+      { status: "approved", api_token: { credential_id: "cred_1", token: TOKEN } },
+    ],
+    [
+      "an API token without a credential id",
+      { status: "approved", api_token: { token: MAC_TOKEN } },
+    ],
+    [
+      "both connections and an API token",
+      {
+        status: "approved",
+        connections: [{ harness: "codex", connection_id: "cred_1", token: TOKEN }],
+        api_token: { credential_id: MAC_CREDENTIAL, token: MAC_TOKEN },
+      },
+    ],
   ])("answers %s from identity with 503 and no token", async (_name, collected) => {
     const convex = fakeConvex({ "identity/device-collect": () => collected });
 
     const response = await handle(pollRequest(), env, convex.svc);
 
     expect(response.status).toBe(503);
-    expect(await response.text()).not.toContain(TOKEN);
+    const text = await response.text();
+    expect(text).not.toContain(TOKEN);
+    expect(text).not.toContain(MAC_TOKEN);
   });
 });
 
@@ -369,9 +526,29 @@ describe("GET /device/connection", () => {
     ]);
   });
 
+  // req-mac-app AC-2.7
+  it("answers the Mac's API token with its credential id and the client", async () => {
+    const convex = await connectionConvex();
+
+    const response = await handle(
+      routeRequest("GET", "/device/connection", undefined, bearer(MAC_TOKEN)),
+      env,
+      convex.svc,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ connection_id: MAC_CREDENTIAL, harness: "macos" });
+    expect(convex.calls).toEqual([
+      { route: "identity/resolve-token", body: { token_hash: await hashToken(MAC_TOKEN) } },
+    ]);
+  });
+
   it.each([
     ["no Authorization header", null, false],
-    ["an API token", `adp_${"a".repeat(43)}`, false],
+    ["an unknown API token", `adp_${"a".repeat(43)}`, true],
+    ["an API token naming another harness", SCRIPT_TOKEN, true],
+    ["an API token without a harness", PLAIN_API_TOKEN, true],
+    ["a malformed API token", "adp_not/base64url", false],
     ["a malformed connection token", "adc_not/base64url", false],
     ["an unknown connection token", OTHER_TOKEN, true],
   ])("answers %s with 401 and no MCP challenge", async (_name, token, resolves) => {
@@ -440,9 +617,38 @@ describe("DELETE /device/connection", () => {
     expect(convex.routes().filter((route) => route === "identity/revoke-self")).toHaveLength(1);
   });
 
+  // req-mac-app AC-2.7
+  it("revokes the Mac's API token by its hash alone, then refuses it", async () => {
+    const convex = await connectionConvex();
+    const hash = await hashToken(MAC_TOKEN);
+
+    const response = await handle(
+      routeRequest("DELETE", "/device/connection", undefined, bearer(MAC_TOKEN)),
+      env,
+      convex.svc,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toBeNull();
+    expect(convex.calls).toEqual([
+      { route: "identity/resolve-token", body: { token_hash: hash } },
+      { route: "identity/revoke-self", body: { token_hash: hash } },
+    ]);
+    expect(JSON.stringify(convex.calls)).not.toContain(MAC_TOKEN);
+
+    const check = await handle(
+      routeRequest("GET", "/device/connection", undefined, bearer(MAC_TOKEN)),
+      env,
+      convex.svc,
+    );
+    expect(check.status).toBe(401);
+  });
+
   it.each([
     ["no Authorization header", null],
-    ["an API token", `adp_${"a".repeat(43)}`],
+    ["an unknown API token", `adp_${"a".repeat(43)}`],
+    ["an API token naming another harness", SCRIPT_TOKEN],
+    ["an API token without a harness", PLAIN_API_TOKEN],
     ["an unknown connection token", OTHER_TOKEN],
   ])("answers %s with 401 and revokes nothing", async (_name, token) => {
     const convex = await connectionConvex();

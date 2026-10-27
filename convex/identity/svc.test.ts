@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { modules } from "../lib/test.modules";
 import schema from "../schema";
-import { insertConnectionToken, revokeCredential } from "./credentials";
+import { insertApiToken, insertConnectionToken, revokeCredential } from "./credentials";
 import { identity } from "./refs";
 import { hashToken } from "./tokens";
 
@@ -161,6 +161,14 @@ describe("short-code sign-in routes", () => {
     ["a non-list", { machine_name: "devbox", harnesses: "codex" }, "harnesses"],
     ["a missing machine name", { harnesses: ["codex"] }, "machine_name"],
     ["a blank machine name", { machine_name: "  ", harnesses: ["codex"] }, "machine_name"],
+    ["neither harnesses nor a client", { machine_name: "devbox" }, "harnesses"],
+    [
+      "the Mac client with harnesses",
+      { machine_name: "devbox", client: "macos", harnesses: ["codex"] },
+      "client",
+    ],
+    ["an unknown client", { machine_name: "devbox", client: "windows" }, "client"],
+    ["a non-string client", { machine_name: "devbox", client: 1 }, "client"],
   ])("device-start returns 400 for %s", async (_label, body, field) => {
     const { t } = await setup();
 
@@ -273,6 +281,53 @@ describe("short-code sign-in routes", () => {
     expect(await credentialRows(t)).toHaveLength(1);
   });
 
+  // req-mac-app AC-2.1, AC-2.3
+  test("device-start with the Mac client, then device-collect returns one API token once", async () => {
+    const { t, userId } = await setup();
+    const startResponse = await postTo(t, START_PATH, {
+      machine_name: "Studio Mac",
+      client: "macos",
+    });
+    expect(startResponse.status).toBe(200);
+    const { code, device_secret } = (await startResponse.json()) as {
+      code: string;
+      device_secret: string;
+    };
+    expect(code).toMatch(/^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{8}$/);
+    const app = t.withIdentity({ subject: "user_a", email: "a@example.com" });
+    expect(await app.mutation(identity.deviceRequests.lookupDeviceRequest, { code })).toEqual({
+      status: "found",
+      machineName: "Studio Mac",
+      harnesses: [],
+      client: "macos",
+    });
+    await app.mutation(identity.deviceRequests.approveDeviceRequest, { code });
+
+    const response = await postTo(t, COLLECT_PATH, { device_secret });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      status: string;
+      api_token: { credential_id: string; token: string };
+    };
+    expect(Object.keys(body).sort()).toEqual(["api_token", "status"]);
+    expect(body.status).toBe("approved");
+    expect(Object.keys(body.api_token).sort()).toEqual(["credential_id", "token"]);
+    expect(body.api_token.token).toMatch(/^adp_/);
+    const resolved = await post(t, { token_hash: await hashToken(body.api_token.token) });
+    expect(await resolved.json()).toMatchObject({
+      userId,
+      credentialId: body.api_token.credential_id,
+      kind: "api_token",
+      harness: "macos",
+      name: "AgentDesk for Mac",
+    });
+    const again = await postTo(t, COLLECT_PATH, { device_secret });
+    expect(await again.json()).toEqual({ status: "not_found" });
+    // One pre-existing token plus the Mac's.
+    expect(await credentialRows(t)).toHaveLength(2);
+  });
+
   test.each([
     ["a missing secret", {}],
     ["a short secret", { device_secret: "A".repeat(42) }],
@@ -307,6 +362,36 @@ describe("/svc/identity/revoke-self", () => {
     const resolved = await post(t, { token_hash: tokenHash });
     expect(resolved.status).toBe(401);
     expect((await errorOf(resolved)).code).toBe("unauthenticated");
+  });
+
+  // req-mac-app AC-2.7
+  test("revokes the presenting Mac API token", async () => {
+    const { t, userId } = await setup();
+    const mac = await t.run((ctx) =>
+      insertApiToken(ctx, { userId, name: "AgentDesk for Mac", harness: "macos" }),
+    );
+    const macHash = await hashToken(mac.plaintext);
+
+    const response = await postTo(t, REVOKE_PATH, { token_hash: macHash });
+
+    expect(response.status).toBe(200);
+    expect((await post(t, { token_hash: macHash })).status).toBe(401);
+  });
+
+  test("returns 401 for another API token without revoking it", async () => {
+    const { t, userId } = await setup();
+    const script = await t.run((ctx) =>
+      insertApiToken(ctx, { userId, name: "Script", harness: "codex" }),
+    );
+
+    const response = await postTo(t, REVOKE_PATH, {
+      token_hash: await hashToken(script.plaintext),
+    });
+
+    expect(response.status).toBe(401);
+    expect(
+      (await t.run((ctx) => ctx.db.get("credentials", script.credentialId)))?.revokedAt,
+    ).toBeUndefined();
   });
 
   test("returns 401 for a revoked token", async () => {

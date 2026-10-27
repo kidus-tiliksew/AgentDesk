@@ -28,8 +28,9 @@ afterEach(() => {
 });
 
 // Account A holds an installer token (oldest), an OAuth connection with no
-// name, a revoked token, and an API token. Account B holds one token. Each
-// credential is created a minute after the one before it.
+// name, a revoked token, an API token, and an API token naming a harness other
+// than the Mac client. Account B holds one token. Each credential but the
+// last API token is created a minute after the one before it.
 async function setup() {
   const base = convexTest(schema, modules);
   const ids = await base.run(async (ctx) => {
@@ -68,6 +69,14 @@ async function setup() {
       tokenHash: "a".repeat(64),
       name: "CI token",
     });
+    const harnessApiTokenId = await ctx.db.insert("credentials", {
+      userId,
+      kind: "api_token",
+      tokenHash: "h".repeat(64),
+      name: "Script",
+      harness: "codex",
+      machineName: "laptop",
+    });
     vi.setSystemTime(START + 4 * MINUTE);
     const other = await insertConnectionToken(ctx, {
       userId: otherUserId,
@@ -83,6 +92,7 @@ async function setup() {
       oauthId,
       revokedId,
       apiTokenId,
+      harnessApiTokenId,
       otherId: other.credentialId,
     };
   });
@@ -130,7 +140,7 @@ describe("listConnections", () => {
   });
 
   test("excludes revoked credentials, API tokens, and other accounts' credentials", async () => {
-    const { t, revokedId, apiTokenId, otherId } = await setup();
+    const { t, revokedId, apiTokenId, harnessApiTokenId, otherId } = await setup();
 
     const ids = (await t.query(identity.connections.listConnections, {})).map(
       (connection) => connection.credentialId,
@@ -138,6 +148,7 @@ describe("listConnections", () => {
 
     expect(ids).not.toContain(revokedId);
     expect(ids).not.toContain(apiTokenId);
+    expect(ids).not.toContain(harnessApiTokenId);
     expect(ids).not.toContain(otherId);
     expect(ids).toHaveLength(2);
   });
@@ -276,6 +287,7 @@ describe("revokeConnection", () => {
   test.each([
     ["another account's connection", (ids: Ids) => ids.otherId],
     ["an API token", (ids: Ids) => ids.apiTokenId],
+    ["an API token naming another harness", (ids: Ids) => ids.harnessApiTokenId],
     ["a deleted credential", (ids: Ids) => ids.deletedId],
     ["an id from another table", (ids: Ids) => ids.userId],
     ["a malformed id", () => "not-an-id"],
@@ -343,6 +355,7 @@ type Ids = {
   userId: Id<"users">;
   otherId: Id<"credentials">;
   apiTokenId: Id<"credentials">;
+  harnessApiTokenId: Id<"credentials">;
   deletedId: Id<"credentials">;
 };
 
@@ -364,8 +377,8 @@ describe("connections from short-code sign-in", () => {
     const collected = await base.mutation(internal.identity.deviceRequests.collectDeviceRequest, {
       deviceSecret,
     });
-    if (collected.status !== "approved") {
-      throw new Error(`expected approved, got ${collected.status}`);
+    if (collected.status !== "approved" || !("connections" in collected)) {
+      throw new Error(`expected approved connections, got ${collected.status}`);
     }
     return { base, t, connections: collected.connections };
   }
@@ -411,5 +424,83 @@ describe("connections from short-code sign-in", () => {
       (connection) => connection.credentialId,
     );
     expect(listed.sort()).toEqual(rest.map((connection) => connection.connection_id).sort());
+  });
+});
+
+// req-mac-app AC-2.5, AC-2.6: the API token a Mac sign-in mints is a
+// connection.
+describe("the Mac connection", () => {
+  async function signInMac() {
+    const ctx = await setup();
+    const { code, deviceSecret } = await ctx.base.mutation(
+      internal.identity.deviceRequests.startDeviceRequest,
+      { machineName: "Studio Mac", client: "macos" },
+    );
+    await ctx.t.mutation(identity.deviceRequests.approveDeviceRequest, { code });
+    const collected = await ctx.base.mutation(
+      internal.identity.deviceRequests.collectDeviceRequest,
+      { deviceSecret },
+    );
+    if (collected.status !== "approved" || !("api_token" in collected)) {
+      throw new Error(`expected an approved API token, got ${collected.status}`);
+    }
+    return { ...ctx, mac: collected.api_token };
+  }
+
+  function resolve(base: Awaited<ReturnType<typeof setup>>["base"], token: string) {
+    return hashToken(token).then((tokenHash) =>
+      base.mutation(internal.identity.credentials.resolveToken, { tokenHash }),
+    );
+  }
+
+  test("lists the Mac with the client name, machine name, and times", async () => {
+    const { base, t, mac, apiTokenId, harnessApiTokenId } = await signInMac();
+    const stored = await base.run((ctx) => ctx.db.get("credentials", mac.credential_id));
+    vi.setSystemTime(START + 12 * MINUTE);
+    await resolve(base, mac.token);
+
+    const connections = await t.query(identity.connections.listConnections, {});
+
+    expect(connections[0]).toEqual({
+      credentialId: mac.credential_id,
+      name: "AgentDesk for Mac",
+      machineName: "Studio Mac",
+      firstConnectedAt: stored?._creationTime,
+      lastUsedAt: START + 12 * MINUTE,
+    });
+    const ids = connections.map((connection) => connection.credentialId);
+    expect(ids).not.toContain(apiTokenId);
+    expect(ids).not.toContain(harnessApiTokenId);
+    expect(ids).toHaveLength(3);
+  });
+
+  test("revokes the Mac, so its next resolve is unauthenticated and it leaves the list", async () => {
+    const { base, t, mac, apiTokenId } = await signInMac();
+
+    expect(
+      await t.mutation(identity.connections.revokeConnection, { credentialId: mac.credential_id }),
+    ).toBeNull();
+
+    await expect(resolve(base, mac.token)).rejects.toMatchObject(unauthenticated);
+    const ids = (await t.query(identity.connections.listConnections, {})).map(
+      (connection) => connection.credentialId,
+    );
+    expect(ids).not.toContain(mac.credential_id);
+    expect(
+      (await base.run((ctx) => ctx.db.get("credentials", apiTokenId)))?.revokedAt,
+    ).toBeUndefined();
+  });
+
+  test("another account cannot revoke the Mac", async () => {
+    const { base, mac } = await signInMac();
+    const before = await credentials(base);
+
+    await expect(
+      base
+        .withIdentity({ subject: "user_b", email: "b@example.com" })
+        .mutation(identity.connections.revokeConnection, { credentialId: mac.credential_id }),
+    ).rejects.toMatchObject(notFound);
+
+    expect(await credentials(base)).toEqual(before);
   });
 });
