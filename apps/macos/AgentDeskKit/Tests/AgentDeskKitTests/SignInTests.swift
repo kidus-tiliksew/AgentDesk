@@ -41,9 +41,9 @@ final class SignInTests: XCTestCase {
   private func harness(
     start: StubResponse = started(),
     store: MemoryCredentialStore = MemoryCredentialStore(),
+    clock: VirtualClock = VirtualClock(),
     poll: @escaping @Sendable (_ now: TimeInterval) async throws -> StubResponse
   ) -> Harness {
-    let clock = VirtualClock()
     let server = StubServer { request in
       request.path == "/device/start" ? start : try await poll(clock.now())
     }
@@ -208,6 +208,73 @@ final class SignInTests: XCTestCase {
       XCTAssertLessThanOrEqual(delay ?? .infinity, 2, "approved at \(approvedAt)")
       XCTAssertLessThan(delay ?? .infinity, 10)
     }
+  }
+
+  // MARK: Expiry
+
+  /// A lifetime that is not a multiple of the interval: the last wait is cut
+  /// to the time left, and no poll runs at or after the deadline.
+  func testLastWaitIsCutToTheRemainingLifetime() async {
+    let h = harness(start: Self.started(interval: 2, expiresIn: 9)) { _ in Self.poll("pending") }
+    await run(h)
+    XCTAssertEqual(h.controller.phase, .failed(.expired))
+    XCTAssertEqual(h.clock.sleeps, [2, 2, 2, 2, 1])
+    XCTAssertEqual(h.server.requests.filter { $0.path == "/device/poll" }.count, 4)
+    XCTAssertEqual(h.clock.now(), 9)
+  }
+
+  /// A poll that starts at 8 s and is still waiting for its answer when the
+  /// code's 10-second lifetime ends: the code shows as expired at 10 s, and
+  /// the approval that arrives afterwards stores nothing.
+  func testPollInFlightAtTheDeadlineExpiresOnTime() async {
+    let gate = Gate()
+    let held = Collected()
+    let h = harness(start: Self.started(interval: 2, expiresIn: 10)) { now in
+      guard now >= 8 else { return Self.poll("pending") }
+      held.set(now)
+      await gate.wait()
+      return Self.approved
+    }
+    h.controller.start()
+    // Bounded, so a loop without a deadline on the poll fails instead of hanging.
+    for _ in 0..<10_000 where held.value == nil || h.clock.pendingDeadlines == 0 {
+      await Task.yield()
+    }
+    XCTAssertEqual(held.value, 8)
+    guard h.clock.pendingDeadlines > 0 else {
+      XCTFail("The poll in flight is not bounded by the code's deadline")
+      h.controller.cancel()
+      await gate.open()
+      return
+    }
+    XCTAssertEqual(h.controller.phase, .waiting(code: "ABCD-2345", machineName: "Kidus's MacBook Pro"))
+
+    h.clock.advance(to: 10)
+    await h.controller.settle()
+    XCTAssertEqual(h.controller.phase, .failed(.expired))
+    XCTAssertEqual(h.clock.now(), 10)
+
+    await gate.open()
+    // Give a late answer every chance to arrive before checking.
+    for _ in 0..<50 { await Task.yield() }
+    XCTAssertEqual(h.controller.phase, .failed(.expired))
+    XCTAssertTrue(h.store.stored.isEmpty)
+    XCTAssertEqual(h.account.state, .signedOut)
+  }
+
+  /// An approval whose answer arrives at the deadline is discarded.
+  func testApprovalArrivingAtTheDeadlineIsDiscarded() async {
+    let clock = VirtualClock()
+    let h = harness(start: Self.started(interval: 2, expiresIn: 10), clock: clock) { now in
+      guard now >= 8 else { return Self.poll("pending") }
+      // The poll sent at 8 s answers only when the code's lifetime ends.
+      clock.advance(to: 10)
+      return Self.approved
+    }
+    await run(h)
+    XCTAssertEqual(h.controller.phase, .failed(.expired))
+    XCTAssertTrue(h.store.stored.isEmpty)
+    XCTAssertEqual(h.account.state, .signedOut)
   }
 
   // MARK: Cancellation and storage

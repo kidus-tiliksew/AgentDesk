@@ -43,24 +43,75 @@ final class MemoryCredentialStore: CredentialStore, @unchecked Sendable {
   }
 }
 
-/// Virtual time: `sleep` advances the clock at once and records its length.
+/// Virtual time. A wait between polls advances the clock at once and records
+/// its length. A wait for a deadline never advances the clock: it resumes
+/// when a poll wait or `advance(to:)` reaches the deadline, so time stands
+/// still while a request is in flight unless the test moves it.
 final class VirtualClock: SignInClock, @unchecked Sendable {
+  private struct Watcher {
+    let id: Int
+    let deadline: TimeInterval
+    let continuation: CheckedContinuation<Void, Error>
+  }
+
   private let lock = NSLock()
   private var time: TimeInterval = 0
   private var slept: [TimeInterval] = []
+  private var watchers: [Watcher] = []
+  private var cancelled: Set<Int> = []
+  private var nextID = 0
 
   func now() -> TimeInterval { lock.withLock { time } }
 
   var sleeps: [TimeInterval] { lock.withLock { slept } }
 
+  /// The number of deadline waits now suspended.
+  var pendingDeadlines: Int { lock.withLock { watchers.count } }
+
   func sleep(seconds: TimeInterval) async throws {
     try Task.checkCancellation()
-    lock.withLock {
-      time += seconds
-      slept.append(seconds)
-    }
+    lock.withLock { slept.append(seconds) }
+    advance(to: now() + seconds)
     await Task.yield()
     try Task.checkCancellation()
+  }
+
+  func sleep(until deadline: TimeInterval) async throws {
+    let id = lock.withLock {
+      nextID += 1
+      return nextID
+    }
+    try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        let outcome: Result<Void, Error>? = lock.withLock {
+          if cancelled.remove(id) != nil { return .failure(CancellationError()) }
+          if time >= deadline { return .success(()) }
+          watchers.append(Watcher(id: id, deadline: deadline, continuation: continuation))
+          return nil
+        }
+        if let outcome { continuation.resume(with: outcome) }
+      }
+    } onCancel: {
+      let watcher: Watcher? = lock.withLock {
+        guard let index = watchers.firstIndex(where: { $0.id == id }) else {
+          cancelled.insert(id)
+          return nil
+        }
+        return watchers.remove(at: index)
+      }
+      watcher?.continuation.resume(throwing: CancellationError())
+    }
+  }
+
+  /// Moves the clock forward and resumes every deadline it reaches.
+  func advance(to target: TimeInterval) {
+    let due: [Watcher] = lock.withLock {
+      time = max(time, target)
+      let due = watchers.filter { $0.deadline <= time }
+      watchers.removeAll { $0.deadline <= time }
+      return due
+    }
+    for watcher in due { watcher.continuation.resume() }
   }
 }
 

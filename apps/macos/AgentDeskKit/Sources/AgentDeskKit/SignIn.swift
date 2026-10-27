@@ -6,7 +6,10 @@ import OSLog
 public protocol SignInClock: Sendable {
   /// Seconds on a clock that never jumps.
   func now() -> TimeInterval
+  /// Waits between polls.
   func sleep(seconds: TimeInterval) async throws
+  /// Waits until `now()` reaches `deadline`; bounds a poll in flight.
+  func sleep(until deadline: TimeInterval) async throws
 }
 
 public struct SystemSignInClock: SignInClock {
@@ -15,7 +18,11 @@ public struct SystemSignInClock: SignInClock {
   public func now() -> TimeInterval { ProcessInfo.processInfo.systemUptime }
 
   public func sleep(seconds: TimeInterval) async throws {
-    try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+    try await Task.sleep(nanoseconds: UInt64(max(0, seconds) * 1_000_000_000))
+  }
+
+  public func sleep(until deadline: TimeInterval) async throws {
+    try await sleep(seconds: deadline - now())
   }
 }
 
@@ -115,6 +122,34 @@ public final class SignInController {
     task = nil
   }
 
+  private enum PollOutcome: Sendable {
+    case answered(DevicePoll)
+    case failed(APIError)
+    case deadline
+  }
+
+  /// One poll, raced against the code's deadline. The loser is cancelled.
+  private func poll(deviceSecret: String, before deadline: TimeInterval) async -> PollOutcome {
+    let api = self.api
+    let clock = self.clock
+    return await withTaskGroup(of: PollOutcome.self) { group in
+      group.addTask {
+        do throws(APIError) {
+          return .answered(try await api.pollSignIn(deviceSecret: deviceSecret))
+        } catch {
+          return .failed(error)
+        }
+      }
+      group.addTask {
+        try? await clock.sleep(until: deadline)
+        return .deadline
+      }
+      let first = await group.next() ?? .deadline
+      group.cancelAll()
+      return first
+    }
+  }
+
   private func isCurrent(_ id: Int) -> Bool {
     id == attempt && !Task.isCancelled
   }
@@ -130,14 +165,21 @@ public final class SignInController {
     }
     guard isCurrent(id) else { return }
 
-    // Polling stops `expires_in` seconds after the start.
+    // Polling stops `expires_in` seconds after the start. The deadline also
+    // bounds the last wait and any poll still in flight, so the code shows
+    // as expired on time.
     let deadline = clock.now() + TimeInterval(started.expiresIn)
     let interval = TimeInterval(max(1, started.interval))
     phase = .waiting(code: started.displayCode, machineName: machineName)
 
     while true {
+      let remaining = deadline - clock.now()
+      guard remaining > 0 else {
+        phase = .failed(.expired)
+        return
+      }
       do {
-        try await clock.sleep(seconds: interval)
+        try await clock.sleep(seconds: min(interval, remaining))
       } catch {
         return
       }
@@ -147,11 +189,20 @@ public final class SignInController {
         return
       }
 
+      let outcome = await poll(deviceSecret: started.deviceSecret, before: deadline)
+      guard isCurrent(id) else { return }
+      // An answer at or after the deadline is discarded with the attempt, so
+      // a late approval never stores a token.
+      guard clock.now() < deadline else {
+        phase = .failed(.expired)
+        return
+      }
+
       let result: DevicePoll
-      do {
-        result = try await api.pollSignIn(deviceSecret: started.deviceSecret)
-      } catch {
-        guard isCurrent(id) else { return }
+      switch outcome {
+      case .answered(let answer):
+        result = answer
+      case .failed(let error):
         if error.isRateLimited {
           phase = .failed(.rateLimited)
           return
@@ -160,8 +211,10 @@ public final class SignInController {
         // the code expires.
         Self.log.error("A sign-in poll failed")
         continue
+      case .deadline:
+        phase = .failed(.expired)
+        return
       }
-      guard isCurrent(id) else { return }
 
       switch result {
       case .pending:
