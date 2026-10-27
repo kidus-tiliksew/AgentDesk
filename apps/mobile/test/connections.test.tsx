@@ -21,7 +21,8 @@ import { renderApp } from "./render";
 // component-mobile-app §Screens: settings/connections lists the person's
 // connected harnesses grouped by machine and revokes one, reached by a swipe,
 // a touch and hold, or VoiceOver's Revoke action, after an action sheet
-// confirms it (req-accounts-and-connections REQ-4).
+// confirms it (req-accounts-and-connections REQ-4). A signed-in Mac is listed
+// and revoked like a harness (req-mac-app AC-2.5).
 
 jest.mock("../src/haptics", () => ({
   haptic: { success: jest.fn(), warning: jest.fn(), error: jest.fn(), selection: jest.fn() },
@@ -72,7 +73,9 @@ afterEach(() => {
 const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
 const FOOTER =
-  "Swipe left or touch and hold to revoke. A revoked harness fails its next tool call.";
+  "Swipe left or touch and hold to revoke. A revoked connection fails its next request.";
+const EMPTY =
+  "Run the AgentDesk installer on a computer, or open AgentDesk for Mac, then enter the code it shows.";
 
 // Times relative to the real clock: renderRouter installs fake timers that
 // start from it, so "2m ago" holds when the screen first renders.
@@ -101,6 +104,21 @@ const devbox = {
 const laptopCodex = {
   credentialId: "c_laptop_codex",
   name: "Codex",
+  machineName: "laptop",
+  firstConnectedAt: FIRST,
+};
+// A Mac's API token as listConnections returns it (component-identity
+// §Short-code sign-in).
+const studioMac = {
+  credentialId: "c_studio_mac",
+  name: "AgentDesk for Mac",
+  machineName: "studio",
+  firstConnectedAt: FIRST + 10 * MINUTE,
+  lastUsedAt: now - 5 * MINUTE,
+};
+const laptopMac = {
+  credentialId: "c_laptop_mac",
+  name: "AgentDesk for Mac",
   machineName: "laptop",
   firstConnectedAt: FIRST,
 };
@@ -217,6 +235,7 @@ describe("connections screen", () => {
     await openConnections();
 
     expect(await screen.findByText("No machines connected")).toBeOnTheScreen();
+    expect(screen.getByText(EMPTY)).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Revoke" })).not.toBeOnTheScreen();
     expect(screen.queryByText(FOOTER)).not.toBeOnTheScreen();
 
@@ -255,7 +274,7 @@ describe("connections screen", () => {
 
     expect(lastSheet().options).toEqual({
       title: "Revoke Claude Code on laptop?",
-      message: "Its next tool call will fail.",
+      message: "Its next request will fail.",
       options: ["Revoke", "Cancel"],
       destructiveButtonIndex: 0,
       cancelButtonIndex: 1,
@@ -367,6 +386,130 @@ describe("connections screen", () => {
     expect(mockRevokeConnection).toHaveBeenCalledTimes(2);
     expect(screen.queryByText(failed)).not.toBeOnTheScreen();
     expect(haptic.success).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("connections screen with a Mac", () => {
+  // req-mac-app AC-2.5; req-accounts-and-connections AC-4.1
+  test("lists a Mac as AgentDesk for Mac under its machine, with both times, among harnesses", async () => {
+    setQuery(list, [studioMac, laptop, laptopMac, cursor]);
+
+    await openConnections();
+
+    expect(await screen.findByText("Claude Code")).toBeOnTheScreen();
+    const machines = screen
+      .getAllByRole("header", { name: /^(studio|laptop|Other)$/ })
+      .map((element) => element.props.children);
+    expect(machines).toEqual(["studio", "laptop", "Other"]);
+    const rows = screen
+      .getAllByLabelText(/^(AgentDesk for Mac on (studio|laptop)|Claude Code on laptop|cursor)$/)
+      .map((element) => element.props.accessibilityLabel);
+    expect(rows).toEqual([
+      "AgentDesk for Mac on studio",
+      "Claude Code on laptop",
+      "AgentDesk for Mac on laptop",
+      "cursor",
+    ]);
+    expect(screen.getAllByText("AgentDesk for Mac")).toHaveLength(2);
+    expect(
+      screen.getByText(
+        `Connected ${formatConnectionDay(studioMac.firstConnectedAt, now)} · used 5m ago`,
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.getByLabelText("AgentDesk for Mac on studio")).toHaveProp("accessibilityValue", {
+      text: `Connected ${formatConnectionDay(studioMac.firstConnectedAt, now)}, last used 5 minutes ago`,
+    });
+    // A Mac not yet used reads as never used.
+    expect(screen.getByLabelText("AgentDesk for Mac on laptop")).toHaveProp("accessibilityValue", {
+      text: `Connected ${formatConnectionDay(FIRST, now)}, never used`,
+    });
+    expect(
+      screen.getAllByText(`Connected ${formatConnectionDay(FIRST, now)} · never used`),
+    ).toHaveLength(2);
+    expect(screen.getAllByText(FOOTER)).toHaveLength(1);
+  });
+
+  // req-mac-app AC-2.5; req-accounts-and-connections AC-4.2
+  test("revokes a Mac only after the action sheet confirms it, and the row leaves with the query", async () => {
+    setQuery(list, [studioMac, cursor]);
+    await openConnections();
+    await screen.findByText("AgentDesk for Mac");
+
+    const row = screen.getByLabelText("AgentDesk for Mac on studio");
+    expect(row).toHaveProp("accessibilityActions", [{ name: "Revoke", label: "Revoke" }]);
+    revokeAction("AgentDesk for Mac on studio");
+
+    expect(lastSheet().options).toEqual({
+      title: "Revoke AgentDesk for Mac on studio?",
+      message: "Its next request will fail.",
+      options: ["Revoke", "Cancel"],
+      destructiveButtonIndex: 0,
+      cancelButtonIndex: 1,
+    });
+    await choose("Cancel");
+    expect(mockRevokeConnection).not.toHaveBeenCalled();
+
+    fireEvent(screen.getByLabelText("AgentDesk for Mac on studio"), "longPress");
+    await choose("Revoke");
+
+    expect(mockRevokeConnection).toHaveBeenCalledTimes(1);
+    expect(mockRevokeConnection).toHaveBeenCalledWith({ credentialId: "c_studio_mac" });
+    expect(haptic.success).toHaveBeenCalledTimes(1);
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(
+      "Revoked AgentDesk for Mac on studio",
+    );
+    // The screen keeps the row until the reactive query drops it.
+    expect(screen.getByText("AgentDesk for Mac")).toBeOnTheScreen();
+
+    act(() => setQuery(list, [cursor]));
+
+    expect(screen.queryByText("AgentDesk for Mac")).not.toBeOnTheScreen();
+    expect(screen.getByText("cursor")).toBeOnTheScreen();
+  });
+
+  // req-mac-app AC-2.5; DEC-17(3)
+  test("on Android a Mac's revocation asks in a system alert", async () => {
+    setQuery(list, [studioMac]);
+    await openConnections();
+    await screen.findByText("AgentDesk for Mac");
+    jest.replaceProperty(Platform, "OS", "android");
+    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+
+    revokeAction("AgentDesk for Mac on studio");
+
+    expect(sheets).toHaveLength(0);
+    expect(alert).toHaveBeenCalledTimes(1);
+    const [title, message, buttons] = nth(alert.mock.calls, 0);
+    expect(title).toBe("Revoke AgentDesk for Mac on studio?");
+    expect(message).toBe("Its next request will fail.");
+    expect(buttons?.map(({ text, style }) => ({ text, style }))).toEqual([
+      { text: "Cancel", style: "cancel" },
+      { text: "Revoke", style: "destructive" },
+    ]);
+    expect(mockRevokeConnection).not.toHaveBeenCalled();
+
+    await act(async () => {
+      nth(buttons ?? [], 1).onPress?.();
+    });
+
+    expect(mockRevokeConnection).toHaveBeenCalledTimes(1);
+    expect(mockRevokeConnection).toHaveBeenCalledWith({ credentialId: "c_studio_mac" });
+  });
+
+  test("a failed Mac revocation keeps the row and reports the error", async () => {
+    mockRevokeConnection.mockRejectedValueOnce(new Error("Network request failed"));
+    setQuery(list, [studioMac]);
+    await openConnections();
+    await screen.findByText("AgentDesk for Mac");
+    revokeAction("AgentDesk for Mac on studio");
+
+    await choose("Revoke");
+
+    const failed = "Could not revoke AgentDesk for Mac. Try again.";
+    expect(screen.getByText(failed)).toBeOnTheScreen();
+    expect(screen.getByText("AgentDesk for Mac")).toBeOnTheScreen();
+    expect(haptic.error).toHaveBeenCalledTimes(1);
+    expect(haptic.success).not.toHaveBeenCalled();
   });
 });
 

@@ -2,14 +2,15 @@ import { getFunctionName } from "convex/server";
 import { router } from "expo-router";
 import { act, fireEvent, screen } from "expo-router/testing-library";
 import { AccessibilityInfo, AppState, Dimensions } from "react-native";
-import { cleanCodeInput, normalizeCode } from "../src/add-machine";
+import { checkLookup, cleanCodeInput, normalizeCode } from "../src/add-machine";
 import { haptic } from "../src/haptics";
 import { deferred, loading, push, setQuery, signInAs } from "./fakes";
 import { renderApp } from "./render";
 
 // component-mobile-app §Screens: settings/add-machine takes the installer's
 // code, shows the requesting machine and its harnesses, and approves or
-// declines (req-accounts-and-connections AC-6.2, AC-6.5, AC-6.6).
+// declines (req-accounts-and-connections AC-6.2, AC-6.5, AC-6.6). A Mac's
+// request shows AgentDesk for Mac in place of harnesses (req-mac-app AC-2.2).
 
 const lookupName = "identity/deviceRequests:lookupDeviceRequest";
 const approveName = "identity/deviceRequests:approveDeviceRequest";
@@ -18,6 +19,7 @@ const list = "identity/connections:listConnections";
 
 const ENTRY_GUIDANCE = "Enter the code shown by the installer";
 const FOUND_NOTE = "Each harness gets its own connection, which you can revoke separately.";
+const MAC_NOTE = "Approve to connect AgentDesk for Mac on this machine.";
 const NOT_FOUND = "That code is wrong or no longer available. Check the code and try again.";
 const EXPIRED = "That code expired. Run the installer again for a new code.";
 const LOCKED = "Too many wrong codes. Try again in 10 minutes.";
@@ -46,6 +48,15 @@ const found = {
   status: "found",
   machineName: "devbox-2",
   harnesses: ["codex", "claude-code", "cursor"],
+};
+
+// A Mac's request as lookupDeviceRequest returns it (component-identity
+// §Short-code sign-in).
+const macFound = {
+  status: "found",
+  machineName: "studio",
+  harnesses: [],
+  client: "macos",
 };
 
 beforeEach(() => {
@@ -168,6 +179,43 @@ describe("normalizeCode", () => {
   });
 });
 
+describe("checkLookup", () => {
+  test("accepts an installer request and keeps its harness order", () => {
+    expect(checkLookup(found)).toEqual(found);
+  });
+
+  test("accepts a Mac request with the Mac client and no harnesses", () => {
+    expect(checkLookup(macFound)).toEqual(macFound);
+  });
+
+  test.each(["not_found", "expired", "locked"])("accepts a %s refusal", (status) => {
+    expect(checkLookup({ status })).toEqual({ status });
+  });
+
+  test.each([
+    ["an unknown client", { ...macFound, client: "linux" }],
+    ["a client that is not a string", { ...macFound, client: 1 }],
+    ["a null client", { ...macFound, client: null }],
+    ["the Mac client with harnesses", { ...macFound, harnesses: ["codex"] }],
+    ["an installer client with harnesses", { ...found, client: "installer" }],
+    [
+      "the Mac client without a harness list",
+      { status: "found", machineName: "studio", client: "macos" },
+    ],
+    ["the Mac client without a machine name", { status: "found", harnesses: [], client: "macos" }],
+    ["a machine name that is not a string", { ...found, machineName: 7 }],
+    ["harnesses that are not a list", { ...found, harnesses: "codex" }],
+    ["an installer request with no harnesses", { ...found, harnesses: [] }],
+    ["an unknown harness", { ...found, harnesses: ["codex", "vim"] }],
+    ["the Mac client as a harness", { ...found, harnesses: ["macos"] }],
+    ["a duplicated harness", { ...found, harnesses: ["codex", "codex"] }],
+    ["an unknown status", { status: "pending" }],
+    ["a value that is not an object", "found"],
+  ])("refuses %s", (_case, value) => {
+    expect(checkLookup(value)).toBeNull();
+  });
+});
+
 describe("add machine screen", () => {
   test("shows code entry and keeps Find machine disabled until 8 code characters are present", async () => {
     await openAddMachine();
@@ -215,6 +263,8 @@ describe("add machine screen", () => {
       .map((element) => element.props.children);
     expect(names).toEqual(["Codex", "Claude Code", "Cursor"]);
     expect(screen.getByText(FOUND_NOTE)).toBeOnTheScreen();
+    expect(screen.queryByText("AgentDesk for Mac")).not.toBeOnTheScreen();
+    expect(screen.queryByText(MAC_NOTE)).not.toBeOnTheScreen();
     expect(button("Approve")).toBeEnabled();
     expect(button("Decline")).toBeEnabled();
     expect(input()).toHaveProp("editable", false);
@@ -641,6 +691,105 @@ describe("add machine screen", () => {
       expect(mockLookup).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("add machine screen for a Mac", () => {
+  // Opens the screen, enters `code`, and finds the Mac's request.
+  async function openMac(code = "abcd-efgh") {
+    mockLookup.mockResolvedValueOnce(macFound);
+    await openAddMachine();
+    fireEvent.changeText(input(), code);
+    await press("Find machine");
+    expect(screen.getByText("studio")).toBeOnTheScreen();
+  }
+
+  // req-mac-app AC-2.2
+  test("shows the Mac's name and AgentDesk for Mac in place of harnesses, connecting nothing", async () => {
+    await openMac(" abcd-efgh ");
+
+    expect(mockLookup).toHaveBeenCalledTimes(1);
+    expect(mockLookup).toHaveBeenCalledWith({ code: "ABCDEFGH" });
+    expect(screen.getByText("wants to connect")).toBeOnTheScreen();
+    expect(screen.getByText("AgentDesk for Mac")).toBeOnTheScreen();
+    expect(screen.getByText(MAC_NOTE)).toBeOnTheScreen();
+    // VoiceOver and TalkBack hear the app with the machine it connects on.
+    expect(screen.getByLabelText("AgentDesk for Mac on studio")).toHaveProp("accessible", true);
+    expect(screen.queryByLabelText("Harnesses")).not.toBeOnTheScreen();
+    expect(screen.queryByText(FOUND_NOTE)).not.toBeOnTheScreen();
+    expect(screen.queryByText(/^(Claude Code|Codex|Cursor)$/)).not.toBeOnTheScreen();
+    expect(button("Approve")).toBeEnabled();
+    expect(button("Decline")).toBeEnabled();
+    expect(input()).toHaveProp("editable", false);
+    expect(mockApprove).not.toHaveBeenCalled();
+    expect(mockDecline).not.toHaveBeenCalled();
+  });
+
+  // req-mac-app AC-2.2
+  test("Approve sends the Mac request's code once and shows the approval", async () => {
+    await openMac("wxyz-2345");
+
+    await press("Approve");
+
+    expect(mockApprove).toHaveBeenCalledTimes(1);
+    expect(mockApprove).toHaveBeenCalledWith({ code: "WXYZ2345" });
+    expect(mockDecline).not.toHaveBeenCalled();
+    expect(screen.getByText("Machine approved")).toBeOnTheScreen();
+    expect(screen.getByText(APPROVED)).toBeOnTheScreen();
+    expect(haptic.success).toHaveBeenCalledTimes(1);
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith("Machine approved");
+  });
+
+  test("Decline sends the Mac request's code once and shows the decline", async () => {
+    await openMac("wxyz-2345");
+
+    await press("Decline");
+
+    expect(mockDecline).toHaveBeenCalledTimes(1);
+    expect(mockDecline).toHaveBeenCalledWith({ code: "WXYZ2345" });
+    expect(mockApprove).not.toHaveBeenCalled();
+    expect(screen.getByText("Request declined")).toBeOnTheScreen();
+    expect(screen.getByText(DECLINED)).toBeOnTheScreen();
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith("Request declined");
+  });
+
+  test.each([
+    ["Approve", APPROVE_FAILED, APPROVED],
+    ["Decline", DECLINE_FAILED, DECLINED],
+  ])(
+    "a failed %s keeps the Mac request, and Try again repeats it",
+    async (action, failure, success) => {
+      const mock = action === "Approve" ? mockApprove : mockDecline;
+      mock.mockRejectedValueOnce(new Error("Network request failed"));
+      await openMac("wxyz-2345");
+
+      await press(action);
+
+      expect(screen.getByText(failure)).toBeOnTheScreen();
+      expect(screen.queryByText(success)).not.toBeOnTheScreen();
+      expect(screen.getByText("studio")).toBeOnTheScreen();
+      expect(screen.getByText("AgentDesk for Mac")).toBeOnTheScreen();
+
+      await press("Try again");
+
+      expect(mock).toHaveBeenCalledTimes(2);
+      expect(mock).toHaveBeenLastCalledWith({ code: "WXYZ2345" });
+      expect(screen.getByText(success)).toBeOnTheScreen();
+    },
+  );
+
+  test("a Mac result with harnesses shows a failure", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    mockLookup.mockResolvedValueOnce({ ...macFound, harnesses: ["codex"] });
+    await openAddMachine();
+    fireEvent.changeText(input(), "abcd-efgh");
+
+    await press("Find machine");
+
+    expect(screen.getByText(LOOKUP_FAILED)).toBeOnTheScreen();
+    expect(screen.queryByText("AgentDesk for Mac")).not.toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeOnTheScreen();
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
 });
 
 // renderRouter installs Jest's modern fake timers and keeps them for the rest

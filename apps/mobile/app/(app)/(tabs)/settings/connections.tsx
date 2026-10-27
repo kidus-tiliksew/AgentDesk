@@ -24,9 +24,10 @@ import { AppText } from "../../../../src/ui/text";
 import { useScreenClock } from "../../../../src/use-screen-clock";
 
 // component-mobile-app §Screens: the signed-in person's connected harness
-// clients, grouped by machine, each with its first-connected and last-used
-// times, and a revoke action behind a swipe or a touch and hold, then a
-// confirmation (req-accounts-and-connections REQ-4).
+// clients and Macs, grouped by machine, each with its first-connected and
+// last-used times, and a revoke action behind a swipe or a touch and hold, then
+// a confirmation (req-accounts-and-connections REQ-4; req-mac-app AC-2.5). A
+// Mac arrives with the name AgentDesk for Mac, so it needs no row of its own.
 // `identity/connections:listConnections` is reactive, so a revoked connection
 // leaves the list when the backend commits the revocation; the screen never
 // removes a row itself.
@@ -34,7 +35,7 @@ import { useScreenClock } from "../../../../src/use-screen-clock";
 type Connection = FunctionReturnType<typeof identity.connections.listConnections>[number];
 
 const FOOTER =
-  "Swipe left or touch and hold to revoke. A revoked harness fails its next tool call.";
+  "Swipe left or touch and hold to revoke. A revoked connection fails its next request.";
 
 const useStyles = makeStyles(() => ({
   row: { gap: 2, paddingHorizontal: 16, paddingVertical: 11 },
@@ -116,7 +117,7 @@ function ConnectionList() {
       <EmptyState
         icon="desktop-outline"
         title="No machines connected"
-        body="Run the AgentDesk installer on a computer, then enter the code it shows to connect its harnesses."
+        body="Run the AgentDesk installer on a computer, or open AgentDesk for Mac, then enter the code it shows."
       >
         <Button label="Add machine" onPress={() => router.push("/settings/add-machine")} />
       </EmptyState>
@@ -169,7 +170,7 @@ function ConnectionGroups({ connections }: { connections: Connection[] }) {
     setFailure(null);
     confirmDestructive({
       title: `Revoke ${connectionLabel(connection)}?`,
-      message: "Its next tool call will fail.",
+      message: "Its next request will fail.",
       action: "Revoke",
       onConfirm: () => void revoke(connection),
     });
