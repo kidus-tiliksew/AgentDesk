@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds the evidence harness from the shipped sources, runs it, runs the
-# freshness and dot tests, and writes every output with a manifest to
+# freshness, dot, sync, and answer tests, and writes every output with a manifest to
 # apps/macos/Evidence/output, or to the directory given as the first argument.
 # It needs only Xcode's toolchain: no account, network, or permission.
 set -u
@@ -15,15 +15,15 @@ trap 'rm -rf "$work"' EXIT
 mkdir -p "$out" "$work/src"
 rm -f "$out"/*.png "$out"/*.txt "$out"/*.log "$out"/manifest.json
 
-# The harness compiles the kit and four app-target files into one module, so
+# The harness compiles the kit and five app-target files into one module, so
 # their `import AgentDeskKit` lines are dropped.
 cp "$macos"/AgentDeskKit/Sources/AgentDeskKit/*.swift "$macos"/AgentDeskKit/Sources/AgentDeskKit/Models/*.swift "$work/src/"
-for file in DecisionRow AgentsView Ink MenuBarLabel; do
+for file in DecisionRow AnswerControls AgentsView Ink MenuBarLabel; do
   sed '/^import AgentDeskKit$/d' "$macos/AgentDesk/$file.swift" >"$work/src/$file.swift"
 done
 cp "$here"/Harness/*.swift "$work/src/"
 
-build_cmd="swiftc -swift-version 6 -O -o <tmp>/evidence <kit sources> AgentDesk/{DecisionRow,AgentsView,Ink,MenuBarLabel}.swift Evidence/Harness/*.swift"
+build_cmd="swiftc -swift-version 6 -O -o <tmp>/evidence <kit sources> AgentDesk/{DecisionRow,AnswerControls,AgentsView,Ink,MenuBarLabel}.swift Evidence/Harness/*.swift"
 swiftc -swift-version 6 -O -o "$work/evidence" "$work"/src/*.swift >"$out/build.log" 2>&1
 build_exit=$?
 
@@ -33,8 +33,8 @@ if [ "$build_exit" -eq 0 ]; then
   harness_exit=$?
 fi
 
-tests_cmd="swift test --package-path apps/macos/AgentDeskKit --filter 'SyncFreshnessTests|DotPresenceTests|SyncTests'"
-swift test --package-path "$macos/AgentDeskKit" --filter 'SyncFreshnessTests|DotPresenceTests|SyncTests' >"$out/tests.log" 2>&1
+tests_cmd="swift test --package-path apps/macos/AgentDeskKit --filter 'SyncFreshnessTests|DotPresenceTests|SyncTests|PendingAnswersTests|AnswerDraftTests|PopoverKeysTests'"
+swift test --package-path "$macos/AgentDeskKit" --filter 'SyncFreshnessTests|DotPresenceTests|SyncTests|PendingAnswersTests|AnswerDraftTests|PopoverKeysTests' >"$out/tests.log" 2>&1
 tests_exit=$?
 grep '^FRESHNESS' "$out/tests.log" >"$out/freshness.txt"
 

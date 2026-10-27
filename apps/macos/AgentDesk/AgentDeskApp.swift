@@ -4,13 +4,14 @@ import SwiftUI
 /// of the Dock, and it opens no other window (req-mac-app AC-1.1; DEC-19(1)).
 @main
 struct AgentDeskApp: App {
-  @State private var state = AppState()
+  /// The delegate owns the state so quitting can wait for unsent answers.
+  @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
   var body: some Scene {
     MenuBarExtra {
-      PopoverView(state: state)
+      PopoverView(state: delegate.state)
     } label: {
-      MenuBarLabel(state: state)
+      MenuBarLabel(state: delegate.state)
     }
     .menuBarExtraStyle(.window)
   }
