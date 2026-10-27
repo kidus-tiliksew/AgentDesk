@@ -1,5 +1,5 @@
 import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx } from "../_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { notifications } from "./refs";
 
 // component-notifications §Emitting and routing: the one entry point through
@@ -36,6 +36,24 @@ export async function emit(
   // Phase 5 (§Webhooks) enqueues this event's webhook deliveries here, with
   // `action: null`.
   return eventId;
+}
+
+// The action routing stored on the decision's own `decision.created` event,
+// or null while routing has not run (req-public-api-and-webhooks AC-2.3). Only
+// an event of the decision's owner counts, so an event of another account that
+// names the decision never supplies its action. It reads the stored action and
+// never routes.
+export async function createdActionOf(
+  ctx: Pick<QueryCtx, "db">,
+  decision: Pick<Doc<"decisions">, "_id" | "userId">,
+): Promise<NonNullable<Doc<"events">["action"]> | null> {
+  const events = await ctx.db
+    .query("events")
+    .withIndex("by_decision_kind", (q) =>
+      q.eq("decisionId", decision._id).eq("kind", "decision.created"),
+    )
+    .collect();
+  return events.find((event) => event.userId === decision.userId)?.action ?? null;
 }
 
 // A decision event, taking topic and priority from the decision.

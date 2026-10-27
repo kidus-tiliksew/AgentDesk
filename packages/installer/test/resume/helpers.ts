@@ -76,6 +76,7 @@ export function decision(id: string, fields: Record<string, unknown>): Record<st
     recommendation: null,
     priority: "normal",
     interactive: true,
+    notification_action: null,
     deadline: null,
     default: null,
     state: "answered",
