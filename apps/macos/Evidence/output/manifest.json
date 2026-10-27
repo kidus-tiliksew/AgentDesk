@@ -1,0 +1,46 @@
+{
+  "generated_at": "2026-10-27T17:44:47Z",
+  "source_commit": "9db703a7790ad8ba9d61d5945d4e120e0f4056d7",
+  "sources_dirty": false,
+  "source_trees": {
+    "apps/macos/AgentDesk": "dd2579228d121f5c3215253d1b847eb3d34414ae",
+    "apps/macos/AgentDeskKit": "6a56e43c9d9d2145cd4600b94366845eee18e0df",
+    "apps/macos/Evidence/Harness": "713f239266cea96ff3d2df706e06ddb4a35e5230",
+    "apps/macos/Evidence/run.sh": "6b4bf18fa7baad5f897bc48edb136d060cac7d85"
+  },
+  "toolchain": "Xcode 27.0 Build version 27A266a; swift-driver version: 1.168.6 Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)",
+  "macos": "26.6.2",
+  "commands": [
+    {"command": "swiftc -swift-version 6 -O -o <tmp>/evidence <kit sources> AgentDesk/{DecisionRow,AgentsView,Ink,MenuBarLabel}.swift Evidence/Harness/*.swift", "exit": 0, "log": "build.log"},
+    {"command": "<tmp>/evidence apps/macos/Evidence/output", "exit": 0, "log": "harness.log", "report": "report.txt"},
+    {"command": "swift test --package-path apps/macos/AgentDeskKit --filter 'SyncFreshnessTests|DotPresenceTests|SyncTests'", "exit": 0, "log": "tests.log", "summary": "freshness.txt"}
+  ],
+  "outputs": {
+    "build.log": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "contrast-dark-plain.png": "sha256:f4fc58dd7cb62f9c0c5fbc8db15edbcb4ebeb71b414b6d57da0870779ddffdbe",
+    "contrast-dark-vibrant.png": "sha256:fc92e5919f28c3abb681f57b4c26aed6bf4d54e9042114eb7284d17fb5e81327",
+    "contrast-light-plain.png": "sha256:b775ec48bc208cf52deb35cea8d661ecc6d17af827c0a7aecaed42b657e15c32",
+    "contrast-light-vibrant.png": "sha256:af44e1fa4f37822dc4b56f1705c77d85db27cd14c839ef1e512b53a41c33c891",
+    "freshness.txt": "sha256:6ff89f1f9e5cfa73f5f50f9213ac5ddd3d0f38af8ffcec0dd53f8f26e3d2041e",
+    "harness.log": "sha256:d232cf4f1423ff109927fd9a4160eb17da218d46d0d4395447a41dac6140d2f4",
+    "label-count-12-dark.png": "sha256:55a84543c1c636d35904197176f120caf3ca1e5ef79abe67368bed19944317c2",
+    "label-count-12-light.png": "sha256:2ca411dedbe9a2b2df7e436c1dec6697831cfa81d850345519f884019404bfda",
+    "label-count-3-dark.png": "sha256:d856eca3b8711086faa4899f08938a7e5a97707909a270753dc4d0c63e9ec9da",
+    "label-count-3-light.png": "sha256:e0e5b5558ba970dc7e992cbb710b161b13e426e6951ad74870982f7021412dc3",
+    "label-dot-dark.png": "sha256:5116aee10f3ecbf8ed0e665fe4685cfb6123df632fcc2f1fbb3d7a47ff680079",
+    "label-dot-fade-frames.png": "sha256:0f7257901d351b38141eb3eb18164d4fd98e7fcc306d63bd83910116d2586f86",
+    "label-dot-frame-3of7-dark.png": "sha256:bdafab64ec8fadaa5138fe24492e81c756bacddab49b5bedc064f8146d7367d8",
+    "label-dot-frame-3of7-light.png": "sha256:0a21fd8937fc639b9746e2c25b1a50f99e09ea8e802043a065e2a4e766db1b94",
+    "label-dot-light.png": "sha256:f49d2d8cb4d67186228431c972793a8355aba706889f9eff6c2d5abb4bb780f2",
+    "label-glyph-dark.png": "sha256:ae109cceaa9147b826df4df7fdce364d14f233c833d8a9484867d9a20041b154",
+    "label-glyph-light.png": "sha256:1fcac118dff257bc77834c716fc5c2b0a9abe2902db0c482a511ea0130e1398f",
+    "popover-agents-collapsed-dark.png": "sha256:bc37f547b079411da379afd427265448c4a0b01a739728e7a8f4b3b2ccebdc47",
+    "popover-agents-collapsed-light.png": "sha256:cc0e5a1176a803427051fa56c719ea4d1d678205d2a64f512ff5d1736ae46a73",
+    "popover-agents-expanded-dark.png": "sha256:b55ed70b3049d0dd7ebcf0c20137cdbe0b4ae1412e47621fcc9d0817fbc232e0",
+    "popover-agents-expanded-light.png": "sha256:589bf1f5d7b59398f3c859efe8bedcb36552a71556c89390ad181b38d61ca40f",
+    "popover-empty-dark.png": "sha256:c6345a844e9e5657f34642f8736458c53b109783f06ca037fd3775bd561dca5b",
+    "popover-empty-light.png": "sha256:787d60f9bd225eaf1a37b8251170959e1b72488ede1022fb3b859ca4198a2f20",
+    "report.txt": "sha256:d232cf4f1423ff109927fd9a4160eb17da218d46d0d4395447a41dac6140d2f4",
+    "tests.log": "sha256:888b3094deddc53d756b50e7b3cc6176760a837cc7bd92882f17b0a67ecc7117"
+  }
+}
