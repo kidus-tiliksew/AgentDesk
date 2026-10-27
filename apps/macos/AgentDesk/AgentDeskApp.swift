@@ -10,7 +10,7 @@ struct AgentDeskApp: App {
     MenuBarExtra {
       PopoverView(state: state)
     } label: {
-      MenuBarLabel()
+      MenuBarLabel(state: state)
     }
     .menuBarExtraStyle(.window)
   }
