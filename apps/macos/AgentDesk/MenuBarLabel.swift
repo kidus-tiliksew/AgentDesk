@@ -13,6 +13,9 @@ struct MenuBarLabel: View {
 
 /// The Prompt bubble mark, a speech bubble holding a terminal prompt
 /// (DEC-9(3)), drawn as an 18 × 18 pt outline from the app icon's geometry.
+/// `NSImage` is not Sendable in every SDK, so the glyph lives on the main
+/// actor with the views that draw it.
+@MainActor
 enum PromptGlyph {
   static let size = NSSize(width: 18, height: 18)
 
@@ -41,14 +44,14 @@ enum PromptGlyph {
 
   // The icon's bubble spans x 270–754 and y 326–728 on a 1024 canvas. It is
   // scaled to 15 pt wide and centred.
-  private static let scale: CGFloat = 15 / 484
-  private static let origin = CGPoint(x: 1.5, y: (18 - 402 * 15 / 484) / 2)
+  nonisolated private static let scale: CGFloat = 15 / 484
+  nonisolated private static let origin = CGPoint(x: 1.5, y: (18 - 402 * 15 / 484) / 2)
 
-  private static func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+  nonisolated private static func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
     CGPoint(x: origin.x + (x - 270) * scale, y: origin.y + (y - 326) * scale)
   }
 
-  private static func bubblePath() -> NSBezierPath {
+  nonisolated private static func bubblePath() -> NSBezierPath {
     let radius = 80 * scale
     let path = NSBezierPath()
     path.move(to: point(350, 326))
