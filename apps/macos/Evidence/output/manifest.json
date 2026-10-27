@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-10-27T17:49:01Z",
-  "source_commit": "38df2af3cdd474675850d77a48981a31be535c28",
+  "generated_at": "2026-10-27T17:59:32Z",
+  "source_commit": "8fd727e72ca5f97a190f4fd0e6880e9d2409b01b",
   "sources_dirty": false,
   "source_trees": {
     "apps/macos/AgentDesk": "dd2579228d121f5c3215253d1b847eb3d34414ae",
     "apps/macos/AgentDeskKit": "6a56e43c9d9d2145cd4600b94366845eee18e0df",
     "apps/macos/Evidence/Harness": "713f239266cea96ff3d2df706e06ddb4a35e5230",
-    "apps/macos/Evidence/run.sh": "e71a8220d4f47633ff0ba2b7f301cd8369898341"
+    "apps/macos/Evidence/run.sh": "2054bc8843194fe370f8854010238372427a741c"
   },
   "toolchain": "Xcode 27.0 Build version 27A266a; swift-driver version: 1.168.6 Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)",
   "macos": "26.6.2",
@@ -35,7 +35,7 @@
     "contrast-dark-vibrant.png": "sha256:fc92e5919f28c3abb681f57b4c26aed6bf4d54e9042114eb7284d17fb5e81327",
     "contrast-light-plain.png": "sha256:b775ec48bc208cf52deb35cea8d661ecc6d17af827c0a7aecaed42b657e15c32",
     "contrast-light-vibrant.png": "sha256:af44e1fa4f37822dc4b56f1705c77d85db27cd14c839ef1e512b53a41c33c891",
-    "freshness.txt": "sha256:148d5ef3911aaa9b2cc9b9ac8a135286cb59f57a55524370114a5fdbc8bd2141",
+    "freshness.txt": "sha256:6ff89f1f9e5cfa73f5f50f9213ac5ddd3d0f38af8ffcec0dd53f8f26e3d2041e",
     "harness.log": "sha256:d232cf4f1423ff109927fd9a4160eb17da218d46d0d4395447a41dac6140d2f4",
     "label-count-12-dark.png": "sha256:55a84543c1c636d35904197176f120caf3ca1e5ef79abe67368bed19944317c2",
     "label-count-12-light.png": "sha256:2ca411dedbe9a2b2df7e436c1dec6697831cfa81d850345519f884019404bfda",
@@ -55,6 +55,6 @@
     "popover-empty-dark.png": "sha256:c6345a844e9e5657f34642f8736458c53b109783f06ca037fd3775bd561dca5b",
     "popover-empty-light.png": "sha256:787d60f9bd225eaf1a37b8251170959e1b72488ede1022fb3b859ca4198a2f20",
     "report.txt": "sha256:d232cf4f1423ff109927fd9a4160eb17da218d46d0d4395447a41dac6140d2f4",
-    "tests.log": "sha256:2c716853378e66c2c12dd06343450d1171977eb6b1c500b7dce06f5acad341a2"
+    "tests.log": "sha256:477f3ff5581c75d2325d5aa8c28cafc9da0a3418beafe305fe92040cb1fa3204"
   }
 }

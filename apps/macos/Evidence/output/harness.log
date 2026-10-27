@@ -1,0 +1,96 @@
+# AgentDesk Mac evidence harness
+fixture clock: 2026-10-27T12:00:00Z
+
+## Popover layouts
+popover-agents-expanded-light.png: 340x393 pt
+popover-agents-collapsed-light.png: 340x270 pt
+popover-empty-light.png: 340x162 pt
+popover-agents-expanded-dark.png: 340x393 pt
+popover-agents-collapsed-dark.png: 340x270 pt
+popover-empty-dark.png: 340x162 pt
+
+## Rows (DecisionRowModel, as DecisionRow draws and labels them)
+- d1: title weight semibold; time left 4m left (red)
+  accessibility label: Ship the 2.4 release to production now that the staging soak passed?
+  accessibility value: Codex · web, 4m left, new, urgent, suggests Ship now
+- d2: title weight medium; time left 2h left
+  accessibility label: Delete the stale preview databases?
+  accessibility value: Claude Code · api, 2h left
+- d3: title weight semibold; time left none
+  accessibility label: Which name should the new package use?
+  accessibility value: Ended agent, new, suggests agentdesk-core
+agents line: 3 agents running · 1 blocked
+  entry: Codex · web, blocked, Needs a decision on the release
+  entry: Cursor · docs, quiet 13m, Waiting for review
+  entry: Claude Code · api, working, Running the migration tests -> opens https://example.com/a
+
+## Contrast, rendered (40 pt swatches; strongest text pixel against the background)
+### light-vibrant
+title (.primary)  6.14:1  text #5B5B5B on #F4F4F4
+Ink.secondary  6.35:1  text #595959 on #F4F4F4
+Ink.tertiary  4.69:1  text #6D6D6D on #F4F4F4
+Ink.red  5.43:1  text #AC3F2D on #F4F4F4
+system .secondary  3.35:1  text #858585 on #F4F4F4
+system .tertiary  1.68:1  text #BFBFBF on #F4F4F4
+system red  3.13:1  text #E95B4D on #F4F4F4
+### light-plain
+title (.primary) 11.94:1  text #313131 on #F5F5F5
+Ink.secondary  6.44:1  text #595959 on #F5F5F5
+Ink.tertiary  4.75:1  text #6D6D6D on #F5F5F5
+Ink.red  5.50:1  text #AC3F2D on #F5F5F5
+system .secondary  3.07:1  text #8D8D8D on #F5F5F5
+system .tertiary  1.66:1  text #C1C1C1 on #F5F5F5
+system red  2.88:1  text #F16457 on #F5F5F5
+### dark-vibrant
+title (.primary) 11.54:1  text #EDEDED on #2F2F2F
+Ink.secondary  8.62:1  text #CFCFCF on #2F2F2F
+Ink.tertiary  7.02:1  text #BBBBBB on #2F2F2F
+Ink.red  6.85:1  text #F5A599 on #2F2F2F
+system .secondary  6.12:1  text #AFAFAF on #2F2F2F
+system .tertiary  3.02:1  text #777777 on #2F2F2F
+system red  4.57:1  text #F16E61 on #2F2F2F
+### dark-plain
+title (.primary)  8.72:1  text #E5E5E5 on #3C3C3C
+Ink.secondary  7.02:1  text #CFCFCF on #3C3C3C
+Ink.tertiary  5.71:1  text #BBBBBB on #3C3C3C
+Ink.red  5.58:1  text #F5A599 on #3C3C3C
+system .secondary  5.08:1  text #B1B1B1 on #3C3C3C
+system .tertiary  2.39:1  text #757575 on #3C3C3C
+system red  3.66:1  text #F16B60 on #3C3C3C
+
+## Contrast, computed from the shipped Ink values
+Ink.secondary light #474747: worst 8.37:1
+Ink.secondary dark #C4C4C4: worst 6.32:1
+Ink.secondary light Increase Contrast #2B2B2B: worst 12.76:1
+Ink.secondary dark Increase Contrast #E0E0E0: worst 8.36:1
+Ink.tertiary light #5A5A5A: worst 6.22:1
+Ink.tertiary dark #ADADAD: worst 4.92:1
+Ink.tertiary light Increase Contrast #3A3A3A: worst 10.25:1
+Ink.tertiary dark Increase Contrast #D0D0D0: worst 7.15:1
+Ink.red light #A81F18: worst 6.58:1
+Ink.red dark #FF8C83: worst 4.90:1
+Ink.red light Increase Contrast #96140E: worst 7.88:1
+Ink.red dark Increase Contrast #FF9A92: worst 5.40:1
+NSAppearance(named: .accessibilityHighContrastAqua) offscreen: NSAppearanceNameAqua; Increase Contrast is not rendered offscreen, so its values are computed only
+
+## Menu bar label images
+glyph: template=true size=18x18 pt description="AgentDesk, 0 waiting"
+dot-frame-3of7: template=true size=18x18 pt description="AgentDesk, 1 waiting, new"
+dot: template=true size=18x18 pt description="AgentDesk, 3 waiting, new, urgent"
+count-3: template=true size=31x18 pt description="AgentDesk, 3 waiting"
+count-12: template=true size=36x18 pt description="AgentDesk, 12 waiting"
+
+## Dot timeline (DotPresence decides; fade frames are PromptGlyph images)
+read 1, only seen calm decisions: dot=false change=none opacity: no redraw
+read 2, a new decision arrives: dot=true change=fadeIn opacity: 0.14 0.29 0.43 0.57 0.71 0.86 1.00
+read 3, same decisions refreshed: dot=true change=none opacity: no redraw
+read 4, same decisions refreshed: dot=true change=none opacity: no redraw
+popover closes, new decision marked seen: dot=false change=hide opacity: 0.00 at once
+Reduce Motion, a new decision arrives: dot=true change=appear opacity: 1.00 at once
+Reduce Motion, refreshed: dot=true change=none opacity: no redraw
+label-dot-fade-frames.png: opacity 0/7 to 7/7 over 0.35 s
+
+## Not available in this harness
+AXIsProcessTrusted=false: live VoiceOver output and the live MenuBarExtra open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its one element's label and value.
+
+RESULT: PASS

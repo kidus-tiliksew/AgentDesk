@@ -1,0 +1,58 @@
+Building for debugging...
+[1 / 5]
+Build complete! (0.30 secs)
+Test Suite 'Selected tests' started at 2026-10-27 20:59:32.064.
+Test Suite 'AgentDeskKitTests.xctest' started at 2026-10-27 20:59:32.065.
+Test Suite 'DotPresenceTests' started at 2026-10-27 20:59:32.065.
+Test Case '-[AgentDeskKitTests.DotPresenceTests testFadesInOnceAndRefreshesChangeNothing]' started.
+Test Case '-[AgentDeskKitTests.DotPresenceTests testFadesInOnceAndRefreshesChangeNothing]' passed (0.000 seconds).
+Test Case '-[AgentDeskKitTests.DotPresenceTests testReduceMotionAppearsAtOnce]' started.
+Test Case '-[AgentDeskKitTests.DotPresenceTests testReduceMotionAppearsAtOnce]' passed (0.000 seconds).
+Test Suite 'DotPresenceTests' passed at 2026-10-27 20:59:32.065.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'SyncFreshnessTests' started at 2026-10-27 20:59:32.065.
+Test Case '-[AgentDeskKitTests.SyncFreshnessTests testClosedPopoverReflectsAChangeWithin20Seconds]' started.
+Test Case '-[AgentDeskKitTests.SyncFreshnessTests testClosedPopoverReflectsAChangeWithin20Seconds]' passed (0.010 seconds).
+Test Case '-[AgentDeskKitTests.SyncFreshnessTests testOpenPopoverReflectsAChangeWithin10Seconds]' started.
+Test Case '-[AgentDeskKitTests.SyncFreshnessTests testOpenPopoverReflectsAChangeWithin10Seconds]' passed (0.004 seconds).
+Test Suite 'SyncFreshnessTests' passed at 2026-10-27 20:59:32.080.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.014 (0.014) seconds
+Test Suite 'SyncTests' started at 2026-10-27 20:59:32.080.
+Test Case '-[AgentDeskKitTests.SyncTests testAFailedAgentReadAlsoBacksOff]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testAFailedAgentReadAlsoBacksOff]' passed (0.004 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testAFailedReadKeepsTheLastGoodSnapshot]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testAFailedReadKeepsTheLastGoodSnapshot]' passed (0.004 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testAgentsKeepTheirLastGoodListWhenDecisionsFail]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testAgentsKeepTheirLastGoodListWhenDecisionsFail]' passed (0.006 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testATickThatFindsAReadInFlightIsSkipped]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testATickThatFindsAReadInFlightIsSkipped]' passed (0.008 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testATriggerDuringAReadWaitsAndReadsAgain]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testATriggerDuringAReadWaitsAndReadsAgain]' passed (0.029 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testClosingSwitchesTo15SecondsWithoutAReadAndStopsAgentReads]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testClosingSwitchesTo15SecondsWithoutAReadAndStopsAgentReads]' passed (0.006 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testFailedReadsBackOffTo300SecondsAndASuccessResets]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testFailedReadsBackOffTo300SecondsAndASuccessResets]' passed (0.018 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testOnlyACompleteReadOfEveryPageReplacesTheList]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testOnlyACompleteReadOfEveryPageReplacesTheList]' passed (0.004 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testOpeningReadsBothAtOnceThenEvery5Seconds]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testOpeningReadsBothAtOnceThenEvery5Seconds]' passed (0.006 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testSignOutThroughAccountStopsSync]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testSignOutThroughAccountStopsSync]' passed (0.003 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testStartReadsDecisionsAtOnceThenEvery15SecondsWhileClosed]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testStartReadsDecisionsAtOnceThenEvery15SecondsWhileClosed]' passed (0.004 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testStopDropsAResultStillInFlightAndARestartBeginsEmpty]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testStopDropsAResultStillInFlightAndARestartBeginsEmpty]' passed (0.028 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testStopRightAfterStartStartsNothing]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testStopRightAfterStartStartsNothing]' passed (0.030 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testUnauthorizedStopsPolling]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testUnauthorizedStopsPolling]' passed (0.062 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testWakeAndNetworkReturnReadAtOnce]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testWakeAndNetworkReturnReadAtOnce]' passed (0.008 seconds).
+Test Suite 'SyncTests' passed at 2026-10-27 20:59:32.302.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.221 (0.222) seconds
+Test Suite 'AgentDeskKitTests.xctest' passed at 2026-10-27 20:59:32.302.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.236 (0.237) seconds
+Test Suite 'Selected tests' passed at 2026-10-27 20:59:32.302.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.236 (0.238) seconds
+FRESHNESS closed: timer 15.000 s + read 0.0010 s (3 pages, in-process stub) = 15.0010 s; bound 20 s
+FRESHNESS open: timer 5.000 s + read 0.0009 s (3 pages, in-process stub) = 5.0009 s; bound 10 s
