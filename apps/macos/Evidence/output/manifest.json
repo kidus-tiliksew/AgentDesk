@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-10-27T17:59:32Z",
-  "source_commit": "8fd727e72ca5f97a190f4fd0e6880e9d2409b01b",
+  "generated_at": "2026-10-27T18:37:33Z",
+  "source_commit": "9c6c24fefec4a46ae2c18da60b6200039f1d4f19",
   "sources_dirty": false,
   "source_trees": {
-    "apps/macos/AgentDesk": "dd2579228d121f5c3215253d1b847eb3d34414ae",
-    "apps/macos/AgentDeskKit": "6a56e43c9d9d2145cd4600b94366845eee18e0df",
-    "apps/macos/Evidence/Harness": "713f239266cea96ff3d2df706e06ddb4a35e5230",
-    "apps/macos/Evidence/run.sh": "2054bc8843194fe370f8854010238372427a741c"
+    "apps/macos/AgentDesk": "527fc0d895e9bda4dd68720077c3a4c19f7b6c1b",
+    "apps/macos/AgentDeskKit": "0bbead8dc1fe324aae7ee9329916df4935ed01aa",
+    "apps/macos/Evidence/Harness": "98d57b2b41c36a0a050ce9230ee523a43c48364f",
+    "apps/macos/Evidence/run.sh": "bc159a44432a35b80e2c88d15f635156ec67327b"
   },
   "toolchain": "Xcode 27.0 Build version 27A266a; swift-driver version: 1.168.6 Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)",
   "macos": "26.6.2",
   "commands": [
     {
-      "command": "swiftc -swift-version 6 -O -o <tmp>/evidence <kit sources> AgentDesk/{DecisionRow,AgentsView,Ink,MenuBarLabel}.swift Evidence/Harness/*.swift",
+      "command": "swiftc -swift-version 6 -O -o <tmp>/evidence <kit sources> AgentDesk/{DecisionRow,AnswerControls,AgentsView,Ink,MenuBarLabel}.swift Evidence/Harness/*.swift",
       "exit": 0,
       "log": "build.log"
     },
@@ -23,20 +23,20 @@
       "report": "report.txt"
     },
     {
-      "command": "swift test --package-path apps/macos/AgentDeskKit --filter 'SyncFreshnessTests|DotPresenceTests|SyncTests'",
+      "command": "swift test --package-path apps/macos/AgentDeskKit --filter 'SyncFreshnessTests|DotPresenceTests|SyncTests|PendingAnswersTests|AnswerDraftTests|PopoverKeysTests'",
       "exit": 0,
       "log": "tests.log",
       "summary": "freshness.txt"
     }
   ],
   "outputs": {
-    "build.log": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build.log": "sha256:85de76d46ae2a60fe72690eb62cd048234550c99cd6a6e66ccf1f5489470c62c",
     "contrast-dark-plain.png": "sha256:f4fc58dd7cb62f9c0c5fbc8db15edbcb4ebeb71b414b6d57da0870779ddffdbe",
     "contrast-dark-vibrant.png": "sha256:fc92e5919f28c3abb681f57b4c26aed6bf4d54e9042114eb7284d17fb5e81327",
     "contrast-light-plain.png": "sha256:b775ec48bc208cf52deb35cea8d661ecc6d17af827c0a7aecaed42b657e15c32",
     "contrast-light-vibrant.png": "sha256:af44e1fa4f37822dc4b56f1705c77d85db27cd14c839ef1e512b53a41c33c891",
-    "freshness.txt": "sha256:6ff89f1f9e5cfa73f5f50f9213ac5ddd3d0f38af8ffcec0dd53f8f26e3d2041e",
-    "harness.log": "sha256:d232cf4f1423ff109927fd9a4160eb17da218d46d0d4395447a41dac6140d2f4",
+    "freshness.txt": "sha256:e4510be48aca73fe3ced1b1edfc419d0a536bba222e7fb384b986d472885c5ff",
+    "harness.log": "sha256:c59e1c0d7a766c3e9efd697ef6ec34a9daf4283c7137b65186ffd0b57912d4c5",
     "label-count-12-dark.png": "sha256:55a84543c1c636d35904197176f120caf3ca1e5ef79abe67368bed19944317c2",
     "label-count-12-light.png": "sha256:2ca411dedbe9a2b2df7e436c1dec6697831cfa81d850345519f884019404bfda",
     "label-count-3-dark.png": "sha256:d856eca3b8711086faa4899f08938a7e5a97707909a270753dc4d0c63e9ec9da",
@@ -48,13 +48,29 @@
     "label-dot-light.png": "sha256:f49d2d8cb4d67186228431c972793a8355aba706889f9eff6c2d5abb4bb780f2",
     "label-glyph-dark.png": "sha256:ae109cceaa9147b826df4df7fdce364d14f233c833d8a9484867d9a20041b154",
     "label-glyph-light.png": "sha256:1fcac118dff257bc77834c716fc5c2b0a9abe2902db0c482a511ea0130e1398f",
-    "popover-agents-collapsed-dark.png": "sha256:bc37f547b079411da379afd427265448c4a0b01a739728e7a8f4b3b2ccebdc47",
-    "popover-agents-collapsed-light.png": "sha256:cc0e5a1176a803427051fa56c719ea4d1d678205d2a64f512ff5d1736ae46a73",
-    "popover-agents-expanded-dark.png": "sha256:b55ed70b3049d0dd7ebcf0c20137cdbe0b4ae1412e47621fcc9d0817fbc232e0",
-    "popover-agents-expanded-light.png": "sha256:589bf1f5d7b59398f3c859efe8bedcb36552a71556c89390ad181b38d61ca40f",
+    "popover-agents-collapsed-dark.png": "sha256:3ff6bae403be5ba450c41f950ae641a4af225dd590755bd4f13ef10888b85ad8",
+    "popover-agents-collapsed-light.png": "sha256:466e5bc0bd6f747f89af729698088c094c862cfd235bf011e4c2b3d713a3aba4",
+    "popover-agents-expanded-dark.png": "sha256:1f87b65df5112741be0455911741b708c4d84455bfe7c59502e37a676d3cd05e",
+    "popover-agents-expanded-light.png": "sha256:5953926c5b61e80f48f1ccea519096d1ca2e666931ba1c3d0dc2fb069937d4b5",
+    "popover-conflict-dark.png": "sha256:9b6abde2b3bdcd8a5f17d5434fedf8f09ca7bb4f93af0f54ef8c9b30d023bea5",
+    "popover-conflict-light.png": "sha256:f41afd69767d2e6956d19bc16d420112919d267a4802c1dbe1d5ce0bf9be374b",
     "popover-empty-dark.png": "sha256:c6345a844e9e5657f34642f8736458c53b109783f06ca037fd3775bd561dca5b",
     "popover-empty-light.png": "sha256:787d60f9bd225eaf1a37b8251170959e1b72488ede1022fb3b859ca4198a2f20",
-    "report.txt": "sha256:d232cf4f1423ff109927fd9a4160eb17da218d46d0d4395447a41dac6140d2f4",
-    "tests.log": "sha256:477f3ff5581c75d2325d5aa8c28cafc9da0a3418beafe305fe92040cb1fa3204"
+    "popover-expanded-approve-reject-dark.png": "sha256:9bdbbeb6444ab33d9925d5462ce642dfcc0518f3a11d92bef5272b3805c24077",
+    "popover-expanded-approve-reject-light.png": "sha256:e17523bbe68f393f23483d1200c3edcd2956bb63270ec447f7f1ed739f5e7dc6",
+    "popover-expanded-free-text-dark.png": "sha256:08ea00460b8baa28315ec093ff7f7dd805f9ff241c58fa71ae88096017c6a62c",
+    "popover-expanded-free-text-light.png": "sha256:4c543e67827beda00dd3d48a1f0098a46b0f3d6511a8089ba10183be31d10767",
+    "popover-expanded-multiple-choice-dark.png": "sha256:08ec47580a4703b23468fe1eadff78bc6fddb4f5039391fc784994ffb4c521f8",
+    "popover-expanded-multiple-choice-light.png": "sha256:88e75c8f466ccafca2be66a59a78ff66a23cf4b7cc5086db62c2b71511aed0a0",
+    "popover-expanded-single-choice-dark.png": "sha256:525c01aa2026f4a19d186ae03b5fbf673213f8a3fe59c90a0dee1652868ec5cd",
+    "popover-expanded-single-choice-light.png": "sha256:7dbf2d6e2b7fce91922196573dd793478a2b0660e1f9c26773adc820a6c27e9d",
+    "popover-expanded-single-choice-or-text-dark.png": "sha256:4a7bb54bc660aa3ce512697321a78c8ae4e2d74d630d7167f85fb0df1bf84da2",
+    "popover-expanded-single-choice-or-text-light.png": "sha256:7d8f25686f4cc74d2d94eceb8ad9cb2fb6b7da02c585e99a5dff562245fda95e",
+    "popover-send-failed-dark.png": "sha256:296a4cec8fa99e762168ac762cbf2c8aeb429b59a08afd9a0c4e5d3e1ed22376",
+    "popover-send-failed-light.png": "sha256:32742281adc4a01e8ab58b767b7e6193bc671c9d75c46d91e15336056e78e947",
+    "popover-undo-dark.png": "sha256:9d6e9e63d2275ef86d149bf9b58d02becdc5c18c2c84a7a90f73d6b24984c304",
+    "popover-undo-light.png": "sha256:4732e689d127934abeb88a567a860d4b6f09545996a0c25b866961783207bfc2",
+    "report.txt": "sha256:c59e1c0d7a766c3e9efd697ef6ec34a9daf4283c7137b65186ffd0b57912d4c5",
+    "tests.log": "sha256:d24b484acd52812b04fcf3d10a78b2ecb2a40f17f86ea1a9a5b1f1f60adbcd7d"
   }
 }

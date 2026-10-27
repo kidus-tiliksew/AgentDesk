@@ -1,0 +1,9 @@
+<tmp>/src/AnswerControls.swift:75:31: warning: '+' was deprecated in macOS 26.0: Use string interpolation on `Text` instead: `Text("Hello \(name)")` [#DeprecatedDeclaration]
+ 73 |   private func optionLabel(_ option: Option) -> Text {
+ 74 |     guard draft.isSuggested(option.id) else { return Text(option.label) }
+ 75 |     return Text(option.label) + Text("  Suggested").foregroundStyle(Ink.tertiary)
+    |                               `- warning: '+' was deprecated in macOS 26.0: Use string interpolation on `Text` instead: `Text("Hello \(name)")` [#DeprecatedDeclaration]
+ 76 |   }
+ 77 | 
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>

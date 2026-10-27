@@ -2,12 +2,28 @@
 fixture clock: 2026-10-27T12:00:00Z
 
 ## Popover layouts
-popover-agents-expanded-light.png: 340x393 pt
-popover-agents-collapsed-light.png: 340x270 pt
+popover-agents-expanded-light.png: 340x419 pt
+popover-agents-collapsed-light.png: 340x296 pt
 popover-empty-light.png: 340x162 pt
-popover-agents-expanded-dark.png: 340x393 pt
-popover-agents-collapsed-dark.png: 340x270 pt
+popover-undo-light.png: 340x248 pt
+popover-conflict-light.png: 340x252 pt
+popover-send-failed-light.png: 340x317 pt
+popover-expanded-approve-reject-light.png: 340x469 pt
+popover-expanded-single-choice-light.png: 340x459 pt
+popover-expanded-multiple-choice-light.png: 340x477 pt
+popover-expanded-free-text-light.png: 340x444 pt
+popover-expanded-single-choice-or-text-light.png: 340x529 pt
+popover-agents-expanded-dark.png: 340x419 pt
+popover-agents-collapsed-dark.png: 340x296 pt
 popover-empty-dark.png: 340x162 pt
+popover-undo-dark.png: 340x248 pt
+popover-conflict-dark.png: 340x252 pt
+popover-send-failed-dark.png: 340x317 pt
+popover-expanded-approve-reject-dark.png: 340x469 pt
+popover-expanded-single-choice-dark.png: 340x459 pt
+popover-expanded-multiple-choice-dark.png: 340x477 pt
+popover-expanded-free-text-dark.png: 340x444 pt
+popover-expanded-single-choice-or-text-dark.png: 340x529 pt
 
 ## Rows (DecisionRowModel, as DecisionRow draws and labels them)
 - d1: title weight semibold; time left 4m left (red)
@@ -19,6 +35,35 @@ popover-empty-dark.png: 340x162 pt
 - d3: title weight semibold; time left none
   accessibility label: Which name should the new package use?
   accessibility value: Ended agent, new, suggests agentdesk-core
+
+## Expanded rows (AnswerDraft as the controls start, untouched)
+- approve-reject: Send and ⌘↩ submit Approve
+  default sentence: If nobody answers by 2:00 PM, the agent goes with Reject.
+  agent page: https://example.com/a
+  buttons: Reject, Approve (accent, hint "Suggested by the agent")
+- single-choice: Send and ⌘↩ submit Ship now
+  default sentence: none
+  agent page: none
+  labelled Suggested: Ship now
+- multiple-choice: Send and ⌘↩ submit Europe, United States
+  default sentence: none
+  agent page: https://example.com/a
+  labelled Suggested: Europe, United States
+- free-text: Send and ⌘↩ submit agentdesk-core
+  default sentence: none
+  agent page: https://example.com/a
+  text placeholder: agentdesk-core
+- single-choice-or-text: Send and ⌘↩ submit Tonight at 02:00
+  default sentence: If nobody answers by 1:00 PM, the agent goes with Tonight at 02:00.
+  agent page: https://example.com/a
+  labelled Suggested: Tonight at 02:00
+
+## Strips
+undo: Approve · Delete the stale preview databases? [Undo]
+conflict: Already answered in chat: Reject
+conflict, outcome unread: Settled elsewhere. Couldn't read the outcome.
+send failed, under the row: Couldn't send. Try again.
+
 agents line: 3 agents running · 1 blocked
   entry: Codex · web, blocked, Needs a decision on the release
   entry: Cursor · docs, quiet 13m, Waiting for review
@@ -91,6 +136,7 @@ Reduce Motion, refreshed: dot=true change=none opacity: no redraw
 label-dot-fade-frames.png: opacity 0/7 to 7/7 over 0.35 s
 
 ## Not available in this harness
-AXIsProcessTrusted=false: live VoiceOver output and the live MenuBarExtra open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its one element's label and value.
+AXIsProcessTrusted=false: live VoiceOver output and the live MenuBarExtra open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject, Approve, and the expanded controls as separate elements.
+Keys are not captured: the popover's key monitor needs the live MenuBarExtra window as key window. PopoverKeysTests covers the key-to-action mapping; Escape with no row expanded is left to the window.
 
 RESULT: PASS
