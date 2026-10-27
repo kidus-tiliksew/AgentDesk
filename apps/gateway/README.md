@@ -6,7 +6,26 @@ This slice serves the remote MCP server at `POST /mcp`, `GET /mcp`, and `DELETE 
 
 A tool error's `field` names the tool's own argument, such as `decision_id`, never a Convex argument such as `decisionId`. A refusal of the caller's user or session names no field. Once a `POST /mcp` body parses as a JSON-RPC request, a failure at any later step answers HTTP 200 with a JSON-RPC error `-32603` carrying the request's id. `error.data.code` is `unavailable` when Convex cannot answer, and the service's own code when it refuses a step such as `initialize`. A refused credential still answers 401 with its challenge.
 
-It also serves the [installer endpoints](#installer-endpoints): `/device/*` and `/install.sh`. Clerk OAuth tokens, the `/.well-known` discovery documents, and the `/v1` HTTP API are not built yet. A connection token (`adc_…`) is the only accepted credential.
+It also serves the [public HTTP API](#public-http-api) under `/v1` and the [installer endpoints](#installer-endpoints): `/device/*` and `/install.sh`. Clerk OAuth tokens and the `/.well-known` discovery documents are not built yet. A connection token (`adc_…`) is accepted on `/mcp` and `/device/*`, and an API token (`adp_…`) only on `/v1`.
+
+## Public HTTP API
+
+`src/v1.ts` serves the operations of the contract's route table (`packages/contract/src/http/routes.ts#ROUTES`), registered by route id, so the served API and `spec/openapi.json` cannot diverge:
+
+| Route | Operation |
+| --- | --- |
+| `GET /v1/decisions` | `decisions.list`, filtered by `state` and `topic`, newest first, paged with `cursor` and `limit` (1 to 100, default 50) |
+| `GET /v1/decisions/{decision_id}` | `decisions.get` |
+| `POST /v1/decisions/{decision_id}/answer` | `decisions.answer`, body `{answer, note}`, recorded with `answered_via: "api"` |
+| `POST /v1/decisions/{decision_id}/cancel` | `decisions.cancel` |
+| `GET /v1/agent-sessions` | `agent_sessions.list`: live sessions first, then sessions ended in the last 7 days |
+| `GET /v1/agent-sessions/{agent_session_id}` | `agent_sessions.get` |
+
+- Every request carries `Authorization: Bearer adp_…`, resolved through `/svc/identity/resolve-token` on every request. A missing, malformed, unknown, or revoked token, a connection token, and an `adp_` token of another kind answer 401 with `WWW-Authenticate: Bearer`.
+- The `API_LIMIT` binding allows 120 requests a minute per API token, keyed by its credential id after authentication. Over the limit answers 429 `rate_limited`. Without the binding, `/v1` answers 503 rather than run unlimited.
+- Path, query, and body are validated with the route's contract schemas. A failure answers 400 `invalid` naming the field. Service refusals keep their code with the status `ERROR_STATUS` names: 404 `not_found`, 409 `conflict` for a decision that is no longer pending. A service field is restated as the public one, such as `decision_id`.
+- A page's `next_cursor` is `null` on the last page. Keep the other filters unchanged while paging; a cursor reused with other filters answers 400 naming `cursor`.
+- Any other method and path under `/v1` answers 404.
 
 ## Installer endpoints
 
@@ -38,7 +57,7 @@ The `agentdesk` installer (`packages/installer`) signs each harness in by short 
 | `CONVEX_SITE_URL` | the Convex deployment's HTTP actions origin, ending in `.convex.site` |
 | `CLERK_PUBLISHABLE_KEY` | Clerk application key, unused until OAuth verification is built |
 
-It also declares the `DEVICE_START_LIMIT` rate-limit binding, 10 calls per 60 seconds, which `/device/start` keys by client IP.
+It also declares the `DEVICE_START_LIMIT` rate-limit binding, 10 calls per 60 seconds, which `/device/start` keys by client IP, and the `API_LIMIT` binding, 120 calls per 60 seconds, which `/v1` keys by API credential.
 
 Secrets are never committed:
 
@@ -88,7 +107,20 @@ The smoke run and the Claude Code entry below need a Convex dev deployment, a ga
 
    The result's `token` (`adc_…`) is shown once. Treat it as a password.
 
-`identity/devMint:mintConnectionToken` and `decisions/devAnswer:answer` are internal functions. Only the dashboard or a Convex CLI with access to the deployment can call them. To settle a decision by hand, as the smoke run does:
+5. For the HTTP API, mint an API token the same way. No app creates API tokens yet:
+
+   ```sh
+   npx convex run identity/devMint:mintApiToken \
+     '{"clerkUserId": "user_<id>", "email": "developer@example.com", "name": "Local API checks"}'
+   ```
+
+   The result's `token` (`adp_…`) is shown once. List the user's pending decisions with it:
+
+   ```sh
+   curl -H "Authorization: Bearer adp_…" 'http://localhost:8787/v1/decisions?state=pending'
+   ```
+
+`identity/devMint:mintConnectionToken`, `identity/devMint:mintApiToken`, and `decisions/devAnswer:answer` are internal functions. Only the dashboard or a Convex CLI with access to the deployment can call them. To settle a decision by hand, as the smoke run does:
 
 ```sh
 npx convex run decisions/devAnswer:answer \

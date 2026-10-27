@@ -1,4 +1,9 @@
-import { agentSessionSchema, decisionSchema, errorBodySchema } from "@agentdesk/contract";
+import {
+  agentSessionSchema,
+  decisionPageSchema,
+  decisionSchema,
+  errorBodySchema,
+} from "@agentdesk/contract";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { Id } from "../_generated/dataModel";
@@ -1400,19 +1405,40 @@ describe("/svc/decisions/watch", () => {
   });
 });
 
-// req-agent-tools AC-7.3: resolve is the only route that takes an answer.
-test("no route but resolve accepts an answer", async () => {
+// req-agent-tools AC-7.3: resolve is the only MCP route that takes an answer.
+// The public API's `/svc/decisions/answer` records only `api`, whatever
+// surface the body names (req-public-api-and-webhooks AC-2.2).
+test("no MCP route but resolve accepts an answer, and the API route records only api", async () => {
   const { t, userId, open, ask } = await setup();
   const agentSessionId = await open();
   const decision = await ask(agentSessionId);
+  const answer = { kind: "approve" };
+
+  await post(t, "/svc/decisions/poll", { userId, agentSessionId, decisionId: decision.id, answer });
+  await post(t, "/svc/decisions/check", {
+    userId,
+    agentSessionId,
+    decisionIds: [decision.id],
+    answer,
+  });
+  const read = await post(t, "/svc/decisions/get", { userId, decisionId: decision.id });
+  expect((await read.json()).state).toBe("pending");
 
   const response = await post(t, "/svc/decisions/answer", {
     userId,
     decisionId: decision.id,
-    answer: { kind: "approve" },
+    answer,
+    answeredVia: "chat",
+    agentSessionId,
   });
 
-  expect(response.status).toBe(404);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({
+    state: "answered",
+    answered_via: "api",
+    chat_message: null,
+    relayed_by_agent_session_id: null,
+  });
 });
 
 // component-decisions §Reads `pendingCountForAgent`, through the agent card
@@ -1458,5 +1484,284 @@ describe("pending decision count", () => {
     await t.mutation(decisions.expire.run, { decisionId: expiring.id as Id<"decisions"> });
     expect(await status(agentSessionId)).toBe(0);
     expect(await status(otherSession)).toBe(1);
+  });
+});
+
+// component-decisions §Service routes: the public HTTP API's routes, which
+// name no agent session.
+describe("public API routes", () => {
+  const page = decisionPageSchema;
+
+  // Asks one decision per topic, a minute apart, so creation order is known.
+  async function askAll(topics: string[]) {
+    const ctx = await setup();
+    const agentSessionId = await ctx.open();
+    const asked = [];
+    for (const [index, topic] of topics.entries()) {
+      vi.setSystemTime(START + (index + 1) * MINUTE);
+      asked.push(await ctx.ask(agentSessionId, { ...approve, topic }));
+    }
+    return { ...ctx, agentSessionId, asked };
+  }
+
+  async function foreignDecision(t: T, otherUserId: Id<"users">) {
+    const credentialId = await t.run((ctx) =>
+      ctx.db.insert("credentials", {
+        userId: otherUserId,
+        kind: "connection_token",
+        tokenHash: "1".repeat(64),
+      }),
+    );
+    const { agentSessionId } = await t.mutation(agents.sessions.open, {
+      userId: otherUserId,
+      credentialId,
+      clientName: "Codex",
+      clientVersion: "1.0.0",
+    });
+    const response = await post(t, "/svc/decisions/create", {
+      userId: otherUserId,
+      agentSessionId,
+      ...approve,
+    });
+    return decisionSchema.parse(await response.json());
+  }
+
+  describe("/svc/decisions/list", () => {
+    // req-public-api-and-webhooks AC-2.1, AC-2.3
+    test("lists the user's decisions newest first with their notification action", async () => {
+      const { t, userId, otherUserId, asked } = await askAll(["repo/a", "repo/b", "repo/c"]);
+      await foreignDecision(t, otherUserId);
+
+      const response = await post(t, "/svc/decisions/list", { userId, limit: 50 });
+
+      expect(response.status).toBe(200);
+      const result = page.parse(await response.json());
+      expect(result.items.map((d) => d.id)).toEqual(asked.map((d) => d.id).reverse());
+      expect(result.items.every((d) => d.notification_action === "push")).toBe(true);
+      expect(result.next_cursor).toBeNull();
+    });
+
+    test("filters by state", async () => {
+      const { t, userId, asked } = await askAll(["repo/a", "repo/b", "repo/c"]);
+      await post(t, "/svc/decisions/cancel", { userId, decisionId: asked[1]?.id });
+
+      const pending = page.parse(
+        await (
+          await post(t, "/svc/decisions/list", { userId, state: "pending", limit: 50 })
+        ).json(),
+      );
+      const cancelled = page.parse(
+        await (
+          await post(t, "/svc/decisions/list", { userId, state: "cancelled", limit: 50 })
+        ).json(),
+      );
+
+      expect(pending.items.map((d) => d.id)).toEqual([asked[2]?.id, asked[0]?.id]);
+      expect(cancelled.items.map((d) => d.id)).toEqual([asked[1]?.id]);
+    });
+
+    test("filters by topic, matching the topic and every topic under it", async () => {
+      const { t, userId, asked } = await askAll(["acme", "acme/billing", "acmecorp", "acme-x"]);
+
+      const response = await post(t, "/svc/decisions/list", { userId, topic: "ACME", limit: 50 });
+
+      expect(page.parse(await response.json()).items.map((d) => d.id)).toEqual([
+        asked[1]?.id,
+        asked[0]?.id,
+      ]);
+    });
+
+    test("pages to a null next_cursor without duplicates or omissions", async () => {
+      const topics = ["repo/a", "repo/b", "repo/c", "repo/d", "repo/e"];
+      const { t, userId, asked } = await askAll(topics);
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      let pages = 0;
+      do {
+        const response = await post(t, "/svc/decisions/list", {
+          userId,
+          state: "pending",
+          limit: 2,
+          ...(cursor === undefined ? {} : { cursor }),
+        });
+        expect(response.status).toBe(200);
+        const result = page.parse(await response.json());
+        seen.push(...result.items.map((d) => d.id));
+        cursor = result.next_cursor ?? undefined;
+        pages++;
+      } while (cursor !== undefined && pages < 10);
+
+      expect(seen).toEqual(asked.map((d) => d.id).reverse());
+    });
+
+    test("refuses a cursor reused with other filters and a malformed cursor as invalid", async () => {
+      const { t, userId } = await askAll(["repo/a", "repo/b", "repo/c"]);
+      const first = page.parse(
+        await (await post(t, "/svc/decisions/list", { userId, limit: 1 })).json(),
+      );
+      expect(first.next_cursor).not.toBeNull();
+
+      const reused = await post(t, "/svc/decisions/list", {
+        userId,
+        state: "pending",
+        cursor: first.next_cursor,
+        limit: 1,
+      });
+      const malformed = await post(t, "/svc/decisions/list", {
+        userId,
+        cursor: "not a cursor!",
+        limit: 1,
+      });
+
+      for (const response of [reused, malformed]) {
+        expect(response.status).toBe(400);
+        expect((await errorOf(response)).field).toBe("cursor");
+      }
+    });
+
+    test("returns 400 naming state, topic, or limit", async () => {
+      const { t, userId } = await setup();
+
+      for (const [body, field] of [
+        [{ state: "done", limit: 1 }, "state"],
+        [{ topic: "", limit: 1 }, "topic"],
+        [{ limit: 0 }, "limit"],
+      ] as const) {
+        const response = await post(t, "/svc/decisions/list", { userId, ...body });
+        expect(response.status).toBe(400);
+        expect((await errorOf(response)).field).toBe(field);
+      }
+    });
+
+    test("returns 401 for a wrong secret", async () => {
+      const { t, userId } = await setup();
+
+      const response = await post(t, "/svc/decisions/list", { userId, limit: 1 }, "Bearer wrong");
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe("/svc/decisions/get", () => {
+    test("returns the owned Decision with its notification action", async () => {
+      const { t, userId, asked } = await askAll(["repo/a"]);
+
+      const response = await post(t, "/svc/decisions/get", { userId, decisionId: asked[0]?.id });
+
+      expect(response.status).toBe(200);
+      expect(decisionSchema.parse(await response.json())).toMatchObject({
+        id: asked[0]?.id,
+        notification_action: "push",
+      });
+    });
+
+    test("returns 404 for a missing or foreign decision and 400 for a malformed id", async () => {
+      const { t, userId, otherUserId, asked } = await askAll(["repo/a"]);
+      const foreign = await foreignDecision(t, otherUserId);
+      await t.run((ctx) => ctx.db.delete("decisions", asked[0]?.id as Id<"decisions">));
+
+      for (const decisionId of [foreign.id, asked[0]?.id]) {
+        const response = await post(t, "/svc/decisions/get", { userId, decisionId });
+        expect(response.status).toBe(404);
+        expect(await errorOf(response)).toEqual({
+          code: "not_found",
+          message: "Decision not found",
+        });
+      }
+      const malformed = await post(t, "/svc/decisions/get", { userId, decisionId: "nope" });
+      expect(malformed.status).toBe(400);
+      expect((await errorOf(malformed)).field).toBe("decisionId");
+    });
+  });
+
+  describe("/svc/decisions/answer", () => {
+    // req-public-api-and-webhooks AC-2.2
+    test("records the answer and note with answered_via api and touches no session", async () => {
+      const { t, userId, agentSessionId, session, asked } = await askAll(["repo/a"]);
+      const before = await session(agentSessionId);
+      vi.setSystemTime(START + 10 * MINUTE);
+
+      const response = await post(t, "/svc/decisions/answer", {
+        userId,
+        decisionId: asked[0]?.id,
+        answer: { kind: "approve" },
+        note: "Ship it",
+      });
+
+      expect(response.status).toBe(200);
+      expect(decisionSchema.parse(await response.json())).toMatchObject({
+        state: "answered",
+        answer: { kind: "approve" },
+        note: "Ship it",
+        answered_via: "api",
+        answered_at: new Date(START + 10 * MINUTE).toISOString(),
+        chat_message: null,
+      });
+      expect(await session(agentSessionId)).toEqual(before);
+    });
+
+    test("leaves the decision pending for an invalid answer or note", async () => {
+      const { t, userId, asked } = await askAll(["repo/a"]);
+      const decisionId = asked[0]?.id;
+
+      for (const [body, field] of [
+        [{ answer: { kind: "option", option_id: "pg" } }, "answer.kind"],
+        [{}, "answer"],
+        [{ answer: { kind: "approve" }, note: 3 }, "note"],
+        [{ answer: { kind: "approve" }, note: "x".repeat(2001) }, "note"],
+      ] as const) {
+        const response = await post(t, "/svc/decisions/answer", { userId, decisionId, ...body });
+        expect(response.status).toBe(400);
+        expect((await errorOf(response)).field).toMatch(new RegExp(`^${field}`));
+      }
+      const stored = await post(t, "/svc/decisions/get", { userId, decisionId });
+      expect((await stored.json()).state).toBe("pending");
+    });
+
+    test("returns 409 for a settled decision and changes nothing", async () => {
+      const { t, userId, asked } = await askAll(["repo/a"]);
+      const decisionId = asked[0]?.id;
+      await post(t, "/svc/decisions/cancel", { userId, decisionId });
+
+      const response = await post(t, "/svc/decisions/answer", {
+        userId,
+        decisionId,
+        answer: { kind: "approve" },
+      });
+
+      expect(response.status).toBe(409);
+      expect(await errorOf(response)).toEqual({
+        code: "conflict",
+        message: "Decision is already cancelled",
+      });
+      const stored = await post(t, "/svc/decisions/get", { userId, decisionId });
+      expect(await stored.json()).toMatchObject({ state: "cancelled", answer: null });
+    });
+
+    // req-decision-requests AC-4.2
+    test("of two racing API answers exactly one wins and the other is 409", async () => {
+      const { t, userId, asked } = await askAll(["repo/a"]);
+      const decisionId = asked[0]?.id;
+
+      const responses = await Promise.all(
+        (["approve", "reject"] as const).map((kind) =>
+          post(t, "/svc/decisions/answer", { userId, decisionId, answer: { kind } }),
+        ),
+      );
+
+      expect(responses.map((r) => r.status).sort()).toEqual([200, 409]);
+      const winner = responses.find((r) => r.status === 200) as Response;
+      const stored = await (await post(t, "/svc/decisions/get", { userId, decisionId })).json();
+      expect(stored.answer).toEqual((await winner.json()).answer);
+    });
+
+    test("returns 404 for a foreign decision and 401 for a wrong secret", async () => {
+      const { t, userId, otherUserId } = await setup();
+      const foreign = await foreignDecision(t, otherUserId);
+      const body = { userId, decisionId: foreign.id, answer: { kind: "approve" } };
+
+      expect((await post(t, "/svc/decisions/answer", body)).status).toBe(404);
+      expect((await post(t, "/svc/decisions/answer", body, "Bearer wrong")).status).toBe(401);
+    });
   });
 });

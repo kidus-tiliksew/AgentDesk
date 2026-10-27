@@ -246,7 +246,7 @@ describe("HTTP methods and message kinds", () => {
 
   it("answers any other path with 404", async () => {
     const response = await handle(
-      new Request("https://agentdesk.example/v1/decisions"),
+      new Request("https://agentdesk.example/v2/decisions"),
       env,
       fakeConvex().svc,
     );

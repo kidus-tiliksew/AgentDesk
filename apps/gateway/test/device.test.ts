@@ -545,7 +545,8 @@ describe("routing", () => {
     ["POST", "/device/connection"],
     ["POST", "/install.sh"],
     ["GET", "/device"],
-    ["GET", "/v1/decisions"],
+    ["DELETE", "/v1/decisions"],
+    ["GET", "/v1/unknown"],
   ])("answers %s %s with 404 and calls nothing", async (method, path) => {
     const convex = fakeConvex();
 

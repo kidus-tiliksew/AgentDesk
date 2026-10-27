@@ -1,7 +1,7 @@
 import { type AgentSession, type Decision, errorCodeSchema } from "@agentdesk/contract";
 import { v } from "convex/values";
-import type { Doc } from "../_generated/dataModel";
-import { query } from "../_generated/server";
+import type { Doc, Id } from "../_generated/dataModel";
+import { type QueryCtx, query } from "../_generated/server";
 import { pendingForAgent } from "../decisions/appReads";
 import { pendingCountForAgent } from "../decisions/counts";
 import { requireUser } from "../lib/auth";
@@ -13,6 +13,8 @@ import { toAgentSession } from "./sessions";
 // as the signed-in person (DEC-3, DEC-7), so each function resolves the
 // account with requireUser and takes no user id from the client. Nothing here
 // accepts a message from the user to an agent (req-agent-status REQ-5).
+
+type ReaderCtx = Pick<QueryCtx, "db">;
 
 // The detail view reads at most this many history rows (req-agent-status
 // AC-1.2).
@@ -59,18 +61,35 @@ export const liveAgents = query({
   args: {},
   handler: async (ctx): Promise<AgentSession[]> => {
     const user = await requireUser(ctx);
-    const sessions = await ctx.db
-      .query("agentSessions")
-      .withIndex("by_user_ended", (q) => q.eq("userId", user._id).eq("endedAt", undefined))
-      .collect();
-    const live = sessions.filter((session) => session.activatedAt !== undefined).sort(byActivity);
-    const result: AgentSession[] = [];
-    for (const session of live) {
-      result.push(toAgentSession(session, await pendingCountForAgent(ctx, session._id)));
-    }
-    return result;
+    return await withPendingCounts(ctx, await liveSessionsFor(ctx, user._id));
   },
 });
+
+// The user's activated sessions with no `endedAt`, in `liveAgents` order. The
+// public API's agent list reads the same set (component-agent-presence
+// §Service routes).
+export async function liveSessionsFor(
+  ctx: ReaderCtx,
+  userId: Id<"users">,
+): Promise<Doc<"agentSessions">[]> {
+  const sessions = await ctx.db
+    .query("agentSessions")
+    .withIndex("by_user_ended", (q) => q.eq("userId", userId).eq("endedAt", undefined))
+    .collect();
+  return sessions.filter((session) => session.activatedAt !== undefined).sort(byActivity);
+}
+
+// Each session's `AgentSession` with its pending decision count, in order.
+export async function withPendingCounts(
+  ctx: ReaderCtx,
+  sessions: Doc<"agentSessions">[],
+): Promise<AgentSession[]> {
+  const result: AgentSession[] = [];
+  for (const session of sessions) {
+    result.push(toAgentSession(session, await pendingCountForAgent(ctx, session._id)));
+  }
+  return result;
+}
 
 // The window of recent agents: an elapsed seven days, the time the purge
 // keeps an ended session (component-agent-presence §Sweep).
@@ -98,24 +117,28 @@ export const recentAgents = query({
   args: {},
   handler: async (ctx): Promise<AgentSession[]> => {
     const user = await requireUser(ctx);
-    const now = Date.now();
-    const sessions = await ctx.db
-      .query("agentSessions")
-      .withIndex("by_user_ended", (q) =>
-        q
-          .eq("userId", user._id)
-          .gte("endedAt", now - RECENT_MS)
-          .lte("endedAt", now),
-      )
-      .collect();
-    const recent = sessions.filter((session) => session.activatedAt !== undefined).sort(byEnd);
-    const result: AgentSession[] = [];
-    for (const session of recent) {
-      result.push(toAgentSession(session, await pendingCountForAgent(ctx, session._id)));
-    }
-    return result;
+    return await withPendingCounts(ctx, await recentSessionsFor(ctx, user._id, Date.now()));
   },
 });
+
+// The user's activated sessions ended in [now - 7 days, now], in
+// `recentAgents` order. The public API's agent list reads the same set.
+export async function recentSessionsFor(
+  ctx: ReaderCtx,
+  userId: Id<"users">,
+  now: number,
+): Promise<Doc<"agentSessions">[]> {
+  const sessions = await ctx.db
+    .query("agentSessions")
+    .withIndex("by_user_ended", (q) =>
+      q
+        .eq("userId", userId)
+        .gte("endedAt", now - RECENT_MS)
+        .lte("endedAt", now),
+    )
+    .collect();
+  return sessions.filter((session) => session.activatedAt !== undefined).sort(byEnd);
+}
 
 // The agent screen: one owned activated session, live or ended. A missing, a
 // foreign, and an only-initialized session are all `not_found`; the last has

@@ -13,7 +13,8 @@ import { decisions } from "./refs";
 // caller session, and `/svc/decisions/watch` names none.
 // `/svc/decisions/resolve` is the only route that accepts an answer from an
 // MCP session, and it requires the user's chat message (req-agent-tools
-// AC-7.3).
+// AC-7.3). `/svc/decisions/list`, `/svc/decisions/get`, and
+// `/svc/decisions/answer` serve the public HTTP API, which has no session.
 const id = z.string().min(1);
 
 export const routes: RouteSpec[] = [
@@ -86,6 +87,46 @@ export const routes: RouteSpec[] = [
         chatMessage: chatMessageSchema,
       }),
       (ctx, input) => ctx.runMutation(decisions.operations.resolve, input),
+    ),
+  },
+  {
+    // The public API's `decisions.list` (req-public-api-and-webhooks AC-2.1).
+    // `state` and `topic` pass through raw, so the query names the field.
+    path: "/svc/decisions/list",
+    method: "POST",
+    handler: serviceRoute(
+      z.object({
+        userId: id,
+        state: z.unknown().optional(),
+        topic: z.unknown().optional(),
+        cursor: id.optional(),
+        limit: z.int().min(1).max(100),
+      }),
+      (ctx, input) => ctx.runQuery(decisions.operations.list, input),
+    ),
+  },
+  {
+    // The public API's `decisions.get`.
+    path: "/svc/decisions/get",
+    method: "POST",
+    handler: serviceRoute(z.object({ userId: id, decisionId: id }), (ctx, input) =>
+      ctx.runQuery(decisions.operations.get, input),
+    ),
+  },
+  {
+    // The public API's `decisions.answer`, recorded with `answeredVia: "api"`
+    // (AC-2.2). The answer and note are validated against the decision inside
+    // the mutation, after the settled check.
+    path: "/svc/decisions/answer",
+    method: "POST",
+    handler: serviceRoute(
+      z.object({
+        userId: id,
+        decisionId: id,
+        answer: z.unknown().optional(),
+        note: z.unknown().optional(),
+      }),
+      (ctx, input) => ctx.runMutation(decisions.operations.answer, input),
     ),
   },
 ];

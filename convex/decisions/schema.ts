@@ -81,6 +81,8 @@ export const tables = {
     // The time the state left `pending`.
     settledAt: v.optional(v.number()),
   })
+    // The public API's list without a state filter, newest created first.
+    .index("by_user", ["userId"])
     .index("by_user_state", ["userId", "state"])
     .index("by_user_idem", ["userId", "idempotencyKey"])
     .index("by_parent", ["parentId"])

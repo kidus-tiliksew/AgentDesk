@@ -29,6 +29,14 @@ describe("mintToken", () => {
     expect(hash).toBe(await sha256Hex(plaintext));
   });
 
+  test("returns an adp_ token encoding 32 bytes for the API-token prefix", async () => {
+    const { plaintext, hash } = await mintToken("adp_");
+
+    expect(plaintext).toMatch(/^adp_[A-Za-z0-9_-]{43}$/);
+    expect(decodeBase64url(plaintext.slice("adp_".length))).toHaveLength(32);
+    expect(hash).toBe(await sha256Hex(plaintext));
+  });
+
   test("returns a different token on each call", async () => {
     const [a, b] = await Promise.all([mintToken(), mintToken()]);
 
