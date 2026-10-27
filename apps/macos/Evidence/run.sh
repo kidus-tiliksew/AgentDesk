@@ -38,6 +38,12 @@ swift test --package-path "$macos/AgentDeskKit" --filter 'SyncFreshnessTests|Dot
 tests_exit=$?
 grep '^FRESHNESS' "$out/tests.log" >"$out/freshness.txt"
 
+# Logs name the repository and scratch paths relatively, so they hold no
+# machine-specific directory.
+for log in "$out"/*.log; do
+  sed -i '' -e "s#$root/##g" -e "s#$root#.#g" -e "s#$work#<tmp>#g" "$log"
+done
+
 # The manifest ties the outputs to the committed sources by Git tree hash, so
 # a reader can check them against any later commit with `git rev-parse
 # <commit>:<path>`.
