@@ -1,5 +1,7 @@
 import Foundation
 
+@testable import AgentDeskKit
+
 /// JSON fixtures shaped as the gateway answers. They hold no credential.
 enum Fixtures {
   /// A decision with every field set, so re-encoding names every coding key.
@@ -97,5 +99,29 @@ enum Fixtures {
 
   static func data(_ object: Any) -> Data {
     Data(json(object).utf8)
+  }
+}
+
+extension Fixtures {
+  /// A decoded pending decision.
+  static func pending(
+    _ id: String, priority: String = "normal", deadline: String? = nil,
+    created: String = "2026-10-27T12:00:00Z", _ overrides: [String: Any] = [:]
+  ) -> Decision {
+    var fields: [String: Any] = [
+      "priority": priority, "deadline": deadline.map { $0 as Any } ?? NSNull(), "created_at": created,
+    ]
+    fields.merge(overrides) { $1 }
+    return try! JSONDecoder.agentDesk().decode(
+      Decision.self, from: data(pendingDecision(id: id, fields)))
+  }
+
+  /// A decoded live agent session.
+  static func session(_ id: String, _ overrides: [String: Any] = [:]) -> AgentSession {
+    try! JSONDecoder.agentDesk().decode(AgentSession.self, from: data(agentSession(id: id, overrides)))
+  }
+
+  static func instant(_ text: String) -> Date {
+    Instant.parse(text)!
   }
 }
