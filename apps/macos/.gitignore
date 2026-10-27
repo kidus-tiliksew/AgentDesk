@@ -1,0 +1,6 @@
+# Swift Package Manager and Xcode output
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+*.xcuserstate
