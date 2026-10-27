@@ -100,4 +100,79 @@ final class DecisionPresentationTests: XCTestCase {
     let calm = row(Fixtures.pending("b", ["agent_session_id": "ags_1"]), seen: ["b"])
     XCTAssertEqual(calm.accessibilityValue, "Claude Code · web")
   }
+
+  // MARK: Expanded row and strips
+
+  func testDefaultSentenceNeedsADeadlineAndADefault() {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "UTC")!
+    let locale = Locale(identifier: "en_US_POSIX")
+    let options: [[String: String]] = [["id": "a", "label": "Ship"], ["id": "b", "label": "Wait"]]
+    let today = Fixtures.pending(
+      "a",
+      [
+        "input_type": "single_choice", "options": options, "deadline": "2026-10-27T14:30:00Z",
+        "default": ["kind": "option", "option_id": "b"],
+      ])
+    // Foundation puts a narrow no-break space before the day period.
+    func sentence(_ decision: Decision) -> String? {
+      DecisionPresentation.defaultSentence(for: decision, now: now, calendar: calendar, locale: locale)?
+        .replacingOccurrences(of: "\u{202F}", with: " ")
+    }
+    XCTAssertEqual(sentence(today), "If nobody answers by 2:30 PM, the agent goes with Wait.")
+
+    let tomorrow = Fixtures.pending(
+      "b", ["deadline": "2026-10-28T09:05:00Z", "default": ["kind": "reject"]])
+    XCTAssertEqual(sentence(tomorrow), "If nobody answers by Oct 28 at 9:05 AM, the agent goes with Reject.")
+
+    let noDefault = Fixtures.pending("c", ["deadline": "2026-10-27T14:30:00Z"])
+    let noDeadline = Fixtures.pending("d", ["default": ["kind": "approve"]])
+    XCTAssertNil(DecisionPresentation.defaultSentence(for: noDefault, now: now))
+    XCTAssertNil(DecisionPresentation.defaultSentence(for: noDeadline, now: now))
+  }
+
+  func testUndoTextNamesTheAnswerAndTitle() {
+    let decision = Fixtures.pending(
+      "a",
+      [
+        "title": "Ship it?", "input_type": "multiple_choice",
+        "options": [["id": "x", "label": "Web"], ["id": "y", "label": "API"]],
+      ])
+    XCTAssertEqual(DecisionPresentation.undoText(.options(ids: ["x", "y"]), decision: decision), "Web, API · Ship it?")
+  }
+
+  func testRecordedOutcomeNamesWhatTheServerHolds() {
+    func outcome(_ fields: [String: Any]) -> String? {
+      DecisionPresentation.recordedOutcome(Fixtures.pending("a", fields))
+    }
+    XCTAssertNil(outcome([:]), "a pending decision has no recorded outcome")
+    XCTAssertEqual(
+      outcome(["state": "answered", "answer": ["kind": "approve"], "answered_via": "app"]),
+      "Already answered in the app: Approve")
+    XCTAssertEqual(
+      outcome(["state": "answered", "answer": ["kind": "text", "text": "later"], "answered_via": "notification"]),
+      "Already answered from a notification: later")
+    XCTAssertEqual(
+      outcome(["state": "answered", "answer": ["kind": "reject"], "answered_via": "api"]),
+      "Already answered through the API: Reject")
+    XCTAssertEqual(
+      outcome(["state": "answered", "answer": ["kind": "reject"], "answered_via": "chat", "chat_message": "no"]),
+      "Already answered in chat: Reject")
+    XCTAssertEqual(outcome(["state": "answered", "answer": ["kind": "reject"]]), "Already answered: Reject")
+    XCTAssertEqual(
+      outcome(["state": "expired", "answer": ["kind": "approve"], "applied_by_default": true, "answered_via": "default"]),
+      "Expired before your answer")
+    XCTAssertEqual(outcome(["state": "cancelled"]), "Cancelled before your answer")
+  }
+
+  func testAgentLinkNeedsALiveSessionWithAWebLink() {
+    let withLink = Fixtures.session("ags_1", ["link": "https://example.com/run/1"])
+    let ftp = Fixtures.session("ags_2", ["link": "ftp://example.com/x"])
+    let decision = Fixtures.pending("a", ["agent_session_id": "ags_1"])
+    XCTAssertEqual(
+      DecisionPresentation.agentLink(for: decision, agents: [withLink]), URL(string: "https://example.com/run/1"))
+    XCTAssertNil(DecisionPresentation.agentLink(for: decision, agents: []), "an ended session has no link")
+    XCTAssertNil(
+      DecisionPresentation.agentLink(for: Fixtures.pending("b", ["agent_session_id": "ags_2"]), agents: [ftp]))
+  }
 }
