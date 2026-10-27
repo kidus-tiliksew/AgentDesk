@@ -4,15 +4,17 @@ import { deviceWait } from "./device-wait.js";
 import type { Env } from "./env.js";
 import { serveInstallScript } from "./install.js";
 import { handleMcp } from "./mcp.js";
+import { handleV1 } from "./v1.js";
 
 // component-gateway: AgentDesk's public origin. This slice serves `/mcp`, the
-// installer's `/device/*` endpoints, and `/install.sh`; the discovery
-// documents and `/v1` are not built yet.
+// public HTTP API under `/v1`, the installer's `/device/*` endpoints, and
+// `/install.sh`; the discovery documents are not built yet.
 
 type Handler = (request: Request, env: Env, svc: ServiceCall) => Response | Promise<Response>;
 
-// Routes other than `/mcp`, which answers every method itself, by method and
-// path. Any other pair is 404.
+// Routes other than `/mcp`, which answers every method itself, and `/v1`,
+// which matches the contract's route table, by method and path. Any other
+// pair is 404.
 const ROUTES: Record<string, Handler> = {
   "POST /device/start": deviceStart,
   "POST /device/poll": devicePoll,
@@ -24,7 +26,12 @@ const ROUTES: Record<string, Handler> = {
 
 export async function handle(request: Request, env: Env, svc: ServiceCall): Promise<Response> {
   const { pathname } = new URL(request.url);
-  const handler = pathname === "/mcp" ? handleMcp : ROUTES[`${request.method} ${pathname}`];
+  const handler =
+    pathname === "/mcp"
+      ? handleMcp
+      : pathname.startsWith("/v1/")
+        ? handleV1
+        : ROUTES[`${request.method} ${pathname}`];
   if (handler === undefined) {
     return Response.json({ error: { code: "not_found", message: "Not found" } }, { status: 404 });
   }

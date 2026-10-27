@@ -2,13 +2,20 @@ import { z } from "zod";
 import { type ServiceCall, ServiceError } from "./convex.js";
 import type { Env } from "./env.js";
 
-// component-gateway §Authentication. Only connection tokens are accepted, on
-// `/mcp` and `/device/connection`; Clerk OAuth access tokens arrive with the
-// discovery documents. Every request resolves its credential again and nothing is
-// cached, so a revoked connection is refused on its next call (DEC-6;
-// req-accounts-and-connections AC-4.2).
+// component-gateway §Authentication. Connection tokens (`adc_`) are accepted
+// on `/mcp`, `/device/connection`, and `/device/wait`, and API tokens (`adp_`)
+// on `/v1`; Clerk OAuth access tokens arrive with the discovery documents.
+// Every request resolves its credential again and nothing is cached, so a
+// revoked credential is refused on its next call (DEC-6;
+// req-accounts-and-connections AC-4.2; req-public-api-and-webhooks AC-3.2).
 
-const CONNECTION_TOKEN = /^adc_[A-Za-z0-9_-]{1,200}$/;
+// The credential kinds the gateway accepts, each with its bearer form.
+const TOKEN_FORMS = {
+  connection_token: /^adc_[A-Za-z0-9_-]{1,200}$/,
+  api_token: /^adp_[A-Za-z0-9_-]{1,200}$/,
+} as const;
+
+export type TokenKind = keyof typeof TOKEN_FORMS;
 
 const resolvedSchema = z.object({
   userId: z.string().min(1),
@@ -32,12 +39,18 @@ export async function hashToken(token: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-// Resolves the request's bearer credential, or returns null when it is
-// missing, malformed, of another kind, or refused by identity as
-// `unauthenticated`. Any other failure, an outage or another service error
-// code, propagates, so it is never mistaken for a bad credential.
-export async function authenticate(request: Request, svc: ServiceCall): Promise<Caller | null> {
-  const token = connectionToken(request);
+// Resolves the request's bearer credential of `kind`, a connection token
+// unless named, or returns null when it is missing, malformed, of another
+// kind, or refused by identity as `unauthenticated`. A token whose resolved
+// kind does not match its prefix is refused. Any other failure, an outage or
+// another service error code, propagates, so it is never mistaken for a bad
+// credential.
+export async function authenticate(
+  request: Request,
+  svc: ServiceCall,
+  kind: TokenKind = "connection_token",
+): Promise<Caller | null> {
+  const token = bearerToken(request, kind);
   if (token === null) {
     return null;
   }
@@ -51,7 +64,7 @@ export async function authenticate(request: Request, svc: ServiceCall): Promise<
     throw error;
   }
   const credential = resolvedSchema.safeParse(resolved);
-  if (!credential.success || credential.data.kind !== "connection_token") {
+  if (!credential.success || credential.data.kind !== kind) {
     return null;
   }
   const { userId, credentialId, harness } = credential.data;
@@ -61,9 +74,15 @@ export async function authenticate(request: Request, svc: ServiceCall): Promise<
 // Returns the request's bearer value when it has the form of a connection
 // token, and null otherwise.
 export function connectionToken(request: Request): string | null {
+  return bearerToken(request, "connection_token");
+}
+
+// Returns the request's bearer value when it has the form of `kind`, and null
+// otherwise.
+export function bearerToken(request: Request, kind: TokenKind): string | null {
   const match = /^Bearer +(\S+)$/i.exec(request.headers.get("Authorization") ?? "");
   const token = match?.[1];
-  return token !== undefined && CONNECTION_TOKEN.test(token) ? token : null;
+  return token !== undefined && TOKEN_FORMS[kind].test(token) ? token : null;
 }
 
 // The 401 a compliant MCP client answers by starting browser sign-in

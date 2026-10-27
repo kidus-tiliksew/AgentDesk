@@ -4,7 +4,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { appError } from "../lib/errors";
 import { getOwned } from "../lib/owned";
-import { mintToken } from "./tokens";
+import { API_TOKEN_PREFIX, mintToken } from "./tokens";
 
 // component-identity §Credentials.
 
@@ -30,6 +30,21 @@ export async function insertConnectionToken(
   const credentialId = await ctx.db.insert("credentials", {
     ...credential,
     kind: "connection_token",
+    tokenHash: hash,
+  });
+  return { plaintext, credentialId };
+}
+
+// Inserts one API token for a user and returns its plaintext, which the caller
+// shows once (req-public-api-and-webhooks AC-3.1). Only the hash is stored.
+export async function insertApiToken(
+  ctx: Pick<MutationCtx, "db">,
+  credential: { userId: Id<"users">; name: string },
+): Promise<{ plaintext: string; credentialId: Id<"credentials"> }> {
+  const { plaintext, hash } = await mintToken(API_TOKEN_PREFIX);
+  const credentialId = await ctx.db.insert("credentials", {
+    ...credential,
+    kind: "api_token",
     tokenHash: hash,
   });
   return { plaintext, credentialId };

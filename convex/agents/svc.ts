@@ -50,4 +50,26 @@ export const routes: RouteSpec[] = [
       (ctx, input) => ctx.runQuery(agents.sessions.session, input),
     ),
   },
+  {
+    // The public API's `agent_sessions.list`: live sessions, then ended ones.
+    path: "/svc/agents/list",
+    method: "POST",
+    handler: serviceRoute(
+      z.object({
+        userId: z.string().min(1),
+        cursor: z.string().min(1).optional(),
+        limit: z.int().min(1).max(100),
+      }),
+      (ctx, input) => ctx.runQuery(agents.api.list, input),
+    ),
+  },
+  {
+    // The public API's `agent_sessions.get`.
+    path: "/svc/agents/get",
+    method: "POST",
+    handler: serviceRoute(
+      z.object({ userId: z.string().min(1), agentSessionId: z.string().min(1) }),
+      (ctx, input) => ctx.runQuery(agents.api.get, input),
+    ),
+  },
 ];

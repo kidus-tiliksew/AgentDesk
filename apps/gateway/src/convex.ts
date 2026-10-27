@@ -15,12 +15,17 @@ export type ServiceRoute =
   | "agents/open"
   | "agents/session"
   | "agents/status"
+  | "agents/list"
+  | "agents/get"
   | "decisions/create"
   | "decisions/poll"
   | "decisions/watch"
   | "decisions/check"
   | "decisions/cancel"
-  | "decisions/resolve";
+  | "decisions/resolve"
+  | "decisions/list"
+  | "decisions/get"
+  | "decisions/answer";
 
 // Posts one service call and returns its parsed JSON result. Aborting `signal`
 // cancels the call in flight. Tests replace it with a fake.

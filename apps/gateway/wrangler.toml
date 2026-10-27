@@ -25,3 +25,10 @@ CLERK_PUBLISHABLE_KEY = ""
 name = "DEVICE_START_LIMIT"
 namespace_id = "1001"
 simple = { limit = 10, period = 60 }
+
+# §Public HTTP API: 120 `/v1` requests per minute per API token, keyed by its
+# credential id after authentication (`src/v1.ts`).
+[[ratelimits]]
+name = "API_LIMIT"
+namespace_id = "1002"
+simple = { limit = 120, period = 60 }
