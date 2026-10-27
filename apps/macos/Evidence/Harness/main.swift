@@ -1,9 +1,9 @@
 import AppKit
 import SwiftUI
 
-// Offscreen evidence for the read-only popover and the menu bar label. The
-// harness compiles the shipped `DecisionRow`, `AgentsView`, `Ink`, and
-// `MenuBarLabel` sources and every `AgentDeskKit` source into one program,
+// Offscreen evidence for the popover and the menu bar label. The harness
+// compiles the shipped `DecisionRow`, `AnswerControls`, `AgentsView`, `Ink`,
+// and `MenuBarLabel` sources and every `AgentDeskKit` source into one program,
 // renders them from fixtures, and writes PNGs and `report.txt` to the
 // directory named by its first argument. `run.sh` builds and runs it.
 
@@ -83,30 +83,106 @@ let decisions = DecisionOrder.sorted([
 let seen: Set<String> = ["d2"]
 let rows = decisions.map { DecisionRowModel(decision: $0, agents: agents, seen: seen, now: now) }
 
+/// Each decision as the list item `AppState.listItems` builds.
+@MainActor
+func items(_ list: [Decision], failures: [String: String] = [:]) -> [DecisionListItem] {
+  var calendar = Calendar(identifier: .gregorian)
+  calendar.timeZone = TimeZone(identifier: "UTC")!
+  return list.map { decision in
+    DecisionListItem(
+      row: DecisionRowModel(decision: decision, agents: agents, seen: seen, now: now),
+      decision: decision,
+      agentLink: DecisionPresentation.agentLink(for: decision, agents: agents),
+      defaultSentence: DecisionPresentation.defaultSentence(
+        for: decision, now: now, calendar: calendar, locale: Locale(identifier: "en_US")),
+      failure: failures[decision.id])
+  }
+}
+
+// One decision per input type, each with a Markdown body, to render
+// expanded (component-mac-app §Rows).
+let expandable: [(String, Decision)] = [
+  (
+    "approve-reject",
+    decision([
+      "id": "e1", "title": "Delete the stale preview databases?", "agent_session_id": "ags_1",
+      "body": "Seven previews have had **no traffic** for 30 days.\nThe newest is `pr-412`.",
+      "recommendation": ["kind": "approve"], "deadline": "2026-10-27T14:00:00Z",
+      "default": ["kind": "reject"],
+    ])
+  ),
+  (
+    "single-choice",
+    decision([
+      "id": "e2", "title": "Ship the 2.4 release now?", "input_type": "single_choice",
+      "agent_session_id": "ags_2", "body": "Staging soaked for *24 hours* without errors.",
+      "options": [["id": "a", "label": "Ship now"], ["id": "b", "label": "Wait for Monday"]],
+      "recommendation": ["kind": "option", "option_id": "a"],
+    ])
+  ),
+  (
+    "multiple-choice",
+    decision([
+      "id": "e3", "title": "Which regions get the canary?", "input_type": "multiple_choice",
+      "agent_session_id": "ags_1", "body": "Pick one or more.",
+      "options": [
+        ["id": "eu", "label": "Europe"], ["id": "us", "label": "United States"],
+        ["id": "ap", "label": "Asia Pacific"],
+      ],
+      "recommendation": ["kind": "options", "option_ids": ["eu", "us"]],
+    ])
+  ),
+  (
+    "free-text",
+    decision([
+      "id": "e4", "title": "Which name should the new package use?", "input_type": "free_text",
+      "agent_session_id": "ags_1", "body": "It replaces `agentdesk-utils`.",
+      "recommendation": ["kind": "text", "text": "agentdesk-core"],
+    ])
+  ),
+  (
+    "single-choice-or-text",
+    decision([
+      "id": "e5", "title": "When should the migration run?", "input_type": "single_choice_or_text",
+      "agent_session_id": "ags_1", "body": "It locks the `events` table for about a minute.",
+      "options": [["id": "now", "label": "Now"], ["id": "night", "label": "Tonight at 02:00"]],
+      "recommendation": ["kind": "option", "option_id": "night"],
+      "deadline": "2026-10-27T13:00:00Z", "default": ["kind": "option", "option_id": "night"],
+    ])
+  ),
+]
+
 // MARK: Views
 
 /// The signed-in popover's body below the header, built from the shipped
 /// list, row, empty-state, and agents views. The header and menu need the
 /// app's `AppState`, so the header here is a static copy of its text.
 struct PopoverFixture: View {
-  let rows: [DecisionRowModel]
+  let items: [DecisionListItem]
   @State var expanded: Bool
+  var selectedID: String? = nil
+  var expandedID: String? = nil
+  var undoText: String? = nil
+  var outcome: String? = nil
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       HStack(alignment: .firstTextBaseline, spacing: 8) {
         Text("AgentDesk").font(.headline)
-        Text("\(rows.count) waiting").font(.callout).foregroundStyle(Ink.secondary)
+        Text("\(items.count) waiting").font(.callout).foregroundStyle(Ink.secondary)
         Spacer()
         Image(systemName: "ellipsis")
       }
       .padding(.horizontal, 14)
       .padding(.vertical, 10)
       Divider()
-      if rows.isEmpty {
+      AnswerStrips(outcome: outcome, undoText: undoText)
+      if items.isEmpty {
         EmptyDecisions()
       } else {
-        DecisionList(rows: rows, maxHeight: expanded ? 470 - AgentsView.maxListHeight : 470)
+        DecisionList(
+          items: items, selectedID: selectedID, expandedID: expandedID,
+          maxHeight: expanded ? 470 - AgentsView.maxListHeight : 470)
       }
       Divider()
       AgentsView(agents: agents, now: now, expanded: $expanded)
@@ -281,11 +357,48 @@ MainActor.assumeIsolated {
   // Popover layouts.
   line("## Popover layouts")
   for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
-    for (name, view) in [
-      ("popover-agents-expanded", PopoverFixture(rows: rows, expanded: true)),
-      ("popover-agents-collapsed", PopoverFixture(rows: rows, expanded: false)),
-      ("popover-empty", PopoverFixture(rows: [], expanded: false)),
-    ] {
+    let listed = items(decisions)
+    let held = decisions.first { $0.id == "d2" }!
+    var scenes: [(String, PopoverFixture)] = [
+      ("popover-agents-expanded", PopoverFixture(items: listed, expanded: true)),
+      ("popover-agents-collapsed", PopoverFixture(items: listed, expanded: false)),
+      ("popover-empty", PopoverFixture(items: [], expanded: false)),
+      // The held answer's row has left the list; the strip offers Undo.
+      (
+        "popover-undo",
+        PopoverFixture(
+          items: items(decisions.filter { $0.id != "d2" }), expanded: false,
+          undoText: DecisionPresentation.undoText(.approve, decision: held))
+      ),
+      // A 409: the recorded outcome replaces the attempted answer.
+      (
+        "popover-conflict",
+        PopoverFixture(
+          items: items(decisions.filter { $0.id != "d2" }), expanded: false,
+          outcome: DecisionPresentation.recordedOutcome(
+            decision([
+              "id": "d2", "state": "answered", "answer": ["kind": "reject"], "answered_via": "chat",
+              "chat_message": "not yet",
+            ])))
+      ),
+      // A transport failure: the row is back with the retry message.
+      (
+        "popover-send-failed",
+        PopoverFixture(
+          items: items(decisions, failures: ["d2": PendingAnswers.failureMessage]), expanded: false,
+          selectedID: "d2")
+      ),
+    ]
+    for (type, expandedDecision) in expandable {
+      scenes.append(
+        (
+          "popover-expanded-\(type)",
+          PopoverFixture(
+            items: items([expandedDecision] + decisions), expanded: false,
+            selectedID: expandedDecision.id, expandedID: expandedDecision.id)
+        ))
+    }
+    for (name, view) in scenes {
       let (window, container) = host(view, appearance: appearance, background: .vibrant)
       let rep = snapshot(container)
       save(rep, "\(name)-\(mode).png")
@@ -306,6 +419,34 @@ MainActor.assumeIsolated {
     line("  accessibility label: \(row.accessibilityLabel)")
     line("  accessibility value: \(row.accessibilityValue)")
   }
+  line("")
+
+  // The expanded rows' drafts: the same AnswerDraft the controls bind to
+  // builds the answer Send and ⌘↩ submit.
+  line("## Expanded rows (AnswerDraft as the controls start, untouched)")
+  for (type, expandedDecision) in expandable {
+    let draft = AnswerDraft(decision: expandedDecision)
+    let item = items([expandedDecision])[0]
+    let answer = draft.submission.map { DecisionPresentation.answerText($0.answer, options: expandedDecision.options) }
+    line("- \(type): Send and ⌘↩ submit \(answer ?? "nothing")")
+    line("  default sentence: \(item.defaultSentence ?? "none")")
+    line("  agent page: \(item.agentLink?.absoluteString ?? "none")")
+    let suggested = draft.options.filter { draft.isSuggested($0.id) }.map(\.label)
+    if !suggested.isEmpty { line("  labelled Suggested: \(suggested.joined(separator: ", "))") }
+    if let text = draft.suggestedText { line("  text placeholder: \(text)") }
+    if expandedDecision.inputType == .approveReject {
+      line(
+        "  buttons: Reject\(draft.isSuggested(.reject) ? " (accent, hint \"Suggested by the agent\")" : ""), Approve\(draft.isSuggested(.approve) ? " (accent, hint \"Suggested by the agent\")" : "")")
+    }
+  }
+  line("")
+  line("## Strips")
+  line("undo: \(DecisionPresentation.undoText(.approve, decision: decisions.first { $0.id == "d2" }!)) [Undo]")
+  line(
+    "conflict: \(DecisionPresentation.recordedOutcome(decision(["state": "answered", "answer": ["kind": "reject"], "answered_via": "chat", "chat_message": "not yet"])) ?? "")")
+  line("conflict, outcome unread: \(PendingAnswers.unreadOutcome)")
+  line("send failed, under the row: \(PendingAnswers.failureMessage)")
+  line("")
   let summary = AgentsSummary(agents: agents)
   line("agents line: \(summary.runningText)\(summary.blockedText ?? "")")
   for session in AgentSessionOrder.sorted(agents) {
@@ -440,7 +581,8 @@ MainActor.assumeIsolated {
   line("")
 
   line("## Not available in this harness")
-  line("AXIsProcessTrusted=\(AXIsProcessTrusted()): live VoiceOver output and the live MenuBarExtra open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its one element's label and value.")
+  line("AXIsProcessTrusted=\(AXIsProcessTrusted()): live VoiceOver output and the live MenuBarExtra open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject, Approve, and the expanded controls as separate elements.")
+  line("Keys are not captured: the popover's key monitor needs the live MenuBarExtra window as key window. PopoverKeysTests covers the key-to-action mapping; Escape with no row expanded is left to the window.")
   line("")
 
   if failures.isEmpty {

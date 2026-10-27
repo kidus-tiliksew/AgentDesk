@@ -299,3 +299,59 @@ func eventually(
   }
   XCTFail("Timed out waiting for \(message())", file: file, line: line)
 }
+
+/// An `AnswerSender` that answers from scripts and can hold a post in flight.
+final class FakeSender: AnswerSender, @unchecked Sendable {
+  struct Post: Equatable {
+    let id: String
+    let answer: Answer
+    let note: String?
+  }
+
+  private let lock = NSLock()
+  private var answerScript: [Result<Decision, APIError>] = []
+  private var readScript: [Result<Decision, APIError>] = []
+  private var holds: [Gate] = []
+  private var recorded: [Post] = []
+  private var readIDs: [String] = []
+
+  var posts: [Post] { lock.withLock { recorded } }
+  var reads: [String] { lock.withLock { readIDs } }
+
+  /// Answers the next posts in order; an unscripted post succeeds.
+  func answerPosts(_ results: Result<Decision, APIError>...) {
+    lock.withLock { answerScript += results }
+  }
+
+  /// Answers the next decision reads in order; an unscripted read fails.
+  func answerReads(_ results: Result<Decision, APIError>...) {
+    lock.withLock { readScript += results }
+  }
+
+  /// Holds the next post until the returned gate opens.
+  func holdNextPost() -> Gate {
+    let gate = Gate()
+    lock.withLock { holds.append(gate) }
+    return gate
+  }
+
+  func answer(id: String, answer: Answer, note: String?) async throws(APIError) -> Decision {
+    let (result, hold): (Result<Decision, APIError>?, Gate?) = lock.withLock {
+      recorded.append(Post(id: id, answer: answer, note: note))
+      return (
+        answerScript.isEmpty ? nil : answerScript.removeFirst(), holds.isEmpty ? nil : holds.removeFirst()
+      )
+    }
+    if let hold { await hold.wait() }
+    guard let result else { return Fixtures.pending(id) }
+    return try result.get()
+  }
+
+  func decision(id: String) async throws(APIError) -> Decision {
+    let result: Result<Decision, APIError> = lock.withLock {
+      readIDs.append(id)
+      return readScript.isEmpty ? .failure(.transport("unscripted")) : readScript.removeFirst()
+    }
+    return try result.get()
+  }
+}

@@ -100,6 +100,69 @@ public enum DecisionPresentation {
   private static func label(_ id: String, _ options: [Option]?) -> String {
     options?.first(where: { $0.id == id })?.label ?? id
   }
+
+  /// "If nobody answers by <time>, the agent goes with <default>.", or nil
+  /// unless the decision has both a deadline and a default. The time reads
+  /// as a time of day, with the date when the deadline is not today.
+  public static func defaultSentence(
+    for decision: Decision, now: Date, calendar: Calendar = .current, locale: Locale = .current
+  ) -> String? {
+    guard let deadline = decision.deadline, let fallback = decision.defaultAnswer else { return nil }
+    var style = Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone)
+      .hour().minute()
+    if !calendar.isDate(deadline, inSameDayAs: now) {
+      style = style.month(.abbreviated).day()
+    }
+    let answer = answerText(fallback, options: decision.options)
+    return "If nobody answers by \(deadline.formatted(style)), the agent goes with \(answer)."
+  }
+
+  /// The Undo strip's text: the answer and the decision's title.
+  public static func undoText(_ answer: Answer, decision: Decision) -> String {
+    "\(answerText(answer, options: decision.options)) · \(decision.title)"
+  }
+
+  /// What a decision settled elsewhere recorded, for the strip a 409 shows
+  /// (req-mac-app AC-4.9): "Already answered <surface>: <answer>", or
+  /// "<state> before your answer" when it expired or was cancelled. Nil when
+  /// the decision is still pending, so the app never presents an outcome the
+  /// server did not record.
+  public static func recordedOutcome(_ decision: Decision) -> String? {
+    switch decision.state {
+    case .pending:
+      return nil
+    case .answered:
+      guard let answer = decision.answer else { return "Answered before your answer" }
+      let text = answerText(answer, options: decision.options)
+      guard let via = decision.answeredVia else { return "Already answered: \(text)" }
+      return "Already answered \(surface(via)): \(text)"
+    case .expired:
+      return "Expired before your answer"
+    case .cancelled:
+      return "Cancelled before your answer"
+    }
+  }
+
+  /// Where an answer came from, as the mobile app names the surfaces
+  /// (apps/mobile/src/decision-outcome.tsx).
+  static func surface(_ via: Decision.AnsweredVia) -> String {
+    switch via {
+    case .app: "in the app"
+    case .notification: "from a notification"
+    case .api: "through the API"
+    case .chat: "in chat"
+    case .appliedDefault: "by default at the deadline"
+    }
+  }
+
+  /// The asking session's page, when that session is live and its link is
+  /// an absolute http or https URL (req-mac-app AC-4.6).
+  public static func agentLink(for decision: Decision, agents: [AgentSession]) -> URL? {
+    guard let id = decision.agentSessionID, let session = agents.first(where: { $0.id == id }),
+      let link = session.link
+    else { return nil }
+    return AgentEntryModel.webURL(link)
+  }
 }
 
 extension String {

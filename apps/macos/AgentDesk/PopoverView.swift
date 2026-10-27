@@ -24,7 +24,8 @@ struct PopoverView: View {
     .onDisappear { state.popoverClosed() }
     .background(
       PresentationObserver(
-        opened: { state.popoverOpened() }, closed: { state.popoverClosed() }))
+        opened: { state.popoverOpened() }, closed: { state.popoverClosed() },
+        key: { key, editingText in state.isSignedIn && state.handle(key, editingText: editingText) }))
   }
 }
 
@@ -38,14 +39,26 @@ struct SignedInView: View {
     agentsExpanded ? 470 - AgentsView.maxListHeight : 470
   }
 
+  private var actions: DecisionListActions {
+    DecisionListActions(
+      toggle: { state.toggle($0) },
+      answer: { state.answer($0, $1) },
+      send: { state.send($0) },
+      draft: { item in
+        Binding(
+          get: { state.drafts[item.id] ?? AnswerDraft(decision: item.decision) },
+          set: { state.drafts[item.id] = $0 })
+      })
+  }
+
   var body: some View {
-    let rows = state.rows
+    let items = state.listItems
     VStack(alignment: .leading, spacing: 0) {
       VStack(alignment: .leading, spacing: 6) {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
           Text("AgentDesk")
             .font(.headline)
-          Text("\(rows.count) waiting")
+          Text("\(items.count) waiting")
             .font(.callout)
             .foregroundStyle(Ink.secondary)
           Spacer()
@@ -62,10 +75,13 @@ struct SignedInView: View {
       .padding(.vertical, 10)
 
       Divider()
-      if rows.isEmpty {
+      AnswerStrips(outcome: state.answerOutcome, undoText: state.undoText) { state.undo() }
+      if items.isEmpty {
         EmptyDecisions()
       } else {
-        DecisionList(rows: rows, maxHeight: listMaxHeight)
+        DecisionList(
+          items: items, selectedID: state.selectedID, expandedID: state.expandedID,
+          maxHeight: listMaxHeight, actions: actions)
       }
       Divider()
       AgentsView(agents: state.snapshot.agents, now: state.now, expanded: $agentsExpanded)
@@ -109,27 +125,34 @@ struct AccountMenu: View {
 
 /// Reports the popover window becoming key when it opens and resigning key
 /// when it closes, for `MenuBarExtra` versions whose content keeps its
-/// appearance across presentations.
+/// appearance across presentations. It also passes the popover's keys to
+/// `key`, which returns false to leave a key to the focused control or the
+/// window (component-mac-app §Keyboard and accessibility).
 private struct PresentationObserver: NSViewRepresentable {
   let opened: @MainActor () -> Void
   let closed: @MainActor () -> Void
+  let key: @MainActor (PopoverKey, _ editingText: Bool) -> Bool
 
   func makeNSView(context: Context) -> WindowView {
     let view = WindowView()
     view.opened = opened
     view.closed = closed
+    view.key = key
     return view
   }
 
   func updateNSView(_ view: WindowView, context: Context) {
     view.opened = opened
     view.closed = closed
+    view.key = key
   }
 
   final class WindowView: NSView {
     var opened: (@MainActor () -> Void)?
     var closed: (@MainActor () -> Void)?
+    var key: (@MainActor (PopoverKey, Bool) -> Bool)?
     private var observers: [NSObjectProtocol] = []
+    private var keyMonitor: Any?
 
     override func viewDidMoveToWindow() {
       super.viewDidMoveToWindow()
@@ -137,7 +160,25 @@ private struct PresentationObserver: NSViewRepresentable {
         NotificationCenter.default.removeObserver(observer)
       }
       observers = []
+      if let keyMonitor {
+        NSEvent.removeMonitor(keyMonitor)
+        self.keyMonitor = nil
+      }
       guard let window else { return }
+      // A local monitor sees each key before the focused control, so the
+      // list's keys work whichever control has focus; text fields keep their
+      // arrows and Return.
+      keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        guard let key = Self.popoverKey(event) else { return event }
+        let windowNumber = event.windowNumber
+        let consumed = MainActor.assumeIsolated {
+          guard let self, let window = self.window, window.windowNumber == windowNumber else {
+            return false
+          }
+          return self.key?(key, window.firstResponder is NSText) == true
+        }
+        return consumed ? nil : event
+      }
       let center = NotificationCenter.default
       observers.append(
         center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) {
@@ -149,6 +190,20 @@ private struct PresentationObserver: NSViewRepresentable {
           [weak self] _ in
           MainActor.assumeIsolated { self?.closed?() }
         })
+    }
+
+    /// ↑, ↓, ↩ and Enter, ⌘↩, and Escape. Any other modifier leaves the key
+    /// alone.
+    static func popoverKey(_ event: NSEvent) -> PopoverKey? {
+      let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
+      switch (event.keyCode, modifiers) {
+      case (126, []): return .up
+      case (125, []): return .down
+      case (36, []), (76, []): return .returnKey
+      case (36, .command), (76, .command): return .commandReturn
+      case (53, []): return .escape
+      default: return nil
+      }
     }
   }
 }
