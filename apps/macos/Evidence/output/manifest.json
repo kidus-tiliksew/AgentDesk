@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-10-27T18:37:33Z",
-  "source_commit": "9c6c24fefec4a46ae2c18da60b6200039f1d4f19",
+  "generated_at": "2026-10-27T18:58:05Z",
+  "source_commit": "dd65c2578b0a6d6b072d6c8275da49795cbce232",
   "sources_dirty": false,
   "source_trees": {
     "apps/macos/AgentDesk": "527fc0d895e9bda4dd68720077c3a4c19f7b6c1b",
     "apps/macos/AgentDeskKit": "0bbead8dc1fe324aae7ee9329916df4935ed01aa",
     "apps/macos/Evidence/Harness": "98d57b2b41c36a0a050ce9230ee523a43c48364f",
-    "apps/macos/Evidence/run.sh": "bc159a44432a35b80e2c88d15f635156ec67327b"
+    "apps/macos/Evidence/run.sh": "3066625a15521c4176ca2d9083c71ddd9dcdd54a"
   },
   "toolchain": "Xcode 27.0 Build version 27A266a; swift-driver version: 1.168.6 Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)",
   "macos": "26.6.2",
@@ -23,10 +23,15 @@
       "report": "report.txt"
     },
     {
-      "command": "swift test --package-path apps/macos/AgentDeskKit --filter 'SyncFreshnessTests|DotPresenceTests|SyncTests|PendingAnswersTests|AnswerDraftTests|PopoverKeysTests'",
+      "command": "swift test --package-path apps/macos/AgentDeskKit",
       "exit": 0,
       "log": "tests.log",
       "summary": "freshness.txt"
+    },
+    {
+      "command": "xcodebuild build -project apps/macos/AgentDesk.xcodeproj -scheme AgentDesk -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -derivedDataPath <tmp>/DerivedData",
+      "exit": 0,
+      "log": "xcodebuild.log"
     }
   ],
   "outputs": {
@@ -35,7 +40,7 @@
     "contrast-dark-vibrant.png": "sha256:fc92e5919f28c3abb681f57b4c26aed6bf4d54e9042114eb7284d17fb5e81327",
     "contrast-light-plain.png": "sha256:b775ec48bc208cf52deb35cea8d661ecc6d17af827c0a7aecaed42b657e15c32",
     "contrast-light-vibrant.png": "sha256:af44e1fa4f37822dc4b56f1705c77d85db27cd14c839ef1e512b53a41c33c891",
-    "freshness.txt": "sha256:e4510be48aca73fe3ced1b1edfc419d0a536bba222e7fb384b986d472885c5ff",
+    "freshness.txt": "sha256:e5c6ad43faaa90adf9e90363a5465522cab8a8c389af3fd9223a14405e32f337",
     "harness.log": "sha256:c59e1c0d7a766c3e9efd697ef6ec34a9daf4283c7137b65186ffd0b57912d4c5",
     "label-count-12-dark.png": "sha256:55a84543c1c636d35904197176f120caf3ca1e5ef79abe67368bed19944317c2",
     "label-count-12-light.png": "sha256:2ca411dedbe9a2b2df7e436c1dec6697831cfa81d850345519f884019404bfda",
@@ -71,6 +76,7 @@
     "popover-undo-dark.png": "sha256:9d6e9e63d2275ef86d149bf9b58d02becdc5c18c2c84a7a90f73d6b24984c304",
     "popover-undo-light.png": "sha256:4732e689d127934abeb88a567a860d4b6f09545996a0c25b866961783207bfc2",
     "report.txt": "sha256:c59e1c0d7a766c3e9efd697ef6ec34a9daf4283c7137b65186ffd0b57912d4c5",
-    "tests.log": "sha256:d24b484acd52812b04fcf3d10a78b2ecb2a40f17f86ea1a9a5b1f1f60adbcd7d"
+    "tests.log": "sha256:fd9d87e88e942f5552d29b71cec5eb169e6cb6eeec2144302e1590e6194afee3",
+    "xcodebuild.log": "sha256:b9475d65408dd9ca1edfff019cad4dd03a042c98b946c1e648b04e8c1b02ad9a"
   }
 }
