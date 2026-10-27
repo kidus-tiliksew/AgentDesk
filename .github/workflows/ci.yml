@@ -94,3 +94,29 @@ jobs:
       - name: Verify SHA256SUMS
         working-directory: packages/installer/dist/release
         run: sha256sum --check --strict SHA256SUMS
+
+  # The Mac app builds with Xcode, outside the pnpm workspace (DEC-20(3);
+  # component-repository §Continuous integration). The Xcode path is explicit,
+  # so a runner image change fails here instead of selecting another version.
+  macos:
+    runs-on: macos-15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Show the Xcode version
+        run: xcodebuild -version
+
+      - name: Test AgentDeskKit
+        run: swift test --package-path apps/macos/AgentDeskKit
+
+      - name: Build the app unsigned
+        run: >-
+          xcodebuild build
+          -project apps/macos/AgentDesk.xcodeproj
+          -scheme AgentDesk
+          -configuration Debug
+          -destination 'platform=macOS'
+          CODE_SIGNING_ALLOWED=NO
