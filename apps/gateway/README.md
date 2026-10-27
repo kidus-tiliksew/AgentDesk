@@ -6,7 +6,7 @@ This slice serves the remote MCP server at `POST /mcp`, `GET /mcp`, and `DELETE 
 
 A tool error's `field` names the tool's own argument, such as `decision_id`, never a Convex argument such as `decisionId`. A refusal of the caller's user or session names no field. Once a `POST /mcp` body parses as a JSON-RPC request, a failure at any later step answers HTTP 200 with a JSON-RPC error `-32603` carrying the request's id. `error.data.code` is `unavailable` when Convex cannot answer, and the service's own code when it refuses a step such as `initialize`. A refused credential still answers 401 with its challenge.
 
-It also serves the [public HTTP API](#public-http-api) under `/v1` and the [installer endpoints](#installer-endpoints): `/device/*` and `/install.sh`. Clerk OAuth tokens and the `/.well-known` discovery documents are not built yet. A connection token (`adc_…`) is accepted on `/mcp` and `/device/*`, and an API token (`adp_…`) only on `/v1`.
+It also serves the [public HTTP API](#public-http-api) under `/v1` and the [installer endpoints](#installer-endpoints): `/device/*` and `/install.sh`. Clerk OAuth tokens and the `/.well-known` discovery documents are not built yet. A connection token (`adc_…`) is accepted on `/mcp` and `/device/*`. An API token (`adp_…`) is accepted on `/v1`, and on `/device/connection` only when a Mac sign-in minted it.
 
 ## Public HTTP API
 
@@ -29,20 +29,20 @@ It also serves the [public HTTP API](#public-http-api) under `/v1` and the [inst
 
 ## Installer endpoints
 
-The `agentdesk` installer (`packages/installer`) signs each harness in by short code and checks or revokes its connection through these routes. Any other method on these paths answers 404. Errors carry `{"error": {"code", "message", "field"}}`, and a Convex outage answers 503 `unavailable`.
+The `agentdesk` installer (`packages/installer`) signs each harness in by short code and checks or revokes its connection through these routes. The Mac app signs in and out through the same routes. Any other method on these paths answers 404. Errors carry `{"error": {"code", "message", "field"}}`, and a Convex outage answers 503 `unavailable`.
 
 | Route | Request | Answers |
 | --- | --- | --- |
-| `POST /device/start` | `{machine_name, harnesses}` | 200 `{user_code, device_secret, interval: 2, expires_in: 600}`, with `user_code` as identity's 8 bare symbols, which the installer displays as `XXXX-XXXX`; 400 `invalid` naming the field; 429 `rate_limited` |
-| `POST /device/poll` | `{device_secret}` | 200 `{status}`, where `status` is `pending`, `declined`, `expired`, `not_found`, or `approved` with `connections: [{harness, connection_id, token}]`; 400 `invalid` |
-| `GET /device/connection` | `Authorization: Bearer adc_…` | 200 `{connection_id, harness}`; 401 `unauthenticated` |
-| `DELETE /device/connection` | `Authorization: Bearer adc_…` | 200 `null` once revoked; 401 `unauthenticated` |
+| `POST /device/start` | `{machine_name, harnesses}` or `{machine_name, client: "macos"}` | 200 `{user_code, device_secret, interval: 2, expires_in: 600}`, with `user_code` as identity's 8 bare symbols, which the installer displays as `XXXX-XXXX`; 400 `invalid` naming the field; 429 `rate_limited` |
+| `POST /device/poll` | `{device_secret}` | 200 `{status}`, where `status` is `pending`, `declined`, `expired`, `not_found`, or `approved` with `connections: [{harness, connection_id, token}]`, or with `api_token: {credential_id, token}` for a Mac request; 400 `invalid` |
+| `GET /device/connection` | `Authorization: Bearer adc_…`, or the Mac's `adp_…` | 200 `{connection_id, harness}`, with `harness` `macos` for the Mac; 401 `unauthenticated` |
+| `DELETE /device/connection` | `Authorization: Bearer adc_…`, or the Mac's `adp_…` | 200 `null` once revoked; 401 `unauthenticated` |
 | `POST /device/wait` | `Authorization: Bearer adc_…`, `{decision_id, timeout_seconds}` | 200 `text/event-stream` with one `message` event; 400 `invalid` naming the field; 401 `unauthenticated` |
 | `GET /install.sh` | none | 200, the install script as `text/plain` |
 
-- `/device/start` trims `machine_name` and requires 1 to 255 characters. `harnesses` must be a non-empty list of distinct ids from `claude-code`, `codex`, and `cursor`. The `DEVICE_START_LIMIT` binding allows 10 starts a minute per `CF-Connecting-IP`, counted before the body is read. Without the binding or that header, the route answers 503 rather than run unlimited.
+- `/device/start` trims `machine_name` and requires 1 to 255 characters. `harnesses` must be a non-empty list of distinct ids from `claude-code`, `codex`, and `cursor`. The Mac app sends `client: "macos"` instead; a `client` together with `harnesses`, or any other `client`, answers 400 naming `client`. The `DEVICE_START_LIMIT` binding allows 10 starts a minute per `CF-Connecting-IP`, counted before the body is read. Without the binding or that header, the route answers 503 rather than run unlimited.
 - `/device/poll` passes identity's status through. `not_found` means the secret is unknown or its outcome was already collected: an approved request's tokens are returned once. Both `/device/start` and `/device/poll` answer with `Cache-Control: no-store`, since they carry secrets.
-- `/device/connection` resolves the token on every request, so a revoked connection fails its next check. `DELETE` sends Convex only the token's SHA-256. Its 401, unlike `/mcp`'s, carries no `WWW-Authenticate` challenge, because the challenge starts browser sign-in.
+- `/device/connection` resolves the token on every request, so a revoked connection fails its next check. It accepts an `adp_` token only when the token resolves with harness `macos`, so the Mac app's sign-out revokes its own token; every other API token answers 401. `DELETE` sends Convex only the token's SHA-256. Its 401, unlike `/mcp`'s, carries no `WWW-Authenticate` challenge, because the challenge starts browser sign-in.
 - `/device/wait` serves the resume waiter (`agentdesk wait`) and opens no agent session. `timeout_seconds` is an integer from 1 to 600, 300 when omitted. It polls `/svc/decisions/watch` at once and every 15 seconds on `await`'s schedule and sends a `: keepalive` comment every 15 seconds. The single event is `{"decision": <Decision>}` once settled, `{"state": "pending", "decision_id"}` at the limit, or `{"error": …}`: `not_found` for an unknown decision, and `unavailable` when Convex fails after the stream opened. An error's `field` names the body field, such as `decision_id`.
 - `test/installer-compatibility.test.ts` runs the installer's own `signIn` (`packages/installer/src/signin.ts`) through these routes with Convex faked, so a wire-format change on either side fails here. `test/waiter-compatibility.test.ts` does the same for the installer's `runWait` (`packages/installer/src/resume/waiter.ts`) through `/device/wait`.
 - `/install.sh` serves `packages/installer/install.sh`, bundled at build time by the Text module rule in `wrangler.toml`, with `__AGENTDESK_PUBLIC_ORIGIN__` replaced by `PUBLIC_ORIGIN` without trailing slashes. The gateway keeps no copy of the script.

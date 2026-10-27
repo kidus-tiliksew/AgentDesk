@@ -33,17 +33,20 @@ export const routes: RouteSpec[] = [
   {
     path: "/svc/identity/device-start",
     method: "POST",
-    // req-accounts-and-connections AC-6.1. The harness list is validated
-    // against the fixed vocabulary by startDeviceRequest.
+    // req-accounts-and-connections AC-6.1; req-mac-app AC-2.1. The body names
+    // the harnesses or the Mac client; startDeviceRequest checks that it names
+    // exactly one and validates the harness list against the fixed vocabulary.
     handler: serviceRoute(
       z.object({
         machine_name: z.string().trim().min(1).max(255),
-        harnesses: z.array(z.string()),
+        harnesses: z.array(z.string()).optional(),
+        client: z.string().optional(),
       }),
       async (ctx, input) => {
         const started = await ctx.runMutation(internal.identity.deviceRequests.startDeviceRequest, {
           machineName: input.machine_name,
           harnesses: input.harnesses,
+          client: input.client,
         });
         return {
           code: started.code,
@@ -56,8 +59,9 @@ export const routes: RouteSpec[] = [
   {
     path: "/svc/identity/device-collect",
     method: "POST",
-    // req-accounts-and-connections AC-6.3, AC-6.4: one mutation, so the
-    // tokens are returned once. The secret is 32 bytes in base64url.
+    // req-accounts-and-connections AC-6.3, AC-6.4; req-mac-app AC-2.3: one
+    // mutation, so the tokens are returned once. The secret is 32 bytes in
+    // base64url.
     handler: serviceRoute(
       z.object({ device_secret: z.string().regex(/^[A-Za-z0-9_-]{43}$/) }),
       (ctx, input) =>

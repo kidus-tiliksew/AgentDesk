@@ -36,10 +36,12 @@ export async function insertConnectionToken(
 }
 
 // Inserts one API token for a user and returns its plaintext, which the caller
-// shows once (req-public-api-and-webhooks AC-3.1). Only the hash is stored.
+// shows once (req-public-api-and-webhooks AC-3.1). Only the hash is stored. A
+// Mac sign-in passes `harness` and `machineName`, which admit the token to the
+// connection functions (convex/identity/clients.ts#isMacCredential).
 export async function insertApiToken(
   ctx: Pick<MutationCtx, "db">,
-  credential: { userId: Id<"users">; name: string },
+  credential: { userId: Id<"users">; name: string; harness?: string; machineName?: string },
 ): Promise<{ plaintext: string; credentialId: Id<"credentials"> }> {
   const { plaintext, hash } = await mintToken(API_TOKEN_PREFIX);
   const credentialId = await ctx.db.insert("credentials", {

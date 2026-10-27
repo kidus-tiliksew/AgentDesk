@@ -4,14 +4,18 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx, mutation } from "../_generated/server";
 import { requireUser } from "../lib/auth";
 import { appError } from "../lib/errors";
-import { insertConnectionToken } from "./credentials";
+import { type ClientId, MAC_CLIENT, MAC_CLIENT_NAME } from "./clients";
+import { insertApiToken, insertConnectionToken } from "./credentials";
 import { type HarnessId, harnessName, isHarnessId, parseHarnesses } from "./harnesses";
 import { hashToken } from "./tokens";
 
-// component-identity §Short-code sign-in (req-accounts-and-connections REQ-6).
-// The installer starts a request and polls for it through the gateway's
-// service routes, which act for no account. The person enters the code in the
-// app, which calls the public mutations below as the signed-in account.
+// component-identity §Short-code sign-in (req-accounts-and-connections REQ-6;
+// req-mac-app REQ-2). The installer or the Mac app starts a request and polls
+// for it through the gateway's service routes, which act for no account. The
+// person enters the code in the app, which calls the public mutations below as
+// the signed-in account. An installer request lists harnesses and collects one
+// connection token per harness; a Mac request names the client `macos` and
+// collects one API token.
 
 const MINUTE = 60_000;
 
@@ -46,8 +50,9 @@ export type StartResult = { code: string; deviceSecret: string; expiresAt: numbe
 // A code entry the app shows a distinct state for. `not_found` covers a wrong,
 // malformed, or already used code.
 export type CodeRefusal = { status: "not_found" } | { status: "expired" } | { status: "locked" };
+// `harnesses` is empty and `client` is set for a Mac request.
 export type LookupResult =
-  | { status: "found"; machineName: string; harnesses: HarnessId[] }
+  | { status: "found"; machineName: string; harnesses: HarnessId[]; client?: ClientId }
   | CodeRefusal;
 export type ApproveResult = { status: "approved" } | CodeRefusal;
 export type DeclineResult = { status: "declined" } | CodeRefusal;
@@ -57,12 +62,17 @@ export type CollectedConnection = {
   connection_id: Id<"credentials">;
   token: string;
 };
+export type CollectedApiToken = {
+  credential_id: Id<"credentials">;
+  token: string;
+};
 export type CollectResult =
   | { status: "pending" }
   | { status: "expired" }
   | { status: "declined" }
   | { status: "not_found" }
-  | { status: "approved"; connections: CollectedConnection[] };
+  | { status: "approved"; connections: CollectedConnection[] }
+  | { status: "approved"; api_token: CollectedApiToken };
 
 // Returns the stored form of a code the person typed: surrounding whitespace
 // removed, upper case, and the optional hyphen of `XXXX-XXXX` removed. Returns
@@ -100,25 +110,53 @@ export function lockedUntil(times: readonly number[]): number {
   return until;
 }
 
-// The installer starts a request (AC-6.1). The request belongs to no account.
-// A new code differs from every retained request's code, so a lookup of an
-// expired code is unambiguous and no two unexpired pending requests share one.
+// What a request connects: the installer's harnesses, or the Mac client.
+type Requester = { harnesses: HarnessId[] } | { client: ClientId };
+
+// Returns what a start names, or throws `invalid`. A request names exactly one
+// of `harnesses` and `client`. Any `client` together with `harnesses`, and any
+// `client` other than `macos`, is refused naming `client`. Without `client`,
+// the harness list is checked as before, so a start that names neither is
+// refused naming `harnesses`.
+function parseRequester(args: { harnesses?: readonly unknown[]; client?: unknown }): Requester {
+  if (args.client !== undefined) {
+    if (args.harnesses !== undefined || args.client !== MAC_CLIENT) {
+      throw appError(
+        errorCodeSchema.enum.invalid,
+        `Client must be ${MAC_CLIENT}, without harnesses`,
+        "client",
+      );
+    }
+    return { client: MAC_CLIENT };
+  }
+  const harnesses = args.harnesses === undefined ? null : parseHarnesses(args.harnesses);
+  if (harnesses === null) {
+    throw appError(
+      errorCodeSchema.enum.invalid,
+      "Harnesses must be a non-empty list of distinct known harness ids",
+      "harnesses",
+    );
+  }
+  return { harnesses };
+}
+
+// The installer or the Mac app starts a request (AC-6.1; req-mac-app AC-2.1).
+// The request belongs to no account. A new code differs from every retained
+// request's code, so a lookup of an expired code is unambiguous and no two
+// unexpired pending requests share one.
 export const startDeviceRequest = internalMutation({
-  args: { machineName: v.string(), harnesses: v.array(v.string()) },
+  args: {
+    machineName: v.string(),
+    harnesses: v.optional(v.array(v.string())),
+    client: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<StartResult> => {
     const now = Date.now();
     const machineName = args.machineName.trim();
     if (machineName === "" || machineName.length > MAX_MACHINE_NAME_LENGTH) {
       throw appError(errorCodeSchema.enum.invalid, "Invalid machine name", "machineName");
     }
-    const harnesses = parseHarnesses(args.harnesses);
-    if (harnesses === null) {
-      throw appError(
-        errorCodeSchema.enum.invalid,
-        "Harnesses must be a non-empty list of distinct known harness ids",
-        "harnesses",
-      );
-    }
+    const requester = parseRequester(args);
 
     const code = await unusedCode(ctx);
     const deviceSecret = base64url(crypto.getRandomValues(new Uint8Array(DEVICE_SECRET_BYTES)));
@@ -127,7 +165,9 @@ export const startDeviceRequest = internalMutation({
       userCode: code,
       deviceSecretHash: await hashToken(deviceSecret),
       machineName,
-      harnesses,
+      ...("client" in requester
+        ? { harnesses: [], client: requester.client }
+        : { harnesses: requester.harnesses }),
       status: "pending",
       expiresAt,
     });
@@ -135,8 +175,9 @@ export const startDeviceRequest = internalMutation({
   },
 });
 
-// The app shows the requesting machine and harnesses for a pending code and
-// connects nothing (AC-6.2).
+// The app shows the requesting machine and harnesses, or that AgentDesk for
+// Mac will connect, for a pending code and connects nothing (AC-6.2;
+// req-mac-app AC-2.2).
 export const lookupDeviceRequest = mutation({
   args: { code: v.string() },
   handler: async (ctx, { code }): Promise<LookupResult> => {
@@ -146,16 +187,21 @@ export const lookupDeviceRequest = mutation({
     if (entry.status !== "pending") {
       return entry;
     }
-    return {
+    const { request } = entry;
+    const found: Extract<LookupResult, { status: "found" }> = {
       status: "found",
-      machineName: entry.request.machineName,
-      harnesses: storedHarnesses(entry.request),
+      machineName: request.machineName,
+      harnesses: storedHarnesses(request),
     };
+    if (request.client !== undefined) {
+      found.client = request.client;
+    }
+    return found;
   },
 });
 
-// Approval is the code's first use (AC-6.1). The installer's next collection
-// mints the connections for the approving account.
+// Approval is the code's first use (AC-6.1). The requester's next collection
+// mints the credentials for the approving account.
 export const approveDeviceRequest = mutation({
   args: { code: v.string() },
   handler: async (ctx, { code }): Promise<ApproveResult> => {
@@ -188,10 +234,11 @@ export const declineDeviceRequest = mutation({
   },
 });
 
-// The installer collects its request. An approved request mints one
-// connection token per harness for the approving account and is consumed in
+// The installer or the Mac app collects its request. An approved installer
+// request mints one connection token per harness, and an approved Mac request
+// mints one API token, for the approving account. The request is consumed in
 // the same mutation, so the plaintext tokens are returned exactly once
-// (DEC-6; AC-6.3, AC-6.4). An approved or declined request stays collectable
+// (DEC-6; AC-6.3, AC-6.4; req-mac-app AC-2.3). An approved or declined request stays collectable
 // after the code's expiry until it is consumed or purged; expiry governs only
 // a pending request.
 export const collectDeviceRequest = internalMutation({
@@ -217,6 +264,16 @@ export const collectDeviceRequest = internalMutation({
     const user = request.userId === undefined ? null : await ctx.db.get("users", request.userId);
     if (user === null || user.deletingAt !== undefined) {
       throw appError(errorCodeSchema.enum.unauthenticated, "Approving account is not active");
+    }
+    if (request.client === MAC_CLIENT) {
+      const { plaintext, credentialId } = await insertApiToken(ctx, {
+        userId: user._id,
+        name: MAC_CLIENT_NAME,
+        harness: MAC_CLIENT,
+        machineName: request.machineName,
+      });
+      await ctx.db.patch("deviceRequests", request._id, { status: "consumed" });
+      return { status: "approved", api_token: { credential_id: credentialId, token: plaintext } };
     }
     const connections: CollectedConnection[] = [];
     for (const harness of storedHarnesses(request)) {

@@ -4,7 +4,8 @@ import type { Env } from "./env.js";
 
 // component-gateway §Authentication. Connection tokens (`adc_`) are accepted
 // on `/mcp`, `/device/connection`, and `/device/wait`, and API tokens (`adp_`)
-// on `/v1`; Clerk OAuth access tokens arrive with the discovery documents.
+// on `/v1`, and on `/device/connection` only when a Mac sign-in minted them;
+// Clerk OAuth access tokens arrive with the discovery documents.
 // Every request resolves its credential again and nothing is cached, so a
 // revoked credential is refused on its next call (DEC-6;
 // req-accounts-and-connections AC-4.2; req-public-api-and-webhooks AC-3.2).
@@ -21,8 +22,9 @@ const resolvedSchema = z.object({
   userId: z.string().min(1),
   credentialId: z.string().min(1),
   kind: z.string(),
-  // The harness a connection token was minted for. Only `/device/connection`
-  // reports it, so `/mcp` does not depend on it.
+  // The harness a connection token was minted for, or `macos` for a Mac's API
+  // token. Only `/device/connection` reads it, so `/mcp` and `/v1` do not
+  // depend on it.
   harness: z.string().optional(),
 });
 
@@ -69,12 +71,6 @@ export async function authenticate(
   }
   const { userId, credentialId, harness } = credential.data;
   return harness === undefined ? { userId, credentialId } : { userId, credentialId, harness };
-}
-
-// Returns the request's bearer value when it has the form of a connection
-// token, and null otherwise.
-export function connectionToken(request: Request): string | null {
-  return bearerToken(request, "connection_token");
 }
 
 // Returns the request's bearer value when it has the form of `kind`, and null

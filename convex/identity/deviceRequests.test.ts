@@ -95,10 +95,17 @@ function at(minutes: number, ms = 0) {
 }
 
 function approved(result: CollectResult) {
-  if (result.status !== "approved") {
-    throw new Error(`expected approved, got ${result.status}`);
+  if (result.status !== "approved" || !("connections" in result)) {
+    throw new Error(`expected approved connections, got ${JSON.stringify(result)}`);
   }
   return result.connections;
+}
+
+function approvedApiToken(result: CollectResult) {
+  if (result.status !== "approved" || !("api_token" in result)) {
+    throw new Error(`expected an approved API token, got ${JSON.stringify(result)}`);
+  }
+  return result.api_token;
 }
 
 // Fills the next getRandomValues call with zero bytes, which encode the code
@@ -608,6 +615,159 @@ describe("collectDeviceRequest", () => {
 
     expect(await credentials(base)).toEqual([]);
     expect((await requests(base))[0]?.status).toBe("approved");
+  });
+});
+
+// req-mac-app REQ-2: a Mac request names the client instead of harnesses and
+// collects one API token.
+describe("Mac sign-in requests", () => {
+  function startMac(t: Base, machineName = "Studio Mac") {
+    return t.mutation(internal.identity.deviceRequests.startDeviceRequest, {
+      machineName,
+      client: "macos",
+    });
+  }
+
+  // req-mac-app AC-2.1
+  test("start stores the client with no harnesses and the same code rules", async () => {
+    const { base } = await setup();
+
+    const started = await startMac(base);
+
+    expect(started.code).toMatch(CODE_PATTERN);
+    expect(started.expiresAt).toBe(START + 10 * MINUTE);
+    expect(await requests(base)).toMatchObject([
+      { machineName: "Studio Mac", harnesses: [], client: "macos", status: "pending" },
+    ]);
+  });
+
+  test.each([
+    ["the client with harnesses", { client: "macos", harnesses: ["codex"] }],
+    ["the client with an empty harness list", { client: "macos", harnesses: [] }],
+    ["an unknown client", { client: "windows" }],
+    ["a harness id as the client", { client: "codex" }],
+    ["an empty client", { client: "" }],
+  ])("refuses %s naming client and stores nothing", async (_label, fields) => {
+    const { base } = await setup();
+
+    await expect(
+      base.mutation(internal.identity.deviceRequests.startDeviceRequest, {
+        machineName: "Studio Mac",
+        ...fields,
+      }),
+    ).rejects.toMatchObject(invalid("client"));
+
+    expect(await requests(base)).toEqual([]);
+  });
+
+  test("refuses a start that names neither harnesses nor a client naming harnesses", async () => {
+    const { base } = await setup();
+
+    await expect(
+      base.mutation(internal.identity.deviceRequests.startDeviceRequest, { machineName: "laptop" }),
+    ).rejects.toMatchObject(invalid("harnesses"));
+
+    expect(await requests(base)).toEqual([]);
+  });
+
+  // req-mac-app AC-2.2
+  test("lookup returns the Mac's name and the client and connects nothing", async () => {
+    const { base, a } = await setup();
+    const { code } = await startMac(base);
+
+    expect(await lookup(a, code)).toEqual({
+      status: "found",
+      machineName: "Studio Mac",
+      harnesses: [],
+      client: "macos",
+    });
+
+    expect(await credentials(base)).toEqual([]);
+    expect(await attempts(base)).toEqual([]);
+  });
+
+  // req-mac-app AC-2.3
+  test("approval mints exactly one API token, returned exactly once", async () => {
+    const { base, a, userId } = await setup();
+    const { code, deviceSecret } = await startMac(base);
+    expect(await approve(a, code)).toEqual({ status: "approved" });
+
+    const apiToken = approvedApiToken(await collect(base, deviceSecret));
+
+    expect(apiToken.token).toMatch(/^adp_[A-Za-z0-9_-]{43}$/);
+    const stored = await credentials(base);
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatchObject({
+      _id: apiToken.credential_id,
+      userId,
+      kind: "api_token",
+      harness: "macos",
+      name: "AgentDesk for Mac",
+      machineName: "Studio Mac",
+      tokenHash: await hashToken(apiToken.token),
+    });
+    expect(JSON.stringify(stored[0])).not.toContain(apiToken.token);
+    expect(
+      await base.mutation(internal.identity.credentials.resolveToken, {
+        tokenHash: await hashToken(apiToken.token),
+      }),
+    ).toMatchObject({
+      userId,
+      credentialId: apiToken.credential_id,
+      kind: "api_token",
+      harness: "macos",
+      name: "AgentDesk for Mac",
+    });
+
+    expect((await requests(base))[0]?.status).toBe("consumed");
+    expect(await collect(base, deviceSecret)).toEqual({ status: "not_found" });
+    expect(await credentials(base)).toHaveLength(1);
+  });
+
+  test("concurrent collections mint one API token", async () => {
+    const { base, a } = await setup();
+    const { code, deviceSecret } = await startMac(base);
+    await approve(a, code);
+
+    const results = await Promise.all([collect(base, deviceSecret), collect(base, deviceSecret)]);
+
+    expect(results.map((result) => result.status).sort()).toEqual(["approved", "not_found"]);
+    expect(await credentials(base)).toHaveLength(1);
+  });
+
+  // req-mac-app AC-2.4
+  test("a declined request returns declined once and mints nothing", async () => {
+    const { base, a } = await setup();
+    const { code, deviceSecret } = await startMac(base);
+    expect(await decline(a, code)).toEqual({ status: "declined" });
+
+    expect(await collect(base, deviceSecret)).toEqual({ status: "declined" });
+
+    expect(await collect(base, deviceSecret)).toEqual({ status: "not_found" });
+    expect(await credentials(base)).toEqual([]);
+  });
+
+  // req-mac-app AC-2.4
+  test("an expired request answers expired to lookup and collection", async () => {
+    const { base, a } = await setup();
+    const { code, deviceSecret } = await startMac(base);
+    at(10);
+
+    expect(await lookup(a, code)).toEqual({ status: "expired" });
+    expect(await approve(a, code)).toEqual({ status: "expired" });
+    expect(await collect(base, deviceSecret)).toEqual({ status: "expired" });
+    expect(await credentials(base)).toEqual([]);
+  });
+
+  test("refuses an approving account whose deletion has started and mints nothing", async () => {
+    const { base, a, userId } = await setup();
+    const { code, deviceSecret } = await startMac(base);
+    await approve(a, code);
+    await base.run((ctx) => ctx.db.patch("users", userId, { deletingAt: START }));
+
+    await expect(collect(base, deviceSecret)).rejects.toMatchObject(unauthenticated);
+
+    expect(await credentials(base)).toEqual([]);
   });
 });
 

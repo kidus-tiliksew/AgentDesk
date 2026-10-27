@@ -3,11 +3,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import { modules } from "../lib/test.modules";
 import schema from "../schema";
-import { insertConnectionToken } from "./credentials";
+import { insertApiToken, insertConnectionToken } from "./credentials";
 import { hashToken } from "./tokens";
 
 // component-identity §Service routes: the installer's uninstall revokes the
-// connection token it presents.
+// connection token it presents, and the Mac app's sign-out revokes its API
+// token (req-mac-app AC-2.7).
 
 const START = Date.UTC(2026, 9, 12, 12, 0, 0);
 const unauthenticated = { data: { code: "unauthenticated" } };
@@ -49,13 +50,28 @@ async function setup() {
       tokenHash: "c".repeat(64),
       name: "CI token",
     });
-    return { userId, laptop, sibling, oauthId, apiTokenId };
+    // An API token naming a harness other than the Mac client.
+    await ctx.db.insert("credentials", {
+      userId,
+      kind: "api_token",
+      tokenHash: "e".repeat(64),
+      name: "Script",
+      harness: "codex",
+    });
+    const mac = await insertApiToken(ctx, {
+      userId,
+      name: "AgentDesk for Mac",
+      harness: "macos",
+      machineName: "Studio Mac",
+    });
+    return { userId, laptop, sibling, oauthId, apiTokenId, mac };
   });
   return {
     t,
     ...ids,
     laptopHash: await hashToken(ids.laptop.plaintext),
     siblingHash: await hashToken(ids.sibling.plaintext),
+    macHash: await hashToken(ids.mac.plaintext),
   };
 }
 
@@ -86,6 +102,23 @@ describe("revokeSelf", () => {
     ).toMatchObject({ harness: "cursor" });
   });
 
+  // req-mac-app AC-2.7
+  test("revokes the presenting Mac API token only", async () => {
+    const { t, mac, macHash, laptopHash } = await setup();
+
+    expect(await revokeSelf(t, macHash)).toBeNull();
+
+    const credential = await t.run((ctx) => ctx.db.get("credentials", mac.credentialId));
+    expect(credential?.revokedAt).toBe(START);
+    await expect(
+      t.mutation(internal.identity.credentials.resolveToken, { tokenHash: macHash }),
+    ).rejects.toMatchObject(unauthenticated);
+    expect(
+      await t.mutation(internal.identity.credentials.resolveToken, { tokenHash: laptopHash }),
+    ).toMatchObject({ harness: "codex" });
+    await expect(revokeSelf(t, macHash)).rejects.toMatchObject(unauthenticated);
+  });
+
   test("refuses an already revoked token and keeps the first revokedAt", async () => {
     const { t, laptop, laptopHash } = await setup();
     await revokeSelf(t, laptopHash);
@@ -101,6 +134,7 @@ describe("revokeSelf", () => {
     ["an unknown hash", () => "d".repeat(64)],
     ["an OAuth connection", () => "b".repeat(64)],
     ["an API token", () => "c".repeat(64)],
+    ["an API token naming another harness", () => "e".repeat(64)],
   ])("refuses %s and revokes nothing", async (_label, pick) => {
     const { t } = await setup();
     const before = await revokedAts(t);
