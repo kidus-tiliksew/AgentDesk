@@ -1668,6 +1668,23 @@ describe("public API routes", () => {
       expect((await errorOf(response)).field).toBe("cursor");
     });
 
+    test("refuses a cursor issued to another user", async () => {
+      const { t, userId, otherUserId } = await askAll(["repo/a", "repo/b"]);
+      await foreignDecision(t, otherUserId);
+      const first = page.parse(
+        await (await post(t, "/svc/decisions/list", { userId, limit: 1 })).json(),
+      );
+
+      const response = await post(t, "/svc/decisions/list", {
+        userId: otherUserId,
+        cursor: first.next_cursor,
+        limit: 1,
+      });
+
+      expect(response.status).toBe(400);
+      expect((await errorOf(response)).field).toBe("cursor");
+    });
+
     test("refuses a cursor signed under another service secret", async () => {
       const { t, userId } = await askAll(["repo/a", "repo/b"]);
       const first = page.parse(

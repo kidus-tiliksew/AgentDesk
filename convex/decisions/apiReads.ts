@@ -30,10 +30,10 @@ export type ApiListFilters = {
 };
 
 // The service cursor wraps Convex's native cursor with the filters it was
-// issued for and an HMAC-SHA256 signature over both, keyed by the
-// deployment's SERVICE_SECRET. A cursor reused with other filters, and one
-// whose native cursor was altered or forged, is `invalid` rather than a native
-// cursor error.
+// issued for and an HMAC-SHA256 signature over them, the native cursor, and
+// the user, keyed by the deployment's SERVICE_SECRET. A cursor reused with
+// other filters or by another user, and one whose native cursor was altered
+// or forged, is `invalid` rather than a native cursor error.
 const cursorSchema = z.object({
   v: z.literal(1),
   state: decisionStateSchema.nullable(),
@@ -79,7 +79,7 @@ export async function listForApi(
   limit: number,
 ): Promise<DecisionPage> {
   const { state, topic } = filters;
-  const nativeCursor = cursor === undefined ? null : await decodeCursor(cursor, filters);
+  const nativeCursor = cursor === undefined ? null : await decodeCursor(cursor, userId, filters);
   const source =
     state === undefined
       ? ctx.db
@@ -107,17 +107,29 @@ export async function listForApi(
   }
   return {
     items,
-    next_cursor: result.isDone ? null : await encodeCursor(result.continueCursor, filters),
+    next_cursor: result.isDone ? null : await encodeCursor(result.continueCursor, userId, filters),
   };
 }
 
-async function encodeCursor(native: string, { state, topic }: ApiListFilters): Promise<string> {
+async function encodeCursor(
+  native: string,
+  userId: Id<"users">,
+  { state, topic }: ApiListFilters,
+): Promise<string> {
   const signed = { v: 1, state: state ?? null, topic: topic ?? null, cursor: native } as const;
-  const signature = await crypto.subtle.sign("HMAC", await signingKey(), signedBytes(signed));
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    await signingKey(),
+    signedBytes(userId, signed),
+  );
   return encodeCursorJson({ ...signed, sig: base64url(new Uint8Array(signature)) });
 }
 
-async function decodeCursor(cursor: string, { state, topic }: ApiListFilters): Promise<string> {
+async function decodeCursor(
+  cursor: string,
+  userId: Id<"users">,
+  { state, topic }: ApiListFilters,
+): Promise<string> {
   const parsed = cursorSchema.safeParse(decodeCursorJson(cursor));
   if (
     !parsed.success ||
@@ -129,21 +141,27 @@ async function decodeCursor(cursor: string, { state, topic }: ApiListFilters): P
   const signature = fromBase64url(parsed.data.sig);
   if (
     signature === null ||
-    !(await crypto.subtle.verify("HMAC", await signingKey(), signature, signedBytes(parsed.data)))
+    !(await crypto.subtle.verify(
+      "HMAC",
+      await signingKey(),
+      signature,
+      signedBytes(userId, parsed.data),
+    ))
   ) {
     throw invalidCursor();
   }
   return parsed.data.cursor;
 }
 
-function signedBytes(fields: {
-  v: 1;
-  state: DecisionState | null;
-  topic: string | null;
-  cursor: string;
-}): Uint8Array<ArrayBuffer> {
+// The signature also covers the user the cursor was issued to, which the
+// envelope does not carry, so another account's cursor is `invalid`.
+function signedBytes(
+  userId: Id<"users">,
+  fields: { v: 1; state: DecisionState | null; topic: string | null; cursor: string },
+): Uint8Array<ArrayBuffer> {
   const message = JSON.stringify([
     SIGNATURE_CONTEXT,
+    userId,
     fields.v,
     fields.state,
     fields.topic,
