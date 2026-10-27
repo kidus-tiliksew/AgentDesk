@@ -6,7 +6,7 @@
 apps/macos/Evidence/run.sh
 ```
 
-It runs three steps and records each command, exit status, and log in `output/manifest.json`:
+It runs four steps and records each command, exit status, and log in `output/manifest.json`:
 
 1. Builds `Harness/` together with every `AgentDeskKit` source and the shipped `DecisionRow`, `AnswerControls`, `AgentsView`, `Ink`, and `MenuBarLabel` files into one program (`build.log`).
 2. Runs the harness (`harness.log`, `report.txt`, PNGs):
@@ -20,7 +20,8 @@ It runs three steps and records each command, exit status, and log in `output/ma
    - the label as glyph, dot, a fade frame, and counts, and the seven fade frames;
    - a dot timeline through `DotPresence`: the fade on appearance, no redraw on refresh, and Reduce Motion.
    The harness exits non-zero when a popover exceeds 340 × 560 pt, an ink falls below 4.5:1, or a label image is not a template.
-3. Runs `SyncFreshnessTests`, `DotPresenceTests`, `SyncTests`, `PendingAnswersTests`, `AnswerDraftTests`, and `PopoverKeysTests` (`tests.log`). `freshness.txt` holds the measured time from a server change to a published snapshot, open and closed.
+3. Runs the full suite, `swift test --package-path apps/macos/AgentDeskKit`, as CI does (`tests.log`). `freshness.txt` holds the measured time from a server change to a published snapshot, open and closed.
+4. Builds the app unsigned with the CI command, `xcodebuild build -project apps/macos/AgentDesk.xcodeproj -scheme AgentDesk -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO`, into a scratch derived-data directory so every run compiles from scratch (`xcodebuild.log`).
 
 The run fails when Git would ignore any output, so every file the manifest names is committed with it. The manifest names the Git tree hashes of `AgentDesk/`, `AgentDeskKit/`, `Harness/`, and `run.sh` at the commit the run used, and the SHA-256 of every output. Compare them with `git rev-parse <commit>:apps/macos/AgentDesk` and the like to confirm the outputs belong to a later commit's sources. `sources_dirty` is true when those paths had uncommitted changes.
 
