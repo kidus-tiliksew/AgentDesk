@@ -25,13 +25,19 @@ export function base64url(bytes: Uint8Array): string {
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
 
-// The bytes of base64url text, or null when the text is not base64url.
+// The bytes of base64url text, or null when the text is not base64url. A
+// length of 1 modulo 4 encodes no whole byte, and `atob` refuses it, so it is
+// null like any other invalid encoding and never throws.
 export function fromBase64url(text: string): Uint8Array<ArrayBuffer> | null {
-  if (!/^[A-Za-z0-9_-]+$/.test(text)) {
+  if (!/^[A-Za-z0-9_-]+$/.test(text) || text.length % 4 === 1) {
     return null;
   }
   const base64 = text.replaceAll("-", "+").replaceAll("_", "/");
-  return Uint8Array.from(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")), (c) =>
-    c.charCodeAt(0),
-  );
+  let binary: string;
+  try {
+    binary = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="));
+  } catch {
+    return null;
+  }
+  return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }

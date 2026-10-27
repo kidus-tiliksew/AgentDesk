@@ -1636,9 +1636,12 @@ describe("public API routes", () => {
         // The issued signature over another native cursor.
         { ...issued, cursor: "not-a-native-cursor" },
         { ...issued, cursor: "" },
-        // A signature that is not the list's.
+        // A signature that is not the list's, including encodings `atob`
+        // refuses.
         { ...issued, sig: "AAAA" },
         { ...issued, sig: "" },
+        { ...issued, sig: "x" },
+        { ...issued, sig: "aaaaa" },
       ];
       for (const envelope of forged) {
         const response = await post(t, "/svc/decisions/list", {
@@ -1653,6 +1656,16 @@ describe("public API routes", () => {
           field: "cursor",
         });
       }
+    });
+
+    // Lengths of 1 modulo 4 are not base64url; `atob` throws on them.
+    test.each(["a", "aaaaa"])("refuses the malformed cursor %s as invalid", async (cursor) => {
+      const { t, userId } = await askAll(["repo/a"]);
+
+      const response = await post(t, "/svc/decisions/list", { userId, cursor, limit: 1 });
+
+      expect(response.status).toBe(400);
+      expect((await errorOf(response)).field).toBe("cursor");
     });
 
     test("refuses a cursor signed under another service secret", async () => {

@@ -335,6 +335,19 @@ describe("public API routes", () => {
       expect(page.parse(await response.json()).next_cursor).toBeNull();
     });
 
+    // Lengths of 1 modulo 4 are not base64url; `atob` throws on them.
+    test.each(["a", "aaaaa"])(
+      "returns 400 naming cursor for the malformed cursor %s",
+      async (cursor) => {
+        const { t, userId } = await seed(rows);
+
+        const response = await post(t, "/svc/agents/list", { userId, cursor, limit: 1 });
+
+        expect(response.status).toBe(400);
+        expect((await errorOf(response)).field).toBe("cursor");
+      },
+    );
+
     test("returns 400 naming cursor or limit, and 401 for a wrong secret", async () => {
       const { t, userId } = await seed(rows);
 
