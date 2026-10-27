@@ -1,4 +1,5 @@
 import Foundation
+import XCTest
 
 @testable import AgentDeskKit
 
@@ -158,4 +159,143 @@ func makeDefaults() -> UserDefaults {
   let defaults = UserDefaults(suiteName: name)!
   defaults.removePersistentDomain(forName: name)
   return defaults
+}
+
+/// Virtual time for `Sync`. A sleep suspends until `advance(by:)` reaches
+/// its end, so a test controls every timer tick.
+final class ManualClock: SyncClock, @unchecked Sendable {
+  private struct Sleeper {
+    let id: Int
+    let wakeAt: TimeInterval
+    let continuation: CheckedContinuation<Void, Error>
+  }
+
+  private let lock = NSLock()
+  private var time: TimeInterval = 0
+  private var sleepers: [Sleeper] = []
+  private var cancelled: Set<Int> = []
+  private var requested: [TimeInterval] = []
+  private var nextID = 0
+
+  var now: TimeInterval { lock.withLock { time } }
+
+  /// Every sleep length asked for, in order.
+  var requests: [TimeInterval] { lock.withLock { requested } }
+
+  var sleeping: Int { lock.withLock { sleepers.count } }
+
+  func sleep(seconds: TimeInterval) async throws {
+    let id = lock.withLock {
+      nextID += 1
+      requested.append(seconds)
+      return nextID
+    }
+    try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        let cancelledEarly = lock.withLock {
+          if cancelled.remove(id) != nil { return true }
+          sleepers.append(Sleeper(id: id, wakeAt: time + seconds, continuation: continuation))
+          return false
+        }
+        if cancelledEarly { continuation.resume(throwing: CancellationError()) }
+      }
+    } onCancel: {
+      let sleeper: Sleeper? = lock.withLock {
+        guard let index = sleepers.firstIndex(where: { $0.id == id }) else {
+          cancelled.insert(id)
+          return nil
+        }
+        return sleepers.remove(at: index)
+      }
+      sleeper?.continuation.resume(throwing: CancellationError())
+    }
+  }
+
+  func advance(by seconds: TimeInterval) {
+    let due: [Sleeper] = lock.withLock {
+      time += seconds
+      let due = sleepers.filter { $0.wakeAt <= time }
+      sleepers.removeAll { $0.wakeAt <= time }
+      return due
+    }
+    for sleeper in due { sleeper.continuation.resume() }
+  }
+}
+
+/// A `SyncReader` that answers from scripts and can hold a read in flight.
+final class FakeReader: SyncReader, @unchecked Sendable {
+  private let lock = NSLock()
+  private var decisionScript: [Result<[Decision], APIError>] = []
+  private var agentScript: [Result<[AgentSession], APIError>] = []
+  private var defaultDecisions: Result<[Decision], APIError> = .success([])
+  private var defaultAgents: Result<[AgentSession], APIError> = .success([])
+  private var holds: [Gate] = []
+  private var decisionReads = 0
+  private var agentReads = 0
+  private var inFlight = 0
+  private var peak = 0
+
+  var decisionCalls: Int { lock.withLock { decisionReads } }
+  var agentCalls: Int { lock.withLock { agentReads } }
+  /// The most decision reads ever in flight at once.
+  var peakConcurrency: Int { lock.withLock { peak } }
+
+  /// Answers the next decision reads in order, then `always`.
+  func answerDecisions(_ results: Result<[Decision], APIError>...) {
+    lock.withLock { decisionScript += results }
+  }
+
+  func answerAgents(_ results: Result<[AgentSession], APIError>...) {
+    lock.withLock { agentScript += results }
+  }
+
+  func alwaysAnswerDecisions(_ result: Result<[Decision], APIError>) {
+    lock.withLock { defaultDecisions = result }
+  }
+
+  func alwaysAnswerAgents(_ result: Result<[AgentSession], APIError>) {
+    lock.withLock { defaultAgents = result }
+  }
+
+  /// Holds the next decision read until the returned gate opens.
+  func holdNextRead() -> Gate {
+    let gate = Gate()
+    lock.withLock { holds.append(gate) }
+    return gate
+  }
+
+  func pendingDecisions() async throws(APIError) -> [Decision] {
+    let (result, hold): (Result<[Decision], APIError>, Gate?) = lock.withLock {
+      decisionReads += 1
+      inFlight += 1
+      peak = max(peak, inFlight)
+      let result = decisionScript.isEmpty ? defaultDecisions : decisionScript.removeFirst()
+      return (result, holds.isEmpty ? nil : holds.removeFirst())
+    }
+    if let hold { await hold.wait() }
+    lock.withLock { inFlight -= 1 }
+    return try result.get()
+  }
+
+  func liveAgentSessions() async throws(APIError) -> [AgentSession] {
+    let result = lock.withLock {
+      agentReads += 1
+      return agentScript.isEmpty ? defaultAgents : agentScript.removeFirst()
+    }
+    return try result.get()
+  }
+}
+
+/// Waits up to two seconds of real time for `condition`, polling every
+/// millisecond.
+@MainActor
+func eventually(
+  _ message: @autoclosure () -> String = "condition", file: StaticString = #filePath,
+  line: UInt = #line, _ condition: () async -> Bool
+) async {
+  for _ in 0..<2000 {
+    if await condition() { return }
+    try? await Task.sleep(nanoseconds: 1_000_000)
+  }
+  XCTFail("Timed out waiting for \(message())", file: file, line: line)
 }

@@ -4,3 +4,6 @@
 DerivedData/
 xcuserdata/
 *.xcuserstate
+
+# The evidence logs are retained outputs, named by Evidence/output/manifest.json.
+!Evidence/output/*.log
