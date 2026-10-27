@@ -22,6 +22,8 @@ xcodebuild build -project apps/macos/AgentDesk.xcodeproj -scheme AgentDesk \
 
 The tests never touch the login Keychain or the network. They use an in-memory credential store and a `URLProtocol` stub.
 
+`Evidence/run.sh` renders the menu bar label and the popover from fixtures and records contrast, layout, and freshness evidence with a manifest; see `Evidence/README.md`.
+
 ## Server
 
 The app talks to `https://agentdesk-gateway.kidus-tiliksew.workers.dev` unless the user default `ServerURL` names another https origin. To point it at your own gateway, quit the app, then run:
