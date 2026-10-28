@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 
 /// Owns the app's state and the menu bar item, and defers quitting until
 /// held and sending answers have reached the server (component-mac-app
@@ -14,9 +15,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   let state = AppState()
   private var isSending = false
   private var popover: PopoverController?
+  /// Sparkle's standard updater, held for the app's lifetime
+  /// (component-mac-app §Updates and privacy). `AgentDesk-Info.plist` sets
+  /// the feed, the public key, a check every 24 hours, and no automatic
+  /// downloads, so an update installs only after the user accepts.
+  private var updater: SPUStandardUpdaterController?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     popover = PopoverController(state: state)
+    updater = SPUStandardUpdaterController(
+      startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
   }
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

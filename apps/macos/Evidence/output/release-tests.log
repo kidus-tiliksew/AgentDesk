@@ -1,0 +1,74 @@
+# arguments and versions
+ok   no version
+ok   two versions
+ok   unknown option
+ok   malformed version '1.2'
+ok   malformed version '1.2.3.4'
+ok   malformed version 'v1.2.3'
+ok   malformed version '01.2.3'
+ok   malformed version '1.02.3'
+ok   malformed version '1.2.3-beta'
+ok   malformed version ' 1.2.3'
+ok   malformed version 'a.b.c'
+# dry run
+ok   valid dry run
+ok   dry run reports version, build number, commit, and tag
+ok   dry run calls no build, signing, Keychain, or GitHub tool
+ok   dry run flag first
+ok   dry run leaves the tree clean
+# working tree
+ok   modified tracked file
+ok   untracked file
+ok   staged file
+# tags
+ok   existing local tag
+ok   existing remote tag
+ok   other version still allowed
+ok   installer tag does not block a Mac version
+ok   unreachable remote
+# release with stubs
+ok   full release
+ok   steps run in order
+ok   archive sets version and build number
+ok   archive keeps hardened runtime
+ok   notarization waits on the agentdesk-notary profile
+ok   release is created not-latest at the commit
+ok   appcast replaces the fixed release asset
+ok   no release is marked latest
+ok   export uses the developer-id method
+ok   appcast has <sparkle:version>2</sparkle:version>
+ok   appcast has <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
+ok   appcast has <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+ok   appcast has url="https://github.com/example/agentdesk/releases/download/macos-v2.0.0/AgentDesk-2.0.0.dmg"
+ok   appcast has length="16"
+ok   appcast has sparkle:edSignature="STUBSIGNATURE=="
+ok   appcast is well-formed
+ok   release leaves the tree clean
+# failures stop before publishing
+ok   keymismatch failure stops
+ok   keymismatch failure publishes nothing
+ok   archive failure stops
+ok   archive failure publishes nothing
+ok   export failure stops
+ok   export failure publishes nothing
+ok   notary failure stops
+ok   notary failure publishes nothing
+ok   notary-invalid failure stops
+ok   notary-invalid failure publishes nothing
+ok   staple failure stops
+ok   staple failure publishes nothing
+ok   sign failure stops
+ok   sign failure publishes nothing
+ok   rejected notarization names its status
+ok   rejected notarization is not stapled or signed
+ok   mismatched public key names the problem
+ok   mismatched public key stops before archiving
+ok   release creation failure skips the appcast
+ok   release creation failure leaves the appcast alone
+ok   appcast upload failure reports a partial release
+ok   missing team ID
+ok   missing team ID stops before archiving
+ok   missing public key
+ok   missing public key stops before archiving
+
+all release script checks passed

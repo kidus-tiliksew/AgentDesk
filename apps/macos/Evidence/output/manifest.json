@@ -1,12 +1,15 @@
 {
-  "generated_at": "2026-10-28T01:39:37Z",
-  "source_commit": "d0e689f6258f00f09dd30c2bb954315723f621a2",
+  "generated_at": "2026-10-28T07:32:25Z",
+  "source_commit": "484e3bc2643ad330a731b3f757a1b0bda6c2de36",
   "sources_dirty": false,
   "source_trees": {
-    "apps/macos/AgentDesk": "1448c55241033fdbe38968b93a3911cd2ca5317c",
+    "apps/macos/AgentDesk": "45dc0aaed5ac814817f4b7ae47daf9ef439deca1",
     "apps/macos/AgentDeskKit": "3cc6097e49b058e1cd914d0ffcf04bc65a26961d",
+    "apps/macos/AgentDesk-Info.plist": "9ce07a17028645ea3c6cb4ca4af30914daaa403a",
+    "apps/macos/AgentDesk.xcodeproj": "b793263ef1637b29f7e9105c6659b56f05f637f8",
+    "apps/macos/scripts": "0d8d292ace2c4897b29b60738e9fdbce6036d7d5",
     "apps/macos/Evidence/Harness": "bc44c7b05cea662ce8ba5377374e9a8f23847f72",
-    "apps/macos/Evidence/run.sh": "4fe521eef0819fdb654c7b71bc9069aff384403f"
+    "apps/macos/Evidence/run.sh": "bde4b79837fee2fac7683cbe84c0369c6b070e97"
   },
   "toolchain": "Xcode 27.0 Build version 27A266a; swift-driver version: 1.168.6 Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)",
   "macos": "26.6.2",
@@ -32,15 +35,31 @@
       "command": "xcodebuild build -project apps/macos/AgentDesk.xcodeproj -scheme AgentDesk -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -derivedDataPath <tmp>/DerivedData",
       "exit": 0,
       "log": "xcodebuild.log"
+    },
+    {
+      "command": "plutil and base64 on <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app",
+      "exit": 0,
+      "log": "bundle.txt"
+    },
+    {
+      "command": "bash -n apps/macos/scripts/release.sh && bash -n apps/macos/scripts/test-release.sh && bash apps/macos/scripts/test-release.sh",
+      "exit": 0,
+      "log": "release-tests.log"
+    },
+    {
+      "command": "apps/macos/scripts/release.sh dry runs in <tmp>/clone at source_commit",
+      "exit": 0,
+      "log": "release-dry-run.log"
     }
   ],
   "outputs": {
     "build.log": "sha256:85de76d46ae2a60fe72690eb62cd048234550c99cd6a6e66ccf1f5489470c62c",
+    "bundle.txt": "sha256:b1d906d30ee835e403eddbfe213fa0165ee5ae240185c2138002c6f4c6c45de5",
     "contrast-dark-plain.png": "sha256:f4fc58dd7cb62f9c0c5fbc8db15edbcb4ebeb71b414b6d57da0870779ddffdbe",
     "contrast-dark-vibrant.png": "sha256:fc92e5919f28c3abb681f57b4c26aed6bf4d54e9042114eb7284d17fb5e81327",
     "contrast-light-plain.png": "sha256:b775ec48bc208cf52deb35cea8d661ecc6d17af827c0a7aecaed42b657e15c32",
     "contrast-light-vibrant.png": "sha256:af44e1fa4f37822dc4b56f1705c77d85db27cd14c839ef1e512b53a41c33c891",
-    "freshness.txt": "sha256:e4510be48aca73fe3ced1b1edfc419d0a536bba222e7fb384b986d472885c5ff",
+    "freshness.txt": "sha256:75410f45cf5ceeca92913da93e475b53a242829b4898294200847490c1d661a4",
     "harness.log": "sha256:8a16a37f411e11875c1d977268f261d2dcf1eaec32802dd31b2433c05ff86d1e",
     "label-count-12-dark.png": "sha256:55a84543c1c636d35904197176f120caf3ca1e5ef79abe67368bed19944317c2",
     "label-count-12-light.png": "sha256:2ca411dedbe9a2b2df7e436c1dec6697831cfa81d850345519f884019404bfda",
@@ -77,8 +96,10 @@
     "popover-send-failed-light.png": "sha256:32742281adc4a01e8ab58b767b7e6193bc671c9d75c46d91e15336056e78e947",
     "popover-undo-dark.png": "sha256:9d6e9e63d2275ef86d149bf9b58d02becdc5c18c2c84a7a90f73d6b24984c304",
     "popover-undo-light.png": "sha256:4732e689d127934abeb88a567a860d4b6f09545996a0c25b866961783207bfc2",
+    "release-dry-run.log": "sha256:5074fd1fb6cedf3f570e1b202c9af64ab10041d79d8839bca37749ef3c59fd84",
+    "release-tests.log": "sha256:38decf48e5197288faad6d65c093b28b3f873a60ebee86d00e3319d184ba0b6e",
     "report.txt": "sha256:8a16a37f411e11875c1d977268f261d2dcf1eaec32802dd31b2433c05ff86d1e",
-    "tests.log": "sha256:3546529cd5569ba4bf286748fe25b2587386dcf4092af7b15f41078adfdff83d",
-    "xcodebuild.log": "sha256:20443aa25a254f7311de5e2c9d4529924734f2353613f535ef3443de0837076c"
+    "tests.log": "sha256:86a0af8fc4cbf5fba637960d4825fbcc475c8c4098d4bcc5075164e037a7bc6c",
+    "xcodebuild.log": "sha256:b55cdc2da0247069deb6c8b46613b1cbc424638879701b41036b20436d20a8e6"
   }
 }

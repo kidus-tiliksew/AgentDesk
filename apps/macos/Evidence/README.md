@@ -1,12 +1,12 @@
 # Mac app evidence
 
-`run.sh` produces retained evidence for the menu bar label, the popover, and notifications without an account, a network, or any macOS permission. It writes to `output/`, or to the directory given as its first argument:
+`run.sh` produces retained evidence for the menu bar label, the popover, notifications, the built bundle's update settings, and the release script, without an account or any macOS permission. It needs the network to resolve the pinned Sparkle package and to read the `origin` remote's tags. It writes to `output/`, or to the directory given as its first argument:
 
 ```sh
 apps/macos/Evidence/run.sh
 ```
 
-It runs four steps and records each command, exit status, and log in `output/manifest.json`:
+It runs seven steps and records each command, exit status, and log in `output/manifest.json`:
 
 1. Builds `Harness/` together with every `AgentDeskKit` source and the shipped `DecisionRow`, `AnswerControls`, `AgentsView`, `Ink`, `MenuBarLabel`, `NotificationController`, and `NotificationPauseLine` files into one program (`build.log`).
 2. Runs the harness (`harness.log`, `report.txt`, PNGs):
@@ -27,8 +27,11 @@ It runs four steps and records each command, exit status, and log in `output/man
    The harness exits non-zero when a popover exceeds 340 × 560 pt, an ink falls below 4.5:1, or a label image is not a template.
 3. Runs the full suite, `swift test --package-path apps/macos/AgentDeskKit`, as CI does (`tests.log`). `freshness.txt` holds the measured time from a server change to a published snapshot, open and closed.
 4. Builds the app unsigned with the CI command, `xcodebuild build -project apps/macos/AgentDesk.xcodeproj -scheme AgentDesk -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO`, into a scratch derived-data directory so every run compiles from scratch (`xcodebuild.log`).
+5. Audits the bundle that build produced (`bundle.txt`): the value and type of each Sparkle key in `Info.plist`, that `SUPublicEDKey` decodes to a 32-byte Ed25519 public key, and that `Contents/Frameworks/Sparkle.framework` is version 2.10.1. Any other value fails the step.
+6. Checks the release script with `bash -n` on `release.sh` and `test-release.sh`, then runs `test-release.sh` (`release-tests.log`).
+7. Runs `release.sh` dry runs in a throwaway clone of the commit, whose `origin` is this checkout's `origin` remote, because the outputs above leave this checkout dirty (`release-dry-run.log`). Each run states the exit it expects: a malformed version, an untracked file, and a `macos-v` tag created only in the clone are refused, and a valid version on the clean clone stops before archiving. A different exit fails the step.
 
-The run fails when Git would ignore any output, so every file the manifest names is committed with it. The manifest names the Git tree hashes of `AgentDesk/`, `AgentDeskKit/`, `Harness/`, and `run.sh` at the commit the run used, and the SHA-256 of every output. Compare them with `git rev-parse <commit>:apps/macos/AgentDesk` and the like to confirm the outputs belong to a later commit's sources. `sources_dirty` is true when those paths had uncommitted changes.
+The run fails when Git would ignore any output, so every file the manifest names is committed with it. The manifest names the Git tree hashes of `AgentDesk/`, `AgentDeskKit/`, `AgentDesk-Info.plist`, `AgentDesk.xcodeproj`, `scripts/`, `Harness/`, and `run.sh` at the commit the run used, and the SHA-256 of every output. Compare them with `git rev-parse <commit>:apps/macos/AgentDesk` and the like to confirm the outputs belong to a later commit's sources. `sources_dirty` is true when those paths had uncommitted changes.
 
 ## Limits
 

@@ -1,0 +1,9 @@
+ok SUFeedURL string = https://github.com/kidus-tiliksew/AgentDesk/releases/download/macos-appcast/appcast.xml
+ok SUPublicEDKey string = MLkcbcI9e8Ty88wsvDiQhGtLfmIRt83D2DTkvo0N6aA=
+ok SUEnableAutomaticChecks bool = true
+ok SUScheduledCheckInterval integer = 86400
+ok SUAutomaticallyUpdate bool = false
+ok SUAllowsAutomaticUpdates bool = false
+ok SUEnableSystemProfiling bool = false
+ok SUPublicEDKey decodes to 32 bytes, an Ed25519 public key
+ok Contents/Frameworks/Sparkle.framework CFBundleShortVersionString = 2.10.1

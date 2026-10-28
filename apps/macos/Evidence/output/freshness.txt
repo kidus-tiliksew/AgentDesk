@@ -1,2 +1,2 @@
-FRESHNESS closed: timer 15.000 s + read 0.0009 s (3 pages, in-process stub) = 15.0009 s; bound 20 s
+FRESHNESS closed: timer 15.000 s + read 0.0011 s (3 pages, in-process stub) = 15.0011 s; bound 20 s
 FRESHNESS open: timer 5.000 s + read 0.0010 s (3 pages, in-process stub) = 5.0010 s; bound 10 s
