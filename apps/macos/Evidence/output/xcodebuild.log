@@ -44,8 +44,8 @@ ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --
 
 ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
 
-Build description signature: 27a467a1fdcbc99e7c6ff31015c0b968
-Build description path: <tmp>/DerivedData/Build/Intermediates.noindex/XCBuildData/27a467a1fdcbc99e7c6ff31015c0b968.xcbuilddata
+Build description signature: ca04dbd0726da6b7a5033bdddb41fc49
+Build description path: <tmp>/DerivedData/Build/Intermediates.noindex/XCBuildData/ca04dbd0726da6b7a5033bdddb41fc49.xcbuilddata
 CreateBuildDirectory <tmp>/DerivedData/SDKExplicitPrecompiledModules
     cd apps/macos/AgentDesk.xcodeproj
     builtin-create-build-directory <tmp>/DerivedData/SDKExplicitPrecompiledModules
@@ -62,17 +62,17 @@ CreateBuildDirectory <tmp>/DerivedData/Build/Products
     cd apps/macos/AgentDesk.xcodeproj
     builtin-create-build-directory <tmp>/DerivedData/Build/Products
 
-ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk <tmp>/DerivedData/SDKStatCaches.noindex/macosx27.0-26A425-7231f6df4def33e022ae2eb8f782df1a.sdkstatcache
-    cd apps/macos/AgentDesk.xcodeproj
-    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -o <tmp>/DerivedData/SDKStatCaches.noindex/macosx27.0-26A425-7231f6df4def33e022ae2eb8f782df1a.sdkstatcache
-
 CreateBuildDirectory <tmp>/DerivedData/Build/Intermediates.noindex
     cd apps/macos/AgentDesk.xcodeproj
     builtin-create-build-directory <tmp>/DerivedData/Build/Intermediates.noindex
 
-CreateBuildDirectory <tmp>/DerivedData/Build/Products/Debug
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk <tmp>/DerivedData/SDKStatCaches.noindex/macosx27.0-26A425-7231f6df4def33e022ae2eb8f782df1a.sdkstatcache
     cd apps/macos/AgentDesk.xcodeproj
-    builtin-create-build-directory <tmp>/DerivedData/Build/Products/Debug
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -o <tmp>/DerivedData/SDKStatCaches.noindex/macosx27.0-26A425-7231f6df4def33e022ae2eb8f782df1a.sdkstatcache
+
+CreateBuildDirectory <tmp>/DerivedData/Build/Intermediates.noindex/ExplicitPrecompiledModules
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-create-build-directory <tmp>/DerivedData/Build/Intermediates.noindex/ExplicitPrecompiledModules
 
 CreateBuildDirectory <tmp>/DerivedData/Build/Intermediates.noindex/PrecompiledHeaders
     cd apps/macos/AgentDesk.xcodeproj
@@ -82,29 +82,21 @@ CreateBuildDirectory <tmp>/DerivedData/Build/Intermediates.noindex/SwiftExplicit
     cd apps/macos/AgentDesk.xcodeproj
     builtin-create-build-directory <tmp>/DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
 
-CreateBuildDirectory <tmp>/DerivedData/Build/Intermediates.noindex/ExplicitPrecompiledModules
+WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk-1d46b67606a9ba9cb9a979a085d7eb39-VFS/all-product-headers.yaml
     cd apps/macos/AgentDesk.xcodeproj
-    builtin-create-build-directory <tmp>/DerivedData/Build/Intermediates.noindex/ExplicitPrecompiledModules
+    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk-1d46b67606a9ba9cb9a979a085d7eb39-VFS/all-product-headers.yaml
 
 CreateBuildDirectory <tmp>/DerivedData/Build/Intermediates.noindex/EagerLinkingTBDs/Debug
     cd apps/macos/AgentDesk.xcodeproj
     builtin-create-build-directory <tmp>/DerivedData/Build/Intermediates.noindex/EagerLinkingTBDs/Debug
 
-WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk-1d46b67606a9ba9cb9a979a085d7eb39-VFS/all-product-headers.yaml
+CreateBuildDirectory <tmp>/DerivedData/Build/Products/Debug
     cd apps/macos/AgentDesk.xcodeproj
-    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk-1d46b67606a9ba9cb9a979a085d7eb39-VFS/all-product-headers.yaml
+    builtin-create-build-directory <tmp>/DerivedData/Build/Products/Debug
 
 CreateBuildDirectory <tmp>/DerivedData/Build/Products/Debug/PackageFrameworks
     cd apps/macos/AgentDesk.xcodeproj
     builtin-create-build-directory <tmp>/DerivedData/Build/Products/Debug/PackageFrameworks
-
-WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.DependencyMetadataFileList (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDeskKit
-    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.DependencyMetadataFileList
-
-WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.modulemap (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDeskKit
-    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.modulemap
 
 WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.DependencyStaticMetadataFileList (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDeskKit
@@ -114,21 +106,29 @@ WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build
     cd apps/macos
     write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/empty-AgentDesk.plist
 
+WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.DependencyMetadataFileList (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDeskKit
+    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.DependencyMetadataFileList
+
+WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.modulemap (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDeskKit
+    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.modulemap
+
 WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk_const_extract_protocols.json (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
     write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk_const_extract_protocols.json
 
-WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.LinkFileList (in target 'AgentDeskKit' from project 'AgentDeskKit')
+WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.SwiftConstValuesFileList (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDeskKit
-    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.LinkFileList
+    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.SwiftConstValuesFileList
 
 WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.SwiftFileList (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDeskKit
     write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.SwiftFileList
 
-WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.SwiftConstValuesFileList (in target 'AgentDeskKit' from project 'AgentDeskKit')
+WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.LinkFileList (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDeskKit
-    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.SwiftConstValuesFileList
+    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.LinkFileList
 
 WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit_const_extract_protocols.json (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDeskKit
@@ -146,17 +146,13 @@ WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build
     cd apps/macos
     write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.SwiftConstValuesFileList
 
-WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.LinkFileList (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.LinkFileList
-
 WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk-OutputFileMap.json (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
     write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk-OutputFileMap.json
 
-Copy <tmp>/DerivedData/Build/Intermediates.noindex/GeneratedModuleMaps/AgentDeskKit.modulemap <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.modulemap (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDeskKit
-    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.modulemap <tmp>/DerivedData/Build/Intermediates.noindex/GeneratedModuleMaps
+WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.LinkFileList (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.LinkFileList
 
 WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk.hmap (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
@@ -174,33 +170,33 @@ WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build
     cd apps/macos
     write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-project-headers.hmap
 
-WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-generated-files.hmap (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-generated-files.hmap
-
 WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-own-target-headers.hmap (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
     write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-own-target-headers.hmap
+
+WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-generated-files.hmap (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-generated-files.hmap
 
 WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-all-target-headers.hmap (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
     write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-all-target-headers.hmap
 
-WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-DebugDylibPath-normal-arm64.txt (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-DebugDylibPath-normal-arm64.txt
-
 WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-all-non-framework-target-headers.hmap (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
     write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-all-non-framework-target-headers.hmap
+
+WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-DebugDylibPath-normal-arm64.txt (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-DebugDylibPath-normal-arm64.txt
 
 WriteAuxiliaryFile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-DebugDylibInstallName-normal-arm64.txt (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
     write-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-DebugDylibInstallName-normal-arm64.txt
 
-MkDir <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Contents (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    /bin/mkdir -p <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Contents
+Copy <tmp>/DerivedData/Build/Intermediates.noindex/GeneratedModuleMaps/AgentDeskKit.modulemap <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.modulemap (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDeskKit
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.modulemap <tmp>/DerivedData/Build/Intermediates.noindex/GeneratedModuleMaps
 
 MkDir <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Contents/Resources (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
@@ -210,6 +206,10 @@ MkDir <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Contents/MacOS (in ta
     cd apps/macos
     /bin/mkdir -p <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Contents/MacOS
 
+MkDir <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Contents (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    /bin/mkdir -p <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Contents
+
 MkDir <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
     /bin/mkdir -p <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app
@@ -218,79 +218,79 @@ SwiftDriver AgentDeskKit normal arm64 com.apple.xcode.tools.swift.compiler (in t
     cd apps/macos/AgentDesk.xcodeproj
     builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name AgentDeskKit -Onone @<tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -target arm64-apple-macos14.0 -g -module-cache-path <tmp>/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path <tmp>/DerivedData/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I <tmp>/DerivedData/Build/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F <tmp>/DerivedData/Build/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -c -j12 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc <tmp>/DerivedData/SDKStatCaches.noindex/macosx27.0-26A425-7231f6df4def33e022ae2eb8f782df1a.sdkstatcache -output-file-map <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path <tmp>/DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path <tmp>/DerivedData/ModuleCache.noindex -sdk-module-cache-path <tmp>/DerivedData/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file <tmp>/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name agentdeskkit -emit-const-values -const-gather-protocols-list <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit_const_extract_protocols.json -Xcc -I<tmp>/DerivedData/Build/Products/Debug/include -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/DerivedSources-normal/arm64 -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/DerivedSources/arm64 -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit-Swift.h -working-directory apps/macos/AgentDesk.xcodeproj -experimental-emit-module-separately -disable-cmo
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/SwiftShims-7RJHHDS3F3IJHPX4JEMLP4SM6.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ptrauth-6U0Y5Q11AHIRJ3G8YJDNFDHSV.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ptrcheck-F16VJ3IA06YJHKX9CISP334JO.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_SwiftConcurrencyShims-EQOF94N8ZEO5MTT28Q9BUX2H9.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdarg-E3W8V181PROHNICM9QM8WUTRN.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stddef-CZ8VB63GA1IDGGL7LCX60GMQW.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdbool-93SOQOHRXGLOP9MZKFO1VO5Z9.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdarg-68VTN7STU14SQZWCLDWPGZM9N.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_AvailabilityInternal-8ACEE2TMJUBMEXK9XWT5TQVVK.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_float-DJ6DQP27JQZVWOLXIL8GLT0YX.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ptrauth-52QJKGVVI7GMPMRAWMO3V6TDC.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/SwiftShims-CLZ7UHLGSRV245KG8YY6PPXTC.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_float-EWNVMQLSRS6IEQCFWV5AR9CT7.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_AvailabilityInternal-BYA4QIKNJ1EC8XQP9DF98FEAJ.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_SwiftConcurrencyShims-D9X093CYHI0U90YULU4RWULOT.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ptrcheck-D6QUHETXABGKZ8PJPZIID4AIK.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stddef-75ABXT6BNZLZ7530HUPAXIFMB.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdbool-35SXOGVF60IJKHLPROS9FC525.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_DarwinFoundation1-9AY456WY4GO48IGPKRF15L61A.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_DarwinFoundation1-C8KS1THSOB9OQJWXQPWRFVO73.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_DarwinFoundation2-BAT22QFEJZ7EFH4LRS2MVIRR0.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_DarwinFoundation2-A46YZBZGZZADE8M8NS40SXM41.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_limits-25WEFSCYPWT3D4R5JIW1G3S8J.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_limits-ER152CBPNN4TXAR6NHY3RS59W.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/sys_types-80DDTXBFTKW6K2EZNF5IG6VME.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/sys_types-EUBRLQ6MMW5CRSRYUTUC71N36.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdint-DJL5NUGDOSSOBD1DJD0VU68P8.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdint-BV4YRJ3LV3ZNJYXWAFICZLBW4.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/string_h-PWF071FBGFIQD3Z3YJLA1RSE.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/string_h-EDT7UOGXGTDPAL9QV9GKXF5AS.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/libDER-2JEF52M35HJNO9J8FDNZ1QQHQ.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/libDER-CY5J57GHQ3YOZ5BP06KCED43S.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdatomic-4ZOD1XW003XHEGRY0LVAHXUZA.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdatomic-12FQ3UJ2VVNSN8ZK5ST36EONR.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_DarwinFoundation3-2W562EFSDDI2UQNMFSCMSVIQJ.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_DarwinFoundation3-7X2FYDVNACJAMKM5B8DTEH13F.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_inttypes-ECP3ERIVXJJ1R3RO4IVOFZV5P.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_inttypes-3SSPPR2B2ERW21FE90414APTW.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Darwin-4SCV40X9TRFBQMJSXGA1CGMWT.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Darwin-49XYMXEY3UTUU91G9P5IF5PTK.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/libkern-AZXU5524H814S3BRXMSSYRLTH.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/libkern-6KP0T72XOXECN7AVJIWBWKN22.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/launch-893RK6FJ1R1R4JA203Z7B97XQ.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/launch-9099OJEBM6481T14KH41AQNQL.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/MachO-E80M9OCEQSUIU3OVACYU8P9LB.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/MachO-1CQMM34RA8VVASBOLLUSJ113U.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ObjectiveC-UA9NZ6ZKU4RJHKVDP9PL6UO1.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ObjectiveC-2BVAYZQ4R1NFM9GTV9VOZFLC2.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/os_object-C1VBZZ8SHK216S2MK331WOSG1.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/os_object-CJKMAFI7D687SI8H6S9V6M0U0.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/os_workgroup-CXDR334XL82MED2GO72V5BU4T.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/os_workgroup-CVD08YJG5SP2J63NHYQKBZA9Y.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Dispatch-CP93Y53GYNE551G76WRQKSNT7.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Dispatch-7F7FKZK3HOTEI6Y6RT0X03LIT.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreFoundation-D1RUI423O1PSGKRPJ1FWC886N.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/XPC-AVX96S8ZTZJZNZW1C2F8J3OO1.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/XPC-9VD41YWN9DQKRJBO0IKB7NGL2.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreFoundation-KB1Z18W6AT2S4S887EH8959E.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/os-ATKA7B91YUDGYD71DFSKBM0QL.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/os-775L2JWC8NQBDCJD1CBEBOL7C.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Security-B7U1VYNDOIWZN4LCN3JWF9QDK.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CFNetwork-9QRA0ZI47ZZZRYJ310WGCJLDX.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CFNetwork-76SA1KW4BNDVPRBVFA2IFX7XG.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Security-1EVWF48T5MSZ6RSYXMJGCJYAN.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/IOKit-B1ADROKRKPYS37I37AHSSRE8E.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/IOKit-1UN66UIJAVLDU15O4RRS48JFG.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/DiskArbitration-B33R27B7SCH3NGZPZI1RZYZNF.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/DiskArbitration-DJ4K1Q0HXP248PODPL74F9FBW.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreServices-306VK68V9HM7JEYP4B5JKW89U.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreServices-AF7G3O98EYVZYSO0P6FBTCAVH.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Foundation-BIMH5BIVTTXKSFGMIEH1KCQTC.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Foundation-9ABFMWBLGQ8NTTY8LUU5GP7UC.pcm
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/OSLog-1J8K88YW16XG7WG1MBXETF941.pcm
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/OSLog-4A45NXRJX3VM6REU9YSCNS1EB.pcm
 
 SwiftEmitModule normal arm64 Emitting\ module\ for\ AgentDeskKit (in target 'AgentDeskKit' from project 'AgentDeskKit')
 
@@ -298,113 +298,27 @@ SwiftCompile normal arm64 (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDesk.xcodeproj
     
 
-SwiftCompile normal arm64 Compiling\ Pages.swift,\ PendingAnswers.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Pages.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/PendingAnswers.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Pages.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile Pages.swift
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/PendingAnswers.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile PendingAnswers.swift
-
-SwiftCompile normal arm64 Compiling\ Decision.swift,\ Device.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Decision.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Device.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Decision.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile Decision.swift
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Device.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile Device.swift
-
-SwiftCompile normal arm64 Compiling\ AgentSession.swift,\ Answer.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/AgentSession.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Answer.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/AgentSession.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile AgentSession.swift
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Answer.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile Answer.swift
-
-SwiftCompile normal arm64 Compiling\ PopoverKeys.swift,\ SeenStore.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/PopoverKeys.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/SeenStore.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/PopoverKeys.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile PopoverKeys.swift
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/SeenStore.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile SeenStore.swift
-
-SwiftCompile normal arm64 Compiling\ Instant.swift,\ Option.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Instant.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Option.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Instant.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile Instant.swift
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Option.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile Option.swift
-
-SwiftCompile normal arm64 Compiling\ ServerConfiguration.swift,\ SignIn.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/ServerConfiguration.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/SignIn.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/ServerConfiguration.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile ServerConfiguration.swift
+SwiftCompile normal arm64 Compiling\ SignIn.swift,\ Sync.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/SignIn.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Sync.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
 
 SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/SignIn.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDesk.xcodeproj
     builtin-SwiftPerFileCompile SignIn.swift
 
-SwiftCompile normal arm64 Compiling\ Sync.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Sync.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
 SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Sync.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDesk.xcodeproj
     builtin-SwiftPerFileCompile Sync.swift
 
-SwiftCompile normal arm64 Compiling\ LoginItems.swift,\ APIError.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/LoginItems.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/APIError.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+SwiftCompile normal arm64 Compiling\ Option.swift,\ Pages.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Option.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Pages.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
 
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/LoginItems.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Option.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile LoginItems.swift
+    builtin-SwiftPerFileCompile Option.swift
 
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/APIError.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Pages.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile APIError.swift
+    builtin-SwiftPerFileCompile Pages.swift
 
-SwiftCompile normal arm64 Compiling\ Attention.swift,\ CredentialStore.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Attention.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/CredentialStore.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Attention.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile Attention.swift
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/CredentialStore.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile CredentialStore.swift
-
-SwiftCompile normal arm64 Compiling\ AgentSessionOrder.swift,\ AnswerDraft.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/AgentSessionOrder.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/AnswerDraft.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/AgentSessionOrder.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile AgentSessionOrder.swift
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/AnswerDraft.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile AnswerDraft.swift
-
-SwiftCompile normal arm64 Compiling\ APIClient.swift,\ Account.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/APIClient.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Account.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/APIClient.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile APIClient.swift
-
-SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Account.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-    cd apps/macos/AgentDesk.xcodeproj
-    builtin-SwiftPerFileCompile Account.swift
-
-SwiftCompile normal arm64 Compiling\ DecisionOrder.swift,\ DecisionPresentation.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/DecisionOrder.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/DecisionPresentation.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+SwiftCompile normal arm64 Compiling\ DecisionOrder.swift,\ DecisionPresentation.swift,\ LoginItems.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/DecisionOrder.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/DecisionPresentation.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/LoginItems.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
 
 SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/DecisionOrder.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDesk.xcodeproj
@@ -414,51 +328,141 @@ SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/DecisionP
     cd apps/macos/AgentDesk.xcodeproj
     builtin-SwiftPerFileCompile DecisionPresentation.swift
 
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/LoginItems.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile LoginItems.swift
+
+SwiftCompile normal arm64 Compiling\ NotificationPlanner.swift,\ NotificationSettings.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/NotificationPlanner.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/NotificationSettings.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/NotificationPlanner.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile NotificationPlanner.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/NotificationSettings.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile NotificationSettings.swift
+
+SwiftCompile normal arm64 Compiling\ Answer.swift,\ Decision.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Answer.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Decision.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Answer.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile Answer.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Decision.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile Decision.swift
+
+SwiftCompile normal arm64 Compiling\ AnswerDraft.swift,\ Attention.swift,\ CredentialStore.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/AnswerDraft.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Attention.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/CredentialStore.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/AnswerDraft.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile AnswerDraft.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Attention.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile Attention.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/CredentialStore.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile CredentialStore.swift
+
+SwiftCompile normal arm64 Compiling\ SeenStore.swift,\ ServerConfiguration.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/SeenStore.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/ServerConfiguration.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/SeenStore.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile SeenStore.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/ServerConfiguration.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile ServerConfiguration.swift
+
+SwiftCompile normal arm64 Compiling\ NotifiedStore.swift,\ Notifier.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/NotifiedStore.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Notifier.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/NotifiedStore.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile NotifiedStore.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Notifier.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile Notifier.swift
+
+SwiftCompile normal arm64 Compiling\ Device.swift,\ Instant.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Device.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Instant.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Device.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile Device.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/Instant.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile Instant.swift
+
+SwiftCompile normal arm64 Compiling\ APIError.swift,\ AgentSession.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/APIError.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/AgentSession.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/APIError.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile APIError.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Models/AgentSession.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile AgentSession.swift
+
+SwiftCompile normal arm64 Compiling\ PendingAnswers.swift,\ PopoverKeys.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/PendingAnswers.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/PopoverKeys.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/PendingAnswers.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile PendingAnswers.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/PopoverKeys.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile PopoverKeys.swift
+
+SwiftCompile normal arm64 Compiling\ APIClient.swift,\ Account.swift,\ AgentSessionOrder.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/APIClient.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/Account.swift apps/macos/AgentDeskKit/Sources/AgentDeskKit/AgentSessionOrder.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/APIClient.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile APIClient.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/Account.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile Account.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDeskKit/Sources/AgentDeskKit/AgentSessionOrder.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+    cd apps/macos/AgentDesk.xcodeproj
+    builtin-SwiftPerFileCompile AgentSessionOrder.swift
+
 SwiftDriverJobDiscovery normal arm64 Emitting module for AgentDeskKit (in target 'AgentDeskKit' from project 'AgentDeskKit')
 
 SwiftDriver\ Compilation\ Requirements AgentDeskKit normal arm64 com.apple.xcode.tools.swift.compiler (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDesk.xcodeproj
     builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name AgentDeskKit -Onone @<tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -target arm64-apple-macos14.0 -g -module-cache-path <tmp>/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path <tmp>/DerivedData/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I <tmp>/DerivedData/Build/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F <tmp>/DerivedData/Build/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -c -j12 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc <tmp>/DerivedData/SDKStatCaches.noindex/macosx27.0-26A425-7231f6df4def33e022ae2eb8f782df1a.sdkstatcache -output-file-map <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path <tmp>/DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path <tmp>/DerivedData/ModuleCache.noindex -sdk-module-cache-path <tmp>/DerivedData/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file <tmp>/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name agentdeskkit -emit-const-values -const-gather-protocols-list <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit_const_extract_protocols.json -Xcc -I<tmp>/DerivedData/Build/Products/Debug/include -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/DerivedSources-normal/arm64 -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/DerivedSources/arm64 -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit-Swift.h -working-directory apps/macos/AgentDesk.xcodeproj -experimental-emit-module-separately -disable-cmo
 
-SwiftDriverJobDiscovery normal arm64 Compiling LoginItems.swift, APIError.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+SwiftDriverJobDiscovery normal arm64 Compiling Option.swift, Pages.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
 
-SwiftDriverJobDiscovery normal arm64 Compiling PopoverKeys.swift, SeenStore.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+SwiftDriverJobDiscovery normal arm64 Compiling SeenStore.swift, ServerConfiguration.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
 
-SwiftDriverJobDiscovery normal arm64 Compiling ServerConfiguration.swift, SignIn.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+SwiftDriverJobDiscovery normal arm64 Compiling DecisionOrder.swift, DecisionPresentation.swift, LoginItems.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
 
-SwiftDriverJobDiscovery normal arm64 Compiling Decision.swift, Device.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftDriverJobDiscovery normal arm64 Compiling Instant.swift, Option.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+SwiftDriverJobDiscovery normal arm64 Compiling NotificationPlanner.swift, NotificationSettings.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
 
 SwiftMergeGeneratedHeaders <tmp>/DerivedData/Build/Intermediates.noindex/GeneratedModuleMaps/AgentDeskKit-Swift.h <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit-Swift.h (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDeskKit
     builtin-swiftHeaderTool -arch arm64 <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit-Swift.h -o <tmp>/DerivedData/Build/Intermediates.noindex/GeneratedModuleMaps/AgentDeskKit-Swift.h
 
-Copy <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.swiftmodule/arm64-apple-macos.swiftdoc <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.swiftdoc (in target 'AgentDeskKit' from project 'AgentDeskKit')
+Copy <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.swiftmodule/arm64-apple-macos.swiftmodule <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.swiftmodule (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDeskKit
-    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.swiftdoc <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.swiftmodule/arm64-apple-macos.swiftdoc
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.swiftmodule <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.swiftmodule/arm64-apple-macos.swiftmodule
 
 Copy <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.swiftmodule/arm64-apple-macos.abi.json <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.abi.json (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDeskKit
     builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.abi.json <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.swiftmodule/arm64-apple-macos.abi.json
 
-Copy <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.swiftmodule/arm64-apple-macos.swiftmodule <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.swiftmodule (in target 'AgentDeskKit' from project 'AgentDeskKit')
+Copy <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.swiftmodule/arm64-apple-macos.swiftdoc <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.swiftdoc (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDeskKit
-    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.swiftmodule <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.swiftmodule/arm64-apple-macos.swiftmodule
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.swiftdoc <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.swiftmodule/arm64-apple-macos.swiftdoc
 
 Copy <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.swiftmodule/Project/arm64-apple-macos.swiftsourceinfo <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.swiftsourceinfo (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDeskKit
     builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.swiftsourceinfo <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.swiftmodule/Project/arm64-apple-macos.swiftsourceinfo
-
-SwiftDriverJobDiscovery normal arm64 Compiling DecisionOrder.swift, DecisionPresentation.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftDriverJobDiscovery normal arm64 Compiling Pages.swift, PendingAnswers.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftDriverJobDiscovery normal arm64 Compiling Attention.swift, CredentialStore.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftDriverJobDiscovery normal arm64 Compiling AgentSessionOrder.swift, AnswerDraft.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
-
-SwiftDriverJobDiscovery normal arm64 Compiling APIClient.swift, Account.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
 
 MkDir <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/assetcatalog_output/thinned (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
@@ -485,13 +489,21 @@ CompileAssetCatalogVariant thinned <tmp>/DerivedData/Build/Products/Debug/AgentD
 <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/assetcatalog_output/thinned/Assets.car
 
 
-SwiftDriverJobDiscovery normal arm64 Compiling AgentSession.swift, Answer.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+SwiftDriverJobDiscovery normal arm64 Compiling PendingAnswers.swift, PopoverKeys.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
 
-SwiftDriver AgentDesk normal arm64 com.apple.xcode.tools.swift.compiler (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name AgentDesk -Onone @<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.SwiftFileList -DDEBUG -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -target arm64-apple-macos14.0 -g -module-cache-path <tmp>/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path <tmp>/DerivedData/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I <tmp>/DerivedData/Build/Products/Debug -F <tmp>/DerivedData/Build/Products/Debug/PackageFrameworks -F <tmp>/DerivedData/Build/Products/Debug -emit-localized-strings -emit-localized-strings-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64 -c -j12 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc <tmp>/DerivedData/SDKStatCaches.noindex/macosx27.0-26A425-7231f6df4def33e022ae2eb8f782df1a.sdkstatcache -output-file-map <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path <tmp>/DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path <tmp>/DerivedData/ModuleCache.noindex -sdk-module-cache-path <tmp>/DerivedData/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file <tmp>/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk_const_extract_protocols.json -Xcc -iquote -Xcc <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-generated-files.hmap -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-own-target-headers.hmap -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk-1d46b67606a9ba9cb9a979a085d7eb39-VFS/all-product-headers.yaml -Xcc -iquote -Xcc <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-project-headers.hmap -Xcc -I<tmp>/DerivedData/Build/Products/Debug/include -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources-normal/arm64 -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources/arm64 -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk-Swift.h -working-directory apps/macos -experimental-emit-module-separately -disable-cmo
+SwiftDriverJobDiscovery normal arm64 Compiling APIClient.swift, Account.swift, AgentSessionOrder.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
 
-SwiftDriverJobDiscovery normal arm64 Compiling Sync.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+SwiftDriverJobDiscovery normal arm64 Compiling Answer.swift, Decision.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftDriverJobDiscovery normal arm64 Compiling NotifiedStore.swift, Notifier.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftDriverJobDiscovery normal arm64 Compiling Device.swift, Instant.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftDriverJobDiscovery normal arm64 Compiling AnswerDraft.swift, Attention.swift, CredentialStore.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftDriverJobDiscovery normal arm64 Compiling APIError.swift, AgentSession.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
+
+SwiftDriverJobDiscovery normal arm64 Compiling SignIn.swift, Sync.swift (in target 'AgentDeskKit' from project 'AgentDeskKit')
 
 SwiftDriver\ Compilation AgentDeskKit normal arm64 com.apple.xcode.tools.swift.compiler (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDesk.xcodeproj
@@ -504,84 +516,12 @@ Ld <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.o normal (in target 'Agen
 ExtractAppIntentsMetadata (in target 'AgentDeskKit' from project 'AgentDeskKit')
     cd apps/macos/AgentDeskKit
     /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name AgentDeskKit --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk --xcode-version 27A266a --platform-family macOS --deployment-target 14.0 --bundle-identifier agentdeskkit.AgentDeskKit --output <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.appintents --target-triple arm64-apple-macos14.0 --binary-file <tmp>/DerivedData/Build/Products/Debug/AgentDeskKit.o --dependency-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit_dependency_info.dat --stringsdata-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.SwiftFileList --metadata-file-list <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.DependencyMetadataFileList --static-metadata-file-list <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/AgentDeskKit.DependencyStaticMetadataFileList --swift-const-vals-list <tmp>/DerivedData/Build/Intermediates.noindex/AgentDeskKit.build/Debug/AgentDeskKit-t.build/Objects-normal/arm64/AgentDeskKit.SwiftConstValuesFileList --force --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
-2026-10-27 21:57:59.938 appintentsmetadataprocessor[67296:3797869] Starting appintentsmetadataprocessor export
-2026-10-27 21:58:00.007 appintentsmetadataprocessor[67296:3797869] Extracted no relevant App Intents symbols, skipping writing output
+2026-10-28 04:39:31.818 appintentsmetadataprocessor[6948:4290202] Starting appintentsmetadataprocessor export
+2026-10-28 04:39:31.877 appintentsmetadataprocessor[6948:4290202] Extracted no relevant App Intents symbols, skipping writing output
 
 Ld <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Contents/MacOS/__preview.dylib normal (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
     /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-macos14.0 -dynamiclib -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -O0 -Xlinker -no_warn_duplicate_libraries -L<tmp>/DerivedData/Build/Products/Debug -F<tmp>/DerivedData/Build/Products/Debug/PackageFrameworks -F<tmp>/DerivedData/Build/Products/Debug -install_name @rpath/AgentDesk.debug.dylib -rdynamic -Xlinker -no_deduplicate -Xlinker -dependency_info -Xlinker <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk_dependency_info.dat -o <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Contents/MacOS/__preview.dylib
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdarg-8V1Y73WR5047Q2OBAEF8I2PU1.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ptrcheck-2ZQSQE2TPP03OXVCEVIEVYBCP.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_SwiftConcurrencyShims-8FSDROUN8Z4S71JN5X0EKNRWO.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdbool-BF5668R5J92PT395RXLUNL23Q.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/SwiftShims-645ZVIQSXYK2RD3VSMW6MUM0P.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/DeveloperToolsSupport-7P7JKKQXSMOYL437FEXX1EQ50.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ptrauth-70HMS7MLEDX5KETNK3LU0QXKP.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stddef-4KI787ZLDA9BSPEO5P07USUHP.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_float-DO6RNW22XHDGEICJMIIZAA589.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_AvailabilityInternal-56H2Z8XGP059H26KZJMCBH8WT.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_DarwinFoundation1-12E1PH2MBQ8GXP2YUZV0TQKD4.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_limits-A8GWTJH4TQJP5C0FSEVG49PDL.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_DarwinFoundation2-15EU1U2KZ0BBGD3EOFNQ1V0X2.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdint-DQO3PI76V3QQWKKANA5HBZ2VT.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/string_h-6DGM6KOMWFOHLPRK4E2XAC70V.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_tgmath-ALDVKH80LD2P3ETOV41JYYCSJ.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/sys_types-EXJ4PUEXW1M3LYQ5O1GMJ68FC.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdatomic-D7TDZ9YU5P9HU5ZY3CHVWTCSL.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_intrinsics-BGG85E67J316LICE7M601CNYW.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/libDER-1T5IVYN65R3U5KT4RCIG9R635.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_DarwinFoundation3-YUZYXPBNQZYK6LVFQCFI3J7X.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_inttypes-68A4Y50BT025Z2U303SEMD9XH.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Darwin-2S0RHLQUL9GDRDMAFEO08NQC.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/simd-687B4HST4HAKTOIZZPPHDLDCZ.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/libkern-7LHLZN4EDRBDVZI03M2JFGIV5.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/launch-ART1XTIGDNI2LOHF5QGUYB5E7.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/MachO-E9JZHIDRT7R6E8F9XK0N9GPT0.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CUPS-4Y6TN6TSB77PU5WI2NLBBYS8Y.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ObjectiveC-987RMPX74GLAD5MRLBPLHJLQQ.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Spatial-DW4IL2JLJEIPWK4D34TXI1HAF.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/os_object-CC4DH9MZ5BU4NWELGUIKFSI1P.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/os_workgroup-ERRWJDVYI84ZXH7J048ODGJKA.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Dispatch-1HDG1QJU9VM95ZTKSNTI60FUN.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/XPC-2K1SA686XFTEOHYJ6JSSC00E5.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreFoundation-7ODQIUD8T9OSDDIMMC07YSMD4.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/dnssd-3ZFMI8LPSQLLLG6B5B1J3MLOC.pcm
 
 LinkAssetCatalog apps/macos/AgentDesk/Assets.xcassets (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
@@ -592,83 +532,149 @@ ProcessInfoPlistFile <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Conten
     cd apps/macos
     builtin-infoPlistUtility <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/empty-AgentDesk.plist -producttype com.apple.product-type.application -genpkginfo <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Contents/PkgInfo -expandbuildsettings -platform macosx -additionalcontentfile <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/assetcatalog_generated_info.plist -o <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Contents/Info.plist
 
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/os-1I23BAU8ZHOSVSFGVNC3NKP9Q.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreAudioTypes-4DMRFLTQS05JLYIIMM5ET74G5.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ColorSync-3HBWOLU6NZTSO2QQ7U0LSL3EQ.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CFNetwork-355H8XWNF80Z9YIPYW3FBJ10T.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Security-HZQTX1SNIUBDHSFKZSAV13VG.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/IOKit-GCCMDGRTQ357CVB71VZNLMDL.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/DiskArbitration-1K3ARM53TO13OAD90ICSQHJ8V.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreGraphics-9DTVTYALR2YB3ZYCI6WN3NMUG.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreServices-74GMQCWWSA6QWCEWZY4G43HY0.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ImageIO-6RWX7E5L6GDBBPZ3XJ6HT8OXR.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreText-DXYN14WT6XCGL9EOATHUDC8FE.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Foundation-5HUPCXT5TFJ9DNEQK67TCO6PJ.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ApplicationServices-8WTLOUXBUI8MX0ZJ1JQ2E0Y52.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/DataDetection-235WC34NOQSVSSZY866PFBI3Z.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ServiceManagement-DPVXH2PH5KRM8MS7S5133G1UD.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Accessibility-2WCKK84RWGQ3CT6YXPI0OQZZM.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/OSLog-E4C2K2K6Y93RJPZKQH5M15O1Q.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreAudio-6ZUSE6QVMUZMG39NSZ3CA7Q7X.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Symbols-B56O0P7D0ED54WXXQ46WXO76U.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreData-BF5RE21UJ0NJM8DJZL1INEYGE.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Network-1ZYUEG5COTJENBMB3BPNSTYBT.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreTransferable-E25OQM4IEG0ZRGKDUTJAQONNR.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/IOSurface-CZ07YP25KTK1QAW9NFDI7RSF1.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/UniformTypeIdentifiers-5YQ6UKZAAVJ90LLPUKRJNXZWI.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Metal-4HEQDGZL078OP70C9HFBSK2G.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/OpenGL-6ZCEXQ5A7AQ8RNNOFULBC01MP.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreVideo-29P5FYS2GNC5KAPPO76DSYDFQ.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/QuartzCore-97JPK1S0B31MJDYFG6DURU6BR.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreImage-2XRMWA43OWEVEXD9L2YZP8PL6.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreMedia-97JX3TRNY73SUH24X6T9GU7GO.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/SwiftUICore-4S3XLXTKX0NY2ZDQ9JHEATIZ3.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/AppKit-5WS08H0SY34J7Q347TIPKZJ2X.pcm
-
-SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/SwiftUI-3D4HWJHX9V4I1Q1KUQEYN4K5.pcm
-
-SwiftCompile normal arm64 Compiling\ GeneratedAssetSymbols.swift <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources/GeneratedAssetSymbols.swift (in target 'AgentDesk' from project 'AgentDesk')
-
-SwiftCompile normal arm64 <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources/GeneratedAssetSymbols.swift (in target 'AgentDesk' from project 'AgentDesk')
+SwiftDriver AgentDesk normal arm64 com.apple.xcode.tools.swift.compiler (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
-    builtin-SwiftPerFileCompile GeneratedAssetSymbols.swift
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name AgentDesk -Onone @<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.SwiftFileList -DDEBUG -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -target arm64-apple-macos14.0 -g -module-cache-path <tmp>/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path <tmp>/DerivedData/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I <tmp>/DerivedData/Build/Products/Debug -F <tmp>/DerivedData/Build/Products/Debug/PackageFrameworks -F <tmp>/DerivedData/Build/Products/Debug -emit-localized-strings -emit-localized-strings-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64 -c -j12 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc <tmp>/DerivedData/SDKStatCaches.noindex/macosx27.0-26A425-7231f6df4def33e022ae2eb8f782df1a.sdkstatcache -output-file-map <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path <tmp>/DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path <tmp>/DerivedData/ModuleCache.noindex -sdk-module-cache-path <tmp>/DerivedData/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file <tmp>/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk_const_extract_protocols.json -Xcc -iquote -Xcc <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-generated-files.hmap -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-own-target-headers.hmap -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk-1d46b67606a9ba9cb9a979a085d7eb39-VFS/all-product-headers.yaml -Xcc -iquote -Xcc <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-project-headers.hmap -Xcc -I<tmp>/DerivedData/Build/Products/Debug/include -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources-normal/arm64 -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources/arm64 -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk-Swift.h -working-directory apps/macos -experimental-emit-module-separately -disable-cmo
 
-SwiftCompile normal arm64 Compiling\ PopoverView.swift apps/macos/AgentDesk/PopoverView.swift (in target 'AgentDesk' from project 'AgentDesk')
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/DeveloperToolsSupport-3LONP9RPXD9V0Z9598GF0BYK3.pcm
 
-SwiftCompile normal arm64 apps/macos/AgentDesk/PopoverView.swift (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    builtin-SwiftPerFileCompile PopoverView.swift
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdarg-1CWQ4OBQSQIZK37QMSKG58266.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdbool-EEB70735Q3ZT2IF3Y0L308RFC.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_AvailabilityInternal-8Y8NB5A633YSQK8ZA5MV48BK8.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_SwiftConcurrencyShims-5HVJCFPQCKLRU3REUZTYWMOXQ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/SwiftShims-CPSXDV1RMCOE4TQOTSND9PEYJ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ptrcheck-7C4XA56E62CN60XPPIMC5V6WG.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_float-C043G9UYKTFVMAKW3I5X08W36.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stddef-AP2NSKKUAHF6XORRS9GEBSNRV.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ptrauth-8HHN6YHR6AMM98OGBZVGSY1XG.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_DarwinFoundation1-CZO2Y110SIQA3TL7RYYQ3ECK8.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_limits-EBI6I9E2CJ1OKPESHV9C68EN4.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_DarwinFoundation2-7CFNUAPIKIZZR0W0L34WTRN3M.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_tgmath-65S3C4PLCQNH80ZF6B0C7AVXV.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdint-96S1EOE3B2R47GHO8RC5ZC66N.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/sys_types-E16K23342AV1HHYUUBJ3NNNAZ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/string_h-1ZNK6Y7O83T8YG859NF6BM5XG.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/libDER-CT7VGHL5NF1OZ459AQXBQOUA7.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_DarwinFoundation3-WDQJISW2SAC5N1ZJZQPC9JM6.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_intrinsics-A6ELTPJ9S3FHKVFOAODDH6YI9.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_stdatomic-7S8GPFQCY7XJ87GBT82WB129C.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/_Builtin_inttypes-FLDJOHJ78QOFPLKEPJLWLIDA.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Darwin-1W172JMBAOU260724B9C08TUI.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/simd-31ZKCPOCJPU0QVA23XPKLXY7A.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/libkern-1HZE8OOK7B4D1DVIK3G2Y4J6J.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/launch-7JMMK8UUA1A1Z1ZORZEPDZL0V.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/MachO-B5C6RSS5SAYKZ9A2HAY2FVBRV.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CUPS-1X5YSSNMGJHF4E13LD0VFWAK.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ObjectiveC-290T8IX9HCLGNBPKUSXFFV1O0.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Spatial-8NOSGG92GTGQ1O4L7O5HZQ2IZ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/os_object-1KAKL366TOQ80IEIAQLOPXVT.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/os_workgroup-AED95AWCGU4LCJNCPKLDDAMHU.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Dispatch-EBKW77RFIPWW0PMSMA13NDUI9.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/dnssd-9D19MQ1DWN70SSW8XMNTGYICZ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/XPC-YGKSV2Y6I8QN0P29ZA7ZE1PP.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreFoundation-69QZBEC0SB1T12QG2X5CBUCFR.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/os-854DYJ2DIRDUACKQEBXK75Y2Q.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ColorSync-4AATKPRV0ACVPVAZ7Y651LUWB.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Security-BQ79LAL4SSWJY729KWFLLMVDR.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/IOKit-DQXH1SEZ65JTXECEP3FL3NRT7.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CFNetwork-B6HK3L065UST3V1PNG4KG2B0E.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreAudioTypes-AOOKPQWPJORLXH284NOYOQ716.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreGraphics-AFA334BUKD0IVMHA0YMLH8PRK.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/DiskArbitration-F0Y2DSBLH0U1DLN8IB3XZIK97.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreServices-B7RZNEB58K6N7ZIFVZNA6LSBC.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreText-2HB2QY5HHM2KXG3OUFB8QWSSM.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ImageIO-5DPDCRU8R1B19CG9DEOTZ1ULN.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Foundation-2YY7MP31WOW49708VZJNCBJV2.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/OSLog-AL6P2UVK4YVLDXXVKFNOSTQ23.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/DataDetection-51VDPH15V2F6K3403C4H0I1TP.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/IOSurface-6PRLJIBJ7FZ2Z8QKD2KC8GBBV.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreData-5N4T3LMU4GMI16DY0HJA27EAT.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Symbols-2P7O8DZI565SB3G3EH0L70I6C.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreAudio-3B53XIYFW7618HZYY9YSC0LPN.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ApplicationServices-DZJ5RS9AVSY9TGE3SHAMBIXSQ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/ServiceManagement-5D6UJ87D1YKE8N33K3PGDH4N9.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/UserNotifications-5CUA5HN8J7DYQJKC5OS8ZU5BS.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreTransferable-431USFK81U71GP8XDK6CDNDX5.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Network-4RX90I2TDGMFL08QOE79VJHIF.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/UniformTypeIdentifiers-EOYK1LNCDEGMACVQJS1GFSGCF.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Accessibility-C64QQ2IC6XZARSLDLFSTGNFB9.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/Metal-6OE1BGYHGLCW38M6DL1UZO06R.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/OpenGL-29O0ZO91DP5Z6EWQCNY8HRGO3.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreVideo-XNM3YH92FFFQD0I4UEY5OCZ4.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreImage-9ZBWUNNH14HXZ489OUMFY2JCF.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/CoreMedia-3KW86S9PAXZKHMRG1YFT7PML.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/QuartzCore-8KJO4RQ5IPSEYAMFS8SB358N2.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/SwiftUICore-9NNLDOEBNJLS17IBA2CS082JY.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/AppKit-C7WSC7EFMYFYCEPT0Q9K49XUC.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 <tmp>/DerivedData/SDKExplicitPrecompiledModules/SwiftUI-6EJ6EVVHLGRCQD75MCSGFN9MR.pcm
 
 SwiftEmitModule normal arm64 Emitting\ module\ for\ AgentDesk (in target 'AgentDesk' from project 'AgentDesk')
 
@@ -682,6 +688,78 @@ SwiftCompile normal arm64 apps/macos/AgentDesk/SignInView.swift (in target 'Agen
     cd apps/macos
     builtin-SwiftPerFileCompile SignInView.swift
 
+SwiftCompile normal arm64 Compiling\ NotificationPauseLine.swift apps/macos/AgentDesk/NotificationPauseLine.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftCompile normal arm64 apps/macos/AgentDesk/NotificationPauseLine.swift (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    builtin-SwiftPerFileCompile NotificationPauseLine.swift
+
+SwiftCompile normal arm64 Compiling\ MenuBarLabel.swift apps/macos/AgentDesk/MenuBarLabel.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftCompile normal arm64 apps/macos/AgentDesk/MenuBarLabel.swift (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    builtin-SwiftPerFileCompile MenuBarLabel.swift
+
+SwiftCompile normal arm64 Compiling\ GeneratedAssetSymbols.swift <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources/GeneratedAssetSymbols.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftCompile normal arm64 <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources/GeneratedAssetSymbols.swift (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    builtin-SwiftPerFileCompile GeneratedAssetSymbols.swift
+
+SwiftCompile normal arm64 Compiling\ NotificationController.swift apps/macos/AgentDesk/NotificationController.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftCompile normal arm64 apps/macos/AgentDesk/NotificationController.swift (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    builtin-SwiftPerFileCompile NotificationController.swift
+
+SwiftCompile normal arm64 Compiling\ Ink.swift,\ LoginItemController.swift apps/macos/AgentDesk/Ink.swift apps/macos/AgentDesk/LoginItemController.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftCompile normal arm64 apps/macos/AgentDesk/Ink.swift (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    builtin-SwiftPerFileCompile Ink.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDesk/LoginItemController.swift (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    builtin-SwiftPerFileCompile LoginItemController.swift
+
+SwiftCompile normal arm64 Compiling\ SyncTriggers.swift apps/macos/AgentDesk/SyncTriggers.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftCompile normal arm64 apps/macos/AgentDesk/SyncTriggers.swift (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    builtin-SwiftPerFileCompile SyncTriggers.swift
+
+SwiftCompile normal arm64 Compiling\ PopoverView.swift apps/macos/AgentDesk/PopoverView.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftCompile normal arm64 apps/macos/AgentDesk/PopoverView.swift (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    builtin-SwiftPerFileCompile PopoverView.swift
+
+SwiftCompile normal arm64 Compiling\ AnswerControls.swift,\ AppDelegate.swift apps/macos/AgentDesk/AnswerControls.swift apps/macos/AgentDesk/AppDelegate.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftCompile normal arm64 apps/macos/AgentDesk/AnswerControls.swift (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    builtin-SwiftPerFileCompile AnswerControls.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDesk/AppDelegate.swift (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    builtin-SwiftPerFileCompile AppDelegate.swift
+
+SwiftCompile normal arm64 Compiling\ AppState.swift,\ DecisionRow.swift apps/macos/AgentDesk/AppState.swift apps/macos/AgentDesk/DecisionRow.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftCompile normal arm64 apps/macos/AgentDesk/AppState.swift (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    builtin-SwiftPerFileCompile AppState.swift
+
+SwiftCompile normal arm64 apps/macos/AgentDesk/DecisionRow.swift (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    builtin-SwiftPerFileCompile DecisionRow.swift
+
+SwiftCompile normal arm64 Compiling\ PopoverController.swift apps/macos/AgentDesk/PopoverController.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftCompile normal arm64 apps/macos/AgentDesk/PopoverController.swift (in target 'AgentDesk' from project 'AgentDesk')
+    cd apps/macos
+    builtin-SwiftPerFileCompile PopoverController.swift
+
 SwiftCompile normal arm64 Compiling\ AgentDeskApp.swift,\ AgentsView.swift apps/macos/AgentDesk/AgentDeskApp.swift apps/macos/AgentDesk/AgentsView.swift (in target 'AgentDesk' from project 'AgentDesk')
 
 SwiftCompile normal arm64 apps/macos/AgentDesk/AgentDeskApp.swift (in target 'AgentDesk' from project 'AgentDesk')
@@ -692,61 +770,13 @@ SwiftCompile normal arm64 apps/macos/AgentDesk/AgentsView.swift (in target 'Agen
     cd apps/macos
     builtin-SwiftPerFileCompile AgentsView.swift
 
-SwiftCompile normal arm64 Compiling\ LoginItemController.swift apps/macos/AgentDesk/LoginItemController.swift (in target 'AgentDesk' from project 'AgentDesk')
-
-SwiftCompile normal arm64 apps/macos/AgentDesk/LoginItemController.swift (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    builtin-SwiftPerFileCompile LoginItemController.swift
-
-SwiftCompile normal arm64 Compiling\ Ink.swift apps/macos/AgentDesk/Ink.swift (in target 'AgentDesk' from project 'AgentDesk')
-
-SwiftCompile normal arm64 apps/macos/AgentDesk/Ink.swift (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    builtin-SwiftPerFileCompile Ink.swift
-
-SwiftCompile normal arm64 Compiling\ AppDelegate.swift apps/macos/AgentDesk/AppDelegate.swift (in target 'AgentDesk' from project 'AgentDesk')
-
-SwiftCompile normal arm64 apps/macos/AgentDesk/AppDelegate.swift (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    builtin-SwiftPerFileCompile AppDelegate.swift
-
-SwiftCompile normal arm64 Compiling\ MenuBarLabel.swift apps/macos/AgentDesk/MenuBarLabel.swift (in target 'AgentDesk' from project 'AgentDesk')
-
-SwiftCompile normal arm64 apps/macos/AgentDesk/MenuBarLabel.swift (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    builtin-SwiftPerFileCompile MenuBarLabel.swift
-
-SwiftCompile normal arm64 Compiling\ SyncTriggers.swift apps/macos/AgentDesk/SyncTriggers.swift (in target 'AgentDesk' from project 'AgentDesk')
-
-SwiftCompile normal arm64 apps/macos/AgentDesk/SyncTriggers.swift (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    builtin-SwiftPerFileCompile SyncTriggers.swift
-
-SwiftCompile normal arm64 Compiling\ AnswerControls.swift apps/macos/AgentDesk/AnswerControls.swift (in target 'AgentDesk' from project 'AgentDesk')
-
-SwiftCompile normal arm64 apps/macos/AgentDesk/AnswerControls.swift (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    builtin-SwiftPerFileCompile AnswerControls.swift
-
-SwiftCompile normal arm64 Compiling\ DecisionRow.swift apps/macos/AgentDesk/DecisionRow.swift (in target 'AgentDesk' from project 'AgentDesk')
-
-SwiftCompile normal arm64 apps/macos/AgentDesk/DecisionRow.swift (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    builtin-SwiftPerFileCompile DecisionRow.swift
-
-SwiftCompile normal arm64 Compiling\ AppState.swift apps/macos/AgentDesk/AppState.swift (in target 'AgentDesk' from project 'AgentDesk')
-
-SwiftCompile normal arm64 apps/macos/AgentDesk/AppState.swift (in target 'AgentDesk' from project 'AgentDesk')
-    cd apps/macos
-    builtin-SwiftPerFileCompile AppState.swift
-
 SwiftDriverJobDiscovery normal arm64 Emitting module for AgentDesk (in target 'AgentDesk' from project 'AgentDesk')
 
 SwiftDriver\ Compilation\ Requirements AgentDesk normal arm64 com.apple.xcode.tools.swift.compiler (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
     builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name AgentDesk -Onone @<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.SwiftFileList -DDEBUG -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -target arm64-apple-macos14.0 -g -module-cache-path <tmp>/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path <tmp>/DerivedData/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I <tmp>/DerivedData/Build/Products/Debug -F <tmp>/DerivedData/Build/Products/Debug/PackageFrameworks -F <tmp>/DerivedData/Build/Products/Debug -emit-localized-strings -emit-localized-strings-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64 -c -j12 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc <tmp>/DerivedData/SDKStatCaches.noindex/macosx27.0-26A425-7231f6df4def33e022ae2eb8f782df1a.sdkstatcache -output-file-map <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path <tmp>/DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path <tmp>/DerivedData/ModuleCache.noindex -sdk-module-cache-path <tmp>/DerivedData/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file <tmp>/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk_const_extract_protocols.json -Xcc -iquote -Xcc <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-generated-files.hmap -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-own-target-headers.hmap -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk-1d46b67606a9ba9cb9a979a085d7eb39-VFS/all-product-headers.yaml -Xcc -iquote -Xcc <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk-project-headers.hmap -Xcc -I<tmp>/DerivedData/Build/Products/Debug/include -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources-normal/arm64 -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources/arm64 -Xcc -I<tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk-Swift.h -working-directory apps/macos -experimental-emit-module-separately -disable-cmo
 
-SwiftDriverJobDiscovery normal arm64 Compiling LoginItemController.swift (in target 'AgentDesk' from project 'AgentDesk')
+SwiftDriverJobDiscovery normal arm64 Compiling NotificationController.swift (in target 'AgentDesk' from project 'AgentDesk')
 
 SwiftMergeGeneratedHeaders <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/DerivedSources/AgentDesk-Swift.h <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk-Swift.h (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
@@ -768,27 +798,27 @@ Copy <tmp>/DerivedData/Build/Products/Debug/AgentDesk.swiftmodule/Project/arm64-
     cd apps/macos
     builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.swiftsourceinfo <tmp>/DerivedData/Build/Products/Debug/AgentDesk.swiftmodule/Project/arm64-apple-macos.swiftsourceinfo
 
-SwiftDriverJobDiscovery normal arm64 Compiling Ink.swift (in target 'AgentDesk' from project 'AgentDesk')
-
-SwiftDriverJobDiscovery normal arm64 Compiling AppDelegate.swift (in target 'AgentDesk' from project 'AgentDesk')
-
-SwiftDriverJobDiscovery normal arm64 Compiling SignInView.swift (in target 'AgentDesk' from project 'AgentDesk')
-
-SwiftDriverJobDiscovery normal arm64 Compiling SyncTriggers.swift (in target 'AgentDesk' from project 'AgentDesk')
-
-SwiftDriverJobDiscovery normal arm64 Compiling PopoverView.swift (in target 'AgentDesk' from project 'AgentDesk')
+SwiftDriverJobDiscovery normal arm64 Compiling MenuBarLabel.swift (in target 'AgentDesk' from project 'AgentDesk')
 
 SwiftDriverJobDiscovery normal arm64 Compiling AgentDeskApp.swift, AgentsView.swift (in target 'AgentDesk' from project 'AgentDesk')
 
-SwiftDriverJobDiscovery normal arm64 Compiling AnswerControls.swift (in target 'AgentDesk' from project 'AgentDesk')
+SwiftDriverJobDiscovery normal arm64 Compiling SyncTriggers.swift (in target 'AgentDesk' from project 'AgentDesk')
 
-SwiftDriverJobDiscovery normal arm64 Compiling AppState.swift (in target 'AgentDesk' from project 'AgentDesk')
+SwiftDriverJobDiscovery normal arm64 Compiling AnswerControls.swift, AppDelegate.swift (in target 'AgentDesk' from project 'AgentDesk')
 
-SwiftDriverJobDiscovery normal arm64 Compiling DecisionRow.swift (in target 'AgentDesk' from project 'AgentDesk')
+SwiftDriverJobDiscovery normal arm64 Compiling NotificationPauseLine.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftDriverJobDiscovery normal arm64 Compiling SignInView.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftDriverJobDiscovery normal arm64 Compiling AppState.swift, DecisionRow.swift (in target 'AgentDesk' from project 'AgentDesk')
 
 SwiftDriverJobDiscovery normal arm64 Compiling GeneratedAssetSymbols.swift (in target 'AgentDesk' from project 'AgentDesk')
 
-SwiftDriverJobDiscovery normal arm64 Compiling MenuBarLabel.swift (in target 'AgentDesk' from project 'AgentDesk')
+SwiftDriverJobDiscovery normal arm64 Compiling Ink.swift, LoginItemController.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftDriverJobDiscovery normal arm64 Compiling PopoverController.swift (in target 'AgentDesk' from project 'AgentDesk')
+
+SwiftDriverJobDiscovery normal arm64 Compiling PopoverView.swift (in target 'AgentDesk' from project 'AgentDesk')
 
 SwiftDriver\ Compilation AgentDesk normal arm64 com.apple.xcode.tools.swift.compiler (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
@@ -815,8 +845,8 @@ Ignoring --strip-bitcode because --sign was not passed
 ExtractAppIntentsMetadata (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
     /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name AgentDesk --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk --xcode-version 27A266a --platform-family macOS --deployment-target 14.0 --bundle-identifier sh.kidus.agentdesk.mac --output <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Contents/Resources --target-triple arm64-apple-macos14.0 --binary-file <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app/Contents/MacOS/AgentDesk --dependency-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk_dependency_info.dat --stringsdata-file <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.SwiftFileList --metadata-file-list <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk.DependencyMetadataFileList --static-metadata-file-list <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/AgentDesk.DependencyStaticMetadataFileList --swift-const-vals-list <tmp>/DerivedData/Build/Intermediates.noindex/AgentDesk.build/Debug/AgentDesk.build/Objects-normal/arm64/AgentDesk.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
-2026-10-27 21:58:04.910 appintentsmetadataprocessor[67397:3798290] Starting appintentsmetadataprocessor export
-2026-10-27 21:58:04.911 appintentsmetadataprocessor[67397:3798290] warning: Metadata extraction skipped, no AppIntents.framework dependency found
+2026-10-28 04:39:37.730 appintentsmetadataprocessor[7059:4290741] Starting appintentsmetadataprocessor export
+2026-10-28 04:39:37.731 appintentsmetadataprocessor[7059:4290741] warning: Metadata extraction skipped, no AppIntents.framework dependency found
 
 RegisterExecutionPolicyException <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app (in target 'AgentDesk' from project 'AgentDesk')
     cd apps/macos
@@ -834,9 +864,9 @@ RegisterWithLaunchServices <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app 
     cd apps/macos
     builtin-lsregisterurl --record-path <tmp>/DerivedData/Build/Intermediates.noindex/XCBuildData/registered-launchservices.txt -- /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister -f -R -trusted <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app
 
-PruneExplicitPrecompiledModules <tmp>/DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
-
 PruneExplicitPrecompiledModules <tmp>/DerivedData/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules <tmp>/DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
 
 PruneExplicitPrecompiledModules <tmp>/DerivedData/SDKExplicitPrecompiledModules
 

@@ -1,26 +1,20 @@
 import AgentDeskKit
 import AppKit
-import SwiftUI
 
-/// The menu bar item: one template image, so AppKit draws glyph, dot, and
-/// count in the menu bar's text color (component-mac-app §Menu bar item;
-/// req-mac-app AC-3.2). The dot style adds a dot while `Attention.dot` holds;
-/// the count style adds the pending count and never a dot (AC-3.4).
-struct MenuBarLabel: View {
-  let state: AppState
-
-  var body: some View {
+/// The menu bar item's image: one template image, so AppKit draws glyph,
+/// dot, and count in the menu bar's text color (component-mac-app §Menu bar
+/// item; req-mac-app AC-3.2). The dot style adds a dot while `Attention.dot`
+/// holds; the count style adds the pending count and never a dot (AC-3.4).
+/// `PopoverController` sets it on the status item's button.
+@MainActor
+enum MenuBarLabel {
+  static func image(for state: AppState) -> NSImage {
     let description = state.labelDescription
-    Image(nsImage: image(description: description))
-      .accessibilityLabel(description)
-  }
-
-  private func image(description: String) -> NSImage {
     switch state.menuBarStyle {
     case .count where state.isSignedIn && state.summary.count > 0:
-      PromptGlyph.image(count: state.summary.count, description: description)
+      return PromptGlyph.image(count: state.summary.count, description: description)
     default:
-      PromptGlyph.image(dotOpacity: state.dotOpacity, description: description)
+      return PromptGlyph.image(dotOpacity: state.dotOpacity, description: description)
     }
   }
 }

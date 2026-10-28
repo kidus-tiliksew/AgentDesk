@@ -1,7 +1,8 @@
 import AppKit
 
-/// Owns the app's state and defers quitting until held and sending answers
-/// have reached the server (component-mac-app §Pending answers).
+/// Owns the app's state and the menu bar item, and defers quitting until
+/// held and sending answers have reached the server (component-mac-app
+/// §Pending answers).
 ///
 /// `NSApplication.willTerminateNotification` arrives too late to wait for a
 /// request, so termination waits here instead. Each request is bounded by
@@ -12,6 +13,11 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
   let state = AppState()
   private var isSending = false
+  private var popover: PopoverController?
+
+  func applicationDidFinishLaunching(_ notification: Notification) {
+    popover = PopoverController(state: state)
+  }
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     guard state.hasUnsentAnswers else { return .terminateNow }

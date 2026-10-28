@@ -4,9 +4,11 @@ import Observation
 import OSLog
 
 /// The app's observable state: the account, its sign-in, Open at Login, the
-/// synced decisions and agents with their attention state, and the answers
-/// the user gives from the popover. It sends no request besides sign-in,
-/// sign-out, the sync reads, and answers (req-mac-app REQ-10).
+/// synced decisions and agents with their attention state, the answers the
+/// user gives from the popover or a notification, and the notifications it
+/// posts. It sends no request besides sign-in, sign-out, the sync reads, the
+/// agent read that names a notification's agent, and answers (req-mac-app
+/// REQ-10).
 @MainActor
 @Observable
 final class AppState {
@@ -37,11 +39,24 @@ final class AppState {
   var drafts: [String: AnswerDraft] = [:]
   /// Moves on every change of `pending`, which is not observable itself.
   private var answersRevision = 0
+  /// Notifications On, and the end of a running pause (req-mac-app AC-6.6).
+  private(set) var notificationsOn: Bool
+  private var notificationsPausedUntil: Date?
+
+  /// Opens and closes the popover; `PopoverController` sets it.
+  @ObservationIgnored var presenter: PopoverPresenter?
 
   @ObservationIgnored private let account: Account
   @ObservationIgnored private let signIn: SignInController
   @ObservationIgnored private let loginItems: LoginItems
   @ObservationIgnored private let seen: SeenStore
+  @ObservationIgnored private let notifications: NotificationController
+  @ObservationIgnored private let notifier: Notifier
+  /// The decision a notification click asked to expand (req-mac-app AC-6.4).
+  @ObservationIgnored private var focus = NotificationFocus()
+  /// Moves on every sign-out, so a notification action that waits for a
+  /// read never answers for a later account.
+  @ObservationIgnored private var accountGeneration = 0
   @ObservationIgnored private let defaults: UserDefaults
   @ObservationIgnored private var terminationObserver: NSObjectProtocol?
   @ObservationIgnored private var triggers: SyncTriggers?
@@ -57,6 +72,8 @@ final class AppState {
   @ObservationIgnored private var listedOrder: [String] = []
   @ObservationIgnored private lazy var pending: PendingAnswers = {
     let pending = PendingAnswers(sender: account.api)
+    // The popover starts closed; a conflict's outcome waits for it.
+    pending.isPresented = isPopoverOpen
     pending.onChange = { [weak self] in self?.answersChanged() }
     pending.onRestore = { [weak self] attempt in self?.restore(attempt) }
     return pending
@@ -78,6 +95,14 @@ final class AppState {
     loginItems = LoginItems(service: MainAppLoginItem(), defaults: defaults)
     seen = SeenStore(defaults: defaults)
     seenIDs = seen.ids
+    notifications = NotificationController()
+    let api = account.api
+    let settings = NotificationSettings(defaults: defaults)
+    notifier = Notifier(
+      center: notifications, settings: settings, store: NotifiedStore(defaults: defaults),
+      readAgents: { () throws(APIError) in try await api.liveAgentSessions() })
+    notificationsOn = settings.isOn
+    notificationsPausedUntil = settings.pausedUntil
     menuBarStyle = MenuBarStyle(defaults: defaults)
     isSignedIn = account.state == .signedIn
     openAtLogin = loginItems.isOn
@@ -86,6 +111,12 @@ final class AppState {
     // read publishes into the signed-out state (req-mac-app AC-2.6, AC-2.7).
     account.addCleanup { [weak self] in self?.sync.stop() }
     seen.clearOnSignOut(of: account)
+    // Notified ids and delivered notifications belong to the account.
+    notifier.resetOnSignOut(of: account)
+    account.addCleanup { [weak self] in
+      self?.accountGeneration += 1
+      self?.focus.clear()
+    }
     // Held and sending answers belong to the account that gave them.
     account.addCleanup { [weak self] in self?.clearAnswers() }
     account.onChange = { [weak self] in self?.accountChanged() }
@@ -100,6 +131,8 @@ final class AppState {
       }
     }
     triggers = SyncTriggers { [weak self] in self?.wokeOrReconnected() }
+    notifications.onOpen = { [weak self] id in self?.openFromNotification(id) }
+    notifications.onAction = { [weak self] id, action in self?.answerFromNotification(id, action) }
     if isSignedIn {
       startSync()
     }
@@ -158,6 +191,12 @@ final class AppState {
     isSignedIn ? summary.accessibilityDescription : "AgentDesk, signed out"
   }
 
+  /// The end of a running notification pause, shown under the header.
+  var notificationPauseEnd: Date? {
+    guard let notificationsPausedUntil, notificationsPausedUntil > now else { return nil }
+    return notificationsPausedUntil
+  }
+
   // MARK: Popover
 
   /// The popover appeared: read at once and poll every 5 seconds.
@@ -166,24 +205,102 @@ final class AppState {
     isPopoverOpen = true
     Self.log.debug("Popover opened")
     listedIDs = Set(snapshot.decisions.map(\.id))
+    notifier.isPopoverOpen = true
+    pending.isPresented = true
     now = Date()
     let sync = self.sync
     Task { await sync.setOpen(true) }
   }
 
   /// The popover closed: a held answer is sent, and every decision it
-  /// listed stops counting as new.
+  /// listed stops counting as new and posts no notification.
   func popoverClosed() {
     guard isPopoverOpen else { return }
     isPopoverOpen = false
     pending.flush()
+    pending.isPresented = false
     Self.log.debug("Popover closed; \(self.listedIDs.count, privacy: .public) listed")
     seen.markSeen(listedIDs)
+    notifier.markListed(listedIDs)
+    notifier.isPopoverOpen = false
+    focus.clear()
     listedIDs = []
     seenIDs = seen.ids
     updateDot()
     let sync = self.sync
     Task { await sync.setOpen(false) }
+  }
+
+  func closePopover() {
+    presenter?.close()
+  }
+
+  // MARK: Notifications
+
+  /// Pauses notifications for 1 hour; the list and the menu bar item are
+  /// unaffected (req-mac-app AC-6.6).
+  func pauseNotifications() {
+    now = Date()
+    notifier.settings.pause(now: now)
+    notificationsPausedUntil = notifier.settings.pausedUntil
+  }
+
+  func resumeNotifications() {
+    notifier.settings.resume()
+    notificationsPausedUntil = nil
+  }
+
+  func setNotificationsOn(_ on: Bool) {
+    notifier.settings.setOn(on)
+    notificationsOn = on
+  }
+
+  /// A notification click: open the popover with that decision expanded.
+  /// A decision the list does not show yet waits for the read that opening
+  /// the popover starts (req-mac-app AC-6.4).
+  func openFromNotification(_ id: String) {
+    guard isSignedIn else { return }
+    now = Date()
+    let resolution = focus.request(id, at: now, listed: decisions.map(\.id))
+    let wasOpen = isPopoverOpen
+    presenter?.show()
+    if wasOpen {
+      let sync = self.sync
+      Task { await sync.readNow() }
+    }
+    applyFocus(resolution)
+  }
+
+  /// A notification's Reject or Approve: answer at once, without opening the
+  /// popover or the Undo hold (req-mac-app AC-6.3). A decision the snapshot
+  /// does not hold, as when the action launched the app, is read first.
+  func answerFromNotification(_ id: String, _ action: String) {
+    guard isSignedIn else { return }
+    if let decision = snapshot.decisions.first(where: { $0.id == id }) {
+      sendNotificationAnswer(decision, action)
+      return
+    }
+    let generation = accountGeneration
+    let api = account.api
+    Task {
+      guard let decision = try? await api.decision(id: id) else { return }
+      guard generation == accountGeneration, isSignedIn, decision.state == .pending else { return }
+      sendNotificationAnswer(decision, action)
+    }
+  }
+
+  private func sendNotificationAnswer(_ decision: Decision, _ action: String) {
+    guard let answer = NotificationRequest.answer(forAction: action, decision: decision) else {
+      return
+    }
+    // A draft the popover kept stays, so a failed send loses nothing.
+    pending.sendNow(decision, AnswerDraft.Submission(answer: answer))
+  }
+
+  private func applyFocus(_ resolution: NotificationFocus.Resolution) {
+    guard case .expand(let id) = resolution else { return }
+    selectedID = id
+    if expandedID != id { toggle(id) }
   }
 
   func setMenuBarStyle(_ style: MenuBarStyle) {
@@ -259,6 +376,9 @@ final class AppState {
     // Sync keeps the popover's open state across runs, so the first read
     // includes agents when the popover is open.
     sync.start()
+    // Asked after each sign-in, and at start for a Mac signed in before
+    // notifications existed; the system prompts only while undetermined.
+    notifier.requestAuthorization()
     // The dot follows the clock between reads, so a deadline crossing the
     // 5-minute mark shows it without a request (req-mac-app AC-3.1).
     attentionTimer?.cancel()
@@ -292,6 +412,9 @@ final class AppState {
 
   private func apply(_ published: Sync.Snapshot) {
     guard isSignedIn else { return }
+    // An agents-only publish carries the last decisions read again; only a
+    // new decisions read drives notifications.
+    let freshDecisions = published.fetchedAt != nil && published.fetchedAt != snapshot.fetchedAt
     var ordered = published
     ordered.decisions = DecisionOrder.sorted(published.decisions)
     snapshot = ordered
@@ -310,6 +433,10 @@ final class AppState {
     }
     listChanged()
     updateDot()
+    if freshDecisions {
+      notifier.didRead(pending: ordered.decisions, agents: ordered.agents)
+      applyFocus(focus.resolve(fetchedAt: ordered.fetchedAt, listed: decisions.map(\.id)))
+    }
   }
 
   // MARK: Answers

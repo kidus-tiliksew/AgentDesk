@@ -29,6 +29,12 @@ extension APIClient: AnswerSender {}
 ///
 /// Each attempt has an id and each account a generation, so a late answer
 /// for an undone, replaced, or signed-out attempt changes nothing.
+///
+/// A notification's Reject and Approve call `sendNow`, which posts at once
+/// without the hold and leaves a held popover answer alone (req-mac-app
+/// AC-6.3). Its outcome follows the same table. A conflict's outcome waits
+/// for the popover to be presented before its 4 seconds start, so an answer
+/// given from a notification never shows its outcome unseen.
 @MainActor
 public final class PendingAnswers {
   public static let holdDuration: TimeInterval = 4
@@ -67,6 +73,15 @@ public final class PendingAnswers {
   public private(set) var failures: [String: String] = [:]
   /// The recorded outcome of a conflict, shown for 4 seconds.
   public private(set) var outcome: String?
+
+  /// Whether the popover is showing. A conflict's outcome starts its
+  /// 4 seconds only while it is.
+  public var isPresented = true {
+    didSet {
+      guard isPresented, !oldValue, outcome != nil, outcomeTimer == nil else { return }
+      startOutcomeTimer()
+    }
+  }
 
   /// Runs on the main actor after every change.
   public var onChange: (@MainActor () -> Void)?
@@ -131,6 +146,21 @@ public final class PendingAnswers {
       }
       self?.holdExpired(attempt.id, generation: generation)
     }
+    changed()
+    return true
+  }
+
+  /// Sends an answer at once, without the hold, and leaves any held answer
+  /// held. A notification action calls it. Returns false, and sends
+  /// nothing, for a decision whose answer is held, sending, or recorded
+  /// from this Mac, so a repeated action posts once.
+  @discardableResult
+  public func sendNow(_ decision: Decision, _ submission: AnswerDraft.Submission) -> Bool {
+    guard !hides(decision.id) else { return false }
+    nextID += 1
+    let attempt = Attempt(id: nextID, decision: decision, submission: submission, draft: nil)
+    failures[decision.id] = nil
+    send(attempt)
     changed()
     return true
   }
@@ -206,6 +236,7 @@ public final class PendingAnswers {
     flush()
   }
 
+  @discardableResult
   private func send(_ attempt: Attempt) -> Task<Outcome, Never> {
     sending[attempt.decision.id] = attempt
     let sender = self.sender
@@ -241,10 +272,16 @@ public final class PendingAnswers {
   }
 
   private func show(outcome text: String) {
-    outcomeToken += 1
-    let token = outcomeToken
     outcome = text
     outcomeTimer?.cancel()
+    outcomeTimer = nil
+    guard isPresented else { return }
+    startOutcomeTimer()
+  }
+
+  private func startOutcomeTimer() {
+    outcomeToken += 1
+    let token = outcomeToken
     let clock = self.clock
     outcomeTimer = Task { [weak self] in
       do {
@@ -254,6 +291,7 @@ public final class PendingAnswers {
       }
       guard let self, self.outcomeToken == token else { return }
       self.outcome = nil
+      self.outcomeTimer = nil
       self.changed()
     }
   }
