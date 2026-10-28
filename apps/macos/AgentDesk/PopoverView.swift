@@ -18,14 +18,15 @@ struct PopoverView: View {
     }
     .frame(width: 340)
     .frame(maxHeight: 560)
-    // The root view's appear and disappear mark the popover open and closed;
-    // the window's key changes back them up. Both calls are idempotent.
-    .onAppear { state.popoverOpened() }
-    .onDisappear { state.popoverClosed() }
+    // `PopoverController` marks the popover open and closed from its show
+    // and close events. Escape that no row takes closes the popover.
     .background(
-      PresentationObserver(
-        opened: { state.popoverOpened() }, closed: { state.popoverClosed() },
-        key: { key, editingText in state.isSignedIn && state.handle(key, editingText: editingText) }))
+      KeyObserver { key, editingText in
+        if state.isSignedIn, state.handle(key, editingText: editingText) { return true }
+        guard key == .escape else { return false }
+        state.closePopover()
+        return true
+      })
   }
 }
 
@@ -64,6 +65,9 @@ struct SignedInView: View {
           Spacer()
           AccountMenu(state: state)
         }
+        if let end = state.notificationPauseEnd {
+          NotificationPauseLine(end: end, now: state.now)
+        }
         if let error = state.loginItemError {
           Text(error)
             .font(.callout)
@@ -90,13 +94,29 @@ struct SignedInView: View {
   }
 }
 
-/// The `•••` menu. This slice holds the menu bar style, Open at Login, Sign
-/// Out, and Quit (req-mac-app AC-3.4, AC-8.1, AC-8.2).
+/// The `•••` menu: pausing and resuming notifications, Notifications On and
+/// Off, the menu bar style, Open at Login, Sign Out, and Quit (req-mac-app
+/// AC-3.4, AC-6.6, AC-8.1, AC-8.2).
 struct AccountMenu: View {
   let state: AppState
 
   var body: some View {
     Menu {
+      if state.notificationPauseEnd != nil {
+        Button("Resume Notifications") { state.resumeNotifications() }
+      } else {
+        Button("Pause Notifications for 1 Hour") { state.pauseNotifications() }
+          .disabled(!state.notificationsOn)
+      }
+      Picker(
+        "Notifications",
+        selection: Binding(get: { state.notificationsOn }, set: { state.setNotificationsOn($0) })
+      ) {
+        Text("On").tag(true)
+        Text("Off").tag(false)
+      }
+      .pickerStyle(.inline)
+      Divider()
       Picker(
         "Menu bar",
         selection: Binding(get: { state.menuBarStyle }, set: { state.setMenuBarStyle($0) })
@@ -123,48 +143,32 @@ struct AccountMenu: View {
   }
 }
 
-/// Reports the popover window becoming key when it opens and resigning key
-/// when it closes, for `MenuBarExtra` versions whose content keeps its
-/// appearance across presentations. It also passes the popover's keys to
-/// `key`, which returns false to leave a key to the focused control or the
-/// window (component-mac-app §Keyboard and accessibility).
-private struct PresentationObserver: NSViewRepresentable {
-  let opened: @MainActor () -> Void
-  let closed: @MainActor () -> Void
+/// Passes the popover's keys to `key`, which returns false to leave a key to
+/// the focused control (component-mac-app §Keyboard and accessibility).
+private struct KeyObserver: NSViewRepresentable {
   let key: @MainActor (PopoverKey, _ editingText: Bool) -> Bool
 
   func makeNSView(context: Context) -> WindowView {
     let view = WindowView()
-    view.opened = opened
-    view.closed = closed
     view.key = key
     return view
   }
 
   func updateNSView(_ view: WindowView, context: Context) {
-    view.opened = opened
-    view.closed = closed
     view.key = key
   }
 
   final class WindowView: NSView {
-    var opened: (@MainActor () -> Void)?
-    var closed: (@MainActor () -> Void)?
     var key: (@MainActor (PopoverKey, Bool) -> Bool)?
-    private var observers: [NSObjectProtocol] = []
     private var keyMonitor: Any?
 
     override func viewDidMoveToWindow() {
       super.viewDidMoveToWindow()
-      for observer in observers {
-        NotificationCenter.default.removeObserver(observer)
-      }
-      observers = []
       if let keyMonitor {
         NSEvent.removeMonitor(keyMonitor)
         self.keyMonitor = nil
       }
-      guard let window else { return }
+      guard window != nil else { return }
       // A local monitor sees each key before the focused control, so the
       // list's keys work whichever control has focus; text fields keep their
       // arrows and Return.
@@ -179,17 +183,6 @@ private struct PresentationObserver: NSViewRepresentable {
         }
         return consumed ? nil : event
       }
-      let center = NotificationCenter.default
-      observers.append(
-        center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) {
-          [weak self] _ in
-          MainActor.assumeIsolated { self?.opened?() }
-        })
-      observers.append(
-        center.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main) {
-          [weak self] _ in
-          MainActor.assumeIsolated { self?.closed?() }
-        })
     }
 
     /// ↑, ↓, ↩ and Enter, ⌘↩, and Escape. Any other modifier leaves the key
