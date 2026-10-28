@@ -66,14 +66,29 @@ final class NotificationController: NSObject, NotificationCenterAdapter {
     }
   }
 
+  // The completion-handler forms keep the center on the main actor; the
+  // async forms send it across isolation, which SDKs that do not mark it
+  // Sendable reject in the Swift 6 language mode.
   func requestAuthorization() async -> Bool {
-    (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+    await withCheckedContinuation { continuation in
+      center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+        continuation.resume(returning: granted)
+      }
+    }
   }
 
   func add(_ request: NotificationRequest) async throws {
     let system = UNNotificationRequest(
       identifier: request.identifier, content: Self.content(for: request), trigger: nil)
-    try await center.add(system)
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      center.add(system) { error in
+        if let error {
+          continuation.resume(throwing: error)
+        } else {
+          continuation.resume()
+        }
+      }
+    }
   }
 
   func deliveredIdentifiers() async -> [String] {
