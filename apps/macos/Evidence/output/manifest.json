@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-10-28T01:22:05Z",
-  "source_commit": "57d99f39276370169378662b1be5bd35d09fe151",
+  "generated_at": "2026-10-28T01:34:06Z",
+  "source_commit": "0ca251ab798b662adf271d5cf20c765b1a692bfa",
   "sources_dirty": false,
   "source_trees": {
-    "apps/macos/AgentDesk": "774dccb239d23203091c3f6979ac9ed12fe5acd8",
+    "apps/macos/AgentDesk": "a956b74b458b2ebd0798f2a020b8d40327351cf7",
     "apps/macos/AgentDeskKit": "3cc6097e49b058e1cd914d0ffcf04bc65a26961d",
     "apps/macos/Evidence/Harness": "bc44c7b05cea662ce8ba5377374e9a8f23847f72",
     "apps/macos/Evidence/run.sh": "4fe521eef0819fdb654c7b71bc9069aff384403f"
@@ -40,7 +40,7 @@
     "contrast-dark-vibrant.png": "sha256:fc92e5919f28c3abb681f57b4c26aed6bf4d54e9042114eb7284d17fb5e81327",
     "contrast-light-plain.png": "sha256:b775ec48bc208cf52deb35cea8d661ecc6d17af827c0a7aecaed42b657e15c32",
     "contrast-light-vibrant.png": "sha256:af44e1fa4f37822dc4b56f1705c77d85db27cd14c839ef1e512b53a41c33c891",
-    "freshness.txt": "sha256:6ff89f1f9e5cfa73f5f50f9213ac5ddd3d0f38af8ffcec0dd53f8f26e3d2041e",
+    "freshness.txt": "sha256:93b574625af8e85a84ac29c7f8bba6a1da48d3667ff3f6e9f12ccaf14f4910ca",
     "harness.log": "sha256:8a16a37f411e11875c1d977268f261d2dcf1eaec32802dd31b2433c05ff86d1e",
     "label-count-12-dark.png": "sha256:55a84543c1c636d35904197176f120caf3ca1e5ef79abe67368bed19944317c2",
     "label-count-12-light.png": "sha256:2ca411dedbe9a2b2df7e436c1dec6697831cfa81d850345519f884019404bfda",
@@ -78,7 +78,7 @@
     "popover-undo-dark.png": "sha256:9d6e9e63d2275ef86d149bf9b58d02becdc5c18c2c84a7a90f73d6b24984c304",
     "popover-undo-light.png": "sha256:4732e689d127934abeb88a567a860d4b6f09545996a0c25b866961783207bfc2",
     "report.txt": "sha256:8a16a37f411e11875c1d977268f261d2dcf1eaec32802dd31b2433c05ff86d1e",
-    "tests.log": "sha256:7a83df063fb698f2097a95c1eba06536d2b34c14a6ba0a484fa1aa5efa2bbe6c",
-    "xcodebuild.log": "sha256:39b3e796bf0925f2747e0124da87bade19ac1e128ce4401c90477d5077150a05"
+    "tests.log": "sha256:fc38939929af75780a47a87b56cc431bd87c330bc7a02d48f2dee5c02ce878a0",
+    "xcodebuild.log": "sha256:36d5a9e9862170dea32dad119147fe290f5f061aa71709dc0ead9343a141c15e"
   }
 }
