@@ -1,0 +1,26 @@
+$ apps/macos/scripts/release.sh 0.1 --dry-run (expect exit 1)
+release: version '0.1' is not <major>.<minor>.<patch>
+ok exit 1
+
+(untracked.txt added to the clone)
+$ apps/macos/scripts/release.sh 0.1.0 --dry-run (expect exit 1)
+release: the working tree has uncommitted or untracked files:
+?? untracked.txt
+ok exit 1
+
+(tag macos-v0.0.1 created in the clone)
+$ apps/macos/scripts/release.sh 0.0.1 --dry-run (expect exit 1)
+release: tag macos-v0.0.1 already exists locally
+ok exit 1
+
+$ apps/macos/scripts/release.sh 0.1.0 --dry-run (expect exit 0)
+version:      0.1.0
+build number: 296
+commit:       484e3bc2643ad330a731b3f757a1b0bda6c2de36
+tag:          macos-v0.1.0
+repository:   kidus-tiliksew/AgentDesk
+disk image:   <tmp>/clone/build/macos-release/0.1.0/AgentDesk-0.1.0.dmg
+appcast:      <tmp>/clone/build/macos-release/0.1.0/appcast.xml
+dry run: checks passed; stopping before archiving
+ok exit 0
+
