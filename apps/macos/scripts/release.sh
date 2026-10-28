@@ -31,6 +31,15 @@ step() {
   echo "==> $*"
 }
 
+# Prints a plist or JSON value, or nothing when the key is missing. Some
+# plutil versions print their error to stdout, so a failed extraction's
+# output is never used.
+plist_value() {
+  local value
+  value="$(plutil -extract "$1" raw -o - "$2" 2>/dev/null)" || return 0
+  printf '%s' "$value"
+}
+
 version=""
 dry_run=false
 for arg in "$@"; do
@@ -115,7 +124,7 @@ gh release view "$appcast_tag" --repo "$github_repo" >/dev/null 2>&1 \
 identities="$(security find-identity -v -p codesigning)"
 [[ "$identities" == *"$identity"* ]] || fail "no valid '$identity' signing identity in the Keychain"
 
-public_key="$(plutil -extract SUPublicEDKey raw -o - "$source_plist" 2>/dev/null || true)"
+public_key="$(plist_value SUPublicEDKey "$source_plist")"
 [[ -n "$public_key" ]] || fail "SUPublicEDKey is not set in apps/macos/AgentDesk-Info.plist"
 
 mkdir -p "$out"
@@ -170,18 +179,19 @@ xcodebuild -exportArchive -archivePath "$archive" -exportPath "$out/export" \
 app="$out/export/AgentDesk.app"
 [[ -d "$app" ]] || fail "export produced no AgentDesk.app"
 info="$app/Contents/Info.plist"
-[[ "$(plutil -extract CFBundleShortVersionString raw -o - "$info")" == "$version" ]] \
+[[ "$(plist_value CFBundleShortVersionString "$info")" == "$version" ]] \
   || fail "the exported app's CFBundleShortVersionString is not $version"
-[[ "$(plutil -extract CFBundleVersion raw -o - "$info")" == "$build_number" ]] \
+[[ "$(plist_value CFBundleVersion "$info")" == "$build_number" ]] \
   || fail "the exported app's CFBundleVersion is not $build_number"
-[[ "$(plutil -extract SUPublicEDKey raw -o - "$info")" == "$public_key" ]] \
+[[ "$(plist_value SUPublicEDKey "$info")" == "$public_key" ]] \
   || fail "the exported app's SUPublicEDKey does not match apps/macos/AgentDesk-Info.plist"
 codesign --verify --deep --strict "$app" || fail "the exported app's signature does not verify"
 signature_details="$(codesign --display --verbose=4 "$app" 2>&1)"
 runtime_flag='flags=[^[:space:]]*runtime'
 [[ "$signature_details" =~ $runtime_flag ]] \
   || fail "the exported app is not signed with the hardened runtime"
-minimum_system="$(plutil -extract LSMinimumSystemVersion raw -o - "$info")"
+minimum_system="$(plist_value LSMinimumSystemVersion "$info")"
+[[ -n "$minimum_system" ]] || fail "the exported app has no LSMinimumSystemVersion"
 
 # 3. Disk image, notarized and stapled.
 step "Building AgentDesk-$version.dmg"
@@ -197,9 +207,9 @@ step "Notarizing (this waits for Apple)"
 xcrun notarytool submit "$dmg" --wait --keychain-profile agentdesk-notary \
   --output-format json >"$out/notary.json" 2>"$out/notary.log" \
   || fail "notarytool submit failed; see $out/notary.log and $out/notary.json"
-notary_status="$(plutil -extract status raw -o - "$out/notary.json" 2>/dev/null || true)"
+notary_status="$(plist_value status "$out/notary.json")"
 if [[ "$notary_status" != "Accepted" ]]; then
-  submission="$(plutil -extract id raw -o - "$out/notary.json" 2>/dev/null || true)"
+  submission="$(plist_value id "$out/notary.json")"
   fail "notarization status is '${notary_status:-unknown}', not Accepted; read the log with: xcrun notarytool log $submission --keychain-profile agentdesk-notary"
 fi
 xcrun stapler staple "$dmg" || fail "stapling failed"

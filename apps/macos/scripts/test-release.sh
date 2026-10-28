@@ -106,6 +106,16 @@ cat >"$stubs/spctl" <<'STUB'
 echo "spctl $*" >>"$STUB_LOG"
 STUB
 
+# Some plutil versions print extraction errors to stdout. Do the same on
+# every Mac, so a script that trusts that output fails here too.
+cat >"$stubs/plutil" <<'STUB'
+#!/usr/bin/env bash
+status=0
+output="$(/usr/bin/plutil "$@" 2>&1)" || status=$?
+[[ -z "$output" ]] || printf '%s\n' "$output"
+exit "$status"
+STUB
+
 cat >"$stubs/gh" <<'STUB'
 #!/usr/bin/env bash
 echo "gh $*" >>"$STUB_LOG"
