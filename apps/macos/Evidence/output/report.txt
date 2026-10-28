@@ -135,8 +135,52 @@ Reduce Motion, a new decision arrives: dot=true change=appear opacity: 1.00 at o
 Reduce Motion, refreshed: dot=true change=none opacity: no redraw
 label-dot-fade-frames.png: opacity 0/7 to 7/7 over 0.35 s
 
+## Paused header (NotificationPauseLine)
+popover-paused-header-light.png: 340x57 pt
+popover-paused-header-dark.png: 340x57 pt
+text: Notifications paused until 4:00 PM (Ink.secondary, measured above)
+text on another day: Notifications paused until Wed 4:00 PM
+
+## Notifications
+### Content (NotificationController.content(for:))
+- identifier dec_ship: title "Ship the release?", body "Claude Code · api · 29m left", sound default, category "decision.approve_reject", userInfo keys 0
+- identifier dec_pick: title "Which region first?", body "Claude Code · api", sound default, category "", userInfo keys 0
+category decision.approve_reject: actions reject "Reject", approve "Approve"
+
+### Notifier timeline (fixture center and clock)
+- sign-in: requestAuthorization (asked once; user grants)
+- t+30s a pushed approve-or-reject decision arrives: add dec_ship: "Ship the release?" / "Claude Code · api · 29m left"
+- t+45s the next read lists it again: nothing
+- t+60s a digest and a muted decision arrive: nothing
+- t+119s an interactive decision at 1m 59s: nothing
+- t+120s the interactive decision at 2m: add dec_chat: "Use the staging database?" / "Claude Code · api"
+- t+150s a decision created 11 minutes ago, read at start: nothing
+- t+165s the popover is open when dec_open arrives: nothing
+- t+180s the popover closed again: nothing
+- t+195s paused when dec_paused arrives: nothing
+- t+210s off: nothing
+- t+225s on again: add dec_paused: "Approve?" / "Claude Code · api"
+- t+240s dec_slow's post is in flight while two more reads land: remove delivered ["dec_paused"]; add dec_slow in flight; add dec_slow: "Approve?" / "Claude Code · api"
+- t+255s dec_retry's post is refused: remove delivered ["dec_slow"]; add dec_retry refused by the center
+- t+270s the next read retries it: add dec_retry: "Approve?" / "Claude Code · api"
+- t+285s dec_ship answered, dec_chat cancelled, the rest expired: remove delivered ["dec_chat", "dec_retry", "dec_ship"]
+- t+300s sign-out while dec_late's post is in flight: add dec_late in flight; remove all delivered; add dec_late: "Approve?" / "Claude Code · api"; remove delivered ["dec_late"]; delivered now []
+
+### Notification answers (PendingAnswers.sendNow)
+- Approve on dec_ship: accepted true; a repeated action accepted false; posts ["dec_ship approve", "dec_pick option(id: \"eu\")"]
+  the popover's held answer for dec_pick was sent only by the quit flush that ends this step, never by the notification action
+- Approve on dec_taken answers 409 while the popover is closed: outcome kept for the next opening: "Already answered in the app: Reject"
+
+### Notification click (NotificationFocus)
+- click on a listed decision: expand("dec_ship")
+- click during a refresh: wait
+  the read in flight finished before the click: wait
+  the read after the click: expand("dec_new")
+- click on a settled decision, after the next read: drop
+
 ## Not available in this harness
-AXIsProcessTrusted=false: live VoiceOver output and the live MenuBarExtra open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject, Approve, and the expanded controls as separate elements.
-Keys are not captured: the popover's key monitor needs the live MenuBarExtra window as key window. PopoverKeysTests covers the key-to-action mapping; Escape with no row expanded is left to the window.
+AXIsProcessTrusted=false: live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject, Approve, and the expanded controls as separate elements.
+Keys are not captured: the popover's key monitor needs the live popover window as key window. PopoverKeysTests covers the key-to-action mapping; Escape with no row expanded closes the popover.
+Live notifications are not captured: UNUserNotificationCenter needs the app bundle and the user's permission. The permission prompt, a delivered banner, a click opening the popover, the Reject and Approve buttons, and removal from Notification Center are checked on a Mac before each release; the content, category, and Notifier timeline above use the shipped code with a fixture center.
 
 RESULT: PASS
