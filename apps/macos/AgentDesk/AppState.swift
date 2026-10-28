@@ -135,8 +135,6 @@ final class AppState {
     notifications.onAction = { [weak self] id, action in self?.answerFromNotification(id, action) }
     if isSignedIn {
       startSync()
-      // A Mac signed in before notifications existed is asked at start.
-      notifier.requestAuthorization()
     }
   }
 
@@ -378,6 +376,9 @@ final class AppState {
     // Sync keeps the popover's open state across runs, so the first read
     // includes agents when the popover is open.
     sync.start()
+    // Asked after each sign-in, and at start for a Mac signed in before
+    // notifications existed; the system prompts only while undetermined.
+    notifier.requestAuthorization()
     // The dot follows the clock between reads, so a deadline crossing the
     // 5-minute mark shows it without a request (req-mac-app AC-3.1).
     attentionTimer?.cancel()
