@@ -353,4 +353,111 @@ final class PendingAnswersTests: XCTestCase {
     pending.undo()
     XCTAssertGreaterThan(changes, before)
   }
+
+  // MARK: Notification actions
+
+  func testSendNowPostsAtOnceWithoutTheHold() async {
+    XCTAssertTrue(pending.sendNow(first, approve))
+    XCTAssertNil(pending.held, "no Undo hold")
+    XCTAssertNil(pending.undoText)
+    await eventually("the post") { self.sender.posts.count == 1 }
+    XCTAssertEqual(sender.posts, [FakeSender.Post(id: "dec_1", answer: .approve, note: nil)])
+    XCTAssertEqual(clock.requests, [], "no hold timer")
+    await eventually("the post to finish") { self.pending.sending.isEmpty }
+    XCTAssertTrue(pending.hides("dec_1"))
+  }
+
+  func testRepeatedActionsPostOnce() async {
+    let gate = sender.holdNextPost()
+    XCTAssertTrue(pending.sendNow(first, approve))
+    XCTAssertFalse(pending.sendNow(first, approve), "a second action while sending")
+    XCTAssertFalse(pending.sendNow(first, AnswerDraft.Submission(answer: .reject)))
+    await gate.open()
+    await eventually("the post to finish") { self.pending.sending.isEmpty }
+    XCTAssertFalse(pending.sendNow(first, approve), "a second action after it landed")
+    XCTAssertEqual(sender.posts.count, 1)
+  }
+
+  func testSendNowLeavesAnUnrelatedHeldAnswerHeld() async {
+    pending.answer(second, AnswerDraft.Submission(answer: .reject))
+    await holding()
+    XCTAssertTrue(pending.sendNow(first, approve))
+    await eventually("the post") { self.sender.posts.count == 1 }
+    XCTAssertEqual(sender.posts.map(\.id), ["dec_1"])
+    XCTAssertEqual(pending.held?.decision.id, "dec_2", "the popover answer keeps its Undo")
+    XCTAssertEqual(pending.undoText, "Reject · Delete the previews?")
+  }
+
+  func testAnActionOnAHeldDecisionSendsNothing() async {
+    pending.answer(first, AnswerDraft.Submission(answer: .reject))
+    XCTAssertFalse(pending.sendNow(first, approve))
+    XCTAssertEqual(pending.held?.submission.answer, .reject)
+  }
+
+  func testAnActionConflictWaitsForThePopoverToShowItsOutcome() async {
+    pending.isPresented = false
+    sender.answerPosts(.failure(conflict()))
+    sender.answerReads(
+      .success(settled("dec_1", ["state": "answered", "answer": ["kind": "reject"], "answered_via": "app"])))
+    pending.sendNow(first, approve)
+    await eventually("the outcome") { self.pending.outcome != nil }
+    XCTAssertEqual(pending.outcome, "Already answered in the app: Reject")
+    XCTAssertEqual(sender.posts.count, 1, "the attempted answer is never posted again")
+    XCTAssertTrue(pending.hides("dec_1"))
+    try? await Task.sleep(nanoseconds: 20_000_000)
+    XCTAssertEqual(clock.sleeping, 0, "no timer while the popover is closed")
+
+    pending.isPresented = true
+    await eventually("the outcome timer") { self.clock.sleeping == 1 }
+    clock.advance(by: PendingAnswers.outcomeDuration)
+    await eventually("the outcome to clear") { self.pending.outcome == nil }
+  }
+
+  func testAnActionThatFailsRestoresTheRowWithItsMessage() async {
+    sender.answerPosts(.failure(.transport("offline")))
+    pending.sendNow(first, approve)
+    await eventually("the failure") { !self.pending.failures.isEmpty }
+    XCTAssertEqual(pending.failures, ["dec_1": PendingAnswers.failureMessage])
+    XCTAssertFalse(pending.hides("dec_1"), "the row returns for the next popover")
+    XCTAssertEqual(restored.map(\.decision.id), ["dec_1"])
+    XCTAssertNil(restored.first?.draft)
+  }
+
+  func testAnActionOnAMissingDecisionDropsIt() async {
+    sender.answerPosts(.failure(.response(status: 404, code: "not_found", message: "", field: nil)))
+    pending.sendNow(first, approve)
+    await eventually("the post to finish") { self.pending.sending.isEmpty }
+    XCTAssertTrue(pending.hides("dec_1"))
+    XCTAssertTrue(pending.failures.isEmpty)
+  }
+
+  func testAnUnauthorizedActionRestoresNothing() async {
+    sender.answerPosts(.failure(.response(status: 401, code: "unauthenticated", message: "", field: nil)))
+    pending.sendNow(first, approve)
+    await eventually("the post to finish") { self.pending.sending.isEmpty }
+    XCTAssertTrue(pending.failures.isEmpty)
+    XCTAssertTrue(restored.isEmpty)
+  }
+
+  func testQuitWaitsForAnActionInFlight() async {
+    let gate = sender.holdNextPost()
+    pending.sendNow(first, approve)
+    XCTAssertTrue(pending.hasUnsent)
+    let quit = Task { await self.pending.flushAndWait() }
+    await gate.open()
+    let delivered = await quit.value
+    XCTAssertTrue(delivered)
+  }
+
+  func testAnActionLandingAfterSignOutChangesNothing() async {
+    let gate = sender.holdNextPost()
+    sender.answerPosts(.failure(.transport("offline")))
+    pending.sendNow(first, approve)
+    pending.reset()
+    await gate.open()
+    try? await Task.sleep(nanoseconds: 20_000_000)
+    XCTAssertTrue(pending.failures.isEmpty)
+    XCTAssertTrue(restored.isEmpty)
+    XCTAssertFalse(pending.hides("dec_1"))
+  }
 }
