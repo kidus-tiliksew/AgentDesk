@@ -16,15 +16,15 @@ trap 'rm -rf "$work"' EXIT
 mkdir -p "$out" "$work/src"
 rm -f "$out"/*.png "$out"/*.txt "$out"/*.log "$out"/manifest.json
 
-# The harness compiles the kit and five app-target files into one module, so
+# The harness compiles the kit and seven app-target files into one module, so
 # their `import AgentDeskKit` lines are dropped.
 cp "$macos"/AgentDeskKit/Sources/AgentDeskKit/*.swift "$macos"/AgentDeskKit/Sources/AgentDeskKit/Models/*.swift "$work/src/"
-for file in DecisionRow AnswerControls AgentsView Ink MenuBarLabel; do
+for file in DecisionRow AnswerControls AgentsView Ink MenuBarLabel NotificationController NotificationPauseLine; do
   sed '/^import AgentDeskKit$/d' "$macos/AgentDesk/$file.swift" >"$work/src/$file.swift"
 done
 cp "$here"/Harness/*.swift "$work/src/"
 
-build_cmd="swiftc -swift-version 6 -O -o <tmp>/evidence <kit sources> AgentDesk/{DecisionRow,AnswerControls,AgentsView,Ink,MenuBarLabel}.swift Evidence/Harness/*.swift"
+build_cmd="swiftc -swift-version 6 -O -o <tmp>/evidence <kit sources> AgentDesk/{DecisionRow,AnswerControls,AgentsView,Ink,MenuBarLabel,NotificationController,NotificationPauseLine}.swift Evidence/Harness/*.swift"
 swiftc -swift-version 6 -O -o "$work/evidence" "$work"/src/*.swift >"$out/build.log" 2>&1
 build_exit=$?
 

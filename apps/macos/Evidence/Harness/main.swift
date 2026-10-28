@@ -1,11 +1,12 @@
 import AppKit
 import SwiftUI
 
-// Offscreen evidence for the popover and the menu bar label. The harness
-// compiles the shipped `DecisionRow`, `AnswerControls`, `AgentsView`, `Ink`,
-// and `MenuBarLabel` sources and every `AgentDeskKit` source into one program,
-// renders them from fixtures, and writes PNGs and `report.txt` to the
-// directory named by its first argument. `run.sh` builds and runs it.
+// Offscreen evidence for the popover, the menu bar label, and notifications.
+// The harness compiles the shipped `DecisionRow`, `AnswerControls`,
+// `AgentsView`, `Ink`, `MenuBarLabel`, `NotificationController`, and
+// `NotificationPauseLine` sources and every `AgentDeskKit` source into one
+// program, renders them from fixtures, and writes PNGs and `report.txt` to
+// the directory named by its first argument. `run.sh` builds and runs it.
 
 let out = URL(fileURLWithPath: CommandLine.arguments[1])
 let now = Instant.parse("2026-10-27T12:00:00Z")!
@@ -218,7 +219,7 @@ struct Swatches: View {
 
 enum Background {
   /// `NSVisualEffectView` with the popover material, blending within the
-  /// window, as the closest offscreen stand-in for the `MenuBarExtra` window.
+  /// window, as the closest offscreen stand-in for the `NSPopover` window.
   case vibrant
   /// A flat fill of the popover gray, without vibrancy.
   case plain
@@ -251,8 +252,7 @@ func host<V: View>(_ view: V, appearance: NSAppearance.Name, background: Backgro
   window.appearance = NSAppearance(named: appearance)
   window.contentView = container
   // The list and agents views measure their content after the first layout
-  // and then size their scroll views, as the MenuBarExtra window resizes to
-  // fit. Lay out until the fitting size stops changing.
+  // and then size their scroll views, as the popover resizes to fit. Lay out until the fitting size stops changing.
   var fitted = size
   for _ in 0..<10 {
     container.layoutSubtreeIfNeeded()
@@ -580,9 +580,26 @@ MainActor.assumeIsolated {
   line("label-dot-fade-frames.png: opacity 0/7 to 7/7 over 0.35 s")
   line("")
 
+  // The pause line under the header.
+  line("## Paused header (NotificationPauseLine)")
+  let pauseEnd = Instant.parse("2026-10-27T13:00:00Z")!
+  for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
+    let (window, container) = host(
+      PausedHeaderFixture(end: pauseEnd, now: now), appearance: appearance, background: .vibrant)
+    save(snapshot(container), "popover-paused-header-\(mode).png")
+    line("popover-paused-header-\(mode).png: \(Int(container.bounds.width))x\(Int(container.bounds.height)) pt")
+    _ = window
+  }
+  line("text: \(NotificationPauseLine.text(end: pauseEnd, now: now)) (Ink.secondary, measured above)")
+  line("text on another day: \(NotificationPauseLine.text(end: pauseEnd.addingTimeInterval(86_400), now: now))")
+  line("")
+
+  notificationEvidence(&failures)
+
   line("## Not available in this harness")
-  line("AXIsProcessTrusted=\(AXIsProcessTrusted()): live VoiceOver output and the live MenuBarExtra open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject, Approve, and the expanded controls as separate elements.")
-  line("Keys are not captured: the popover's key monitor needs the live MenuBarExtra window as key window. PopoverKeysTests covers the key-to-action mapping; Escape with no row expanded is left to the window.")
+  line("AXIsProcessTrusted=\(AXIsProcessTrusted()): live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject, Approve, and the expanded controls as separate elements.")
+  line("Keys are not captured: the popover's key monitor needs the live popover window as key window. PopoverKeysTests covers the key-to-action mapping; Escape with no row expanded closes the popover.")
+  line("Live notifications are not captured: UNUserNotificationCenter needs the app bundle and the user's permission. The permission prompt, a delivered banner, a click opening the popover, the Reject and Approve buttons, and removal from Notification Center are checked on a Mac before each release; the content, category, and Notifier timeline above use the shipped code with a fixture center.")
   line("")
 
   if failures.isEmpty {

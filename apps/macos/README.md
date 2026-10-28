@@ -2,13 +2,15 @@
 
 The native menu bar app. `component-mac-app` governs this directory. It sits outside the pnpm workspace: pnpm neither installs nor builds it, and Xcode's toolchain builds and tests it (DEC-20(3)).
 
-The app signs in and out, polls the pending decisions and live agents, shows the attention dot or the pending count in the menu bar, and lists the pending decisions with the agents line below them. Each row answers in place. Approve-or-reject rows carry Reject and Approve. Clicking a row's text expands it to the body, the controls for its input type, a note, and Send. An answer waits 4 seconds behind an Undo strip before it is sent, and quitting waits for it. ↑ and ↓ select a row, ↩ expands it, ⌘↩ sends it, and Escape collapses it or closes the popover. Notifications and releases come in later tasks.
+The app signs in and out, polls the pending decisions and live agents, shows the attention dot or the pending count in the menu bar, and lists the pending decisions with the agents line below them. Each row answers in place. Approve-or-reject rows carry Reject and Approve. Clicking a row's text expands it to the body, the controls for its input type, a note, and Send. An answer waits 4 seconds behind an Undo strip before it is sent, and quitting waits for it. ↑ and ↓ select a row, ↩ expands it, ⌘↩ sends it, and Escape collapses it or closes the popover.
+
+The app posts a macOS notification for a pending decision when the user's notification rules routed its creation to push. It posts once per decision, only while the popover is closed, never for a decision created more than 10 minutes earlier, and an interactive decision only after 2 minutes. An approve-or-reject notification carries Reject and Approve, which answer at once without the Undo strip. Clicking a notification opens the popover with that decision expanded. A notification leaves Notification Center when its decision is settled, cancelled, or expires. The `•••` menu pauses notifications for 1 hour or resumes them and turns them on or off on this Mac. The app asks for notification permission after sign-in. Releases come in a later task.
 
 ## Layout
 
 - `AgentDesk.xcodeproj`: the `AgentDesk` app target and its shared scheme. Bundle id `sh.kidus.agentdesk.mac`, macOS 14.0 or later, `LSUIElement` on. Sources sit in a file-system synchronized group, so adding a file to `AgentDesk/` changes no project entry.
-- `AgentDesk/`: the app target's SwiftUI views, menu bar label, Open at Login adapter, the wake and network-path triggers for sync, and the app delegate that holds quitting until answers are sent.
-- `AgentDeskKit/`: a local Swift package with everything that runs without a window: models, API client, credential store, sign-in, sync, ordering, the seen store, attention, row text, answer drafts, pending answers, and the popover's key mapping. It imports Foundation, Security, and OSLog only.
+- `AgentDesk/`: the app target's SwiftUI views, the status item and popover controller, menu bar label, notification adapter, Open at Login adapter, the wake and network-path triggers for sync, and the app delegate that holds quitting until answers are sent.
+- `AgentDeskKit/`: a local Swift package with everything that runs without a window: models, API client, credential store, sign-in, sync, ordering, the seen store, attention, row text, answer drafts, pending answers, the popover's key mapping, and notification planning, settings, and the notified store. It imports Foundation, Security, and OSLog only.
 
 ## Build and test
 
@@ -22,7 +24,7 @@ xcodebuild build -project apps/macos/AgentDesk.xcodeproj -scheme AgentDesk \
 
 The tests never touch the login Keychain or the network. They use an in-memory credential store and a `URLProtocol` stub.
 
-`Evidence/run.sh` renders the menu bar label and the popover from fixtures, including expanded rows and the answer strips, and records contrast, layout, and freshness evidence with a manifest; see `Evidence/README.md`.
+`Evidence/run.sh` renders the menu bar label and the popover from fixtures, including expanded rows, the answer strips, and the paused header, walks notification planning through a fixture notification center, and records contrast, layout, and freshness evidence with a manifest; see `Evidence/README.md`.
 
 ## Server
 
