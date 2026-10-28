@@ -120,3 +120,6 @@ jobs:
           -configuration Debug
           -destination 'platform=macOS'
           CODE_SIGNING_ALLOWED=NO
+
+      - name: Test the release script
+        run: bash apps/macos/scripts/test-release.sh

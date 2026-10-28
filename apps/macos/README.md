@@ -4,12 +4,17 @@ The native menu bar app. `component-mac-app` governs this directory. It sits out
 
 The app signs in and out, polls the pending decisions and live agents, shows the attention dot or the pending count in the menu bar, and lists the pending decisions with the agents line below them. Each row answers in place. Approve-or-reject rows carry Reject and Approve. Clicking a row's text expands it to the body, the controls for its input type, a note, and Send. An answer waits 4 seconds behind an Undo strip before it is sent, and quitting waits for it. ↑ and ↓ select a row, ↩ expands it, ⌘↩ sends it, and Escape collapses it or closes the popover.
 
-The app posts a macOS notification for a pending decision when the user's notification rules routed its creation to push. It posts once per decision, only while the popover is closed, never for a decision created more than 10 minutes earlier, and an interactive decision only after 2 minutes. An approve-or-reject notification carries Reject and Approve, which answer at once without the Undo strip. Clicking a notification opens the popover with that decision expanded. A notification leaves Notification Center when its decision is settled, cancelled, or expires. The `•••` menu pauses notifications for 1 hour or resumes them and turns them on or off on this Mac. The app asks for notification permission after sign-in. Releases come in a later task.
+The app posts a macOS notification for a pending decision when the user's notification rules routed its creation to push. It posts once per decision, only while the popover is closed, never for a decision created more than 10 minutes earlier, and an interactive decision only after 2 minutes. An approve-or-reject notification carries Reject and Approve, which answer at once without the Undo strip. Clicking a notification opens the popover with that decision expanded. A notification leaves Notification Center when its decision is settled, cancelled, or expires. The `•••` menu pauses notifications for 1 hour or resumes them and turns them on or off on this Mac. The app asks for notification permission after sign-in.
+
+Sparkle 2 checks for updates once a day and installs one only after the user accepts.
 
 ## Layout
 
 - `AgentDesk.xcodeproj`: the `AgentDesk` app target and its shared scheme. Bundle id `sh.kidus.agentdesk.mac`, macOS 14.0 or later, `LSUIElement` on. Sources sit in a file-system synchronized group, so adding a file to `AgentDesk/` changes no project entry.
-- `AgentDesk/`: the app target's SwiftUI views, the status item and popover controller, menu bar label, notification adapter, Open at Login adapter, the wake and network-path triggers for sync, and the app delegate that holds quitting until answers are sent.
+- `AgentDesk/`: the app target's SwiftUI views, the status item and popover controller, menu bar label, notification adapter, Open at Login adapter, the wake and network-path triggers for sync, and the app delegate that holds quitting until answers are sent and owns Sparkle's updater.
+- `AgentDesk-Info.plist`: the Sparkle keys Xcode merges into the generated `Info.plist`: the appcast feed, the release EdDSA public key, a check every 24 hours, and no automatic downloads or system profiling. It sits outside `AgentDesk/` so it is not copied as a resource.
+- `scripts/release.sh`: the operator's release script; `scripts/test-release.sh` checks it with stub commands.
+- Sparkle 2.10.1 is the app target's only remote package, pinned to that exact version in `Package.resolved`. AgentDeskKit does not depend on it.
 - `AgentDeskKit/`: a local Swift package with everything that runs without a window: models, API client, credential store, sign-in, sync, ordering, the seen store, attention, row text, answer drafts, pending answers, the popover's key mapping, and notification planning, settings, and the notified store. It imports Foundation, Security, and OSLog only.
 
 ## Build and test
@@ -35,3 +40,13 @@ defaults write sh.kidus.agentdesk.mac ServerURL https://your-gateway.example.com
 ```
 
 Only the origin of an absolute https URL counts; any other value is ignored. The API token sits in the login Keychain under service `sh.kidus.agentdesk.mac` with the origin as its account, so each server has its own sign-in. Remove the override with `defaults delete sh.kidus.agentdesk.mac ServerURL`.
+
+## Release
+
+Releases run on the operator's Mac, never in CI. `scripts/release.sh <version>` checks the version, the working tree, and the `macos-v<version>` tag, then archives and exports with Developer ID, notarizes and staples `AgentDesk-<version>.dmg`, signs it for Sparkle, and publishes the GitHub Release `macos-v<version>` and the new `appcast.xml` on the fixed `macos-appcast` release. `--dry-run` runs only the checks and stops before archiving. Outputs land in `build/macos-release/<version>/`, which Git ignores. The prerequisites and recovery steps are in `component-repository` §Mac releases.
+
+```sh
+apps/macos/scripts/release.sh 0.1.0 --dry-run
+AGENTDESK_TEAM_ID=<team id> apps/macos/scripts/release.sh 0.1.0
+bash apps/macos/scripts/test-release.sh
+```

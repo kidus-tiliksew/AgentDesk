@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A1D0000000000000000000B1 /* AgentDeskKit in Frameworks */ = {isa = PBXBuildFile; productRef = A1D0000000000000000000C1 /* AgentDeskKit */; };
+		A1D0000000000000000000B2 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A1D0000000000000000000C2 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1D0000000000000000000B1 /* AgentDeskKit in Frameworks */,
+				A1D0000000000000000000B2 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +73,7 @@
 			name = AgentDesk;
 			packageProductDependencies = (
 				A1D0000000000000000000C1 /* AgentDeskKit */,
+				A1D0000000000000000000C2 /* Sparkle */,
 			);
 			productName = AgentDesk;
 			productReference = A1D0000000000000000000A1 /* AgentDesk.app */;
@@ -102,6 +105,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A1D000000000000000000141 /* XCLocalSwiftPackageReference "AgentDeskKit" */,
+				A1D000000000000000000142 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A1D0000000000000000000F2 /* Products */;
@@ -192,6 +196,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "AgentDesk-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = AgentDesk;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -219,6 +224,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "AgentDesk-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = AgentDesk;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -266,10 +272,26 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		A1D000000000000000000142 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.10.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		A1D0000000000000000000C1 /* AgentDeskKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AgentDeskKit;
+		};
+		A1D0000000000000000000C2 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1D000000000000000000142 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -33,6 +33,10 @@ curl -fsSL https://agentdesk.kidus.sh/install | sh -s -- --only codex
 
 `agentdesk status` checks each connection. `agentdesk uninstall` removes everything the installer wrote.
 
+## Mac app
+
+AgentDesk for Mac sits in the menu bar and answers the same decisions as the phone app. It requires macOS 14 or later. Download `AgentDesk-<version>.dmg` from the [Mac releases](https://github.com/kidus-tiliksew/AgentDesk/releases?q=macos-v&expanded=true), open it, and drag AgentDesk to Applications. The app checks for updates once a day and installs one only after you accept.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
