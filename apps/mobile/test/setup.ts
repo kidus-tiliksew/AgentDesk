@@ -47,8 +47,8 @@ jest.mock("convex/browser", () => {
   };
 });
 
-// useMutation hands out the ensureAccount, answer, device, and account
-// deletion fakes and refuses any other function, so a test fails if a screen
+// useMutation hands out the ensureAccount, answer, device, account
+// deletion, and install key fakes and refuses any other function, so a test fails if a screen
 // calls Convex for anything else.
 // useQuery reads the scripted query results and re-renders when a test
 // changes them; "skip" runs no query, as in Convex.
@@ -88,6 +88,12 @@ jest.mock("convex/react", () => {
       }
       if (name === "identity/accountDeletion:deleteAccount") {
         return fakes.deleteAccount;
+      }
+      if (name === "identity/installKeys:createInstallKey") {
+        return fakes.createInstallKey;
+      }
+      if (name === "identity/installKeys:revokeInstallKey") {
+        return fakes.revokeInstallKey;
       }
       throw new Error(`Unexpected mutation ${name}`);
     },
@@ -214,6 +220,12 @@ jest.mock("posthog-react-native", () => {
     },
     usePostHog: () => client,
   };
+});
+
+// The clipboard records what the app copied.
+jest.mock("expo-clipboard", () => {
+  const { clipboard } = require("./fakes");
+  return { __esModule: true, setStringAsync: clipboard.setStringAsync };
 });
 
 // The in-app browser sheet records the URLs it was asked to open.

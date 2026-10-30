@@ -1,4 +1,4 @@
-import { type AnswerSubmission, type Decision, errorCodeSchema } from "@agentdesk/contract";
+import { type AnswerSubmission, errorCodeSchema } from "@agentdesk/contract";
 import { useMutation, useQuery } from "convex/react";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { type ReactNode, useRef, useState } from "react";
@@ -8,7 +8,11 @@ import { Button } from "../../../../../src/button";
 import { AnswerForm } from "../../../../../src/decision-answer-form";
 import { DecisionDetail } from "../../../../../src/decision-detail";
 import { answerFailure } from "../../../../../src/decision-errors";
-import { describeOutcome, SettledOutcome } from "../../../../../src/decision-outcome";
+import {
+  type AppDecision,
+  describeOutcome,
+  SettledOutcome,
+} from "../../../../../src/decision-outcome";
 import { haptic } from "../../../../../src/haptics";
 import { Loading } from "../../../../../src/loading";
 import { errorData, QueryErrorBoundary } from "../../../../../src/query-error-boundary";
@@ -94,7 +98,7 @@ function DecisionView({ id }: { id: string }) {
   // A settled decision the mutation returned, from success or from a
   // `conflict`. It stands in for the query until the subscription reports
   // the settlement, so the form never comes back for a settled decision.
-  const [returned, setReturned] = useState<Decision | null>(null);
+  const [returned, setReturned] = useState<AppDecision | null>(null);
   const [conflicted, setConflicted] = useState(false);
   // A `conflict` without a readable stored decision: no outcome is shown and
   // no answer can be sent until the query reports the settlement.

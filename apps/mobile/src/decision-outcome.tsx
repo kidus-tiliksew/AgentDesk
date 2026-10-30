@@ -1,5 +1,7 @@
 import type { Answer, AnsweredVia, Decision, Option } from "@agentdesk/contract";
+import type { FunctionReturnType } from "convex/server";
 import { View } from "react-native";
+import type { decisions } from "../../../convex/decisions/refs";
 import { makeStyles, radius, spacing, type Theme, tint, useTheme } from "./theme";
 import { Card } from "./ui/card";
 import { Icon, type IconName } from "./ui/icon";
@@ -50,6 +52,27 @@ export function formatWhen(iso: string, now: number): string {
     ...(sameYear ? {} : { year: "numeric" }),
   });
   return `${date}, ${time}`;
+}
+
+// The app's decision read shape adds `cancelReason` to the contract's
+// Decision (component-decisions §Reads); the contract and the public API do
+// not carry it. A decision the answer mutation returns has none.
+export type CancelReason = NonNullable<
+  FunctionReturnType<typeof decisions.app.get>["cancelReason"]
+>;
+export type AppDecision = Decision & { cancelReason?: CancelReason };
+
+export const CONNECTION_ENDED = "Cancelled: the agent's machine disconnected";
+
+// Why a cancelled decision was cancelled, when the backend recorded a
+// reason (req-install-keys AC-4.2), or null for any other decision.
+export function cancellationReason(decision: {
+  state: Decision["state"];
+  cancelReason?: CancelReason;
+}): string | null {
+  return decision.state === "cancelled" && decision.cancelReason === "connection_ended"
+    ? CONNECTION_ENDED
+    : null;
 }
 
 export type OutcomeTone = "accent" | "green" | "grey";
@@ -130,13 +153,19 @@ export function chatMessageOf(decision: {
 }
 
 // What the banner says, as lines: the outcome, the answer when the title
-// alone does not say it, and how and when the decision was settled.
-function outcomeLines(decision: Decision, now: number) {
-  const outcome = outcomeOf(decision);
+// alone does not say it, and how and when the decision was settled. A
+// decision cancelled because its agent's machine disconnected says so in
+// its title, which replaces "No answer was recorded."
+function outcomeLines(decision: AppDecision, now: number) {
+  const reason = cancellationReason(decision);
+  const outcome = reason === null ? outcomeOf(decision) : { ...outcomeOf(decision), title: reason };
   const { answer } = decision;
   let detail: string | null = null;
   if (answer === null) {
-    detail = decision.state === "expired" ? "Expired without an answer" : "No answer was recorded.";
+    if (reason === null) {
+      detail =
+        decision.state === "expired" ? "Expired without an answer" : "No answer was recorded.";
+    }
   } else if (
     decision.applied_by_default ||
     (answer.kind !== "approve" && answer.kind !== "reject")
@@ -154,7 +183,7 @@ function outcomeLines(decision: Decision, now: number) {
 // The recorded outcome as one sentence for VoiceOver: the banner's label, and
 // what the decision screen announces when an answer arrives too late
 // (req-mobile-app AC-3.2).
-export function describeOutcome(decision: Decision, now: number): string {
+export function describeOutcome(decision: AppDecision, now: number): string {
   const { outcome, detail, how } = outcomeLines(decision, now);
   return [outcome.title, detail, how.length === 0 ? null : how.join(", ")]
     .filter((part) => part !== null)
@@ -167,11 +196,12 @@ export function describeOutcome(decision: Decision, now: number): string {
 // it was settled, the user's chat message in a card for an answer given in
 // chat, and the note in a card (req-decision-requests REQ-4, AC-4.3, AC-5.1,
 // AC-5.2, AC-8.3). Answered, expired with its default applied,
-// expired without an answer, and cancelled each read differently. Apple HIG
+// expired without an answer, cancelled, and cancelled because the agent's
+// machine disconnected (req-install-keys AC-4.2) each read differently. Apple HIG
 // VoiceOver: the banner is one header element whose label reads all of it,
 // so the outcome is never split across swipes and the headings rotor finds
 // it.
-export function SettledOutcome({ decision, now }: { decision: Decision; now: number }) {
+export function SettledOutcome({ decision, now }: { decision: AppDecision; now: number }) {
   const styles = useStyles();
   const theme = useTheme();
   const { outcome, detail, how } = outcomeLines(decision, now);

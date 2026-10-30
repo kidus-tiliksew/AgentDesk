@@ -3,7 +3,12 @@ import { formatElapsed } from "../use-screen-clock";
 // Formatting and grouping for the connections screen (component-mobile-app
 // §Screens, req-accounts-and-connections AC-4.1).
 
-type Times = { firstConnectedAt: number; lastUsedAt?: number };
+type Times = { firstConnectedAt: number; lastUsedAt?: number; installKeyLabel?: string };
+
+// The install key that made a connection (req-install-keys AC-3.3).
+export function viaInstallKey(label: string): string {
+  return `via ${label}`;
+}
 
 // The day a connection was first made, e.g. "Oct 12", with the year when it
 // is not the current one. `options` fixes the locale and time zone in tests.
@@ -46,10 +51,14 @@ export function connectionSpokenSummary(
   options: { locale?: string; timeZone?: string } = {},
 ): string {
   const connected = `Connected ${formatConnectionDay(connection.firstConnectedAt, now, options)}`;
+  const via =
+    connection.installKeyLabel === undefined
+      ? ""
+      : `, ${viaInstallKey(connection.installKeyLabel)}`;
   if (connection.lastUsedAt === undefined) {
-    return `${connected}, never used`;
+    return `${connected}${via}, never used`;
   }
-  return `${connected}, last used ${spokenElapsed(now - connection.lastUsedAt)}`;
+  return `${connected}${via}, last used ${spokenElapsed(now - connection.lastUsedAt)}`;
 }
 
 // Whole seconds, minutes, hours, or days, as formatElapsed counts them.
