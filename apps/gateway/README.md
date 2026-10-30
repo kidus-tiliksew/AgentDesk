@@ -29,7 +29,7 @@ It also serves the [public HTTP API](#public-http-api) under `/v1` and the [inst
 
 ## Installer endpoints
 
-The `agentdesk` installer (`packages/installer`) signs each harness in by short code, or enrolls with an install key, and checks or revokes its connection through these routes. The Mac app signs in and out through the same routes. Any other method on these paths answers 404. Errors carry `{"error": {"code", "message", "field"}}`, and a Convex outage answers 503 `unavailable`.
+The `agentdesk` installer (`packages/installer`) signs each harness in by short code and checks or revokes its connection through these routes. `/device/enroll` serves install-key enrollment; the installer does not call it yet. The Mac app signs in and out through the same routes. Any other method on these paths answers 404. Errors carry `{"error": {"code", "message", "field"}}`, and a Convex outage answers 503 `unavailable`.
 
 | Route | Request | Answers |
 | --- | --- | --- |
@@ -160,7 +160,7 @@ Append `--quick` to skip the five-minute leg and the enrollment leg's idle wait 
 
 Ctrl-C, or a failure of the `await` stream while the answer helper runs, terminates the helper's process group and waits for it to exit before the run ends. The helper is given 120 seconds.
 
-Each passing step prints one line. The default leg's line reports the keepalive count, the first and last arrival, and the largest gap. On a mismatch the run prints `FAIL <step>: <reason>` and exits 1. It never prints a token or the install key. The Convex CLI in steps 5 and 7 must act on the deployment that the gateway's `CONVEX_SITE_URL` names; otherwise the helpers fail to find the decision or the connection. The install key belongs to the development account that `AGENTDESK_SMOKE_CLERK_USER_ID` and `AGENTDESK_SMOKE_EMAIL` name, by default `user_smoke_install_key`, which the mint creates when it does not exist. Each run leaves four decisions, two sessions, and one install key on the dev deployment.
+Each passing step prints one line. The default leg's line reports the keepalive count, the first and last arrival, and the largest gap. On a mismatch the run prints `FAIL <step>: <reason>` and exits 1. It never prints a token or the install key. The Convex CLI in steps 5 and 7 must act on the deployment that the gateway's `CONVEX_SITE_URL` names; otherwise the helpers fail to find the decision or the connection. The install key belongs to the development account that `AGENTDESK_SMOKE_CLERK_USER_ID` and `AGENTDESK_SMOKE_EMAIL` name, by default `user_smoke_install_key`, which the mint creates when it does not exist. A full run leaves four decisions, two sessions, and one install key on the dev deployment; a `--quick` run skips the default leg and leaves three decisions.
 
 The live run is never part of CI, which has no gateway or service secret. `test/smoke-mcp.test.ts` runs the same steps against a fake gateway on a fake clock.
 

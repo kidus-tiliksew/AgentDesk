@@ -803,6 +803,8 @@ export const ENROLL_END_BOUND_MS = 5 * 60_000;
 // the deployment and never presents the connection's token.
 export const ENROLL_POLL_MS = 30_000;
 export const ENROLL_HARNESS = "claude-code";
+// Bound on each `/device/enroll` and refusal-check request.
+export const ENROLL_REQUEST_TIMEOUT_MS = 30_000;
 
 // What `identity/devMint:inspectConnection` reports.
 export interface ConnectionInspection {
@@ -865,6 +867,8 @@ export interface EnrollmentReport {
 export async function runEnrollmentLeg(options: EnrollmentOptions): Promise<EnrollmentReport> {
   const { clock, log, helpers, signal } = options;
   const origin = options.url.replace(/\/+$/, "");
+  // Bounds one plain HTTP request, as McpClient bounds its own.
+  const bounded = () => AbortSignal.any([signal, AbortSignal.timeout(ENROLL_REQUEST_TIMEOUT_MS)]);
 
   let step: Step = "enroll: mint key";
   let secret: string;
@@ -903,7 +907,7 @@ export async function runEnrollmentLeg(options: EnrollmentOptions): Promise<Enro
           machine_name: `smoke-${options.runId}`,
           harnesses: [ENROLL_HARNESS],
         }),
-        signal,
+        signal: bounded(),
       });
     } catch (error) {
       throw new SmokeError(current, `request failed: ${describe(error)}`);
@@ -1083,7 +1087,7 @@ export async function runEnrollmentLeg(options: EnrollmentOptions): Promise<Enro
       response = await options.fetch(`${origin}${path}`, {
         ...init,
         headers: { ...("headers" in init ? init.headers : {}), Authorization: `Bearer ${token}` },
-        signal,
+        signal: bounded(),
       });
     } catch (error) {
       throw new SmokeError(step, `${path} request failed: ${describe(error)}`);
