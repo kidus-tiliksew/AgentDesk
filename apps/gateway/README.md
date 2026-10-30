@@ -29,18 +29,21 @@ It also serves the [public HTTP API](#public-http-api) under `/v1` and the [inst
 
 ## Installer endpoints
 
-The `agentdesk` installer (`packages/installer`) signs each harness in by short code and checks or revokes its connection through these routes. The Mac app signs in and out through the same routes. Any other method on these paths answers 404. Errors carry `{"error": {"code", "message", "field"}}`, and a Convex outage answers 503 `unavailable`.
+The `agentdesk` installer (`packages/installer`) signs each harness in by short code, or enrolls with an install key, and checks or revokes its connection through these routes. The Mac app signs in and out through the same routes. Any other method on these paths answers 404. Errors carry `{"error": {"code", "message", "field"}}`, and a Convex outage answers 503 `unavailable`.
 
 | Route | Request | Answers |
 | --- | --- | --- |
 | `POST /device/start` | `{machine_name, harnesses}` or `{machine_name, client: "macos"}` | 200 `{user_code, device_secret, interval: 2, expires_in: 600}`, with `user_code` as identity's 8 bare symbols, which the installer displays as `XXXX-XXXX`; 400 `invalid` naming the field; 429 `rate_limited` |
 | `POST /device/poll` | `{device_secret}` | 200 `{status}`, where `status` is `pending`, `declined`, `expired`, `not_found`, or `approved` with `connections: [{harness, connection_id, token}]`, or with `api_token: {credential_id, token}` for a Mac request; 400 `invalid` |
+| `POST /device/enroll` | `{install_key, machine_name, harnesses}` | 200 `{status: "enrolled", machine_id, connections: [{harness, connection_id, token}]}`, or `{status}` with `unknown`, `revoked`, `expired`, or `limit_reached`, or `{status: "harness_not_allowed", harness}`; 400 `invalid` naming the field; 429 `rate_limited` |
 | `GET /device/connection` | `Authorization: Bearer adc_…`, or the Mac's `adp_…` | 200 `{connection_id, harness}`, with `harness` `macos` for the Mac; 401 `unauthenticated` |
 | `DELETE /device/connection` | `Authorization: Bearer adc_…`, or the Mac's `adp_…` | 200 `null` once revoked; 401 `unauthenticated` |
 | `POST /device/wait` | `Authorization: Bearer adc_…`, `{decision_id, timeout_seconds}` | 200 `text/event-stream` with one `message` event; 400 `invalid` naming the field; 401 `unauthenticated` |
 | `GET /install.sh` | none | 200, the install script as `text/plain` |
 
 - `/device/start` trims `machine_name` and requires 1 to 255 characters. `harnesses` must be a non-empty list of distinct ids from `claude-code`, `codex`, and `cursor`. The Mac app sends `client: "macos"` instead; a `client` together with `harnesses`, or any other `client`, answers 400 naming `client`. The `DEVICE_START_LIMIT` binding allows 10 starts a minute per `CF-Connecting-IP`, counted before the body is read. Without the binding or that header, the route answers 503 rather than run unlimited.
+- `/device/enroll` enrolls one machine with an install key (`req-install-keys` REQ-2), with no code and no approval. `install_key` must be `adk_` followed by 43 base64url characters; `machine_name` and `harnesses` follow `/device/start`'s rules. The route sends Convex only the key's SHA-256 and answers identity's status: one connection per harness in the request's order, sharing one `machine_id`, or the refusal, which connects nothing. The `DEVICE_ENROLL_LIMIT` binding allows 60 enrollments a minute per `CF-Connecting-IP`, counted before the body is read. Without the binding or that header the route answers 503. The key reaches no log line: the route answers every failure itself, with 503 `unavailable` for a Convex outage or an unexpected service answer, and logs only fixed text. Every answer carries `Cache-Control: no-store`.
+- A connection minted by `/device/enroll` authenticates `/mcp`, `/device/connection`, and `/device/wait` like a short-code connection. A connection of an ephemeral key ends once it has made no request for the key's idle limit, which identity's minute sweep enforces; every resolve of its token, including `/device/wait`'s, keeps it alive.
 - `/device/poll` passes identity's status through. `not_found` means the secret is unknown or its outcome was already collected: an approved request's tokens are returned once. Both `/device/start` and `/device/poll` answer with `Cache-Control: no-store`, since they carry secrets.
 - `/device/connection` resolves the token on every request, so a revoked connection fails its next check. It accepts an `adp_` token only when the token resolves with harness `macos`, so the Mac app's sign-out revokes its own token; every other API token answers 401. `DELETE` sends Convex only the token's SHA-256. Its 401, unlike `/mcp`'s, carries no `WWW-Authenticate` challenge, because the challenge starts browser sign-in.
 - `/device/wait` serves the resume waiter (`agentdesk wait`) and opens no agent session. `timeout_seconds` is an integer from 1 to 600, 300 when omitted. It polls `/svc/decisions/watch` at once and every 15 seconds on `await`'s schedule and sends a `: keepalive` comment every 15 seconds. The single event is `{"decision": <Decision>}` once settled, `{"state": "pending", "decision_id"}` at the limit, or `{"error": …}`: `not_found` for an unknown decision, and `unavailable` when Convex fails after the stream opened. An error's `field` names the body field, such as `decision_id`.
@@ -57,7 +60,7 @@ The `agentdesk` installer (`packages/installer`) signs each harness in by short 
 | `CONVEX_SITE_URL` | the Convex deployment's HTTP actions origin, ending in `.convex.site` |
 | `CLERK_PUBLISHABLE_KEY` | Clerk application key, unused until OAuth verification is built |
 
-It also declares the `DEVICE_START_LIMIT` rate-limit binding, 10 calls per 60 seconds, which `/device/start` keys by client IP, and the `API_LIMIT` binding, 120 calls per 60 seconds, which `/v1` keys by API credential.
+It also declares the `DEVICE_START_LIMIT` rate-limit binding, 10 calls per 60 seconds, which `/device/start` keys by client IP, the `DEVICE_ENROLL_LIMIT` binding, 60 calls per 60 seconds, which `/device/enroll` keys by client IP, and the `API_LIMIT` binding, 120 calls per 60 seconds, which `/v1` keys by API credential.
 
 Secrets are never committed:
 
@@ -120,7 +123,16 @@ The smoke run and the Claude Code entry below need a Convex dev deployment, a ga
    curl -H "Authorization: Bearer adp_…" 'http://localhost:8787/v1/decisions?state=pending'
    ```
 
-`identity/devMint:mintConnectionToken`, `identity/devMint:mintApiToken`, and `decisions/devAnswer:answer` are internal functions. Only the dashboard or a Convex CLI with access to the deployment can call them. To settle a decision by hand, as the smoke run does:
+6. For enrollment, mint an install key the same way. No app screen creates install keys yet. The arguments follow the app's `createInstallKey`, and the result's `secret` (`adk_…`) is shown once:
+
+   ```sh
+   npx convex run identity/devMint:mintInstallKey \
+     '{"clerkUserId": "user_<id>", "email": "developer@example.com", "label": "Sandboxes", "harnesses": ["claude-code"], "expiresInDays": 1, "machineLimit": 1, "ephemeral": true, "idleLimitMinutes": 15}'
+   ```
+
+   `identity/devMint:inspectConnection '{"credentialId": "<connection_id>"}'` reports a connection's `revokedAt` and idle deadline, its agent sessions, and their decisions, without presenting its token.
+
+`identity/devMint:mintConnectionToken`, `identity/devMint:mintApiToken`, `identity/devMint:mintInstallKey`, `identity/devMint:inspectConnection`, and `decisions/devAnswer:answer` are internal functions. Only the dashboard or a Convex CLI with access to the deployment can call them. To settle a decision by hand, as the smoke run does:
 
 ```sh
 npx convex run decisions/devAnswer:answer \
@@ -136,18 +148,19 @@ AGENTDESK_GATEWAY_URL=http://localhost:8787 AGENTDESK_CONNECTION_TOKEN=adc_… \
   pnpm --filter @agentdesk/gateway smoke:mcp
 ```
 
-Append `--quick` to skip the five-minute leg while iterating. `smoke:mcp` runs `pnpm dlx tsx@4.23.15`, so the first run downloads `tsx`. The run takes a little over five minutes and does, in order:
+Append `--quick` to skip the five-minute leg and the enrollment leg's idle wait while iterating. `smoke:mcp` runs `pnpm dlx tsx@4.23.15`, so the first run downloads `tsx`. The full run takes about 22 minutes and does, in order:
 
 1. `initialize`, keeping `Mcp-Session-Id`, then `notifications/initialized`;
 2. `tools/list`, which must return exactly `ask`, `await`, `check`, `cancel`, `resolve`, and `status`;
 3. `status` with state `working` on topic `smoke/mcp`, keeping the agent session id it returns;
 4. the relayed leg: `ask` for an approve-or-reject decision with `interactive: true`, then `resolve` with `approve` and a fixed chat message. The decision must be `answered` with `answered_via: "chat"`, `interactive: true`, the message unchanged, and `relayed_by_agent_session_id` equal to the `status` session id. A second `resolve` with `reject` must return a `conflict` tool error carrying the decision with the first answer and message;
 5. the answered leg: `ask` for an approve-or-reject decision with no deadline, then `await`. Once the stream is open, it runs `npx convex run decisions/devAnswer:answer` from the repository root. `await` must return `answered` with the answer and note, within 30 seconds of the answer;
-6. the default leg, skipped by `--quick`: `ask` with a deadline five minutes ahead and the default `reject`, then one `await` with `timeout_seconds: 330`. It must return `expired` with the default and `applied_by_default: true`. The decision must carry the requested deadline and an `answered_at` no earlier than it. `await` must not return sooner than 5 seconds before the deadline on this machine's clock, which allows for skew against the deployment's clock. Keepalive comments must arrive throughout the wait, never more than 30 seconds apart, so a proxy that buffers an idle stream fails the run.
+6. the default leg, skipped by `--quick`: `ask` with a deadline five minutes ahead and the default `reject`, then one `await` with `timeout_seconds: 330`. It must return `expired` with the default and `applied_by_default: true`. The decision must carry the requested deadline and an `answered_at` no earlier than it. `await` must not return sooner than 5 seconds before the deadline on this machine's clock, which allows for skew against the deployment's clock. Keepalive comments must arrive throughout the wait, never more than 30 seconds apart, so a proxy that buffers an idle stream fails the run;
+7. the enrollment leg: `npx convex run identity/devMint:mintInstallKey` mints an ephemeral key for one machine with the 15-minute minimum idle limit. `POST /device/enroll` must answer `enrolled` with one `claude-code` connection and `Cache-Control: no-store`, and a second enrollment must answer `limit_reached`. With the enrolled connection, `/mcp` runs `initialize`, `status`, and `ask`. `identity/devMint:inspectConnection` must show the connection live with an idle deadline, one open session, and one pending decision. Then, unless `--quick` is given, the run sends nothing with the connection's token and inspects it every 30 seconds. The connection must end no sooner than its idle limit after the `ask` and within 5 minutes after it (`req-install-keys` AC-4.1), with 5 seconds' clock tolerance. Its session must have ended as `disconnected` at that time and its decision must be `cancelled` with `cancelReason` `connection_ended` (AC-4.2). Last, `GET /device/connection` and `POST /mcp` with the ended token must answer 401.
 
 Ctrl-C, or a failure of the `await` stream while the answer helper runs, terminates the helper's process group and waits for it to exit before the run ends. The helper is given 120 seconds.
 
-Each passing step prints one line. The default leg's line reports the keepalive count, the first and last arrival, and the largest gap. On a mismatch the run prints `FAIL <step>: <reason>` and exits 1. It never prints the token. The Convex CLI in step 5 must act on the deployment that the gateway's `CONVEX_SITE_URL` names; otherwise the answer helper fails to find the decision. Each run leaves three decisions and a session on the dev deployment.
+Each passing step prints one line. The default leg's line reports the keepalive count, the first and last arrival, and the largest gap. On a mismatch the run prints `FAIL <step>: <reason>` and exits 1. It never prints a token or the install key. The Convex CLI in steps 5 and 7 must act on the deployment that the gateway's `CONVEX_SITE_URL` names; otherwise the helpers fail to find the decision or the connection. The install key belongs to the development account that `AGENTDESK_SMOKE_CLERK_USER_ID` and `AGENTDESK_SMOKE_EMAIL` name, by default `user_smoke_install_key`, which the mint creates when it does not exist. Each run leaves four decisions, two sessions, and one install key on the dev deployment.
 
 The live run is never part of CI, which has no gateway or service secret. `test/smoke-mcp.test.ts` runs the same steps against a fake gateway on a fake clock.
 
