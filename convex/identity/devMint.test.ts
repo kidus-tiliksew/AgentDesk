@@ -1,6 +1,8 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { internal } from "../_generated/api";
+import { agents } from "../agents/refs";
+import { decisions } from "../decisions/refs";
 import { modules } from "../lib/test.modules";
 import schema from "../schema";
 import { identity } from "./refs";
@@ -160,5 +162,45 @@ describe("mintInstallKey", () => {
       data: { code: "unauthenticated" },
     });
     expect(await t.run((ctx) => ctx.db.query("installKeys").collect())).toHaveLength(0);
+  });
+});
+
+describe("inspectConnection", () => {
+  test("reports the connection, its sessions, and their decisions, and refuses an unknown id", async () => {
+    const t = convexTest(schema, modules);
+    const minted = await t.mutation(internal.identity.devMint.mintConnectionToken, args);
+    const { agentSessionId } = await t.mutation(agents.sessions.open, {
+      userId: minted.userId,
+      credentialId: minted.credentialId,
+      clientName: "Claude Code",
+      clientVersion: "2.1.0",
+    });
+    await t.mutation(agents.sessions.status, {
+      userId: minted.userId,
+      agentSessionId,
+      topic: "repo/x",
+      state: "working",
+      line: "Working",
+    });
+    const decision = await t.mutation(decisions.operations.create, {
+      userId: minted.userId,
+      agentSessionId,
+      input: { title: "Ship it?", input_type: "approve_reject", topic: "repo/x" },
+    });
+
+    const inspected = await t.query(internal.identity.devMint.inspectConnection, {
+      credentialId: minted.credentialId,
+    });
+
+    expect(inspected).toEqual({
+      revokedAt: null,
+      idleDeadlineAt: null,
+      lastUsedAt: null,
+      sessions: [{ id: agentSessionId, endedAt: null, endReason: null }],
+      decisions: [{ id: decision.id, state: "pending", cancelReason: null }],
+    });
+    await expect(
+      t.query(internal.identity.devMint.inspectConnection, { credentialId: "nope" }),
+    ).rejects.toMatchObject({ data: { code: "not_found" } });
   });
 });

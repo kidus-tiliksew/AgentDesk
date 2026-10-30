@@ -1,7 +1,7 @@
 import { errorCodeSchema } from "@agentdesk/contract";
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
-import { internalMutation, type MutationCtx } from "../_generated/server";
+import { internalMutation, internalQuery, type MutationCtx } from "../_generated/server";
 import { appError } from "../lib/errors";
 import { insertApiToken, insertConnectionToken } from "./credentials";
 import { insertInstallKey } from "./installKeys";
@@ -83,6 +83,50 @@ export const mintInstallKey = internalMutation({
     const userId = await devUser(ctx, clerkUserId, email);
     const { installKeyId, secret } = await insertInstallKey(ctx, userId, input, Date.now());
     return { secret, userId, installKeyId };
+  },
+});
+
+// Development-only inspection of one connection, so the gateway smoke run
+// can check that an idle ephemeral connection ended with its sessions and
+// decisions (component-identity §Ending a connection) without presenting the
+// connection's token, which would keep it alive. Internal, like the mints. It
+// reads the agents and decisions tables only to report them, and writes
+// nothing:
+//
+//   npx convex run identity/devMint:inspectConnection '{"credentialId": "…"}'
+export const inspectConnection = internalQuery({
+  args: { credentialId: v.string() },
+  handler: async (ctx, args) => {
+    const credentialId = ctx.db.normalizeId("credentials", args.credentialId);
+    const credential = credentialId === null ? null : await ctx.db.get("credentials", credentialId);
+    if (credential === null) {
+      throw appError(errorCodeSchema.enum.not_found, "Credential not found");
+    }
+    const sessions = await ctx.db
+      .query("agentSessions")
+      .withIndex("by_credential", (q) => q.eq("credentialId", credential._id))
+      .collect();
+    const decisions = [];
+    for (const session of sessions) {
+      const rows = await ctx.db
+        .query("decisions")
+        .withIndex("by_agent_state", (q) => q.eq("agentSessionId", session._id))
+        .collect();
+      for (const row of rows) {
+        decisions.push({ id: row._id, state: row.state, cancelReason: row.cancelReason ?? null });
+      }
+    }
+    return {
+      revokedAt: credential.revokedAt ?? null,
+      idleDeadlineAt: credential.idleDeadlineAt ?? null,
+      lastUsedAt: credential.lastUsedAt ?? null,
+      sessions: sessions.map((session) => ({
+        id: session._id,
+        endedAt: session.endedAt ?? null,
+        endReason: session.endReason ?? null,
+      })),
+      decisions,
+    };
   },
 });
 
