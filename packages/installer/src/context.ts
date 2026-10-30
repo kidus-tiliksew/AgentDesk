@@ -46,7 +46,12 @@ export interface Context {
    * session-start hooks run. Defaults to the path the process reports.
    */
   executable?: string;
-  /** Starts a timer that bounds a subprocess; defaults to a real timer. */
+  /**
+   * Reads all of standard input; `install --key-file -` reads the install key
+   * with it. Absent when the run has no standard input to read.
+   */
+  readStdin?: () => Promise<string>;
+  /** Starts a timer that bounds a subprocess or a request; defaults to a real timer. */
   startTimer?: (ms: number) => Timer;
   /**
    * Secrets seen during the run. Output passes through `redact`, so a token or

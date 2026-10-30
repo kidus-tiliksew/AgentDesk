@@ -63,7 +63,8 @@ export function formatCode(code: string): string {
   return `${code.slice(0, 4)}-${code.slice(4)}`;
 }
 
-function machineName(ctx: Context): string {
+/** The host name sent as the machine name, by `/device/start` and `/device/enroll`. */
+export function machineName(ctx: Context): string {
   const name = ctx.hostname.trim();
   return (name.length > 0 ? name : "unknown machine").slice(0, 255);
 }
@@ -108,10 +109,6 @@ async function start(
   };
 }
 
-/**
- * Checks an approved result: exactly one connection per requested harness,
- * each with its own connection id and token (AC-6.4).
- */
 /** A connection the server reported as issued, as far as it can be read. */
 export interface ReportedConnection {
   harness?: string;
@@ -128,12 +125,13 @@ export class InvalidSignInResult extends InstallerError {
   constructor(
     server: string,
     readonly reported: ReportedConnection[],
+    readonly result = "sign-in result",
   ) {
-    super(`AgentDesk at ${server} returned an invalid sign-in result.`);
+    super(`AgentDesk at ${server} returned an invalid ${result}.`);
   }
 }
 
-function reportedConnections(raw: unknown): ReportedConnection[] {
+export function reportedConnections(raw: unknown): ReportedConnection[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter(isRecord).map((item) => ({
     ...(typeof item.harness === "string" ? { harness: item.harness } : {}),
@@ -146,7 +144,11 @@ function reportedConnections(raw: unknown): ReportedConnection[] {
   }));
 }
 
-function validateConnections(
+/**
+ * Checks an approved or enrolled result: exactly one connection per requested
+ * harness, each with its own connection id and token (AC-6.4).
+ */
+export function validateConnections(
   server: string,
   raw: unknown,
   requested: readonly HarnessId[],

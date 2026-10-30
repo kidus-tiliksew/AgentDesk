@@ -33,6 +33,15 @@ export const INSTALLER_VERSION: string =
 /** Poll interval for `/device/poll` (component-installer §Sign-in). */
 export const POLL_INTERVAL_MS = 2_000;
 
+/**
+ * How long `/device/enroll` is retried after a network failure, 429, or 5xx
+ * answer (overlay-install-keys §Installer); no attempt starts after it.
+ */
+export const ENROLL_RETRY_LIMIT_MS = 120_000;
+
+/** Limit on one `/device/enroll` request and its body read. */
+export const ENROLL_ATTEMPT_TIMEOUT_MS = 30_000;
+
 /** Codes requested in one run before a noninteractive sign-in gives up on expiry. */
 export const MAX_CODES_NONINTERACTIVE = 3;
 
