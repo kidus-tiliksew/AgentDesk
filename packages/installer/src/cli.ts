@@ -26,16 +26,17 @@ import {
 } from "./defaults.js";
 import { printContext, runningExecutable } from "./guidance.js";
 import { HARNESS_IDS, HARNESSES, type HarnessId, harnessById, isHarnessId } from "./harnesses.js";
+import { readStream } from "./install-key.js";
 import { parseHookArgs, parseWaitArgs, runHook, runWait } from "./resume/commands.js";
 
 export const USAGE = `Usage: agentdesk <command>
 
 Commands:
-  install [--server <url>] [--only <harnesses>] [--yes]
+  install [--server <url>] [--only <harnesses>] [--yes] [--key-file <path>]
                      Detect Claude Code, Codex, and Cursor, sign each in with a
-                     short code approved in the AgentDesk app, and install the
-                     MCP connection, the skill, the session-start hook, and the
-                     resume hooks.
+                     short code approved in the AgentDesk app, or with an
+                     install key, and install the MCP connection, the skill,
+                     the session-start hook, and the resume hooks.
   skill install      Install or update only the skill, the session-start hook,
                      and the resume hooks for every detected harness.
   context --harness <id>
@@ -63,6 +64,9 @@ Options for install:
   --server <url>     Use this AgentDesk server instead of the default.
   --only <ids>       Comma-separated harnesses: ${HARNESS_IDS.join(", ")}.
   --yes, -y          Keep every detected harness without asking.
+  --key-file <path>  Connect with the install key in this file instead of a
+                     short code, so nothing waits for approval. Use - to read
+                     the key from standard input.
 
 The installer never opens a browser and never asks you to paste a credential.`;
 
@@ -114,6 +118,9 @@ export async function runCli(argv: readonly string[], ctx: Context): Promise<num
           yes: parsed.values.yes ?? false,
           ...(parsed.values.server !== undefined ? { server: parsed.values.server } : {}),
           ...(only ? { only } : {}),
+          ...(parsed.values["key-file"] !== undefined
+            ? { keyFile: parsed.values["key-file"] }
+            : {}),
         });
       }
       case "skill": {
@@ -202,6 +209,7 @@ function parseInstall(args: string[]) {
       server: { type: "string" },
       only: { type: "string", multiple: true },
       yes: { type: "boolean", short: "y" },
+      "key-file": { type: "string" },
     },
   });
 }
@@ -352,6 +360,7 @@ export function createNodeContext(): Context {
     harnesses: HARNESSES,
     guidance: EMBEDDED_GUIDANCE,
     executable: runningExecutable(),
+    readStdin: () => readStream(process.stdin),
     secrets,
   };
 }

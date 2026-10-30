@@ -150,6 +150,24 @@ export function sandboxRunner(env: Record<string, string>): Runner {
 
 export type PollStep = "pending" | "approved" | "declined" | "expired" | "not_found" | number;
 
+/**
+ * One answer to `POST /device/enroll`: an identity status, an HTTP status
+ * with an error body, a network failure, a request that never answers or a
+ * body that never ends until aborted, or a raw 200 body.
+ */
+export type EnrollStep =
+  | "enrolled"
+  | "unknown"
+  | "revoked"
+  | "expired"
+  | "limit_reached"
+  | { status: "harness_not_allowed"; harness?: unknown }
+  | number
+  | "network"
+  | "hang"
+  | "hang-body"
+  | { raw: string };
+
 export interface RecordedRequest {
   method: string;
   url: string;
@@ -209,9 +227,18 @@ export class FakeGateway {
   /** Status for every DELETE /device/connection, when set. */
   deleteStatusAll: number | undefined;
   revoked: string[] = [];
+  /** Each /device/enroll takes the next step; the last step repeats. */
+  enrollScript: EnrollStep[] = ["enrolled"];
+  /** Overrides the enrolled connections with a raw value. */
+  enrolledOverride: unknown;
+  /** How far a hanging enroll request moves the clock before the installer's timer fires. */
+  hangAdvanceMs = 30_000;
+  /** Abort signals of the enroll requests, in order. */
+  enrollSignals: (AbortSignal | undefined)[] = [];
   issued: { harness: string; connectionId: string; token: string }[] = [];
   deviceSecrets: string[] = [];
   private starts = 0;
+  private enrolls = 0;
   private minted = 0;
   private current:
     | { script: PollStep[]; index: number; harnesses: string[]; secret: string }
@@ -250,6 +277,55 @@ export class FakeGateway {
         interval: 2,
         expires_in: this.expiresIn,
       });
+    }
+    if (method === "POST" && path === "/device/enroll") {
+      const step = this.enrollScript[
+        Math.min(this.enrolls, this.enrollScript.length - 1)
+      ] as EnrollStep;
+      this.enrolls++;
+      const signal = init?.signal ?? undefined;
+      this.enrollSignals.push(signal);
+      if (step === "network") throw new TypeError("fetch failed");
+      if (step === "hang" || step === "hang-body") {
+        // Time passes while the request hangs, so the installer's timer fires.
+        setTimeout(() => this.clock.advance(this.hangAdvanceMs), 0);
+        if (step === "hang") return aborted(signal);
+        const stream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            signal?.addEventListener("abort", () => controller.error(abortError()));
+          },
+        });
+        return new Response(stream, {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (typeof step === "number") return json(step, { error: { code: "unavailable" } });
+      if (typeof step === "object" && "raw" in step) {
+        return new Response(step.raw, {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (step !== "enrolled") return json(200, typeof step === "string" ? { status: step } : step);
+      if (this.enrolledOverride !== undefined) {
+        return json(200, {
+          status: "enrolled",
+          machine_id: "0".repeat(32),
+          connections: this.enrolledOverride,
+        });
+      }
+      const connections = (body.harnesses as string[]).map((harness) => {
+        this.minted++;
+        const issued = {
+          harness,
+          connectionId: `conn_${harness}_${this.minted}`,
+          token: `adc_${harness.replace("-", "")}${this.minted}${"k".repeat(32)}`,
+        };
+        this.issued.push(issued);
+        return { harness, connection_id: issued.connectionId, token: issued.token };
+      });
+      return json(200, { status: "enrolled", machine_id: "a".repeat(32), connections });
     }
     if (method === "POST" && path === "/device/poll") {
       const current = this.current;
@@ -297,11 +373,26 @@ export class FakeGateway {
     return this.requests.filter((r) => r.path === "/device/start");
   }
 
+  enrollRequests(): RecordedRequest[] {
+    return this.requests.filter((r) => r.path === "/device/enroll");
+  }
+
   tokenFor(harness: string): string {
     const issued = [...this.issued].reverse().find((i) => i.harness === harness);
     if (!issued) throw new Error(`no token issued for ${harness}`);
     return issued.token;
   }
+}
+
+function abortError(): Error {
+  return Object.assign(new Error("This operation was aborted"), { name: "AbortError" });
+}
+
+/** A fetch answer that never settles until `signal` aborts it. */
+function aborted(signal: AbortSignal | undefined): Promise<Response> {
+  return new Promise((_, reject) => {
+    signal?.addEventListener("abort", () => reject(abortError()));
+  });
 }
 
 export interface Harnessed {
@@ -326,6 +417,8 @@ export interface ContextOptions {
   clock?: FakeClock;
   executable?: string;
   guidance?: string;
+  /** What `ctx.readStdin` answers; a string, an Error it rejects with, or absent for no reader. */
+  stdin?: string | Error;
 }
 
 /** Builds a context against the sandbox, a fake gateway, and a fake clock. */
@@ -370,6 +463,14 @@ export function makeContext(sandbox: Sandbox, options: ContextOptions = {}): Har
     guidance: options.guidance ?? readFileSync(GUIDANCE_FILE, "utf8"),
     executable: options.executable ?? sandbox.executable,
     startTimer: clock.startTimer,
+    ...(options.stdin !== undefined
+      ? {
+          readStdin: async () => {
+            if (options.stdin instanceof Error) throw options.stdin;
+            return options.stdin as string;
+          },
+        }
+      : {}),
     secrets,
   };
   return {

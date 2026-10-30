@@ -31,6 +31,14 @@ To set up only some of them, pass `--only`:
 curl -fsSL https://agentdesk.kidus.sh/install | sh -s -- --only codex
 ```
 
+To connect machines that no one is present to approve, such as cloud sandboxes and CI runners, use an install key instead of a short code. Create the key once in the AgentDesk app under Settings → Connections, store it in your sandbox provider's secret store, and pass the file the provider mounts with `--key-file`:
+
+```sh
+curl -fsSL https://agentdesk.kidus.sh/install | sh -s -- --yes --key-file /run/secrets/agentdesk-install-key
+```
+
+Each machine still gets its own connections, which you can revoke one by one in the app. `--key-file -` reads the key from standard input of the `agentdesk` command itself, for example `printenv AGENTDESK_INSTALL_KEY | agentdesk install --yes --key-file -`. The installer never prints the key or writes it to any file. An unknown, revoked, or expired key, a key at its machine limit, or a harness the key does not allow stops the run with status 1 and connects nothing.
+
 `agentdesk status` checks each connection. `agentdesk uninstall` removes everything the installer wrote.
 
 ## Mac app

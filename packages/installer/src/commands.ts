@@ -38,12 +38,12 @@ import {
   planHookRemoval,
   writeHooks,
 } from "./hooks.js";
+import { enroll, readInstallKey, STDIN_PATH } from "./install-key.js";
 import { resumeDir } from "./resume/storage.js";
 import {
   type Connection,
   checkConnection,
   InvalidSignInResult,
-  type ReportedConnection,
   revokeConnection,
   signIn,
 } from "./signin.js";
@@ -79,6 +79,8 @@ export interface InstallOptions {
   server?: string;
   only?: readonly HarnessId[];
   yes: boolean;
+  /** Connect with the install key in this file, or on standard input for `-`. */
+  keyFile?: string;
 }
 
 function message(error: unknown): string {
@@ -474,8 +476,25 @@ function removeResumeDir(ctx: Context): void {
   }
 }
 
-/** `agentdesk install` (component-installer §Commands; REQ-9). */
+/**
+ * `agentdesk install` (component-installer §Commands; REQ-9). With
+ * `keyFile`, the install key is read and checked before anything is printed
+ * or requested, and standard input read for `-` is never prompted on again
+ * (overlay-install-keys §Installer).
+ */
 export async function install(ctx: Context, options: InstallOptions): Promise<number> {
+  if (options.keyFile === undefined) return installWith(ctx, options, undefined);
+  const installKey = await readInstallKey(ctx, options.keyFile);
+  const runCtx: Context =
+    options.keyFile === STDIN_PATH ? { ...ctx, io: { out: ctx.io.out, err: ctx.io.err } } : ctx;
+  return installWith(runCtx, options, installKey);
+}
+
+async function installWith(
+  ctx: Context,
+  options: InstallOptions,
+  installKey: string | undefined,
+): Promise<number> {
   const previous = readState(ctx) ?? emptyState();
   const requested = options.server !== undefined ? normalizeServer(options.server) : undefined;
   const server = requested ?? previous.server ?? ctx.defaultServer;
@@ -528,16 +547,19 @@ export async function install(ctx: Context, options: InstallOptions): Promise<nu
 
   let connections: Connection[] = [];
   if (needSignIn.length > 0) {
-    ctx.io.out(`Signing in ${needSignIn.map((h) => h.displayName).join(", ")}.`);
+    const names = needSignIn.map((h) => h.displayName).join(", ");
+    const ids = needSignIn.map((h) => h.id);
     try {
-      connections = await signIn(
-        ctx,
-        server,
-        needSignIn.map((h) => h.id),
-      );
+      if (installKey !== undefined) {
+        ctx.io.out(`Connecting ${names} with the install key.`);
+        connections = await enroll(ctx, server, installKey, ids);
+      } else {
+        ctx.io.out(`Signing in ${names}.`);
+        connections = await signIn(ctx, server, ids);
+      }
     } catch (error) {
       if (error instanceof InvalidSignInResult) {
-        await recoverReported(ctx, previous, server, error.reported);
+        await recoverReported(ctx, previous, server, error);
       }
       throw error;
     }
@@ -653,14 +675,14 @@ async function recoverReported(
   ctx: Context,
   previous: State,
   server: string,
-  reported: ReportedConnection[],
+  refused: InvalidSignInResult,
 ): Promise<void> {
   const state: State = {
     ...previous,
     harnesses: { ...previous.harnesses },
     unrevoked: [...previous.unrevoked],
   };
-  for (const item of reported) {
+  for (const item of refused.reported) {
     if (item.token) {
       const result = await revokeConnection(ctx, server, item.token);
       if (result.kind === "revoked") continue;
@@ -670,7 +692,7 @@ async function recoverReported(
       harness: item.harness && isHarnessId(item.harness) ? item.harness : "unknown",
       connectionId: item.connectionId,
       server,
-      reason: "the server returned an invalid sign-in result",
+      reason: `the server returned an invalid ${refused.result}`,
     };
     recordUnrevoked(state, record);
     ctx.io.err(unrevokedLine(ctx, record, "forget"));
