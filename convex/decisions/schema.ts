@@ -39,6 +39,8 @@ export const answeredViaValidator = v.union(
   v.literal("default"),
 );
 
+export const cancelReasonValidator = v.literal("connection_ended");
+
 export const tables = {
   decisions: defineTable({
     userId: v.id("users"),
@@ -80,6 +82,10 @@ export const tables = {
     searchText: v.string(),
     // The time the state left `pending`.
     settledAt: v.optional(v.number()),
+    // Set only on a decision cancelled because its agent's ephemeral
+    // connection ended (§State machine; req-install-keys AC-4.2). The app
+    // reads it; the contract's Decision does not carry it.
+    cancelReason: v.optional(cancelReasonValidator),
   })
     // The public API's list without a state filter, newest created first.
     .index("by_user", ["userId"])

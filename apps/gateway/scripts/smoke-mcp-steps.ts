@@ -40,7 +40,14 @@ export type Step =
   | "answered: await"
   | "answered: answer helper"
   | "default: ask"
-  | "default: await";
+  | "default: await"
+  | "enroll: mint key"
+  | "enroll: device/enroll"
+  | "enroll: machine limit"
+  | "enroll: mcp"
+  | "enroll: inspect"
+  | "enroll: idle end"
+  | "enroll: refused";
 
 // A mismatch or transport failure, named by the step it happened in.
 export class SmokeError extends Error {
@@ -780,4 +787,314 @@ async function ask(options: SmokeOptions, step: Step, args: Json): Promise<strin
     throw new SmokeError(step, "ask returned no decision_id");
   }
   return created.decision_id;
+}
+
+// The enrollment leg (req-install-keys REQ-2, REQ-4): an ephemeral install
+// key from the development mint, `POST /device/enroll`, `/mcp` with the
+// enrolled connection, and then no request at all until the connection ends.
+// The key allows one machine and the production minimum idle limit, so the
+// wait takes at least 15 minutes.
+export const ENROLL_IDLE_LIMIT_MINUTES = 15;
+export const ENROLL_IDLE_LIMIT_MS = ENROLL_IDLE_LIMIT_MINUTES * 60_000;
+// req-install-keys AC-4.1: the connection ends within 5 minutes after the
+// idle limit passes.
+export const ENROLL_END_BOUND_MS = 5 * 60_000;
+// How often the leg inspects the connection while it waits. Inspection reads
+// the deployment and never presents the connection's token.
+export const ENROLL_POLL_MS = 30_000;
+export const ENROLL_HARNESS = "claude-code";
+// Bound on each `/device/enroll` and refusal-check request.
+export const ENROLL_REQUEST_TIMEOUT_MS = 30_000;
+
+// What `identity/devMint:inspectConnection` reports.
+export interface ConnectionInspection {
+  revokedAt: number | null;
+  idleDeadlineAt: number | null;
+  lastUsedAt: number | null;
+  sessions: { id: string; endedAt: number | null; endReason: string | null }[];
+  decisions: { id: string; state: string; cancelReason: string | null }[];
+}
+
+// The development helpers the leg calls on the deployment the gateway uses.
+export interface EnrollmentHelpers {
+  // `identity/devMint:mintInstallKey`; resolves to the key's secret.
+  mintInstallKey(
+    args: {
+      clerkUserId: string;
+      email: string;
+      label: string;
+      harnesses: string[];
+      expiresInDays: number;
+      machineLimit: number;
+      ephemeral: true;
+      idleLimitMinutes: number;
+    },
+    signal: AbortSignal,
+  ): Promise<{ secret: string }>;
+  // `identity/devMint:inspectConnection`.
+  inspectConnection(
+    args: { credentialId: string },
+    signal: AbortSignal,
+  ): Promise<ConnectionInspection>;
+}
+
+export interface EnrollmentOptions {
+  url: string;
+  fetch: typeof fetch;
+  clock: Clock;
+  signal: AbortSignal;
+  runId: string;
+  // The development account the key belongs to.
+  clerkUserId: string;
+  email: string;
+  // Skips the idle wait.
+  quick: boolean;
+  helpers: EnrollmentHelpers;
+  // Waits `ms`, or rejects when `signal` aborts.
+  sleep(ms: number, signal: AbortSignal): Promise<void>;
+  log: (line: string) => void;
+}
+
+export interface EnrollmentReport {
+  connectionId: string;
+  agentSessionId: string;
+  decisionId: string;
+  // From the last request to the end, or null when --quick skipped the wait.
+  endedAfterMs: number | null;
+}
+
+// Runs the enrollment leg and throws a SmokeError at the first mismatch. It prints neither the install key nor the connection token.
+export async function runEnrollmentLeg(options: EnrollmentOptions): Promise<EnrollmentReport> {
+  const { clock, log, helpers, signal } = options;
+  const origin = options.url.replace(/\/+$/, "");
+  // Bounds one plain HTTP request, as McpClient bounds its own.
+  const bounded = () => AbortSignal.any([signal, AbortSignal.timeout(ENROLL_REQUEST_TIMEOUT_MS)]);
+
+  let step: Step = "enroll: mint key";
+  let secret: string;
+  try {
+    ({ secret } = await helpers.mintInstallKey(
+      {
+        clerkUserId: options.clerkUserId,
+        email: options.email,
+        label: `Smoke ${options.runId}`,
+        harnesses: [ENROLL_HARNESS],
+        expiresInDays: 1,
+        machineLimit: 1,
+        ephemeral: true,
+        idleLimitMinutes: ENROLL_IDLE_LIMIT_MINUTES,
+      },
+      signal,
+    ));
+  } catch (error) {
+    throw new SmokeError(step, describe(error));
+  }
+  if (!/^adk_[A-Za-z0-9_-]{43}$/.test(secret)) {
+    throw new SmokeError(step, "the mint returned no install key");
+  }
+  log(
+    `ok enroll: minted an ephemeral key, ${ENROLL_IDLE_LIMIT_MINUTES}-minute idle limit, one machine`,
+  );
+
+  const enroll = async (current: Step): Promise<Json> => {
+    let response: Response;
+    try {
+      response = await options.fetch(`${origin}/device/enroll`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          install_key: secret,
+          machine_name: `smoke-${options.runId}`,
+          harnesses: [ENROLL_HARNESS],
+        }),
+        signal: bounded(),
+      });
+    } catch (error) {
+      throw new SmokeError(current, `request failed: ${describe(error)}`);
+    }
+    const text = await response.text();
+    if (response.status !== 200) {
+      throw new SmokeError(current, `HTTP ${response.status}: ${text.slice(0, 200)}`);
+    }
+    expectEqual(current, "Cache-Control", response.headers.get("Cache-Control"), "no-store");
+    return asObject(current, "enroll result", parseJson(current, text));
+  };
+
+  step = "enroll: device/enroll";
+  const enrolled = await enroll(step);
+  expectEqual(step, "status", enrolled.status, "enrolled");
+  const connections = Array.isArray(enrolled.connections) ? enrolled.connections : [];
+  const connection = connections[0] as Json | undefined;
+  if (
+    connections.length !== 1 ||
+    connection?.harness !== ENROLL_HARNESS ||
+    typeof connection.connection_id !== "string" ||
+    typeof connection.token !== "string" ||
+    !connection.token.startsWith("adc_") ||
+    typeof enrolled.machine_id !== "string" ||
+    !/^[0-9a-f]{32}$/.test(enrolled.machine_id)
+  ) {
+    throw new SmokeError(step, "the enrollment did not return one claude-code connection");
+  }
+  const connectionId = connection.connection_id;
+  const token = connection.token;
+  log(`ok enroll: enrolled machine ${enrolled.machine_id} with connection ${connectionId}`);
+
+  step = "enroll: machine limit";
+  expectEqual(step, "status", (await enroll(step)).status, "limit_reached");
+  log("ok enroll: a second machine got limit_reached");
+
+  // `/mcp` with the enrolled connection. The `ask` is the connection's last
+  // request; the idle limit counts from it.
+  step = "enroll: mcp";
+  const client = new McpClient({ url: options.url, token, fetch: options.fetch, clock, signal });
+  await client.initialize(step);
+  const session = await client.callTool(step, "status", {
+    topic: SMOKE_TOPIC,
+    state: "working",
+    line: `Smoke enrollment ${options.runId}`,
+  });
+  if (typeof session.id !== "string" || session.id === "") {
+    throw new SmokeError(step, "status returned no agent session id");
+  }
+  const agentSessionId = session.id;
+  const lastRequestStart = clock.now();
+  const created = await client.callTool(step, "ask", {
+    title: "Smoke: cancelled when this machine goes quiet",
+    input_type: "approve_reject",
+    topic: SMOKE_TOPIC,
+    idempotency_key: `smoke-${options.runId}-enrolled`,
+  });
+  const lastRequestEnd = clock.now();
+  expectEqual(step, "state", created.state, "pending");
+  if (typeof created.decision_id !== "string" || created.decision_id === "") {
+    throw new SmokeError(step, "ask returned no decision_id");
+  }
+  const decisionId = created.decision_id;
+  log(
+    `ok enroll: /mcp with the enrolled connection opened ${agentSessionId} and asked ${decisionId}`,
+  );
+
+  step = "enroll: inspect";
+  // The report in a fixed key order, so comparisons do not depend on the
+  // order the deployment printed.
+  const inspect = async (current: Step): Promise<ConnectionInspection> => {
+    let report: ConnectionInspection;
+    try {
+      report = await helpers.inspectConnection({ credentialId: connectionId }, signal);
+    } catch (error) {
+      throw new SmokeError(current, describe(error));
+    }
+    if (!Array.isArray(report?.sessions) || !Array.isArray(report.decisions)) {
+      throw new SmokeError(current, "the inspection has no sessions or decisions");
+    }
+    return {
+      revokedAt: report.revokedAt,
+      idleDeadlineAt: report.idleDeadlineAt,
+      lastUsedAt: report.lastUsedAt,
+      sessions: report.sessions.map(({ id, endedAt, endReason }) => ({ id, endedAt, endReason })),
+      decisions: report.decisions.map(({ id, state, cancelReason }) => ({
+        id,
+        state,
+        cancelReason,
+      })),
+    };
+  };
+  const live = await inspect(step);
+  expectEqual(step, "revokedAt", live.revokedAt, null);
+  if (live.idleDeadlineAt === null) {
+    throw new SmokeError(step, "the ephemeral connection has no idle deadline");
+  }
+  expectEqual(step, "sessions", live.sessions, [
+    { id: agentSessionId, endedAt: null, endReason: null },
+  ]);
+  expectEqual(step, "decisions", live.decisions, [
+    { id: decisionId, state: "pending", cancelReason: null },
+  ]);
+
+  if (options.quick) {
+    log(
+      "skipped enrollment idle wait (--quick): the idle end of an ephemeral connection is unverified",
+    );
+    return { connectionId, agentSessionId, decisionId, endedAfterMs: null };
+  }
+
+  // No request with the connection's token from here on; only inspection.
+  step = "enroll: idle end";
+  const latest = lastRequestEnd + ENROLL_IDLE_LIMIT_MS + ENROLL_END_BOUND_MS;
+  log(
+    `waiting without requests for the connection to end: no sooner than ` +
+      `${new Date(lastRequestStart + ENROLL_IDLE_LIMIT_MS).toISOString()}, ` +
+      `no later than ${new Date(latest).toISOString()}`,
+  );
+  let ended = live;
+  while (ended.revokedAt === null) {
+    if (clock.now() > latest + CLOCK_SKEW_TOLERANCE_MS) {
+      throw new SmokeError(
+        step,
+        `still connected ${clock.now() - lastRequestEnd} ms after its last request, more than the ` +
+          `${ENROLL_IDLE_LIMIT_MINUTES}-minute idle limit plus ${ENROLL_END_BOUND_MS} ms`,
+      );
+    }
+    await options.sleep(ENROLL_POLL_MS, signal);
+    ended = await inspect(step);
+  }
+  const revokedAt = ended.revokedAt;
+  if (revokedAt < lastRequestStart + ENROLL_IDLE_LIMIT_MS - CLOCK_SKEW_TOLERANCE_MS) {
+    throw new SmokeError(
+      step,
+      `ended ${revokedAt - lastRequestStart} ms after its last request, before the idle limit`,
+    );
+  }
+  if (revokedAt > latest + CLOCK_SKEW_TOLERANCE_MS) {
+    throw new SmokeError(
+      step,
+      `ended ${revokedAt - lastRequestEnd} ms after its last request, more than ` +
+        `${ENROLL_END_BOUND_MS} ms past the idle limit`,
+    );
+  }
+  expectEqual(step, "idleDeadlineAt", ended.idleDeadlineAt, null);
+  expectEqual(step, "sessions", ended.sessions, [
+    { id: agentSessionId, endedAt: revokedAt, endReason: "disconnected" },
+  ]);
+  expectEqual(step, "decisions", ended.decisions, [
+    { id: decisionId, state: "cancelled", cancelReason: "connection_ended" },
+  ]);
+  const endedAfterMs = revokedAt - lastRequestEnd;
+  log(
+    `ok enroll: the connection ended ${endedAfterMs} ms after its last request; its session ` +
+      "ended as disconnected and its decision was cancelled with connection_ended",
+  );
+
+  // The ended connection is refused everywhere it authenticated.
+  step = "enroll: refused";
+  for (const [path, init] of [
+    ["/device/connection", { method: "GET" }],
+    [
+      "/mcp",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+      },
+    ],
+  ] as const) {
+    let response: Response;
+    try {
+      response = await options.fetch(`${origin}${path}`, {
+        ...init,
+        headers: { ...("headers" in init ? init.headers : {}), Authorization: `Bearer ${token}` },
+        signal: bounded(),
+      });
+    } catch (error) {
+      throw new SmokeError(step, `${path} request failed: ${describe(error)}`);
+    }
+    await response.body?.cancel();
+    expectEqual(step, `${path} status`, response.status, 401);
+  }
+  log("ok enroll: /device/connection and /mcp refuse the ended connection with 401");
+  return { connectionId, agentSessionId, decisionId, endedAfterMs };
 }

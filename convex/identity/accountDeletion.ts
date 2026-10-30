@@ -54,9 +54,9 @@ type Phase = Doc<"accountDeletions">["phase"];
 
 const PHASES: readonly Phase[] = ["decisions", "agents", "notifications", "identity", "verify"];
 
-// Identity's own rows: credentials, the short-code sign-in requests the
-// account approved, and its wrong-code attempts. Requests the account never
-// approved carry no `userId` and stay.
+// Identity's own rows: credentials, install keys, the short-code sign-in
+// requests the account approved, and its wrong-code attempts. Requests the
+// account never approved carry no `userId` and stay.
 async function purgeIdentity(
   ctx: Pick<MutationCtx, "db">,
   userId: Id<"users">,
@@ -71,6 +71,16 @@ async function purgeIdentity(
     await ctx.db.delete("credentials", row._id);
   }
   deleted += credentials.length;
+  if (deleted < budget) {
+    const keys = await ctx.db
+      .query("installKeys")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .take(budget - deleted);
+    for (const row of keys) {
+      await ctx.db.delete("installKeys", row._id);
+    }
+    deleted += keys.length;
+  }
   if (deleted < budget) {
     const requests = await ctx.db
       .query("deviceRequests")
@@ -140,8 +150,8 @@ function result(startedAt: number) {
 
 // Deletes the signed-in person's account. The Clerk identity alone selects
 // the account; the call takes no arguments. The first call sets `deletingAt`,
-// marks every credential revoked, removes every device and cancels its
-// queued pushes, records the deletion, and schedules the purge's first batch
+// marks every credential and install key revoked, removes every device and
+// cancels its queued pushes, records the deletion, and schedules the purge's first batch
 // and the Clerk deletion, all in one transaction, so a failure leaves the
 // account active with nothing revoked. From that commit on, every credential
 // resolution, device registration, and app call for the account is refused
@@ -177,6 +187,15 @@ export const deleteAccount = mutation({
     for (const credential of credentials) {
       if (credential.revokedAt === undefined) {
         await ctx.db.patch("credentials", credential._id, { revokedAt: now });
+      }
+    }
+    const keys = await ctx.db
+      .query("installKeys")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const key of keys) {
+      if (key.revokedAt === undefined) {
+        await ctx.db.patch("installKeys", key._id, { revokedAt: now });
       }
     }
     await removeAllDevices(ctx, user._id);

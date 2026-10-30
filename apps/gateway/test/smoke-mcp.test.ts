@@ -3,12 +3,19 @@ import { type HelperProcess, runHelperProcess } from "../scripts/helper-process.
 import {
   type AnswerHelper,
   CLOCK_SKEW_TOLERANCE_MS,
+  type ConnectionInspection,
   DEFAULT_LEG_DEADLINE_MS,
   DEFAULT_LEG_TIMEOUT_SECONDS,
+  ENROLL_END_BOUND_MS,
+  ENROLL_IDLE_LIMIT_MINUTES,
+  ENROLL_IDLE_LIMIT_MS,
+  ENROLL_POLL_MS,
+  type EnrollmentHelpers,
   MAX_KEEPALIVE_GAP_MS,
   McpClient,
   PROTOCOL_VERSION,
   readEventStream,
+  runEnrollmentLeg,
   runSmoke,
   SMOKE_CHAT_MESSAGE,
   SMOKE_CONFLICT_MESSAGE,
@@ -1285,5 +1292,334 @@ describe("readEventStream", () => {
     );
     expect(read.events.map((event) => event.data)).toEqual(["a\nb"]);
     expect(read.truncated).toBe(true);
+  });
+});
+
+// The enrollment leg against a fake gateway and deployment on a fake clock:
+// an ephemeral key, `/device/enroll`, `/mcp` with the enrolled connection,
+// and the connection's idle end (req-install-keys REQ-2, REQ-4).
+describe("runEnrollmentLeg", () => {
+  const SECRET = `adk_${"e".repeat(43)}`;
+  const CONNECTION_TOKEN = `adc_${"n".repeat(43)}`;
+  const CONNECTION = "cred_enrolled";
+  const SESSION = "agent_enrolled";
+  const DECISION = "decision_enrolled";
+  const MACHINE = "0123456789abcdef0123456789abcdef";
+
+  interface EnrollFake {
+    // The answers of successive `/device/enroll` calls.
+    enroll?: { status: number; body: unknown; noStore?: boolean }[];
+    // When the deployment ends the connection, in ms after the `ask`; null
+    // never ends it.
+    endAfterMs?: number | null;
+    // Rewrites the inspection of the ended connection.
+    ended?: (inspection: ConnectionInspection) => ConnectionInspection;
+    // The status `/device/connection` and `/mcp` answer once it has ended.
+    refusedStatus?: number;
+    mint?: () => Promise<{ secret: string }>;
+  }
+
+  function fakeEnrollment(options: EnrollFake = {}) {
+    const clock = fakeClock();
+    const requests: { at: number; path: string; token: string | null; body: Json | null }[] = [];
+    const mints: unknown[] = [];
+    const sleeps: number[] = [];
+    const lines: string[] = [];
+    let askedAt: number | null = null;
+    let enrolls = 0;
+    const endAfterMs = options.endAfterMs === undefined ? 15 * 60_000 + 70_000 : options.endAfterMs;
+    const endedAt = () =>
+      askedAt === null || endAfterMs === null || clock.t < askedAt + endAfterMs
+        ? null
+        : askedAt + endAfterMs;
+
+    const fetch: typeof globalThis.fetch = async (input, init) => {
+      const path = String(input).slice(URL.length);
+      const headers = new Headers(init?.headers);
+      const token = headers.get("Authorization")?.replace(/^Bearer /, "") ?? null;
+      const body = init?.body === undefined ? null : (JSON.parse(String(init.body)) as Json);
+      requests.push({ at: clock.t, path, token, body });
+      if (path === "/device/enroll") {
+        const answer = options.enroll?.[enrolls] ?? {
+          status: 200,
+          body:
+            enrolls === 0
+              ? {
+                  status: "enrolled",
+                  machine_id: MACHINE,
+                  connections: [
+                    { harness: "claude-code", connection_id: CONNECTION, token: CONNECTION_TOKEN },
+                  ],
+                }
+              : { status: "limit_reached" },
+        };
+        enrolls++;
+        return Response.json(answer.body, {
+          status: answer.status,
+          headers: answer.noStore === false ? {} : { "Cache-Control": "no-store" },
+        });
+      }
+      if (endedAt() !== null) {
+        return new Response("refused", { status: options.refusedStatus ?? 401 });
+      }
+      if (path === "/device/connection") {
+        return Response.json({ connection_id: CONNECTION, harness: "claude-code" });
+      }
+      const id = body?.id;
+      const rpc = (result: unknown, extra: Record<string, string> = {}) =>
+        Response.json({ jsonrpc: "2.0", id, result }, { headers: extra });
+      switch (body?.method) {
+        case "initialize":
+          return rpc(
+            { protocolVersion: PROTOCOL_VERSION, capabilities: {}, serverInfo: {} },
+            { "Mcp-Session-Id": "mcp_enrolled" },
+          );
+        case "notifications/initialized":
+          return new Response(null, { status: 202 });
+        case "tools/call": {
+          const params = body.params as Json;
+          if (params.name === "status") {
+            return rpc(toolResult({ id: SESSION, state: "working" }));
+          }
+          if (params.name === "ask") {
+            askedAt = clock.t;
+            clock.t += 200;
+            return rpc(toolResult({ decision_id: DECISION, state: "pending" }));
+          }
+        }
+      }
+      throw new Error(`unexpected request ${path} ${String(body?.method)}`);
+    };
+
+    const live: ConnectionInspection = {
+      revokedAt: null,
+      idleDeadlineAt: START + 16 * 60_000,
+      lastUsedAt: START,
+      sessions: [{ id: SESSION, endedAt: null, endReason: null }],
+      decisions: [{ id: DECISION, state: "pending", cancelReason: null }],
+    };
+    const helpers: EnrollmentHelpers = {
+      async mintInstallKey(args) {
+        mints.push(args);
+        return (await options.mint?.()) ?? { secret: SECRET };
+      },
+      async inspectConnection(args) {
+        expect(args).toEqual({ credentialId: CONNECTION });
+        const at = endedAt();
+        if (at === null) {
+          return live;
+        }
+        const ended: ConnectionInspection = {
+          revokedAt: at,
+          idleDeadlineAt: null,
+          lastUsedAt: START,
+          sessions: [{ id: SESSION, endedAt: at, endReason: "disconnected" }],
+          decisions: [{ id: DECISION, state: "cancelled", cancelReason: "connection_ended" }],
+        };
+        return options.ended?.(ended) ?? ended;
+      },
+    };
+    const stop = new AbortController();
+    const run = (quick = false) =>
+      runEnrollmentLeg({
+        url: URL,
+        fetch,
+        clock,
+        signal: stop.signal,
+        runId: "run_1",
+        clerkUserId: "user_smoke",
+        email: "smoke@example.com",
+        quick,
+        helpers,
+        async sleep(ms, signal) {
+          if (signal.aborted) throw signal.reason;
+          sleeps.push(ms);
+          clock.t += ms;
+        },
+        log: (line) => lines.push(line),
+      });
+    return { run, clock, requests, mints, sleeps, lines, stop, askedAt: () => askedAt };
+  }
+
+  it("enrolls, uses /mcp, waits without requests, and sees the connection end with its cascade", async () => {
+    const fake = fakeEnrollment();
+
+    const report = await fake.run();
+
+    expect(report).toEqual({
+      connectionId: CONNECTION,
+      agentSessionId: SESSION,
+      decisionId: DECISION,
+      endedAfterMs: 15 * 60_000 + 70_000 - 200,
+    });
+    expect(fake.mints).toEqual([
+      {
+        clerkUserId: "user_smoke",
+        email: "smoke@example.com",
+        label: "Smoke run_1",
+        harnesses: ["claude-code"],
+        expiresInDays: 1,
+        machineLimit: 1,
+        ephemeral: true,
+        idleLimitMinutes: ENROLL_IDLE_LIMIT_MINUTES,
+      },
+    ]);
+    expect(fake.requests.slice(0, 2).map((r) => r.body)).toEqual([
+      { install_key: SECRET, machine_name: "smoke-run_1", harnesses: ["claude-code"] },
+      { install_key: SECRET, machine_name: "smoke-run_1", harnesses: ["claude-code"] },
+    ]);
+    // Between the `ask` and the end, nothing presents the connection's token.
+    const askedAt = fake.askedAt() as number;
+    const quiet = fake.requests.filter(
+      (r) => r.at > askedAt && r.at < askedAt + 15 * 60_000 + 70_000,
+    );
+    expect(quiet).toEqual([]);
+    expect(fake.sleeps.every((ms) => ms === ENROLL_POLL_MS)).toBe(true);
+    // The refusal checks come last, with the ended token.
+    expect(fake.requests.slice(-2).map((r) => [r.path, r.token])).toEqual([
+      ["/device/connection", CONNECTION_TOKEN],
+      ["/mcp", CONNECTION_TOKEN],
+    ]);
+    expect(fake.lines.at(-1)).toBe(
+      "ok enroll: /device/connection and /mcp refuse the ended connection with 401",
+    );
+    for (const line of fake.lines) {
+      expect(line).not.toContain(SECRET.slice(4));
+      expect(line).not.toContain(CONNECTION_TOKEN.slice(4));
+    }
+  });
+
+  it("skips only the idle wait with --quick", async () => {
+    const fake = fakeEnrollment();
+
+    const report = await fake.run(true);
+
+    expect(report.endedAfterMs).toBeNull();
+    expect(fake.sleeps).toEqual([]);
+    expect(fake.lines.at(-1)).toContain("skipped enrollment idle wait (--quick)");
+  });
+
+  it.each<[string, EnrollFake, string]>([
+    [
+      "an enrollment that is refused",
+      { enroll: [{ status: 200, body: { status: "revoked" } }] },
+      'status is "revoked", expected "enrolled"',
+    ],
+    [
+      "an enrollment answered with an error",
+      { enroll: [{ status: 503, body: { error: { code: "unavailable" } } }] },
+      "HTTP 503",
+    ],
+    [
+      "an enrollment without no-store",
+      { enroll: [{ status: 200, body: { status: "enrolled" }, noStore: false }] },
+      "Cache-Control",
+    ],
+    [
+      "an enrollment with no connection",
+      {
+        enroll: [
+          { status: 200, body: { status: "enrolled", machine_id: MACHINE, connections: [] } },
+        ],
+      },
+      "did not return one claude-code connection",
+    ],
+  ])("fails enroll: device/enroll on %s", async (_name, options, message) => {
+    const error = await failure(fakeEnrollment(options).run());
+
+    expect(error.step).toBe("enroll: device/enroll");
+    expect(error.message).toContain(message);
+  });
+
+  it("fails the machine limit check when a second machine enrolls", async () => {
+    const enrolled = {
+      status: "enrolled",
+      machine_id: MACHINE,
+      connections: [{ harness: "claude-code", connection_id: CONNECTION, token: CONNECTION_TOKEN }],
+    };
+    const fake = fakeEnrollment({
+      enroll: [
+        { status: 200, body: enrolled },
+        { status: 200, body: enrolled },
+      ],
+    });
+
+    const error = await failure(fake.run());
+
+    expect(error.step).toBe("enroll: machine limit");
+  });
+
+  it("names the mint step when the development mint fails", async () => {
+    const fake = fakeEnrollment({
+      mint: async () => {
+        throw new Error("helper failed (exit 1)");
+      },
+    });
+
+    const error = await failure(fake.run());
+
+    expect(error.step).toBe("enroll: mint key");
+    expect(error.message).toContain("helper failed");
+  });
+
+  it("fails when the connection is still connected five minutes after its idle limit", async () => {
+    const fake = fakeEnrollment({ endAfterMs: null });
+
+    const error = await failure(fake.run());
+
+    expect(error.step).toBe("enroll: idle end");
+    expect(error.message).toContain("still connected");
+    const askedAt = fake.askedAt() as number;
+    expect(fake.clock.t).toBeGreaterThan(askedAt + ENROLL_IDLE_LIMIT_MS + ENROLL_END_BOUND_MS);
+    expect(fake.clock.t).toBeLessThanOrEqual(
+      askedAt + ENROLL_IDLE_LIMIT_MS + ENROLL_END_BOUND_MS + ENROLL_POLL_MS + 10_000,
+    );
+  });
+
+  it("fails when the connection ends before its idle limit", async () => {
+    const error = await failure(fakeEnrollment({ endAfterMs: 10 * 60_000 }).run());
+
+    expect(error.step).toBe("enroll: idle end");
+    expect(error.message).toContain("before the idle limit");
+  });
+
+  it.each<[string, (inspection: ConnectionInspection) => ConnectionInspection, string]>([
+    [
+      "a session that did not end as disconnected",
+      (i) => ({ ...i, sessions: [{ id: SESSION, endedAt: i.revokedAt, endReason: "idle" }] }),
+      "sessions",
+    ],
+    [
+      "a decision cancelled without the reason",
+      (i) => ({ ...i, decisions: [{ id: DECISION, state: "cancelled", cancelReason: null }] }),
+      "decisions",
+    ],
+    [
+      "a decision still pending",
+      (i) => ({ ...i, decisions: [{ id: DECISION, state: "pending", cancelReason: null }] }),
+      "decisions",
+    ],
+    ["an idle deadline left behind", (i) => ({ ...i, idleDeadlineAt: 1 }), "idleDeadlineAt"],
+  ])("fails the idle end on %s", async (_name, ended, field) => {
+    const error = await failure(fakeEnrollment({ ended }).run());
+
+    expect(error.step).toBe("enroll: idle end");
+    expect(error.message).toContain(`${field} is`);
+  });
+
+  it("fails when an ended connection is still accepted", async () => {
+    const error = await failure(fakeEnrollment({ refusedStatus: 200 }).run());
+
+    expect(error.step).toBe("enroll: refused");
+    expect(error.message).toContain("/device/connection status is 200, expected 401");
+  });
+
+  it("stops waiting when the run is interrupted", async () => {
+    const fake = fakeEnrollment({ endAfterMs: null });
+    const reason = new Error("interrupted by SIGINT");
+    const running = fake.run();
+    fake.stop.abort(reason);
+
+    await expect(running).rejects.toBe(reason);
   });
 });

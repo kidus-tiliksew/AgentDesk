@@ -7,6 +7,7 @@ import { appError } from "../lib/errors";
 import { getOwned } from "../lib/owned";
 import { isMacCredential } from "./clients";
 import { revokeCredential } from "./credentials";
+import { endEphemeralConnection, isEphemeralConnection } from "./ephemeral";
 
 // component-identity §Credentials: the app's connection functions
 // (req-accounts-and-connections REQ-4). The app calls Convex as the signed-in
@@ -28,12 +29,15 @@ function isConnection(credential: Doc<"credentials">): boolean {
 // (req-accounts-and-connections AC-4.1). `firstConnectedAt` is the
 // credential's creation time. `lastUsedAt` is written at most once a minute,
 // so it is accurate to the minute; it is absent until the first resolve.
+// `installKeyLabel` names the install key that made the connection, revoked
+// or not, and is absent for any other connection (req-install-keys AC-3.3).
 export type Connection = {
   credentialId: Id<"credentials">;
   name: string;
   machineName?: string;
   firstConnectedAt: number;
   lastUsedAt?: number;
+  installKeyLabel?: string;
 };
 
 // The fallback name for a credential that stores neither a name nor a harness.
@@ -41,7 +45,7 @@ export const UNKNOWN_CLIENT = "Unknown client";
 
 // An explicit projection, so the token hash and other credential fields never
 // reach the client.
-function toConnection(credential: Doc<"credentials">): Connection {
+function toConnection(credential: Doc<"credentials">, installKeyLabel?: string): Connection {
   const connection: Connection = {
     credentialId: credential._id,
     name: credential.name ?? credential.harness ?? UNKNOWN_CLIENT,
@@ -52,6 +56,9 @@ function toConnection(credential: Doc<"credentials">): Connection {
   }
   if (credential.lastUsedAt !== undefined) {
     connection.lastUsedAt = credential.lastUsedAt;
+  }
+  if (installKeyLabel !== undefined) {
+    connection.installKeyLabel = installKeyLabel;
   }
   return connection;
 }
@@ -74,6 +81,7 @@ export const listConnections = query({
   handler: async (ctx): Promise<Connection[]> => {
     const user = await requireUser(ctx);
     const connections: Connection[] = [];
+    const labels = new Map<Id<"installKeys">, string | undefined>();
     for (const kind of [...CONNECTION_KINDS, "api_token"] as const) {
       const credentials = await ctx.db
         .query("credentials")
@@ -81,7 +89,13 @@ export const listConnections = query({
         .collect();
       for (const credential of credentials) {
         if (credential.revokedAt === undefined && isConnection(credential)) {
-          connections.push(toConnection(credential));
+          const keyId = credential.installKeyId;
+          if (keyId !== undefined && !labels.has(keyId)) {
+            labels.set(keyId, (await ctx.db.get("installKeys", keyId))?.label);
+          }
+          connections.push(
+            toConnection(credential, keyId === undefined ? undefined : labels.get(keyId)),
+          );
         }
       }
     }
@@ -99,7 +113,10 @@ function notFound(): never {
 // id answers `not_found` like a missing, a foreign, or another API token's id
 // (AC-1.1). A Mac's API token is a connection and revokes (req-mac-app
 // AC-2.5). Revoking an already revoked connection succeeds and keeps the first
-// `revokedAt`.
+// `revokedAt`. A connection of an ephemeral install key ends through
+// endEphemeralConnection, which also ends its sessions and cancels their
+// pending decisions (req-install-keys AC-4.2); every other connection keeps
+// revokeCredential alone (DEC-21 (4)).
 export const revokeConnection = mutation({
   args: { credentialId: v.optional(v.any()) },
   returns: v.null(),
@@ -115,7 +132,11 @@ export const revokeConnection = mutation({
     if (credential === null || !isConnection(credential)) {
       notFound();
     }
-    await revokeCredential(ctx, user._id, credentialId);
+    if (await isEphemeralConnection(ctx, credential)) {
+      await endEphemeralConnection(ctx, credential, Date.now());
+    } else {
+      await revokeCredential(ctx, user._id, credentialId);
+    }
     return null;
   },
 });

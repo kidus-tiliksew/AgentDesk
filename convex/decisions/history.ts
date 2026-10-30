@@ -1,4 +1,4 @@
-import { type Decision, errorCodeSchema, normalizeTopic } from "@agentdesk/contract";
+import { errorCodeSchema, normalizeTopic } from "@agentdesk/contract";
 import type {
   Expression,
   FilterBuilder,
@@ -9,7 +9,7 @@ import type {
 import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { appError } from "../lib/errors";
-import { serialize } from "./model";
+import { type AppDecision, serializeForApp } from "./model";
 
 // component-decisions §History: the settled-decision history that
 // `decisions/app:searchHistory` serves (req-mobile-app AC-6.1). Both paths
@@ -27,9 +27,10 @@ export const HISTORY_PAGE_MAX = 50;
 export type SettledState = "answered" | "expired" | "cancelled";
 const SETTLED_STATES: readonly SettledState[] = ["answered", "expired", "cancelled"];
 
-// One history row: the contract `Decision` and the instant it left `pending`,
-// which the `Decision` read shape does not carry.
-export type HistoryItem = { decision: Decision; settled_at: string };
+// One history row: the decision in the app's read shape, with `cancelReason`
+// when set, and the instant it left `pending`, which the `Decision` read
+// shape does not carry.
+export type HistoryItem = { decision: AppDecision; settled_at: string };
 
 export type HistoryFilters = {
   // Trimmed search text; empty lists by settlement time.
@@ -148,7 +149,7 @@ export async function historyPage(
     .paginate({ ...paginationOpts, numItems: clampPageSize(paginationOpts.numItems) });
   const page: HistoryItem[] = [];
   for (const doc of result.page) {
-    page.push({ decision: await serialize(ctx, doc), settled_at: settledInstant(doc) });
+    page.push({ decision: await serializeForApp(ctx, doc), settled_at: settledInstant(doc) });
   }
   return { ...result, page };
 }

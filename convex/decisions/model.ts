@@ -126,6 +126,24 @@ export async function serialize(ctx: ReaderCtx, doc: Doc<"decisions">): Promise<
   return toDecision(doc, await followUpIdsOf(ctx, doc), await createdActionOf(ctx, doc));
 }
 
+// The app's decision read shape (component-decisions §Reads): the contract's
+// Decision plus `cancelReason` when the decision has one. Only the app's own
+// functions return it; the gateway's service routes, and so MCP and the
+// public API, keep the contract's Decision unchanged.
+export type AppDecision = Decision & {
+  cancelReason?: NonNullable<Doc<"decisions">["cancelReason"]>;
+};
+
+export function toAppDecision(doc: Doc<"decisions">, decision: Decision): AppDecision {
+  return doc.cancelReason === undefined
+    ? decision
+    : { ...decision, cancelReason: doc.cancelReason };
+}
+
+export async function serializeForApp(ctx: ReaderCtx, doc: Doc<"decisions">): Promise<AppDecision> {
+  return toAppDecision(doc, await serialize(ctx, doc));
+}
+
 // Loads an owned decision. A missing decision and another user's decision
 // are both `not_found` (req-accounts-and-connections AC-1.1; req-agent-tools
 // AC-7.1).
@@ -313,6 +331,16 @@ export async function refuseSettled(ctx: ReaderCtx, doc: Doc<"decisions">): Prom
   });
 }
 
+// refuseSettled for the app's functions: the error's `decision` is the app's
+// read shape, so the app shows why a cancelled decision was cancelled.
+export async function refuseSettledForApp(ctx: ReaderCtx, doc: Doc<"decisions">): Promise<never> {
+  throw new ConvexError({
+    code: errorCodeSchema.enum.conflict,
+    message: `Decision is already ${doc.state}`,
+    decision: await serializeForApp(ctx, doc),
+  });
+}
+
 async function settle(
   ctx: WriterCtx,
   doc: Doc<"decisions">,
@@ -428,6 +456,46 @@ export async function cancelDecision(
   const settled = await settle(ctx, doc, { state: "cancelled", settledAt: now });
   await emit(ctx, decisionEvent("decision.cancelled", doc, now));
   return settled;
+}
+
+// Why the system cancelled a decision that no one cancelled by hand.
+export type CancelReason = NonNullable<Doc<"decisions">["cancelReason"]>;
+
+// Cancels every pending decision of `userId`'s agent session, inside the
+// caller's mutation, because the session's ephemeral connection ended
+// (req-install-keys AC-4.2). Each one takes the `pending` to `cancelled`
+// transition with `reason` recorded as `cancelReason`, its expiry job
+// cancelled, and one `decision.cancelled` event. Settled decisions and other
+// accounts' decisions are untouched, so a second call changes nothing.
+// Returns the ids it cancelled.
+export async function cancelForAgentSession(
+  ctx: WriterCtx,
+  userId: Id<"users">,
+  agentSessionId: Id<"agentSessions">,
+  reason: CancelReason,
+  now: number,
+): Promise<Id<"decisions">[]> {
+  const pending = await ctx.db
+    .query("decisions")
+    .withIndex("by_agent_state", (q) =>
+      q.eq("agentSessionId", agentSessionId).eq("state", "pending"),
+    )
+    .collect();
+  const cancelled: Id<"decisions">[] = [];
+  for (const doc of pending) {
+    if (doc.userId !== userId) {
+      continue;
+    }
+    await cancelExpiry(ctx, doc);
+    await ctx.db.patch("decisions", doc._id, {
+      state: "cancelled",
+      settledAt: now,
+      cancelReason: reason,
+    });
+    await emit(ctx, decisionEvent("decision.cancelled", doc, now));
+    cancelled.push(doc._id);
+  }
+  return cancelled;
 }
 
 // Expiry: with a default, the default becomes the answer, applied by default

@@ -28,10 +28,42 @@ export const tables = {
     machineName: v.optional(v.string()),
     lastUsedAt: v.optional(v.number()),
     revokedAt: v.optional(v.number()),
+    // Set only on a connection minted by install-key enrollment
+    // (§Enrollment): the key, and the one machine id an enrollment run gives
+    // all of its connections.
+    installKeyId: v.optional(v.id("installKeys")),
+    machineId: v.optional(v.string()),
+    // Set only on a connection of an ephemeral key, and cleared when it ends:
+    // the sweep ends the connection once this time passes (§Ending a
+    // connection).
+    idleDeadlineAt: v.optional(v.number()),
   })
     .index("by_hash", ["tokenHash"])
     .index("by_user_kind", ["userId", "kind"])
-    .index("by_user_oauth", ["userId", "oauthClientId"]),
+    .index("by_user_oauth", ["userId", "oauthClientId"])
+    .index("by_install_key", ["installKeyId", "revokedAt"])
+    .index("by_idle_deadline", ["idleDeadlineAt"]),
+
+  // One install key (component-identity §Install keys; req-install-keys
+  // REQ-1). Enrollment with the key mints connection tokens without a
+  // short-code approval.
+  installKeys: defineTable({
+    userId: v.id("users"),
+    label: v.string(),
+    // SHA-256 hex of the `adk_` secret; the plaintext is never stored.
+    keyHash: v.string(),
+    // Harness ids from convex/identity/harnesses.ts the key may connect.
+    harnesses: v.array(v.string()),
+    ephemeral: v.boolean(),
+    // Set only when `ephemeral`.
+    idleLimitMinutes: v.optional(v.number()),
+    machineLimit: v.number(),
+    expiresAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_hash", ["keyHash"])
+    .index("by_user", ["userId"]),
 
   // One short-code sign-in request from the installer or the Mac app
   // (component-identity §Short-code sign-in). The request acts for no account

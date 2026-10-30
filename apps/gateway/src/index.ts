@@ -1,6 +1,7 @@
 import { type ServiceCall, ServiceError, serviceClient, UpstreamError } from "./convex.js";
 import { deleteConnection, devicePoll, deviceStart, getConnection } from "./device.js";
 import { deviceWait } from "./device-wait.js";
+import { deviceEnroll } from "./enroll.js";
 import type { Env } from "./env.js";
 import { serveInstallScript } from "./install.js";
 import { handleMcp } from "./mcp.js";
@@ -18,6 +19,7 @@ type Handler = (request: Request, env: Env, svc: ServiceCall) => Response | Prom
 const ROUTES: Record<string, Handler> = {
   "POST /device/start": deviceStart,
   "POST /device/poll": devicePoll,
+  "POST /device/enroll": deviceEnroll,
   "GET /device/connection": getConnection,
   "DELETE /device/connection": deleteConnection,
   "POST /device/wait": deviceWait,

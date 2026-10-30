@@ -223,6 +223,37 @@ export const status = internalMutation({
   },
 });
 
+// Ends the sessions of a connection that ended (component-agent-presence
+// §Lifecycle; req-install-keys AC-4.2). Inside the caller's mutation, every
+// session of `userId` opened with `credentialId` that has no `endedAt` gets
+// `endedAt` and the end reason `disconnected`. It emits no `agent.done`: the
+// agent did not finish, its machine went away. Returns the ids of all of the
+// connection's sessions, including those that had already ended as `done` or
+// `idle`, so the caller can cancel decisions any of them left pending. A
+// second call ends nothing and returns the same ids.
+export async function endForConnection(
+  ctx: Pick<MutationCtx, "db">,
+  userId: Id<"users">,
+  credentialId: Id<"credentials">,
+  now: number,
+): Promise<Id<"agentSessions">[]> {
+  const sessions = await ctx.db
+    .query("agentSessions")
+    .withIndex("by_credential", (q) => q.eq("credentialId", credentialId))
+    .collect();
+  const ids: Id<"agentSessions">[] = [];
+  for (const session of sessions) {
+    if (session.userId !== userId) {
+      continue;
+    }
+    if (session.endedAt === undefined) {
+      await ctx.db.patch("agentSessions", session._id, { endedAt: now, endReason: "disconnected" });
+    }
+    ids.push(session._id);
+  }
+  return ids;
+}
+
 // Resolves an MCP session id to the caller's session. Another user's session
 // is `not_found` like an unknown id (req-agent-tools AC-7.1).
 export const session = internalQuery({

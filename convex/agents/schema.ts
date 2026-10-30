@@ -36,9 +36,12 @@ export const tables = {
     lastActivityAt: v.number(),
     staleSince: v.optional(v.number()),
     endedAt: v.optional(v.number()),
-    endReason: v.optional(v.union(v.literal("done"), v.literal("idle"))),
+    // `disconnected`: the session's ephemeral connection ended
+    // (component-agent-presence §Lifecycle).
+    endReason: v.optional(v.union(v.literal("done"), v.literal("idle"), v.literal("disconnected"))),
   })
     .index("by_mcp", ["mcpSessionId"])
+    .index("by_credential", ["credentialId", "endedAt"])
     .index("by_user_ended", ["userId", "endedAt"])
     .index("by_activity", ["lastActivityAt"]),
 

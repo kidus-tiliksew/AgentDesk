@@ -8,6 +8,9 @@ import { notifications } from "./notifications/refs";
 const crons = cronJobs();
 
 crons.interval("agent sweep", { minutes: 1 }, agents.sweep.run, {});
+// component-identity §Ending a connection: ends ephemeral connections past
+// their idle deadline (req-install-keys AC-4.1).
+crons.interval("ephemeral connection sweep", { minutes: 1 }, identity.ephemeral.sweep, {});
 crons.interval("digest dispatch", { minutes: 5 }, notifications.digest.dispatchDue, {});
 crons.daily("agent purge", { hourUTC: 3, minuteUTC: 0 }, agents.purge.run, {});
 crons.daily(

@@ -11,6 +11,9 @@ export interface Env {
   // `/device/start` refuses with 503 without it. Optional so `/mcp` tests
   // need no limiter.
   DEVICE_START_LIMIT?: RateLimit;
+  // `/device/enroll` refuses with 503 without it. Optional for the same
+  // reason.
+  DEVICE_ENROLL_LIMIT?: RateLimit;
   // `/v1` refuses with 503 without it, keyed by the API credential. Optional
   // so other tests need no limiter.
   API_LIMIT?: RateLimit;

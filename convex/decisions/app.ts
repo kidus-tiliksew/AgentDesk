@@ -7,13 +7,14 @@ import { appError } from "../lib/errors";
 import { pendingForUser } from "./appReads";
 import { type HistoryItem, historyPage, parseHistoryFilters } from "./history";
 import {
+  type AppDecision,
   answerDecision,
   answerForAction,
-  getDecision,
   loadOwned,
   parseId,
-  refuseSettled,
+  refuseSettledForApp,
   removeDecision,
+  serializeForApp,
 } from "./model";
 
 // component-decisions §Reads: the app's functions. The app calls Convex as
@@ -34,23 +35,24 @@ export const listPending = query({
 });
 
 // The decision screen: one owned decision with its parent and follow-up ids
-// (req-mobile-app AC-3.1; req-decision-requests AC-6.2). The asking session
-// need not exist (REQ-7).
+// (req-mobile-app AC-3.1; req-decision-requests AC-6.2), in the app's read
+// shape, which adds `cancelReason` (req-install-keys AC-4.2). The asking
+// session need not exist (REQ-7).
 export const get = query({
   args: { decisionId: v.string() },
-  handler: async (ctx, args): Promise<Decision> => {
+  handler: async (ctx, args): Promise<AppDecision> => {
     const user = await requireUser(ctx);
     const decisionId = parseId(ctx, "decisions", args.decisionId, "decisionId");
-    return await getDecision(ctx, user._id, decisionId);
+    return await serializeForApp(ctx, await loadOwned(ctx, user._id, decisionId));
   },
 });
 
 // The decision screen's answer. The surface is always `app`. The answer and
 // note are taken as any value so the mechanism's validation names the
 // failing field, as `invalid`, and leaves the decision pending
-// (req-decision-requests AC-2.2). A settled decision is the mechanism's
-// `conflict`, whose data carries the stored `Decision` under `decision`, so
-// the app shows the recorded outcome (req-mobile-app AC-3.2). No MCP tool
+// (req-decision-requests AC-2.2). A settled decision is `conflict`, whose
+// data carries the stored decision in the app's read shape under `decision`,
+// so the app shows the recorded outcome (req-mobile-app AC-3.2). No MCP tool
 // reaches this mutation (req-agent-tools AC-7.3).
 export const answer = mutation({
   args: { decisionId: v.string(), answer: v.any(), note: v.optional(v.any()) },
@@ -59,9 +61,12 @@ export const answer = mutation({
     const user = await requireUser(ctx);
     const decisionId = parseId(ctx, "decisions", args.decisionId, "decisionId");
     const doc = await loadOwned(ctx, user._id, decisionId);
-    const note: unknown = args.note;
     // A settled decision stays a `conflict` whatever the note holds.
-    if (doc.state === "pending" && note !== undefined && typeof note !== "string") {
+    if (doc.state !== "pending") {
+      return await refuseSettledForApp(ctx, doc);
+    }
+    const note: unknown = args.note;
+    if (note !== undefined && typeof note !== "string") {
       throw appError(errorCodeSchema.enum.invalid, "note must be a string", "note");
     }
     return await answerDecision(
@@ -78,8 +83,8 @@ export const answer = mutation({
 // The history screen: the user's answered, expired, and cancelled decisions,
 // searched by text and filtered by state and topic (req-mobile-app AC-6.1).
 // The result is Convex's native `PaginationResult`, so the app pages it with
-// `usePaginatedQuery`; each row carries the decision and its ISO settlement
-// time. The server clamps `paginationOpts.numItems` to 1..50.
+// `usePaginatedQuery`; each row carries the decision in the app's read shape
+// and its ISO settlement time. The server clamps `paginationOpts.numItems` to 1..50.
 export const searchHistory = query({
   args: {
     query: v.optional(v.string()),
@@ -121,7 +126,7 @@ export const answerFromNotification = mutation({
     const decisionId = parseId(ctx, "decisions", args.decisionId, "decisionId");
     const doc = await loadOwned(ctx, user._id, decisionId);
     if (doc.state !== "pending") {
-      return await refuseSettled(ctx, doc);
+      return await refuseSettledForApp(ctx, doc);
     }
     return await answerDecision(
       ctx,
