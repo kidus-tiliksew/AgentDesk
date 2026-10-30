@@ -12,6 +12,7 @@ export type ServiceRoute =
   | "identity/revoke-self"
   | "identity/device-start"
   | "identity/device-collect"
+  | "identity/enroll"
   | "agents/open"
   | "agents/session"
   | "agents/status"
