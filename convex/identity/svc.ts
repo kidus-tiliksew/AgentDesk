@@ -2,11 +2,13 @@ import type { RouteSpec } from "convex/server";
 import { z } from "zod";
 import { internal } from "../_generated/api";
 import { serviceRoute } from "../lib/svc";
+import { identity } from "./refs";
 
 // The identity domain's service routes, mounted by convex/http.ts
 // (component-backend-foundation §Composition). Credential resolution,
-// self-revoke, and the installer's short-code start and collect act for no
-// account, so the gateway sends no userId (§Service routes).
+// self-revoke, the installer's short-code start and collect, and install-key
+// enrollment act for no account, so the gateway sends no userId (§Service
+// routes).
 
 // The SHA-256 hex of a presented token, never the token itself.
 const tokenHash = z.string().regex(/^[0-9a-f]{64}$/);
@@ -68,6 +70,31 @@ export const routes: RouteSpec[] = [
         ctx.runMutation(internal.identity.deviceRequests.collectDeviceRequest, {
           deviceSecret: input.device_secret,
         }),
+    ),
+  },
+  {
+    path: "/svc/identity/enroll",
+    method: "POST",
+    // req-install-keys REQ-2: the gateway sends the install key's SHA-256
+    // hex, never the key. `enroll` validates the machine name and harnesses
+    // and answers its status; an enrolled run's tokens are returned once.
+    handler: serviceRoute(
+      z.object({ key_hash: tokenHash, machine_name: z.string(), harnesses: z.array(z.string()) }),
+      async (ctx, input) => {
+        const result = await ctx.runMutation(identity.installKeys.enroll, {
+          keyHash: input.key_hash,
+          machineName: input.machine_name,
+          harnesses: input.harnesses,
+        });
+        if (result.status !== "enrolled") {
+          return result;
+        }
+        return {
+          status: result.status,
+          machine_id: result.machineId,
+          connections: result.connections,
+        };
+      },
     ),
   },
 ];

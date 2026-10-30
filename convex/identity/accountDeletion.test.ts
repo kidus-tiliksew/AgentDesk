@@ -21,6 +21,7 @@ import {
   REFUSAL_WINDOW_MS,
   STALL_MS,
 } from "./accountDeletion";
+import { insertInstallKey } from "./installKeys";
 import { identity } from "./refs";
 import { hashToken } from "./tokens";
 
@@ -45,6 +46,7 @@ const OWNED_TABLES = [
   "devices",
   "digests",
   "credentials",
+  "installKeys",
   "codeAttempts",
 ] as const;
 
@@ -65,6 +67,7 @@ afterEach(() => {
 });
 
 type Seeded = {
+  installKeySecret: string;
   tokens: string[];
   deviceId: string;
   agentSessionId: Id<"agentSessions">;
@@ -77,7 +80,8 @@ type Seeded = {
 // install with one queued push, an agent session with status history, a
 // pending decision with an expiry job and its routed event, a settled
 // decision, a rule, a settings row, a digest, an approved sign-in request,
-// and a wrong-code attempt.
+// a wrong-code attempt, and an ephemeral install key with one enrolled
+// connection.
 async function seed(
   t: Setup["t"],
   userId: Id<"users">,
@@ -95,6 +99,29 @@ async function seed(
       });
     }
   });
+  const { secret: installKeySecret } = await t.run((ctx) =>
+    insertInstallKey(
+      ctx,
+      userId,
+      {
+        label: `Sandboxes ${name}`,
+        harnesses: ["codex"],
+        expiresInDays: 30,
+        machineLimit: 5,
+        ephemeral: true,
+        idleLimitMinutes: 60,
+      },
+      START,
+    ),
+  );
+  const enrolled = await t.mutation(identity.installKeys.enroll, {
+    keyHash: await hashToken(installKeySecret),
+    machineName: `sandbox-${name}`,
+    harnesses: ["codex"],
+  });
+  if (enrolled.status !== "enrolled") {
+    throw new Error("Seed enrollment failed");
+  }
   const deviceId = `install-${name}`;
   await register(as, deviceId, `ExponentPushToken[${name}]`);
   const agentSessionId = await openSession(t, userId, `Agent ${name}`);
@@ -158,7 +185,15 @@ async function seed(
     });
     await ctx.db.insert("codeAttempts", { userId, at: START });
   });
-  return { tokens, deviceId, agentSessionId, pendingDecisionId, eventId, notificationIds };
+  return {
+    installKeySecret,
+    tokens: [...tokens, enrolled.connections[0]?.token ?? ""],
+    deviceId,
+    agentSessionId,
+    pendingDecisionId,
+    eventId,
+    notificationIds,
+  };
 }
 
 // The rows that belong to an account in every table, children included
@@ -296,14 +331,27 @@ describe("deleteAccount", () => {
         .withIndex("by_user_kind", (q) => q.eq("userId", userA))
         .collect(),
     );
-    // Three seeded tokens and the session's credential.
-    expect(credentials).toHaveLength(4);
+    // Three seeded tokens, the enrolled connection, and the session's
+    // credential.
+    expect(credentials).toHaveLength(5);
     for (const credential of credentials) {
       expect(credential.revokedAt).toBe(START);
     }
     for (const token of a.tokens) {
       await expect(resolve(t, token)).rejects.toMatchObject(unauthenticated);
     }
+    // Every install key is revoked at once, so it enrolls nothing more.
+    const keys = await t.run((ctx) => ctx.db.query("installKeys").collect());
+    for (const key of keys) {
+      expect(key.revokedAt).toBe(key.userId === userA ? START : undefined);
+    }
+    expect(
+      await t.mutation(identity.installKeys.enroll, {
+        keyHash: await hashToken(a.installKeySecret),
+        machineName: "late",
+        harnesses: ["codex"],
+      }),
+    ).toEqual({ status: "revoked" });
     // The install, its token, and its queued push are gone.
     expect(await owned(t, userA, a)).toMatchObject({ devices: 0 });
     expect(await tokenStatus(t, a.deviceId)).toMatchObject({ hasToken: false });
@@ -323,6 +371,16 @@ describe("deleteAccount", () => {
       expect(await component(t, id)).toMatchObject({ state: "awaiting_delivery" });
     }
     expect(await owned(t, userB, b)).toEqual(before);
+    // The other account's install key still enrolls.
+    expect(
+      (
+        await t.mutation(identity.installKeys.enroll, {
+          keyHash: await hashToken(b.installKeySecret),
+          machineName: "other",
+          harnesses: ["codex"],
+        })
+      ).status,
+    ).toBe("enrolled");
 
     // The purge starts now and the Clerk deletion a minute later.
     expect(await scheduled(t, "identity/accountDeletion:purgeBatch")).toHaveLength(1);
@@ -463,6 +521,59 @@ describe("purge", () => {
     const record = await deletionOf(t, "user_a");
     expect(record).toMatchObject({ purgedAt: START, clerk: { state: "pending" } });
     expect(JSON.stringify(record)).not.toContain("a@example.com");
+  });
+
+  // req-accounts-and-connections AC-5.1: install keys go in the identity
+  // phase's shared row budget.
+  test("deletes more install keys than one batch holds in bounded batches", async () => {
+    const { t, userA, userB, asA, a, b } = await seedBoth();
+    const keyRow = (userId: Id<"users">, i: number) => ({
+      userId,
+      label: `Key ${i}`,
+      keyHash: `${i}`.padStart(64, "0"),
+      harnesses: ["codex"],
+      ephemeral: false,
+      machineLimit: 1,
+      expiresAt: START + MINUTE,
+    });
+    await t.run(async (ctx) => {
+      for (let i = 0; i < PURGE_BATCH + 50; i++) {
+        await ctx.db.insert("installKeys", keyRow(userA, i));
+      }
+    });
+    const beforeB = await owned(t, userB, b);
+    await asA.mutation(identity.accountDeletion.deleteAccount, {});
+
+    const batches = await runPurge(t, "user_a");
+
+    for (const deleted of batches) {
+      expect(deleted).toBeLessThanOrEqual(PURGE_BATCH + 1);
+    }
+    expect(await owned(t, userA, a)).toMatchObject({ installKeys: 0, users: 0 });
+    expect(await owned(t, userB, b)).toEqual(beforeB);
+  });
+
+  test("the verify phase finds and deletes the account's install keys", async () => {
+    const { t, userA, asA, a } = await seedBoth();
+    await asA.mutation(identity.accountDeletion.deleteAccount, {});
+    const record = await deletionOf(t, "user_a");
+    if (record === null) throw new Error("No deletion");
+    // The purge starts at verify, as if the account's rows had appeared after
+    // their domain phases, so only verify's pass over every domain finds them.
+    await t.run(async (ctx) => {
+      await ctx.db.patch("accountDeletions", record._id, { phase: "verify" });
+    });
+
+    await t.mutation(identity.accountDeletion.purgeBatch, {
+      deletionId: record._id,
+      generation: record.generation,
+    });
+
+    expect(await owned(t, userA, a)).toMatchObject({ installKeys: 0 });
+    // The verify batch deleted rows, so the users row waits for a clean pass.
+    expect(await owned(t, userA, a)).toMatchObject({ users: 1 });
+    await runPurge(t, "user_a");
+    expect(await owned(t, userA, a)).toMatchObject({ users: 0 });
   });
 
   test("a stale or duplicate batch does nothing, and duplicates converge", async () => {

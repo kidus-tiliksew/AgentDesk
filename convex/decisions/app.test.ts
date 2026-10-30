@@ -8,7 +8,7 @@ import { touch } from "../agents/sessions";
 import { modules } from "../lib/test.modules";
 import schema from "../schema";
 import { comparePending } from "./appReads";
-import { cancelDecision } from "./model";
+import { cancelDecision, cancelForAgentSession } from "./model";
 import { decisions } from "./refs";
 
 const START = Date.UTC(2026, 9, 10, 12, 0, 0);
@@ -1150,5 +1150,110 @@ describe("answerFromNotification", () => {
       ).rejects.toThrow();
     }
     expect((await load(decision.id))?.state).toBe("pending");
+  });
+});
+
+// component-decisions §Reads: the app's read shape adds `cancelReason` to a
+// decision cancelled because its agent's ephemeral connection ended
+// (req-install-keys AC-4.2). The contract's Decision, which MCP and the public
+// API return, does not carry it.
+describe("cancelReason", () => {
+  async function connectionEnded() {
+    const s = await setup();
+    const ended = await s.ask({ ...approve, title: "Cancelled when the machine left" });
+    const sibling = await s.ask({ ...approve, title: "Also pending on the session" });
+    await s.t.run(async (ctx) => {
+      await cancelForAgentSession(ctx, s.userId, s.sessionId, "connection_ended", START);
+    });
+    // A decision cancelled by hand afterwards carries no reason.
+    const later = await s.ask({ ...approve, title: "Cancelled by hand" });
+    await s.t.run(async (ctx) => {
+      const doc = await ctx.db.get("decisions", later.id as Id<"decisions">);
+      if (doc === null) throw new Error("missing");
+      await cancelDecision(ctx, doc, START);
+    });
+    return { ...s, ended: ended.id, sibling: sibling.id, later: later.id };
+  }
+
+  test("get returns cancelReason only on a decision cancelled because its connection ended", async () => {
+    const { asA, ended, sibling, later } = await connectionEnded();
+
+    const read = await asA.query(decisions.app.get, { decisionId: ended });
+    const manual = await asA.query(decisions.app.get, { decisionId: later });
+
+    expect(read).toMatchObject({ id: ended, state: "cancelled", cancelReason: "connection_ended" });
+    expect(decisionSchema.parse(read)).not.toHaveProperty("cancelReason");
+    expect(manual).toMatchObject({ state: "cancelled" });
+    expect(manual).not.toHaveProperty("cancelReason");
+    // The cascade cancels every pending decision of the session.
+    expect(await asA.query(decisions.app.get, { decisionId: sibling })).toMatchObject({
+      cancelReason: "connection_ended",
+    });
+  });
+
+  test("history rows carry cancelReason on both paths", async () => {
+    const { asA, ended, later } = await connectionEnded();
+    const opts = { numItems: 10, cursor: null };
+
+    const listed = await asA.query(decisions.app.searchHistory, { paginationOpts: opts });
+    const searched = await asA.query(decisions.app.searchHistory, {
+      query: "machine",
+      paginationOpts: opts,
+    });
+
+    const byId = new Map(listed.page.map((item) => [item.decision.id, item.decision]));
+    expect(byId.get(ended)).toMatchObject({ cancelReason: "connection_ended" });
+    expect(byId.get(later)).not.toHaveProperty("cancelReason");
+    expect(searched.page.map((item) => item.decision)).toEqual([
+      expect.objectContaining({ id: ended, cancelReason: "connection_ended" }),
+    ]);
+  });
+
+  test("an answer to such a decision is conflict carrying it with cancelReason", async () => {
+    const { asA, ended } = await connectionEnded();
+
+    for (const attempt of [
+      () => asA.mutation(decisions.app.answer, { decisionId: ended, answer: { kind: "approve" } }),
+      () =>
+        asA.mutation(decisions.app.answerFromNotification, {
+          decisionId: ended,
+          action: "approve",
+        }),
+    ]) {
+      await expect(attempt()).rejects.toMatchObject({
+        data: {
+          code: "conflict",
+          message: "Decision is already cancelled",
+          decision: { id: ended, state: "cancelled", cancelReason: "connection_ended" },
+        },
+      });
+    }
+  });
+
+  test("MCP and public API reads keep the contract's Decision without cancelReason", async () => {
+    const { t, userId, sessionId, ended } = await connectionEnded();
+    const ids = { userId, decisionId: ended };
+
+    const reads: unknown[] = [
+      await t.query(decisions.operations.get, ids),
+      await t.mutation(decisions.operations.watch, ids),
+      await t.mutation(decisions.operations.poll, { ...ids, agentSessionId: sessionId }),
+      ...(await t.mutation(decisions.operations.check, {
+        userId,
+        agentSessionId: sessionId,
+        decisionIds: [ended],
+      })),
+      ...(await t.query(decisions.operations.list, { userId, state: "cancelled", limit: 50 }))
+        .items,
+    ];
+
+    for (const read of reads) {
+      expect(read).toMatchObject({ id: expect.any(String), state: "cancelled" });
+      expect(read).not.toHaveProperty("cancelReason");
+      expect(Object.keys(read as object).sort()).toEqual(Object.keys(decisionSchema.shape).sort());
+    }
+    await expect(
+      t.mutation(decisions.operations.cancel, { ...ids, agentSessionId: sessionId }),
+    ).rejects.toMatchObject({ data: { code: "conflict" } });
   });
 });

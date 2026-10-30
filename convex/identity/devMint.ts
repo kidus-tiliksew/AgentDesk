@@ -4,6 +4,7 @@ import type { Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { appError } from "../lib/errors";
 import { insertApiToken, insertConnectionToken } from "./credentials";
+import { insertInstallKey } from "./installKeys";
 import { findDeletion, findUser } from "./users";
 
 // Development-only connection-token mint. No sign-in surface exists before
@@ -53,6 +54,35 @@ export const mintApiToken = internalMutation({
     const userId = await devUser(ctx, clerkUserId, email);
     const { plaintext, credentialId } = await insertApiToken(ctx, { userId, name });
     return { token: plaintext, userId, credentialId };
+  },
+});
+
+// Development-only install-key mint, so the gateway smoke run can enroll
+// before the app's install-key screen exists. Internal like the mints above.
+// It validates and stores the key exactly as `createInstallKey` does
+// (component-identity §Install keys) and returns the secret once:
+//
+//   npx convex run identity/devMint:mintInstallKey \
+//     '{"clerkUserId": "user_…", "email": "…", "label": "Smoke", "harnesses": ["claude-code"],
+//       "expiresInDays": 1, "machineLimit": 1, "ephemeral": true, "idleLimitMinutes": 15}'
+export const mintInstallKey = internalMutation({
+  args: {
+    clerkUserId: v.string(),
+    email: v.string(),
+    label: v.string(),
+    harnesses: v.array(v.string()),
+    expiresInDays: v.number(),
+    machineLimit: v.number(),
+    ephemeral: v.boolean(),
+    idleLimitMinutes: v.optional(v.number()),
+  },
+  handler: async (
+    ctx,
+    { clerkUserId, email, ...input },
+  ): Promise<{ secret: string; userId: Id<"users">; installKeyId: Id<"installKeys"> }> => {
+    const userId = await devUser(ctx, clerkUserId, email);
+    const { installKeyId, secret } = await insertInstallKey(ctx, userId, input, Date.now());
+    return { secret, userId, installKeyId };
   },
 });
 

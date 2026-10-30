@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import { internal } from "../_generated/api";
 import { modules } from "../lib/test.modules";
 import schema from "../schema";
+import { identity } from "./refs";
 import { hashToken } from "./tokens";
 
 const args = {
@@ -99,5 +100,65 @@ describe("mintApiToken", () => {
       { data: { code: "unauthenticated" } },
     );
     expect(await t.run((ctx) => ctx.db.query("credentials").collect())).toHaveLength(0);
+  });
+});
+
+describe("mintInstallKey", () => {
+  const keyArgs = {
+    clerkUserId: "user_a",
+    email: "a@example.com",
+    label: "Smoke",
+    harnesses: ["claude-code"],
+    expiresInDays: 1,
+    machineLimit: 1,
+    ephemeral: true,
+    idleLimitMinutes: 15,
+  };
+
+  test("returns an adk_ secret that enrolls, storing only its hash", async () => {
+    const t = convexTest(schema, modules);
+
+    const minted = await t.mutation(internal.identity.devMint.mintInstallKey, keyArgs);
+    const enrolled = await t.mutation(identity.installKeys.enroll, {
+      keyHash: await hashToken(minted.secret),
+      machineName: "smoke",
+      harnesses: ["claude-code"],
+    });
+
+    expect(minted.secret).toMatch(/^adk_[A-Za-z0-9_-]{43}$/);
+    expect(enrolled.status).toBe("enrolled");
+    const [key] = await t.run((ctx) => ctx.db.query("installKeys").collect());
+    expect(key).toMatchObject({
+      _id: minted.installKeyId,
+      userId: minted.userId,
+      label: "Smoke",
+      ephemeral: true,
+      idleLimitMinutes: 15,
+      keyHash: await hashToken(minted.secret),
+    });
+    expect(JSON.stringify(key)).not.toContain(minted.secret);
+  });
+
+  test("validates the key as createInstallKey does and writes nothing on refusal", async () => {
+    const t = convexTest(schema, modules);
+
+    await expect(
+      t.mutation(internal.identity.devMint.mintInstallKey, { ...keyArgs, idleLimitMinutes: 1 }),
+    ).rejects.toMatchObject({ data: { code: "invalid", field: "idleLimitMinutes" } });
+    expect(await t.run((ctx) => ctx.db.query("installKeys").collect())).toHaveLength(0);
+  });
+
+  test("refuses a deleting user and inserts no key", async () => {
+    const t = convexTest(schema, modules);
+    await t.run((ctx) =>
+      ctx.db.insert("users", { clerkUserId: "user_a", email: "a@example.com", deletingAt: 1 }),
+    );
+
+    await expect(
+      t.mutation(internal.identity.devMint.mintInstallKey, keyArgs),
+    ).rejects.toMatchObject({
+      data: { code: "unauthenticated" },
+    });
+    expect(await t.run((ctx) => ctx.db.query("installKeys").collect())).toHaveLength(0);
   });
 });

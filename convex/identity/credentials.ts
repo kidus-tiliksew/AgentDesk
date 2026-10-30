@@ -21,10 +21,20 @@ export type ResolvedCredential = {
 };
 
 // Inserts one connection token for a user and returns its plaintext, which the
-// caller hands to the client once. Only the hash is stored.
+// caller hands to the client once. Only the hash is stored. Enrollment also
+// passes the install key, the run's machine id, and, for an ephemeral key, the
+// idle deadline (§Enrollment).
 export async function insertConnectionToken(
   ctx: Pick<MutationCtx, "db">,
-  credential: { userId: Id<"users">; harness: string; name: string; machineName?: string },
+  credential: {
+    userId: Id<"users">;
+    harness: string;
+    name: string;
+    machineName?: string;
+    installKeyId?: Id<"installKeys">;
+    machineId?: string;
+    idleDeadlineAt?: number;
+  },
 ): Promise<{ plaintext: string; credentialId: Id<"credentials"> }> {
   const { plaintext, hash } = await mintToken();
   const credentialId = await ctx.db.insert("credentials", {
@@ -55,6 +65,9 @@ export async function insertApiToken(
 // Resolves the SHA-256 hex of a presented token to its user and credential
 // (req-accounts-and-connections AC-4.2; req-agent-tools AC-7.1). An unknown
 // hash, a revoked credential, and a deleting account are all unauthenticated.
+// When the resolve writes `lastUsedAt` on a connection of an ephemeral key,
+// it also moves the connection's idle deadline (§Enrollment), so MCP calls
+// and `/device/wait` polls both keep the connection alive.
 export const resolveToken = internalMutation({
   args: { tokenHash: v.string() },
   handler: async (ctx, { tokenHash }): Promise<ResolvedCredential> => {
@@ -74,7 +87,10 @@ export const resolveToken = internalMutation({
       credential.lastUsedAt === undefined ||
       now - credential.lastUsedAt > LAST_USED_WRITE_INTERVAL_MS
     ) {
-      await ctx.db.patch("credentials", credential._id, { lastUsedAt: now });
+      await ctx.db.patch("credentials", credential._id, {
+        lastUsedAt: now,
+        ...(await nextIdleDeadline(ctx, credential, now)),
+      });
     }
     return {
       userId: credential.userId,
@@ -85,6 +101,29 @@ export const resolveToken = internalMutation({
     };
   },
 });
+
+// The idle deadline a resolve at `now` writes on a connection of an ephemeral
+// key, or nothing for any other credential. A revoked key still sets it, so
+// the connections it made keep working until they go idle (req-install-keys
+// AC-3.2). A request within the next LAST_USED_WRITE_INTERVAL_MS writes
+// nothing, so the deadline counts the idle limit from the end of that
+// interval: the sweep never ends a connection that made a request within its
+// idle limit, and ends an idle one at most a minute plus one sweep after the
+// limit passes (AC-4.1).
+async function nextIdleDeadline(
+  ctx: Pick<MutationCtx, "db">,
+  credential: Doc<"credentials">,
+  now: number,
+): Promise<{ idleDeadlineAt?: number }> {
+  if (credential.idleDeadlineAt === undefined || credential.installKeyId === undefined) {
+    return {};
+  }
+  const key = await ctx.db.get("installKeys", credential.installKeyId);
+  if (key?.idleLimitMinutes === undefined) {
+    return {};
+  }
+  return { idleDeadlineAt: now + LAST_USED_WRITE_INTERVAL_MS + key.idleLimitMinutes * 60_000 };
+}
 
 // Revokes one of the user's credentials, so its next resolve is refused
 // (req-accounts-and-connections AC-4.2). The Phase 2 connections screen and the
