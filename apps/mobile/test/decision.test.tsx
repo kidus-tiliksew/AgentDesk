@@ -1518,6 +1518,61 @@ describe("settled decisions", () => {
     expect(screen.getByText("No answer was recorded.")).toBeOnTheScreen();
     expectNoControls();
   });
+
+  // req-install-keys AC-4.2
+  test("a decision cancelled because its agent's machine disconnected says so", async () => {
+    const disconnected = {
+      ...decision({ id: "d_1", title: "Ship?", state: "cancelled" }),
+      cancelReason: "connection_ended" as const,
+    };
+    await open(disconnected);
+
+    expect(
+      screen.getByRole("header", { name: "Cancelled: the agent's machine disconnected" }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Cancelled: the agent's machine disconnected")).toBeOnTheScreen();
+    expect(screen.queryByText("No answer was recorded.")).not.toBeOnTheScreen();
+    expect(screen.queryByText("Cancelled")).not.toBeOnTheScreen();
+    expectNoControls();
+  });
+
+  test("a disconnection arriving while the decision is open shows why it was cancelled", async () => {
+    const pending = decision({ id: "d_1", title: "Ship?" });
+    await open(pending);
+
+    const ended = {
+      ...pending,
+      state: "cancelled" as const,
+      cancelReason: "connection_ended" as const,
+    };
+    act(() => serve(ended));
+
+    expect(screen.getByText("Cancelled: the agent's machine disconnected")).toBeOnTheScreen();
+    expectNoControls();
+  });
+
+  test("an answer refused because the machine disconnected first shows the reason from the conflict", async () => {
+    const stored = {
+      ...decision({ id: "d_1", title: "Ship?", state: "cancelled" }),
+      cancelReason: "connection_ended",
+    };
+    answerDecision.mockRejectedValue(
+      new ConvexError({
+        code: "conflict",
+        message: "Decision is already cancelled",
+        decision: stored,
+      }),
+    );
+    await open(decision({ id: "d_1", title: "Ship?" }));
+
+    choose("Approve");
+    await flush();
+
+    expect(screen.getByText("Cancelled: the agent's machine disconnected")).toBeOnTheScreen();
+    expect(announce).toHaveBeenCalledWith(
+      "This decision was settled before your answer arrived. Your answer was not recorded. Recorded outcome: Cancelled: the agent's machine disconnected.",
+    );
+  });
 });
 
 // component-mobile-app §Screens, Answers given in chat (req-decision-requests

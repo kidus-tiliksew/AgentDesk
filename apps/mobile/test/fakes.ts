@@ -100,6 +100,30 @@ export const ensureAccount = jest.fn<Promise<typeof account>, [Record<string, ne
 export type AnswerArgs = { decisionId: string; answer: unknown; note?: string };
 export const answerDecision = jest.fn<Promise<unknown>, [AnswerArgs]>();
 
+// identity/installKeys:createInstallKey and revokeInstallKey. Each test
+// scripts its result; an unscripted call fails the test.
+export type CreateInstallKeyArgs = {
+  label: string;
+  harnesses: string[];
+  expiresInDays: number;
+  machineLimit: number;
+  ephemeral: boolean;
+  idleLimitMinutes?: number;
+};
+export const createInstallKey = jest.fn<
+  Promise<{ installKeyId: string; secret: string }>,
+  [CreateInstallKeyArgs]
+>();
+export const revokeInstallKey = jest.fn<
+  Promise<null>,
+  [{ installKeyId: string; revokeConnections: boolean }]
+>();
+
+// expo-clipboard. Copying resolves by default; a test reads what was copied.
+export const clipboard = {
+  setStringAsync: jest.fn<Promise<boolean>, [string]>(),
+};
+
 // notifications/devices:registerDevice and unregisterDevice. Both resolve by
 // default.
 export type RegisterArgs = {
@@ -381,6 +405,7 @@ const defaultQueries: Record<string, unknown> = {
       firstConnectedAt: 0,
     },
   ],
+  "identity/installKeys:listInstallKeys": [],
 };
 
 // Every useQuery call in render order, so a test can check which queries ran.
@@ -513,6 +538,13 @@ export function resetFakes() {
   answerDecision.mockReset().mockImplementation(async () => {
     throw new Error("Unexpected answer mutation");
   });
+  createInstallKey.mockReset().mockImplementation(async () => {
+    throw new Error("Unexpected createInstallKey mutation");
+  });
+  revokeInstallKey.mockReset().mockImplementation(async () => {
+    throw new Error("Unexpected revokeInstallKey mutation");
+  });
+  clipboard.setStringAsync.mockReset().mockResolvedValue(true);
   queries.reset({ ...defaultQueries });
   queryCalls.length = 0;
   analytics.provider = null;

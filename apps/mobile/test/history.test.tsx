@@ -346,6 +346,36 @@ describe("rows", () => {
     expect(fourth.props.accessibilityValue.text).toMatch(/^Cancelled\. No answer was recorded\. /);
   });
 
+  // req-install-keys AC-4.2
+  test("a decision cancelled because its agent's machine disconnected says so in its row", async () => {
+    const at = localAt(0, 8, 0);
+    const base = settled(
+      { id: "d_x", title: "Disconnected", state: "cancelled", answer: null, answered_at: null },
+      at,
+    );
+    const appDecision = { ...base.decision, cancelReason: "connection_ended" as const };
+    const disconnected: Item = { decision: appDecision, settled_at: at };
+    const withdrawn = settled(
+      { id: "d_w", title: "Withdrawn", state: "cancelled", answer: null, answered_at: null },
+      at,
+    );
+    serveHistory([disconnected, withdrawn]);
+
+    await openHistory();
+
+    const row = screen.getByRole("button", { name: "Decision: Disconnected" });
+    expect(within(row).getByText("Cancelled: the agent's machine disconnected")).toBeOnTheScreen();
+    expect(within(row).getByText("Cancelled")).toBeOnTheScreen();
+    expect(row.props.accessibilityValue.text).toBe(
+      `Cancelled. Cancelled: the agent's machine disconnected. acme, settled ${formatSettledTime(at)}`,
+    );
+
+    // A cancellation without a recorded reason reads as before.
+    const other = screen.getByRole("button", { name: "Decision: Withdrawn" });
+    expect(within(other).queryByText(/machine disconnected/)).not.toBeOnTheScreen();
+    expect(other.props.accessibilityValue.text).toMatch(/^Cancelled\. No answer was recorded\. /);
+  });
+
   // component-mobile-app §Screens, Rows (req-decision-requests AC-8.3).
   test("a chat answer of every type reads Answered in chat with the message below in two lines", async () => {
     const options = [

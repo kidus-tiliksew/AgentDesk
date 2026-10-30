@@ -10,8 +10,10 @@ import {
   connectionSpokenSummary,
   connectionSummary,
   groupByMachine,
+  viaInstallKey,
 } from "../../../../src/connections/format";
 import { haptic } from "../../../../src/haptics";
+import { InstallKeysSection } from "../../../../src/install-keys/list";
 import { Loading } from "../../../../src/loading";
 import { QueryErrorBoundary } from "../../../../src/query-error-boundary";
 import { makeStyles, useTheme } from "../../../../src/theme";
@@ -30,7 +32,9 @@ import { useScreenClock } from "../../../../src/use-screen-clock";
 // Mac arrives with the name AgentDesk for Mac, so it needs no row of its own.
 // `identity/connections:listConnections` is reactive, so a revoked connection
 // leaves the list when the backend commits the revocation; the screen never
-// removes a row itself.
+// removes a row itself. A connection an install key made shows "via" and the
+// key's label (req-install-keys AC-3.3). The install keys follow the
+// connections, with a row that opens the install keys screen (§Install keys).
 
 type Connection = FunctionReturnType<typeof identity.connections.listConnections>[number];
 
@@ -93,6 +97,11 @@ function ConnectionRow({
           <AppText variant="footnote" tone="secondary">
             {revoking ? "Revoking..." : connectionSummary(connection, now)}
           </AppText>
+          {connection.installKeyLabel === undefined ? null : (
+            <AppText variant="footnote" tone="secondary">
+              {viaInstallKey(connection.installKeyLabel)}
+            </AppText>
+          )}
         </Pressable>
       </SwipeRow>
       {error === null ? null : (
@@ -239,6 +248,7 @@ export default function ConnectionsScreen() {
         >
           <ConnectionList />
         </QueryErrorBoundary>
+        <InstallKeysSection />
       </StackScreen>
     </>
   );

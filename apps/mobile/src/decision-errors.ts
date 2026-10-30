@@ -5,6 +5,7 @@ import {
   errorCodeSchema,
 } from "@agentdesk/contract";
 import { ConvexError } from "convex/values";
+import type { AppDecision } from "./decision-outcome";
 import { errorData } from "./query-error-boundary";
 
 // What a failed answer mutation means for the decision screen.
@@ -16,7 +17,7 @@ import { errorData } from "./query-error-boundary";
 // - `failed`: any other failure, with fixed copy for its code to show. The
 //   draft stays.
 export type AnswerFailure =
-  | { kind: "conflict"; decision: Decision }
+  | { kind: "conflict"; decision: AppDecision }
   | { kind: "malformed_conflict" }
   | { kind: "failed"; message: string };
 
@@ -50,6 +51,21 @@ function storedDecision(error: unknown): unknown {
   return undefined;
 }
 
+// The stored decision is in the app's read shape, so it carries
+// `cancelReason` when one was recorded (req-install-keys AC-4.2). The
+// contract's schema drops the field, so it is read from the payload.
+function withCancelReason(decision: Decision, stored: unknown): AppDecision {
+  if (
+    typeof stored === "object" &&
+    stored !== null &&
+    "cancelReason" in stored &&
+    stored.cancelReason === "connection_ended"
+  ) {
+    return { ...decision, cancelReason: stored.cancelReason };
+  }
+  return decision;
+}
+
 // `decisions/app:answer` refuses a settled decision as
 // `ConvexError({code: "conflict", decision})` (component-decisions §Reads).
 // The stored decision is checked against the contract's Decision shape rather
@@ -57,9 +73,10 @@ function storedDecision(error: unknown): unknown {
 export function answerFailure(error: unknown): AnswerFailure {
   const data = errorData(error);
   if (data !== null && data.code === errorCodeSchema.enum.conflict) {
-    const parsed = decisionSchema.safeParse(storedDecision(error));
+    const stored = storedDecision(error);
+    const parsed = decisionSchema.safeParse(stored);
     if (parsed.success && parsed.data.state !== "pending") {
-      return { kind: "conflict", decision: parsed.data };
+      return { kind: "conflict", decision: withCancelReason(parsed.data, stored) };
     }
     return { kind: "malformed_conflict" };
   }

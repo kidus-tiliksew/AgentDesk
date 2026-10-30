@@ -13,6 +13,7 @@ import {
   connectionSummary,
   formatConnectionDay,
   groupByMachine,
+  viaInstallKey,
 } from "../src/connections/format";
 import { haptic } from "../src/haptics";
 import { deferred, loading, queryCalls, setQuery, signInAs } from "./fakes";
@@ -201,6 +202,27 @@ describe("connections screen", () => {
     });
     // The swipe's revealed button stays out of VoiceOver's reach until open.
     expect(screen.queryByRole("button", { name: "Revoke" })).not.toBeOnTheScreen();
+  });
+
+  // req-install-keys AC-3.3
+  test("a connection an install key made shows via and the key's label, and revokes as before", async () => {
+    const enrolled = { ...devbox, installKeyLabel: "CI sandboxes" };
+    setQuery(list, [laptop, enrolled]);
+    await openConnections();
+
+    expect(await screen.findByText("via CI sandboxes")).toBeOnTheScreen();
+    expect(screen.getAllByText(/^via /)).toHaveLength(1);
+    expect(screen.getByLabelText("Codex on devbox")).toHaveProp("accessibilityValue", {
+      text: `Connected ${formatConnectionDay(FIRST, now)}, via CI sandboxes, last used 3 days ago`,
+    });
+    expect(
+      screen.getByLabelText("Claude Code on laptop").props.accessibilityValue.text,
+    ).not.toMatch(/via/);
+
+    revokeAction("Codex on devbox");
+    expect(lastSheet().options.title).toBe("Revoke Codex on devbox?");
+    await choose("Revoke");
+    expect(mockRevokeConnection).toHaveBeenCalledWith({ credentialId: "c_devbox" });
   });
 
   test("the header's + opens Add machine", async () => {
@@ -560,6 +582,18 @@ describe("connection formatting", () => {
     expect(spoken(NOW - 60 * MINUTE)).toBe("Connected Oct 12, last used 1 hour ago");
     expect(spoken(NOW - 5 * DAY)).toBe("Connected Oct 12, last used 5 days ago");
     expect(spoken()).toBe("Connected Oct 12, never used");
+  });
+
+  test("names the install key that made a connection after the first connection", () => {
+    const first = Date.UTC(2026, 9, 12, 9, 0);
+    const enrolled = { firstConnectedAt: first, installKeyLabel: "CI sandboxes" };
+    expect(connectionSpokenSummary(enrolled, NOW, utc)).toBe(
+      "Connected Oct 12, via CI sandboxes, never used",
+    );
+    expect(connectionSpokenSummary({ ...enrolled, lastUsedAt: NOW - 2 * MINUTE }, NOW, utc)).toBe(
+      "Connected Oct 12, via CI sandboxes, last used 2 minutes ago",
+    );
+    expect(viaInstallKey("CI sandboxes")).toBe("via CI sandboxes");
   });
 
   test("groups by machine in first-appearance order with unknown machines last", () => {

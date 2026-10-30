@@ -7,7 +7,12 @@ import { AccessibilityInfo, ActionSheetIOS, Alert, Platform, Pressable, View } f
 import { decisions } from "../../../convex/decisions/refs";
 import { Button } from "./button";
 import { formatAnswer } from "./decision-detail";
-import { CHAT_MESSAGE_LABEL, chatMessageOf } from "./decision-outcome";
+import {
+  type AppDecision,
+  CHAT_MESSAGE_LABEL,
+  cancellationReason,
+  chatMessageOf,
+} from "./decision-outcome";
 import { haptic } from "./haptics";
 import { Loading } from "./loading";
 import { errorData } from "./query-error-boundary";
@@ -83,9 +88,14 @@ export function formatSettledTime(settledAt: string): string {
 }
 
 // What the row says about the outcome: the answer, an answer given in chat,
-// the applied default, or that no answer was recorded.
-export function answerSummary(decision: Decision): string {
+// the applied default, why a decision was cancelled when the backend
+// recorded a reason, or that no answer was recorded.
+export function answerSummary(decision: AppDecision): string {
   if (decision.answer === null) {
+    const reason = cancellationReason(decision);
+    if (reason !== null) {
+      return `${reason}.`;
+    }
     return decision.state === "expired" ? "Expired without an answer" : "No answer was recorded.";
   }
   const answer = formatAnswer(decision.answer, decision.options);
@@ -274,7 +284,8 @@ const useStyles = makeStyles((theme) => ({
 // title instead of the outcome on the right, and the user's chat message
 // below it, cut to two lines (component-mobile-app §Screens, Rows;
 // req-decision-requests AC-8.3); the decision screen shows the whole
-// message. Tapping
+// message. A decision cancelled because its agent's machine disconnected
+// says so under the title (req-install-keys AC-4.2). Tapping
 // opens the decision; a long press asks to delete it, the alternative to the
 // swipe (Apple HIG Gestures), and the hint tells VoiceOver so.
 function HistoryRowContent({
@@ -291,6 +302,7 @@ function HistoryRowContent({
   const icon = outcomeIcon(decision, theme);
   const time = formatSettledTime(item.settled_at);
   const chatMessage = decision.answer === null ? null : chatMessageOf(decision);
+  const reason = cancellationReason(decision);
   const summary = answerSummary(decision);
   return (
     <Pressable
@@ -324,6 +336,11 @@ function HistoryRowContent({
         <AppText variant="footnote" tone="secondary" numberOfLines={1}>
           {`${decision.topic} · ${time}`}
         </AppText>
+        {reason === null ? null : (
+          <AppText variant="footnote" tone="secondary" numberOfLines={2}>
+            {reason}
+          </AppText>
+        )}
         {chatMessage === null ? null : (
           <>
             <AppText variant="subhead" numberOfLines={2}>
