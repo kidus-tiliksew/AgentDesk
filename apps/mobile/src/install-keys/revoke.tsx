@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Switch, View } from "react-native";
 import { identity } from "../../../../convex/identity/refs";
 import { Button } from "../button";
+import { confirmDestructive } from "../confirm";
 import { haptic } from "../haptics";
 import { makeStyles, radius, useTheme } from "../theme";
 import { AppText } from "../ui/text";
@@ -12,7 +13,10 @@ import { type InstallKey, revokeConnectionsLabel } from "./format";
 // req-install-keys AC-3.2). Its next installer run is refused. The switch,
 // off by default, also disconnects the machines the key connected; its label
 // carries the backend's `machinesConnected`, which follows enrollments and
-// ended connections while the panel is open. The panel owns the
+// ended connections while the panel is open. The panel only configures the
+// revocation: "Revoke key" asks in the system's destructive confirmation, an
+// action sheet on iOS and an alert on Android (DEC-9(1), DEC-17(3)), and only
+// its Revoke choice calls `revokeInstallKey`. The panel owns the
 // `revokeInstallKey` hook, so the screen binds the mutation only when a
 // person asks to revoke.
 
@@ -21,6 +25,25 @@ export const REVOKE_NOTE =
 
 export function revokeFailure(label: string): string {
   return `Could not revoke ${label}. Try again.`;
+}
+
+// The system confirmation's title and message, which state what the chosen
+// switch value does.
+export function revokeConfirmation(
+  label: string,
+  machinesConnected: number,
+  revokeConnections: boolean,
+): { title: string; message: string } {
+  const machines =
+    machinesConnected === 1
+      ? "the 1 machine it connected is"
+      : `the ${machinesConnected} machines it connected are`;
+  return {
+    title: `Revoke ${label}?`,
+    message: revokeConnections
+      ? `Its next installer run will be refused, and ${machines} disconnected.`
+      : "Its next installer run will be refused. Machines it connected stay connected.",
+  };
 }
 
 const useStyles = makeStyles((theme) => ({
@@ -63,7 +86,8 @@ export function RevokePanel({
 
   const label = revokeConnectionsLabel(installKey.machinesConnected);
 
-  const revoke = async () => {
+  // Sends the revocation with the switch value the confirmation stated.
+  const revoke = async (alsoDisconnect: boolean) => {
     if (pending.current) {
       return;
     }
@@ -71,7 +95,10 @@ export function RevokePanel({
     setBusy(true);
     setFailure(null);
     try {
-      await revokeInstallKey({ installKeyId: installKey.installKeyId, revokeConnections });
+      await revokeInstallKey({
+        installKeyId: installKey.installKeyId,
+        revokeConnections: alsoDisconnect,
+      });
       // Apple HIG Playing haptics: confirm a significant action's outcome.
       // The key leaves the list with the query, so VoiceOver hears why.
       haptic.success();
@@ -92,6 +119,17 @@ export function RevokePanel({
         setBusy(false);
       }
     }
+  };
+
+  // Cancel in the confirmation closes it without a call and keeps the panel.
+  const confirm = () => {
+    setFailure(null);
+    const chosen = revokeConnections;
+    confirmDestructive({
+      ...revokeConfirmation(installKey.label, installKey.machinesConnected, chosen),
+      action: "Revoke",
+      onConfirm: () => void revoke(chosen),
+    });
   };
 
   return (
@@ -127,7 +165,7 @@ export function RevokePanel({
           variant="destructive"
           grow
           disabled={busy}
-          onPress={() => void revoke()}
+          onPress={confirm}
         />
       </View>
     </View>

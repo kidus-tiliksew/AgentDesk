@@ -1,5 +1,11 @@
 import { act, fireEvent, screen, waitFor } from "expo-router/testing-library";
-import { AccessibilityInfo } from "react-native";
+import {
+  AccessibilityInfo,
+  ActionSheetIOS,
+  type ActionSheetIOSOptions,
+  Alert,
+  Platform,
+} from "react-native";
 import { formatConnectionDay } from "../src/connections/format";
 import { haptic } from "../src/haptics";
 import { revokeConnectionsLabel } from "../src/install-keys/format";
@@ -472,25 +478,92 @@ describe("the one-time secret", () => {
   });
 });
 
-// req-install-keys AC-3.2
+// req-install-keys AC-3.2. The panel configures the revocation; the system's
+// destructive confirmation, an action sheet on iOS and an alert on Android,
+// is the only way to send it (DEC-9(1), DEC-17(3)).
 describe("revoking an install key", () => {
-  async function openRevoke() {
+  type Platformed = "ios" | "android";
+  // Each action sheet the screen opens, with the callback that picks a choice.
+  const sheets: { options: ActionSheetIOSOptions; pick: (index: number) => void }[] = [];
+  let alert: jest.SpiedFunction<typeof Alert.alert>;
+
+  beforeEach(() => {
+    sheets.length = 0;
+    jest
+      .spyOn(ActionSheetIOS, "showActionSheetWithOptions")
+      .mockImplementation((options, pick) => sheets.push({ options, pick }));
+    alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  async function openRevoke(platform: Platformed = "ios") {
     setQuery(list, [sandboxes, devbox]);
     await openInstallKeys();
     fireEvent.press(await screen.findByRole("button", { name: "Revoke CI sandboxes" }));
+    if (platform === "android") {
+      jest.replaceProperty(Platform, "OS", "android");
+    }
   }
 
   function revokeSwitch() {
     return screen.getByLabelText(revokeConnectionsLabel(sandboxes.machinesConnected));
   }
 
-  async function pressRevoke() {
-    await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Revoke key" }));
-    });
+  // The switch's state as screen readers get it, which both platforms' hosts
+  // carry; Android's host has no `value` prop.
+  function switchOn() {
+    return revokeSwitch().props.accessibilityState.checked;
   }
 
-  test("the switch is off by default, labelled with the machine count, and the key's connections stay", async () => {
+  // Presses the panel's Revoke key, which opens the system confirmation.
+  function pressRevoke() {
+    fireEvent.press(screen.getByRole("button", { name: "Revoke key" }));
+  }
+
+  // The open confirmation on either platform, normalized: its title, message,
+  // choices, and a way to pick one by its text.
+  function confirmation(platform: Platformed) {
+    if (platform === "ios") {
+      expect(alert).not.toHaveBeenCalled();
+      const sheet = sheets.at(-1);
+      if (sheet === undefined) {
+        throw new Error("No action sheet open");
+      }
+      const { options } = sheet;
+      return {
+        title: options.title,
+        message: options.message,
+        choices: options.options,
+        destructive: options.options[options.destructiveButtonIndex as number],
+        cancel: options.options[options.cancelButtonIndex as number],
+        pick: (text: string) => act(async () => sheet.pick(options.options.indexOf(text))),
+      };
+    }
+    expect(sheets).toHaveLength(0);
+    const call = alert.mock.calls.at(-1);
+    if (call === undefined) {
+      throw new Error("No alert open");
+    }
+    const [title, message, buttons = []] = call;
+    return {
+      title,
+      message,
+      choices: buttons.map((button) => button.text),
+      destructive: buttons.find((button) => button.style === "destructive")?.text,
+      cancel: buttons.find((button) => button.style === "cancel")?.text,
+      pick: (text: string) =>
+        act(async () => buttons.find((button) => button.text === text)?.onPress?.()),
+    };
+  }
+
+  const KEEP = "Its next installer run will be refused. Machines it connected stay connected.";
+  const DISCONNECT =
+    "Its next installer run will be refused, and the 3 machines it connected are disconnected.";
+
+  test("the switch is off by default, labelled with the machine count, and nothing is sent before the system confirmation", async () => {
     revokeInstallKey.mockResolvedValue(null);
     await openRevoke();
 
@@ -499,10 +572,21 @@ describe("revoking an install key", () => {
     expect(
       screen.getByText("Also disconnect 3 machines connected with this key"),
     ).toBeOnTheScreen();
-    expect(revokeSwitch()).toHaveProp("value", false);
+    expect(switchOn()).toBe(false);
+
+    pressRevoke();
+
+    expect(sheets).toHaveLength(1);
+    expect(nthSheet(0).options).toEqual({
+      title: "Revoke CI sandboxes?",
+      message: KEEP,
+      options: ["Revoke", "Cancel"],
+      destructiveButtonIndex: 0,
+      cancelButtonIndex: 1,
+    });
     expect(revokeInstallKey).not.toHaveBeenCalled();
 
-    await pressRevoke();
+    await confirmation("ios").pick("Revoke");
 
     expect(revokeInstallKey).toHaveBeenCalledTimes(1);
     expect(revokeInstallKey).toHaveBeenCalledWith({
@@ -517,21 +601,67 @@ describe("revoking an install key", () => {
     expect(screen.queryByText("CI sandboxes")).not.toBeOnTheScreen();
   });
 
-  test("with the switch on, the key's connections are revoked in the same act", async () => {
-    revokeInstallKey.mockResolvedValue(null);
-    await openRevoke();
+  function nthSheet(index: number) {
+    const sheet = sheets[index];
+    if (sheet === undefined) {
+      throw new Error(`No action sheet ${index}`);
+    }
+    return sheet;
+  }
 
-    fireEvent(revokeSwitch(), "valueChange", true);
-    expect(revokeSwitch()).toHaveProp("value", true);
-    await pressRevoke();
+  test.each([
+    ["ios", false, KEEP],
+    ["ios", true, DISCONNECT],
+    ["android", false, KEEP],
+    ["android", true, DISCONNECT],
+  ] as const)(
+    "on %s, confirming with the switch %s sends that value only after the confirmation",
+    async (platform, on, message) => {
+      revokeInstallKey.mockResolvedValue(null);
+      await openRevoke(platform);
+      if (on) {
+        fireEvent(revokeSwitch(), "valueChange", true);
+      }
+      expect(switchOn()).toBe(on);
 
-    expect(revokeInstallKey).toHaveBeenCalledWith({
-      installKeyId: "k_sandboxes",
-      revokeConnections: true,
-    });
-  });
+      pressRevoke();
 
-  test("the label follows the backend's machine count while the panel is open", async () => {
+      const asked = confirmation(platform);
+      expect(asked.title).toBe("Revoke CI sandboxes?");
+      expect(asked.message).toBe(message);
+      expect(asked.destructive).toBe("Revoke");
+      expect(asked.cancel).toBe("Cancel");
+      expect(asked.choices).toHaveLength(2);
+      expect(revokeInstallKey).not.toHaveBeenCalled();
+
+      await asked.pick("Revoke");
+
+      expect(revokeInstallKey).toHaveBeenCalledTimes(1);
+      expect(revokeInstallKey).toHaveBeenCalledWith({
+        installKeyId: "k_sandboxes",
+        revokeConnections: on,
+      });
+    },
+  );
+
+  test.each(["ios", "android"] as const)(
+    "on %s, Cancel in the system confirmation sends nothing and keeps the panel",
+    async (platform) => {
+      await openRevoke(platform);
+      fireEvent(revokeSwitch(), "valueChange", true);
+
+      pressRevoke();
+      await confirmation(platform).pick("Cancel");
+
+      expect(revokeInstallKey).not.toHaveBeenCalled();
+      expect(haptic.success).not.toHaveBeenCalled();
+      expect(screen.getByText("Revoke CI sandboxes?")).toBeOnTheScreen();
+      expect(switchOn()).toBe(true);
+      expect(screen.getByText("CI sandboxes")).toBeOnTheScreen();
+    },
+  );
+
+  test("the label and the confirmation follow the backend's machine count while the panel is open", async () => {
     await openRevoke();
 
     act(() => setQuery(list, [{ ...sandboxes, machinesConnected: 1 }, devbox]));
@@ -540,14 +670,27 @@ describe("revoking an install key", () => {
     expect(
       screen.queryByText("Also disconnect 3 machines connected with this key"),
     ).not.toBeOnTheScreen();
+
+    fireEvent(
+      screen.getByLabelText("Also disconnect 1 machine connected with this key"),
+      "valueChange",
+      true,
+    );
+    pressRevoke();
+    expect(confirmation("ios").message).toBe(
+      "Its next installer run will be refused, and the 1 machine it connected is disconnected.",
+    );
+    expect(revokeInstallKey).not.toHaveBeenCalled();
   });
 
-  test("Cancel closes the panel and revokes nothing", async () => {
+  test("the panel's Cancel closes it without a confirmation or a call", async () => {
     await openRevoke();
 
     fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
 
     expect(screen.queryByText("Revoke CI sandboxes?")).not.toBeOnTheScreen();
+    expect(sheets).toHaveLength(0);
+    expect(alert).not.toHaveBeenCalled();
     expect(revokeInstallKey).not.toHaveBeenCalled();
   });
 
@@ -556,10 +699,15 @@ describe("revoking an install key", () => {
     revokeInstallKey.mockReturnValueOnce(pending.promise);
     await openRevoke();
 
-    await pressRevoke();
+    pressRevoke();
+    const first = confirmation("ios");
+    await first.pick("Revoke");
+    // A second confirmation of the same sheet sends nothing more.
+    await first.pick("Revoke");
     const busy = screen.getByRole("button", { name: "Revoking..." });
     expect(busy).toBeDisabled();
     fireEvent.press(busy);
+    expect(sheets).toHaveLength(1);
     expect(revokeInstallKey).toHaveBeenCalledTimes(1);
 
     await act(async () => pending.reject(new Error("Network request failed")));
@@ -571,7 +719,8 @@ describe("revoking an install key", () => {
     expect(screen.queryByText(/Network request failed/)).not.toBeOnTheScreen();
 
     revokeInstallKey.mockResolvedValueOnce(null);
-    await pressRevoke();
+    pressRevoke();
+    await confirmation("ios").pick("Revoke");
     expect(revokeInstallKey).toHaveBeenCalledTimes(2);
     expect(screen.queryByText(message)).not.toBeOnTheScreen();
   });
