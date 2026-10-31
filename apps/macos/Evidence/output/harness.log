@@ -167,7 +167,7 @@ category decision.approve_reject: actions reject "Reject", approve "Approve"
 - t+300s sign-out while dec_late's post is in flight: add dec_late in flight; remove all delivered; add dec_late: "Approve?" / "Claude Code · api"; remove delivered ["dec_late"]; delivered now []
 
 ### Notification answers (PendingAnswers.sendNow)
-- Approve on dec_ship: accepted true; a repeated action accepted false; posts ["dec_ship approve", "dec_pick option(id: \"eu\")"]
+- Approve on dec_ship: accepted true; a repeated action accepted false; posts ["dec_pick option(id: \"eu\")", "dec_ship approve"]
   the popover's held answer for dec_pick was sent only by the quit flush that ends this step, never by the notification action
 - Approve on dec_taken answers 409 while the popover is closed: outcome kept for the next opening: "Already answered in the app: Reject"
 
