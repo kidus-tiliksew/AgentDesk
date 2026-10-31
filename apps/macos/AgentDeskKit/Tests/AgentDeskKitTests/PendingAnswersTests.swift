@@ -255,6 +255,23 @@ final class PendingAnswersTests: XCTestCase {
     XCTAssertEqual(sender.reads, [])
   }
 
+  /// A 404 or 409 without the contract body is a failure, not a missing
+  /// decision or a conflict, as when it mapped to a transport failure.
+  func testNonContractNotFoundAndConflictRestoreTheRow() async {
+    sender.answerPosts(.failure(.http(status: 404)), .failure(.http(status: 409)))
+    pending.answer(first, approve)
+    pending.answer(second, approve)
+    let delivered = await pending.flushAndWait()
+    XCTAssertFalse(delivered)
+    XCTAssertFalse(pending.hides("dec_1"))
+    XCTAssertFalse(pending.hides("dec_2"))
+    XCTAssertEqual(
+      pending.failures,
+      ["dec_1": PendingAnswers.failureMessage, "dec_2": PendingAnswers.failureMessage])
+    XCTAssertNil(pending.outcome)
+    XCTAssertEqual(sender.reads, [], "no conflict read")
+  }
+
   func testTransportFailureRestoresTheRowWithItsDraft() async {
     sender.answerPosts(.failure(.transport("offline")))
     var draft = AnswerDraft(decision: first)

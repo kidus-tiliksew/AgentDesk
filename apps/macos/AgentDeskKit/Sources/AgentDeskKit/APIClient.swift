@@ -128,6 +128,13 @@ public final class APIClient: Sendable {
 
   private struct Empty: Encodable {}
 
+  /// A 2xx answer's body with its status, so a body that cannot be decoded
+  /// still reports the status it came with.
+  private struct Answered: Sendable {
+    var status: Int
+    var data: Data
+  }
+
   private func get<T: Decodable>(_ path: String, query: [URLQueryItem] = []) async throws(APIError)
     -> T
   {
@@ -136,7 +143,7 @@ public final class APIClient: Sendable {
 
   private func send<Body: Encodable>(
     _ method: String, _ path: String, query: [URLQueryItem] = [], body: Body?, auth: Auth
-  ) async throws(APIError) -> Data {
+  ) async throws(APIError) -> Answered {
     var components = URLComponents()
     components.percentEncodedPath = path
     if !query.isEmpty {
@@ -147,7 +154,7 @@ public final class APIClient: Sendable {
       }
     }
     guard let url = components.url(relativeTo: configuration.origin)?.absoluteURL else {
-      throw .transport("Invalid request path")
+      throw .request("Invalid request path")
     }
 
     var request = URLRequest(url: url, timeoutInterval: Self.timeout)
@@ -158,7 +165,7 @@ public final class APIClient: Sendable {
       do {
         request.httpBody = try JSONEncoder.agentDesk().encode(body)
       } catch {
-        throw .transport("Couldn't encode the request")
+        throw .request("Couldn't encode the request")
       }
       request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     }
@@ -189,7 +196,7 @@ public final class APIClient: Sendable {
     Self.log.debug(
       "\(method, privacy: .public) \(path, privacy: .public) \(http.statusCode, privacy: .public)")
     if (200..<300).contains(http.statusCode) {
-      return data
+      return Answered(status: http.statusCode, data: data)
     }
 
     let failure = Self.failure(status: http.statusCode, data: data)
@@ -199,17 +206,17 @@ public final class APIClient: Sendable {
     throw failure
   }
 
-  private func decode<T: Decodable>(_ data: Data) throws(APIError) -> T {
+  private func decode<T: Decodable>(_ answered: Answered) throws(APIError) -> T {
     do {
-      return try JSONDecoder.agentDesk().decode(T.self, from: data)
+      return try JSONDecoder.agentDesk().decode(T.self, from: answered.data)
     } catch {
-      throw .transport("The server's answer could not be read")
+      throw .unreadable(status: answered.status)
     }
   }
 
   static func failure(status: Int, data: Data) -> APIError {
     guard let body = try? JSONDecoder.agentDesk().decode(ErrorBody.self, from: data) else {
-      return .transport("The server answered HTTP \(status)")
+      return .http(status: status)
     }
     return .response(
       status: status, code: body.error.code, message: body.error.message, field: body.error.field)

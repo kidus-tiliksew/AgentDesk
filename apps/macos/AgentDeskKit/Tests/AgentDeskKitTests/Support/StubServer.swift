@@ -26,6 +26,11 @@ struct StubResponse: Sendable {
   var status: Int
   var body: Data
   var headers: [String: String] = ["Content-Type": "application/json"]
+  /// False delivers a plain `URLResponse`, an answer that is not HTTP.
+  var isHTTP = true
+
+  /// A response that is not HTTP.
+  static let notHTTP = StubResponse(status: 0, body: Data("hello".utf8), isHTTP: false)
 
   static func json(_ status: Int, _ text: String) -> StubResponse {
     StubResponse(status: status, body: Data(text.utf8))
@@ -137,6 +142,15 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
   }
 
   private func deliver(_ stub: StubResponse, for request: URLRequest, url: URL) {
+    guard stub.isHTTP else {
+      let response = URLResponse(
+        url: url, mimeType: "text/plain", expectedContentLength: stub.body.count,
+        textEncodingName: nil)
+      client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+      client?.urlProtocol(self, didLoad: stub.body)
+      client?.urlProtocolDidFinishLoading(self)
+      return
+    }
     let response = HTTPURLResponse(
       url: url, statusCode: stub.status, httpVersion: "HTTP/1.1", headerFields: stub.headers)!
     if (300..<400).contains(stub.status), let location = stub.headers["Location"],

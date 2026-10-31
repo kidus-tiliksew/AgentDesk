@@ -276,6 +276,19 @@ final class SyncTests: XCTestCase {
     XCTAssertEqual(h.reader.decisionCalls, 1, "a stopped run ignores triggers")
   }
 
+  /// A 401 without the contract body is an ordinary failed read for `Sync`,
+  /// as when it mapped to a transport failure; `APIClient` signs the account
+  /// out on any HTTP 401, which stops the run through `Account`.
+  func testNonContractUnauthorizedBacksOffLikeAnyFailure() async {
+    let h = Harness()
+    h.reader.alwaysAnswerDecisions(.failure(.http(status: 401)))
+    h.sync.start()
+    await h.settled(sleeps: 1)
+    XCTAssertEqual(h.clock.requests.last, 30)
+    let running = await h.sync.isRunning
+    XCTAssertTrue(running)
+  }
+
   func testStopDropsAResultStillInFlightAndARestartBeginsEmpty() async {
     let h = Harness()
     let gate = h.reader.holdNextRead()
