@@ -163,15 +163,55 @@ final class APIClientTests: XCTestCase {
     }
   }
 
-  func testOtherFailuresMapToTransport() async {
-    let html = StubServer { _ in StubResponse(status: 502, body: Data("<html>".utf8)) }
-    await assertTransport { try await html.makeClient().decision(id: "x") }
+  func testContractErrorKeepsItsStatusForEveryAccessor() {
+    let error = APIError.response(status: 404, code: "not_found", message: "m", field: nil)
+    XCTAssertEqual(error.status, 404)
+    XCTAssertEqual(error.httpStatus, 404)
+    XCTAssertEqual(error.code, "not_found")
+  }
 
+  /// A non-2xx answer without the contract error body keeps its HTTP status
+  /// in `httpStatus` only, so `status`, `code`, `isUnauthenticated`, and
+  /// `isRateLimited` read as they did for a transport failure.
+  func testNonContractAnswerKeepsItsHTTPStatusOnly() async {
+    for status in [401, 404, 409, 429, 500, 502] {
+      let server = StubServer { _ in StubResponse(status: status, body: Data("<html>".utf8)) }
+      let error = await failure { try await server.makeClient().decision(id: "x") }
+      XCTAssertEqual(error, .http(status: status))
+      XCTAssertNil(error?.status)
+      XCTAssertNil(error?.code)
+      XCTAssertEqual(error?.httpStatus, status)
+      XCTAssertEqual(error?.isUnauthenticated, false)
+      XCTAssertEqual(error?.isRateLimited, false)
+    }
+    // An empty body and a JSON body that is not the contract shape.
+    let empty = StubServer { _ in StubResponse(status: 503, body: Data()) }
+    let emptyError = await failure { try await empty.makeClient().pendingDecisions() }
+    XCTAssertEqual(emptyError, .http(status: 503))
+    let other = StubServer { _ in .json(400, #"{"message": "bad"}"#) }
+    let otherError = await failure { try await other.makeClient().decision(id: "x") }
+    XCTAssertEqual(otherError, .http(status: 400))
+  }
+
+  func testUnreadableSuccessKeepsItsStatus() async {
     let unreadable = StubServer { _ in .json(200, #"{"items": "nope"}"#) }
-    await assertTransport { try await unreadable.makeClient().pendingDecisions() }
+    let error = await failure { try await unreadable.makeClient().pendingDecisions() }
+    XCTAssertEqual(error, .unreadable(status: 200))
+    XCTAssertNil(error?.status)
+    XCTAssertEqual(error?.httpStatus, 200)
 
+    let start = StubServer { _ in .json(201, #"{"user_code": 7}"#) }
+    let startError = await failure { try await start.makeClient().startSignIn(machineName: "Mac") }
+    XCTAssertEqual(startError, .unreadable(status: 201))
+  }
+
+  func testNoHTTPAnswerMapsToTransport() async {
     let offline = StubServer { _ in throw URLError(.notConnectedToInternet) }
     await assertTransport { try await offline.makeClient().decision(id: "x") }
+    let notHTTP = StubServer { _ in .notHTTP }
+    await assertTransport { try await notHTTP.makeClient().decision(id: "x") }
+    let error = await failure { try await offline.makeClient().decision(id: "x") }
+    XCTAssertNil(error?.httpStatus)
   }
 
   func testSignedOutClientSendsNothing() async {
@@ -188,7 +228,9 @@ final class APIClientTests: XCTestCase {
   func testRedirectToAnotherOriginIsNotFollowed() async {
     let elsewhere = StubServer { _ in .json(200, Fixtures.json(Fixtures.pendingDecision())) }
     let server = StubServer { _ in .redirect(to: "\(elsewhere.origin.absoluteString)/v1/decisions/x") }
-    await assertTransport { try await server.makeClient(token: "adp_secret").decision(id: "x") }
+    // The refused redirect's own 302 is the answer.
+    let error = await failure { try await server.makeClient(token: "adp_secret").decision(id: "x") }
+    XCTAssertEqual(error, .http(status: 302))
     XCTAssertTrue(elsewhere.requests.isEmpty, "The bearer token reached another origin")
   }
 
@@ -225,6 +267,28 @@ final class APIClientTests: XCTestCase {
     XCTAssertTrue(store.stored.isEmpty)
     XCTAssertEqual(cleanups, 1)
     XCTAssertEqual(server.requests.map(\.method), ["GET"])
+    XCTAssertFalse(server.requests.contains { $0.path == "/device/connection" })
+  }
+
+  /// Any HTTP 401 to a `/v1` request signs out, with or without the contract
+  /// body, as before the non-contract case existed.
+  @MainActor
+  func testNonContractUnauthorizedStillSignsOut() async throws {
+    let server = StubServer { _ in StubResponse(status: 401, body: Data("<html>".utf8)) }
+    let store = MemoryCredentialStore([server.configuration.account: "adp_old"])
+    let account = Account(
+      configuration: server.configuration, credentials: store, session: server.makeSession(),
+      userAgent: "AgentDeskMac/9.9.9")
+    XCTAssertEqual(account.state, .signedIn)
+
+    do {
+      _ = try await account.api.pendingDecisions()
+      XCTFail("Expected an error")
+    } catch {
+      XCTAssertEqual(error, .http(status: 401))
+    }
+    XCTAssertEqual(account.state, .signedOut)
+    XCTAssertTrue(store.stored.isEmpty)
     XCTAssertFalse(server.requests.contains { $0.path == "/device/connection" })
   }
 
@@ -319,6 +383,16 @@ final class APIClientTests: XCTestCase {
   }
 
   // MARK: Helpers
+
+  /// The `APIError` the request threw, or nil when it succeeded.
+  private func failure<T>(_ body: () async throws -> T) async -> APIError? {
+    do {
+      _ = try await body()
+      return nil
+    } catch {
+      return error as? APIError
+    }
+  }
 
   private func assertTransport<T>(
     _ body: () async throws -> T, file: StaticString = #filePath, line: UInt = #line

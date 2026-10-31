@@ -39,7 +39,13 @@ public enum SignInFailure: Equatable, Sendable {
   case declined
   case expired
   case rateLimited
+  /// No HTTP answer arrived for the start.
   case unreachable
+  /// The server answered the start with a 4xx other than 429.
+  case serverRefused(status: Int)
+  /// The server answered the start with a 5xx, a 2xx the app cannot read,
+  /// or another answer that is not a refusal.
+  case serverProblem
   case keychain
 
   /// The sign-in view's text (component-mac-app §Sign-in).
@@ -49,12 +55,76 @@ public enum SignInFailure: Equatable, Sendable {
     case .expired: "This code expired"
     case .rateLimited: "Too many sign-in attempts. Try again in a minute."
     case .unreachable: "Couldn't reach AgentDesk. Check your connection and try again."
+    case .serverRefused(let status):
+      "The server refused sign-in (HTTP \(status)). Update AgentDesk or check the server setting."
+    case .serverProblem: "The server had a problem starting sign-in. Try again later."
     case .keychain: "Couldn't save the sign-in to the Keychain."
     }
   }
 
   /// Declined and expired codes offer a New code button (req-mac-app AC-2.4).
   public var offersNewCode: Bool { self == .declined || self == .expired }
+
+  /// What a failed `POST /device/start` shows (component-mac-app §Sign-in).
+  /// Only a start with no HTTP answer is unreachable, so a server that
+  /// answered never sends the user to check their connection.
+  public static func start(_ error: APIError) -> SignInFailure {
+    if case .transport = error { return .unreachable }
+    switch error.httpStatus {
+    case 429?: return .rateLimited
+    case let status? where (400..<500).contains(status): return .serverRefused(status: status)
+    default: return .serverProblem
+    }
+  }
+}
+
+/// The text of the error-level log line for a failed sign-in start
+/// (component-mac-app §Sign-in). It names the HTTP status with the contract
+/// error's code and field, or the cause when no answer arrived. It never
+/// holds a body, the contract message, a URL, the device secret, or a token.
+enum SignInStartDiagnostic {
+  static func describe(_ error: APIError) -> String {
+    switch error {
+    case .response(let status, let code, _, let field):
+      var text = "HTTP \(status), code \(identifier(code))"
+      if let field { text += ", field \(identifier(field))" }
+      return text
+    case .http(let status):
+      return "HTTP \(status), no contract error body"
+    case .unreadable(let status):
+      return "HTTP \(status), the answer could not be decoded"
+    case .transport(let cause):
+      return "no HTTP answer: \(sentence(cause))"
+    case .request(let cause):
+      return "request not sent: \(sentence(cause))"
+    case .signedOut:
+      return "request not sent: no credential"
+    }
+  }
+
+  private static let identifierCharacters = CharacterSet(
+    charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-")
+
+  /// A server-supplied code or field, kept only when it is a short
+  /// identifier.
+  static func identifier(_ value: String) -> String {
+    guard !value.isEmpty, value.count <= 64,
+      value.unicodeScalars.allSatisfy(identifierCharacters.contains)
+    else { return "(unrecognized)" }
+    return value
+  }
+
+  /// A cause with every word that holds a URL scheme or an `@` replaced and
+  /// control characters removed, bounded to 160 characters.
+  static func sentence(_ value: String) -> String {
+    let words = value.split(whereSeparator: \.isWhitespace).map { word -> String in
+      word.contains("://") || word.contains("@") ? "(redacted)" : String(word)
+    }
+    let joined = words.joined(separator: " ").unicodeScalars
+      .filter { !CharacterSet.controlCharacters.contains($0) }
+    let text = String(String.UnicodeScalarView(joined))
+    return text.count > 160 ? String(text.prefix(160)) + "…" : text
+  }
 }
 
 /// Short-code sign-in: start, show the code, and poll until an outcome
@@ -160,7 +230,9 @@ public final class SignInController {
       started = try await api.startSignIn(machineName: machineName)
     } catch {
       guard isCurrent(id) else { return }
-      phase = .failed(error.isRateLimited ? .rateLimited : .unreachable)
+      Self.log.error(
+        "Sign-in start failed: \(SignInStartDiagnostic.describe(error), privacy: .public)")
+      phase = .failed(.start(error))
       return
     }
     guard isCurrent(id) else { return }
