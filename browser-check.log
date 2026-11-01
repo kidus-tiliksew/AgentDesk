@@ -1,0 +1,24 @@
+320-light-js hscroll=false (320/320) imgs=0 copyHidden=false [["App Store","https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382","rgb(79, 70, 229)","underline"],["Google Play","https://play.google.com/store/apps/details?id=sh.kidus.agentdesk","rgb(79, 70, 229)","underline"]] 
+  tab: a:GitHub > pre:Install command > button:Copy install command > a:View the source on GitHub > a:App Store > a:Google Play > a:Open source under the MIT license > a:Source on GitHub > a:Privacy 
+  ring: solid 2px rgb(79, 70, 229) offset 2px solid 2px rgb(79, 70, 229) offset 2px
+320-light-nojs hscroll=false (320/320) imgs=0 copyHidden=true [["App Store","https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382","rgb(79, 70, 229)","underline"],["Google Play","https://play.google.com/store/apps/details?id=sh.kidus.agentdesk","rgb(79, 70, 229)","underline"]] 
+  tab: a:GitHub > pre:Install command > a:View the source on GitHub > a:App Store > a:Google Play > a:Open source under the MIT license > a:Source on GitHub > a:Privacy > body:AgentDeskGitHubAn inbox for your coding (!fv) 
+  ring: solid 2px rgb(79, 70, 229) offset 2px solid 2px rgb(79, 70, 229) offset 2px
+320-dark-js hscroll=false (320/320) imgs=0 copyHidden=false [["App Store","https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382","rgb(153, 147, 255)","underline"],["Google Play","https://play.google.com/store/apps/details?id=sh.kidus.agentdesk","rgb(153, 147, 255)","underline"]] 
+  tab: a:GitHub > pre:Install command > button:Copy install command > a:View the source on GitHub > a:App Store > a:Google Play > a:Open source under the MIT license > a:Source on GitHub > a:Privacy 
+  ring: solid 2px rgb(153, 147, 255) offset 2px solid 2px rgb(153, 147, 255) offset 2px
+320-dark-nojs hscroll=false (320/320) imgs=0 copyHidden=true [["App Store","https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382","rgb(153, 147, 255)","underline"],["Google Play","https://play.google.com/store/apps/details?id=sh.kidus.agentdesk","rgb(153, 147, 255)","underline"]] 
+  tab: a:GitHub > pre:Install command > a:View the source on GitHub > a:App Store > a:Google Play > a:Open source under the MIT license > a:Source on GitHub > a:Privacy > body:AgentDeskGitHubAn inbox for your coding (!fv) 
+  ring: solid 2px rgb(153, 147, 255) offset 2px solid 2px rgb(153, 147, 255) offset 2px
+1280-light-js hscroll=false (1280/1280) imgs=0 copyHidden=false [["App Store","https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382","rgb(79, 70, 229)","underline"],["Google Play","https://play.google.com/store/apps/details?id=sh.kidus.agentdesk","rgb(79, 70, 229)","underline"]] 
+  tab: a:GitHub > pre:Install command > button:Copy install command > a:View the source on GitHub > a:App Store > a:Google Play > a:Open source under the MIT license > a:Source on GitHub > a:Privacy 
+  ring: solid 2px rgb(79, 70, 229) offset 2px solid 2px rgb(79, 70, 229) offset 2px
+1280-light-nojs hscroll=false (1280/1280) imgs=0 copyHidden=true [["App Store","https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382","rgb(79, 70, 229)","underline"],["Google Play","https://play.google.com/store/apps/details?id=sh.kidus.agentdesk","rgb(79, 70, 229)","underline"]] 
+  tab: a:GitHub > pre:Install command > a:View the source on GitHub > a:App Store > a:Google Play > a:Open source under the MIT license > a:Source on GitHub > a:Privacy > a:GitHub 
+  ring: solid 2px rgb(79, 70, 229) offset 2px solid 2px rgb(79, 70, 229) offset 2px
+1280-dark-js hscroll=false (1280/1280) imgs=0 copyHidden=false [["App Store","https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382","rgb(153, 147, 255)","underline"],["Google Play","https://play.google.com/store/apps/details?id=sh.kidus.agentdesk","rgb(153, 147, 255)","underline"]] 
+  tab: a:GitHub > pre:Install command > button:Copy install command > a:View the source on GitHub > a:App Store > a:Google Play > a:Open source under the MIT license > a:Source on GitHub > a:Privacy 
+  ring: solid 2px rgb(153, 147, 255) offset 2px solid 2px rgb(153, 147, 255) offset 2px
+1280-dark-nojs hscroll=false (1280/1280) imgs=0 copyHidden=true [["App Store","https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382","rgb(153, 147, 255)","underline"],["Google Play","https://play.google.com/store/apps/details?id=sh.kidus.agentdesk","rgb(153, 147, 255)","underline"]] 
+  tab: a:GitHub > pre:Install command > a:View the source on GitHub > a:App Store > a:Google Play > a:Open source under the MIT license > a:Source on GitHub > a:Privacy > body:AgentDeskGitHubAn inbox for your coding (!fv) 
+  ring: solid 2px rgb(153, 147, 255) offset 2px solid 2px rgb(153, 147, 255) offset 2px

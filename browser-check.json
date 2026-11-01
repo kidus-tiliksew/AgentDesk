@@ -1,0 +1,770 @@
+[
+  {
+    "tag": "320-light-js",
+    "noteText": "AgentDesk is in early development. The app is on the App Store and Google Play.",
+    "links": [
+      {
+        "text": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "color": "rgb(79, 70, 229)",
+        "underline": "underline"
+      },
+      {
+        "text": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "color": "rgb(79, 70, 229)",
+        "underline": "underline"
+      }
+    ],
+    "imgs": 0,
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "noteRect": {
+      "x": 20,
+      "y": 657.703125,
+      "w": 280,
+      "h": 72
+    },
+    "copyHidden": false,
+    "bodyBg": "rgb(255, 255, 255)",
+    "horizontalScroll": false,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "button",
+        "name": "Copy install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      }
+    ],
+    "storeLinkFocusVisibleAfterKeyboard": true
+  },
+  {
+    "tag": "320-light-nojs",
+    "noteText": "AgentDesk is in early development. The app is on the App Store and Google Play.",
+    "links": [
+      {
+        "text": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "color": "rgb(79, 70, 229)",
+        "underline": "underline"
+      },
+      {
+        "text": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "color": "rgb(79, 70, 229)",
+        "underline": "underline"
+      }
+    ],
+    "imgs": 0,
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "noteRect": {
+      "x": 20,
+      "y": 605.703125,
+      "w": 280,
+      "h": 72
+    },
+    "copyHidden": true,
+    "bodyBg": "rgb(255, 255, 255)",
+    "horizontalScroll": false,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "body",
+        "name": "AgentDeskGitHubAn inbox for your coding ",
+        "href": null,
+        "focusVisible": false,
+        "outline": "none 3px rgb(0, 0, 0) offset 0px"
+      }
+    ],
+    "storeLinkFocusVisibleAfterKeyboard": true
+  },
+  {
+    "tag": "320-dark-js",
+    "noteText": "AgentDesk is in early development. The app is on the App Store and Google Play.",
+    "links": [
+      {
+        "text": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "color": "rgb(153, 147, 255)",
+        "underline": "underline"
+      },
+      {
+        "text": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "color": "rgb(153, 147, 255)",
+        "underline": "underline"
+      }
+    ],
+    "imgs": 0,
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "noteRect": {
+      "x": 20,
+      "y": 657.703125,
+      "w": 280,
+      "h": 72
+    },
+    "copyHidden": false,
+    "bodyBg": "rgb(0, 0, 0)",
+    "horizontalScroll": false,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "button",
+        "name": "Copy install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      }
+    ],
+    "storeLinkFocusVisibleAfterKeyboard": true
+  },
+  {
+    "tag": "320-dark-nojs",
+    "noteText": "AgentDesk is in early development. The app is on the App Store and Google Play.",
+    "links": [
+      {
+        "text": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "color": "rgb(153, 147, 255)",
+        "underline": "underline"
+      },
+      {
+        "text": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "color": "rgb(153, 147, 255)",
+        "underline": "underline"
+      }
+    ],
+    "imgs": 0,
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "noteRect": {
+      "x": 20,
+      "y": 605.703125,
+      "w": 280,
+      "h": 72
+    },
+    "copyHidden": true,
+    "bodyBg": "rgb(0, 0, 0)",
+    "horizontalScroll": false,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "body",
+        "name": "AgentDeskGitHubAn inbox for your coding ",
+        "href": null,
+        "focusVisible": false,
+        "outline": "none 3px rgb(255, 255, 255) offset 0px"
+      }
+    ],
+    "storeLinkFocusVisibleAfterKeyboard": true
+  },
+  {
+    "tag": "1280-light-js",
+    "noteText": "AgentDesk is in early development. The app is on the App Store and Google Play.",
+    "links": [
+      {
+        "text": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "color": "rgb(79, 70, 229)",
+        "underline": "underline"
+      },
+      {
+        "text": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "color": "rgb(79, 70, 229)",
+        "underline": "underline"
+      }
+    ],
+    "imgs": 0,
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "noteRect": {
+      "x": 120,
+      "y": 668.078125,
+      "w": 519.609375,
+      "h": 48
+    },
+    "copyHidden": false,
+    "bodyBg": "rgb(255, 255, 255)",
+    "horizontalScroll": false,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "button",
+        "name": "Copy install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      }
+    ],
+    "storeLinkFocusVisibleAfterKeyboard": true
+  },
+  {
+    "tag": "1280-light-nojs",
+    "noteText": "AgentDesk is in early development. The app is on the App Store and Google Play.",
+    "links": [
+      {
+        "text": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "color": "rgb(79, 70, 229)",
+        "underline": "underline"
+      },
+      {
+        "text": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "color": "rgb(79, 70, 229)",
+        "underline": "underline"
+      }
+    ],
+    "imgs": 0,
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "noteRect": {
+      "x": 120,
+      "y": 667.671875,
+      "w": 519.609375,
+      "h": 48
+    },
+    "copyHidden": true,
+    "bodyBg": "rgb(255, 255, 255)",
+    "horizontalScroll": false,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px"
+      }
+    ],
+    "storeLinkFocusVisibleAfterKeyboard": true
+  },
+  {
+    "tag": "1280-dark-js",
+    "noteText": "AgentDesk is in early development. The app is on the App Store and Google Play.",
+    "links": [
+      {
+        "text": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "color": "rgb(153, 147, 255)",
+        "underline": "underline"
+      },
+      {
+        "text": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "color": "rgb(153, 147, 255)",
+        "underline": "underline"
+      }
+    ],
+    "imgs": 0,
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "noteRect": {
+      "x": 120,
+      "y": 668.078125,
+      "w": 519.609375,
+      "h": 48
+    },
+    "copyHidden": false,
+    "bodyBg": "rgb(0, 0, 0)",
+    "horizontalScroll": false,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "button",
+        "name": "Copy install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      }
+    ],
+    "storeLinkFocusVisibleAfterKeyboard": true
+  },
+  {
+    "tag": "1280-dark-nojs",
+    "noteText": "AgentDesk is in early development. The app is on the App Store and Google Play.",
+    "links": [
+      {
+        "text": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "color": "rgb(153, 147, 255)",
+        "underline": "underline"
+      },
+      {
+        "text": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "color": "rgb(153, 147, 255)",
+        "underline": "underline"
+      }
+    ],
+    "imgs": 0,
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "noteRect": {
+      "x": 120,
+      "y": 667.671875,
+      "w": 519.609375,
+      "h": 48
+    },
+    "copyHidden": true,
+    "bodyBg": "rgb(0, 0, 0)",
+    "horizontalScroll": false,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px"
+      },
+      {
+        "tag": "body",
+        "name": "AgentDeskGitHubAn inbox for your coding ",
+        "href": null,
+        "focusVisible": false,
+        "outline": "none 3px rgb(255, 255, 255) offset 0px"
+      }
+    ],
+    "storeLinkFocusVisibleAfterKeyboard": true
+  }
+]
