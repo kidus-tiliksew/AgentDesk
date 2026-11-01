@@ -4,7 +4,7 @@
 // Phone figures show the screens under public/screens (§Assets).
 import SiteFooter from "../components/SiteFooter.astro";
 import Base from "../layouts/Base.astro";
-import { INSTALL_COMMAND, REPOSITORY_URL } from "../site";
+import { APP_STORE_URL, GOOGLE_PLAY_URL, INSTALL_COMMAND, REPOSITORY_URL } from "../site";
 
 const features = [
   {
@@ -61,7 +61,7 @@ const harnesses = ["Claude Code", "Codex", "Cursor"];
           Runs on macOS and Linux. <a href={REPOSITORY_URL}>View the source on GitHub</a>.
         </p>
         <p class="note">
-          AgentDesk is in early development. Nothing is released in the app stores yet.
+          AgentDesk is in early development. The app is on the <a href={APP_STORE_URL}>App Store</a> and <a href={GOOGLE_PLAY_URL}>Google Play</a>.
         </p>
       </div>
 

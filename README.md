@@ -13,7 +13,7 @@ AgentDesk is an inbox for your coding agents. Agents can work all day now, but t
 - One install per machine covers every repository, and it works across all your machines. You approve each machine from your phone.
 - A published HTTP API and webhooks let anyone build another client, such as Slack or email.
 
-AgentDesk is in early development. The Android app is on [Google Play](https://play.google.com/store/apps/details?id=sh.kidus.agentdesk). The iOS app is not in the App Store yet. To run it on a simulator, follow [apps/mobile/README.md](apps/mobile/README.md).
+AgentDesk is in early development. The iOS app is on the [App Store](https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382), and the Android app is on [Google Play](https://play.google.com/store/apps/details?id=sh.kidus.agentdesk). To run a development build on a simulator or emulator, follow [apps/mobile/README.md](apps/mobile/README.md).
 
 ## Install
 
