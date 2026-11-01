@@ -13,7 +13,7 @@ const config: ExpoConfig = {
   name: "AgentDesk",
   slug: "agentdesk",
   scheme: "agentdesk",
-  version: "1.0",
+  version: "1.1",
   orientation: "portrait",
   userInterfaceStyle: "automatic",
   // The Prompt bubble mark on the Indigo Ink gradient. iOS masks the square
