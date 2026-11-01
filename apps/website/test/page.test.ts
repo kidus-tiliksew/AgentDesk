@@ -2,7 +2,14 @@ import { readFileSync } from "node:fs";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { beforeAll, describe, expect, test } from "vitest";
 import Index from "../src/pages/index.astro";
-import { INSTALL_COMMAND, REPOSITORY_URL, SITE_DESCRIPTION, SITE_TITLE } from "../src/site";
+import {
+  APP_STORE_URL,
+  GOOGLE_PLAY_URL,
+  INSTALL_COMMAND,
+  REPOSITORY_URL,
+  SITE_DESCRIPTION,
+  SITE_TITLE,
+} from "../src/site";
 
 // component-website §Verification: the rendered page carries every element
 // req-website REQ-1 requires.
@@ -156,9 +163,13 @@ describe("content", () => {
     expect(footer).toContain('<a href="/privacy">Privacy</a>');
   });
 
-  test("states early development and carries no app store links (AC-1.6)", () => {
+  test("states early development and links the App Store and Google Play (AC-1.6)", () => {
     expect(text()).toContain("AgentDesk is in early development.");
-    expect(html).not.toMatch(/apps\.apple\.com|play\.google\.com/);
+    expect(html).toMatch(
+      new RegExp(
+        `The app is on the <a href="${escapeRegExp(APP_STORE_URL)}">App Store</a> and <a href="${escapeRegExp(GOOGLE_PLAY_URL)}">Google Play</a>\\.`,
+      ),
+    );
   });
 
   test("keeps the sections in the designed order", () => {
