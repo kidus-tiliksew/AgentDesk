@@ -92,21 +92,27 @@ export function identifyAnalytics(
 }
 
 // Mounted inside the Clerk provider and above the route groups, so a sign-out
-// does not unmount it. Does nothing without an analytics key.
+// does not unmount it. Does nothing without an analytics key. The first sibling's
+// effects run first, so a screen view in the same commit waits behind the cleanup.
 export function AnalyticsSignOut() {
   const posthog = useAnalyticsClient();
-  return posthog === null ? null : <SessionAnalytics posthog={posthog} />;
+  if (posthog === null) {
+    return null;
+  }
+  return (
+    <>
+      <ClearIdentity posthog={posthog} />
+      <ScreenViews posthog={posthog} />
+    </>
+  );
 }
 
 // Clears the identity once Clerk has loaded with no session: a sign-out, an
 // account deletion, or a session that ended while the app was closed. A distinct
 // ID equal to the anonymous ID is already clear, so a repeat render resets
-// nothing. The screen effect runs after the clearing effect and waits for Clerk,
-// so a signed-out screen never carries the account that was on the device.
-function SessionAnalytics({ posthog }: { posthog: PostHog }) {
+// nothing.
+function ClearIdentity({ posthog }: { posthog: PostHog }) {
   const { isLoaded, sessionId } = useAuth();
-  const name = screenName(useSegments());
-
   useEffect(() => {
     if (!isLoaded || sessionId) {
       return;
@@ -121,7 +127,14 @@ function SessionAnalytics({ posthog }: { posthog: PostHog }) {
       current = false;
     };
   }, [posthog, isLoaded, sessionId]);
+  return null;
+}
 
+// Records a screen view each time the route changes. It waits for Clerk, so a
+// signed-out screen never carries the account that was on the device.
+function ScreenViews({ posthog }: { posthog: PostHog }) {
+  const { isLoaded } = useAuth();
+  const name = screenName(useSegments());
   useEffect(() => {
     if (!isLoaded) {
       return;
@@ -136,7 +149,6 @@ function SessionAnalytics({ posthog }: { posthog: PostHog }) {
       current = false;
     };
   }, [posthog, isLoaded, name]);
-
   return null;
 }
 
