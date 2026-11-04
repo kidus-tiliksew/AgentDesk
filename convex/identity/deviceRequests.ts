@@ -7,6 +7,7 @@ import { appError } from "../lib/errors";
 import { type ClientId, MAC_CLIENT, MAC_CLIENT_NAME } from "./clients";
 import { insertApiToken, insertConnectionToken } from "./credentials";
 import { type HarnessId, harnessName, isHarnessId, parseHarnesses } from "./harnesses";
+import { identity } from "./refs";
 import { hashToken } from "./tokens";
 
 // component-identity §Short-code sign-in (req-accounts-and-connections REQ-6;
@@ -240,7 +241,8 @@ export const declineDeviceRequest = mutation({
 // the same mutation, so the plaintext tokens are returned exactly once
 // (DEC-6; AC-6.3, AC-6.4; req-mac-app AC-2.3). An approved or declined request stays collectable
 // after the code's expiry until it is consumed or purged; expiry governs only
-// a pending request.
+// a pending request. A Mac collection also schedules the `has_mac_app` send
+// (§PostHog Mac property).
 export const collectDeviceRequest = internalMutation({
   args: { deviceSecret: v.string() },
   handler: async (ctx, { deviceSecret }): Promise<CollectResult> => {
@@ -273,6 +275,7 @@ export const collectDeviceRequest = internalMutation({
         machineName: request.machineName,
       });
       await ctx.db.patch("deviceRequests", request._id, { status: "consumed" });
+      await ctx.scheduler.runAfter(0, identity.posthogPerson.syncMacApp, { userId: user._id });
       return { status: "approved", api_token: { credential_id: credentialId, token: plaintext } };
     }
     const connections: CollectedConnection[] = [];

@@ -5,6 +5,7 @@ import { appError } from "../lib/errors";
 import { isMacCredential } from "./clients";
 import { revokeCredential } from "./credentials";
 import { endEphemeralConnection, isEphemeralConnection } from "./ephemeral";
+import { identity } from "./refs";
 
 // component-identity §Service routes: the installer's uninstall revokes the
 // connection token it presents, and the Mac app's sign-out revokes its API
@@ -13,7 +14,8 @@ import { endEphemeralConnection, isEphemeralConnection } from "./ephemeral";
 // is unauthenticated, as resolveToken answers it. The check and the revoke
 // share one transaction. A connection of an ephemeral install key ends
 // through endEphemeralConnection, so `agentdesk uninstall` in a sandbox also
-// cancels its pending decisions (req-install-keys AC-4.2).
+// cancels its pending decisions (req-install-keys AC-4.2). Revoking a Mac
+// credential schedules the `has_mac_app` send (§PostHog Mac property).
 export const revokeSelf = internalMutation({
   args: { tokenHash: v.string() },
   handler: async (ctx, { tokenHash }): Promise<null> => {
@@ -36,6 +38,11 @@ export const revokeSelf = internalMutation({
       await endEphemeralConnection(ctx, credential, Date.now());
     } else {
       await revokeCredential(ctx, credential.userId, credential._id);
+    }
+    if (isMacCredential(credential)) {
+      await ctx.scheduler.runAfter(0, identity.posthogPerson.syncMacApp, {
+        userId: credential.userId,
+      });
     }
     return null;
   },

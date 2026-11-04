@@ -8,6 +8,7 @@ import { getOwned } from "../lib/owned";
 import { isMacCredential } from "./clients";
 import { revokeCredential } from "./credentials";
 import { endEphemeralConnection, isEphemeralConnection } from "./ephemeral";
+import { identity } from "./refs";
 
 // component-identity §Credentials: the app's connection functions
 // (req-accounts-and-connections REQ-4). The app calls Convex as the signed-in
@@ -116,7 +117,8 @@ function notFound(): never {
 // `revokedAt`. A connection of an ephemeral install key ends through
 // endEphemeralConnection, which also ends its sessions and cancels their
 // pending decisions (req-install-keys AC-4.2); every other connection keeps
-// revokeCredential alone (DEC-21 (4)).
+// revokeCredential alone (DEC-21 (4)). Revoking a Mac credential, repeated
+// revokes included, schedules the `has_mac_app` send (§PostHog Mac property).
 export const revokeConnection = mutation({
   args: { credentialId: v.optional(v.any()) },
   returns: v.null(),
@@ -136,6 +138,9 @@ export const revokeConnection = mutation({
       await endEphemeralConnection(ctx, credential, Date.now());
     } else {
       await revokeCredential(ctx, user._id, credentialId);
+    }
+    if (isMacCredential(credential)) {
+      await ctx.scheduler.runAfter(0, identity.posthogPerson.syncMacApp, { userId: user._id });
     }
     return null;
   },

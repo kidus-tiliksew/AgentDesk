@@ -7,6 +7,7 @@ import type * as deviceRequests from "./deviceRequests";
 import type * as ephemeral from "./ephemeral";
 import type * as installKeys from "./installKeys";
 import type * as posthogDeletion from "./posthogDeletion";
+import type * as posthogPerson from "./posthogPerson";
 
 // Typed references to this domain's functions, built from the module types
 // rather than convex/_generated/api.d.ts, so adding a function here needs no
@@ -22,6 +23,7 @@ type IdentityApi = ApiFromModules<{
   "identity/ephemeral": typeof ephemeral;
   "identity/installKeys": typeof installKeys;
   "identity/posthogDeletion": typeof posthogDeletion;
+  "identity/posthogPerson": typeof posthogPerson;
 }>["identity"];
 
 export const identity = anyApi.identity as unknown as IdentityApi;
