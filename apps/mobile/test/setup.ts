@@ -208,17 +208,19 @@ jest.mock("expo-device", () => {
   };
 });
 
-// PostHog's provider records its props and renders its children; the client
-// records screen views. No test sends analytics.
+// PostHog's provider records its props and renders its children. usePostHog
+// reads the provider's context, so it has no client outside a provider, as in
+// the SDK. No test sends analytics.
 jest.mock("posthog-react-native", () => {
+  const { createContext, createElement, useContext } = require("react");
   const { analytics } = require("./fakes");
-  const client = { screen: (name: string) => analytics.screen(name) };
+  const Context = createContext(undefined);
   return {
     PostHogProvider: (props: { children: unknown }) => {
       analytics.provider = props;
-      return props.children;
+      return createElement(Context.Provider, { value: analytics.client }, props.children);
     },
-    usePostHog: () => client,
+    usePostHog: () => useContext(Context),
   };
 });
 

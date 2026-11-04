@@ -8,6 +8,7 @@ import { Text } from "react-native";
 // convex/_generated/api, so it builds without local codegen. Later screens
 // import their domain's refs from ../../../convex/<domain>/refs the same way.
 import { identity } from "../../../convex/identity/refs";
+import { identifyAnalytics, useAnalyticsClient } from "./analytics";
 import { Button } from "./button";
 import { HeaderlessScreen } from "./headerless-screen";
 import { Loading } from "./loading";
@@ -42,8 +43,9 @@ function isUnauthenticated(error: unknown) {
 // is requested once however often the gate renders. `active` names the key
 // the committed render shows, and it changes as soon as the session does,
 // even while the new session waits for Convex, so a completion for any other
-// key is dropped: a late result can neither unlock nor sign out another
-// session.
+// key is dropped: a late result can neither unlock, identify, nor sign out
+// another session. Unmounting clears `active`, so a sign-out drops the result
+// too.
 //
 // Convex reports {isLoading: false, isAuthenticated: false} both when the
 // backend refuses a token and when Clerk has just signed in and the backend
@@ -56,6 +58,7 @@ export function AccountGate({ children }: { children: ReactNode }) {
   const { sessionId, signOut } = useAuth();
   const { isLoading, isAuthenticated } = useConvexAuth();
   const ensureAccount = useMutation(identity.accounts.ensureAccount);
+  const analytics = useAnalyticsClient();
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ key: string; outcome: Outcome } | null>(null);
   const requested = useRef<string | null>(null);
@@ -118,6 +121,9 @@ export function AccountGate({ children }: { children: ReactNode }) {
   // A layout effect runs at commit, before any pending completion can run.
   useLayoutEffect(() => {
     active.current = key;
+    return () => {
+      active.current = null;
+    };
   }, [key]);
 
   useEffect(() => {
@@ -126,8 +132,9 @@ export function AccountGate({ children }: { children: ReactNode }) {
     }
     requested.current = key;
     ensureAccount({}).then(
-      () => {
+      (account) => {
         if (active.current === key) {
+          identifyAnalytics(analytics, account, () => active.current === key);
           setResult({ key, outcome: "ready" });
         }
       },
@@ -145,7 +152,7 @@ export function AccountGate({ children }: { children: ReactNode }) {
         setResult({ key, outcome: "failed" });
       },
     );
-  }, [sessionId, key, isLoading, isAuthenticated, ensureAccount, signOut]);
+  }, [sessionId, key, isLoading, isAuthenticated, ensureAccount, signOut, analytics]);
 
   const outcome = result !== null && result.key === key ? result.outcome : null;
   if (outcome === "refused") {
