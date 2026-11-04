@@ -1,0 +1,7 @@
+# head=4634734129c892ee42fa957c6e846adf9817d9bc node=v22.23.4 cmd=pnpm --filter @agentdesk/contract spec:check
+
+> @agentdesk/contract@0.0.0 spec:check /Users/kidusteshome/.conveyor/worktrees/agentdesk-task-261104-9da5be/packages/contract
+> tsx scripts/spec.ts --check
+
+spec/ matches the contract.
+# exit=0

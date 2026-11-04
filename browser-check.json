@@ -1,0 +1,2698 @@
+[
+  {
+    "tag": "landing-320-light-js",
+    "title": "AgentDesk: an inbox for your coding agents",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "overflowing": [],
+    "scripts": 1,
+    "inlineOrSrcScripts": [
+      "inline"
+    ],
+    "cookie": "",
+    "bodyBg": "rgb(255, 255, 255)",
+    "bodyColor": "rgb(0, 0, 0)",
+    "mailto": 0,
+    "mailColor": null,
+    "mailUnderline": null,
+    "copyHidden": false,
+    "hasAnalyticsCopy": false,
+    "hasIdentifyCopy": false,
+    "hasAnonymousClaim": false,
+    "hasEffective": false,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png",
+      "http://127.0.0.1:4377/screens/decision.webp",
+      "http://127.0.0.1:4377/screens/inbox.webp",
+      "http://127.0.0.1:4377/screens/notification.webp",
+      "http://127.0.0.1:4377/favicon.png"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 414.734375
+      },
+      {
+        "tag": "button",
+        "name": "Copy install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 465.921875
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 536.921875
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 612.921875
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 612.921875
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 4305.265625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 4329.265625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 4329.265625
+      },
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 414.734375
+      },
+      {
+        "tag": "button",
+        "name": "Copy install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 465.921875
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 536.921875
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 612.921875
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 612.921875
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 4305.265625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 4329.265625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 4329.265625
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true
+  },
+  {
+    "tag": "landing-320-light-nojs",
+    "title": "AgentDesk: an inbox for your coding agents",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "overflowing": [],
+    "scripts": 1,
+    "inlineOrSrcScripts": [
+      "inline"
+    ],
+    "cookie": "",
+    "bodyBg": "rgb(255, 255, 255)",
+    "bodyColor": "rgb(0, 0, 0)",
+    "mailto": 0,
+    "mailColor": null,
+    "mailUnderline": null,
+    "copyHidden": true,
+    "hasAnalyticsCopy": false,
+    "hasIdentifyCopy": false,
+    "hasAnonymousClaim": false,
+    "hasEffective": false,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png",
+      "http://127.0.0.1:4377/screens/decision.webp",
+      "http://127.0.0.1:4377/screens/inbox.webp",
+      "http://127.0.0.1:4377/screens/notification.webp",
+      "http://127.0.0.1:4377/screens/agents.webp"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 414.734375
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 484.921875
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 560.921875
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 560.921875
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 4253.265625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 4277.265625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 4277.265625
+      },
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 414.734375
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 484.921875
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 560.921875
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 560.921875
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 4253.265625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 4277.265625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 4277.265625
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true
+  },
+  {
+    "tag": "landing-320-dark-js",
+    "title": "AgentDesk: an inbox for your coding agents",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "overflowing": [],
+    "scripts": 1,
+    "inlineOrSrcScripts": [
+      "inline"
+    ],
+    "cookie": "",
+    "bodyBg": "rgb(0, 0, 0)",
+    "bodyColor": "rgb(255, 255, 255)",
+    "mailto": 0,
+    "mailColor": null,
+    "mailUnderline": null,
+    "copyHidden": false,
+    "hasAnalyticsCopy": false,
+    "hasIdentifyCopy": false,
+    "hasAnonymousClaim": false,
+    "hasEffective": false,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png",
+      "http://127.0.0.1:4377/screens/decision.webp",
+      "http://127.0.0.1:4377/screens/inbox.webp",
+      "http://127.0.0.1:4377/screens/notification.webp",
+      "http://127.0.0.1:4377/screens/agents.webp"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 414.734375
+      },
+      {
+        "tag": "button",
+        "name": "Copy install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 465.921875
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 536.921875
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 612.921875
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 612.921875
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 4305.265625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 4329.265625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 4329.265625
+      },
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 414.734375
+      },
+      {
+        "tag": "button",
+        "name": "Copy install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 465.921875
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 536.921875
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 612.921875
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 612.921875
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 4305.265625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 4329.265625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 4329.265625
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true
+  },
+  {
+    "tag": "landing-320-dark-nojs",
+    "title": "AgentDesk: an inbox for your coding agents",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "overflowing": [],
+    "scripts": 1,
+    "inlineOrSrcScripts": [
+      "inline"
+    ],
+    "cookie": "",
+    "bodyBg": "rgb(0, 0, 0)",
+    "bodyColor": "rgb(255, 255, 255)",
+    "mailto": 0,
+    "mailColor": null,
+    "mailUnderline": null,
+    "copyHidden": true,
+    "hasAnalyticsCopy": false,
+    "hasIdentifyCopy": false,
+    "hasAnonymousClaim": false,
+    "hasEffective": false,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png",
+      "http://127.0.0.1:4377/screens/decision.webp",
+      "http://127.0.0.1:4377/screens/inbox.webp",
+      "http://127.0.0.1:4377/screens/notification.webp",
+      "http://127.0.0.1:4377/screens/agents.webp"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 414.734375
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 484.921875
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 560.921875
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 560.921875
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 4253.265625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 4277.265625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 4277.265625
+      },
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 414.734375
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 484.921875
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 560.921875
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 560.921875
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 4253.265625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 4277.265625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 4277.265625
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true
+  },
+  {
+    "tag": "landing-1280-light-js",
+    "title": "AgentDesk: an inbox for your coding agents",
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "overflowing": [],
+    "scripts": 1,
+    "inlineOrSrcScripts": [
+      "inline"
+    ],
+    "cookie": "",
+    "bodyBg": "rgb(255, 255, 255)",
+    "bodyColor": "rgb(0, 0, 0)",
+    "mailto": 0,
+    "mailColor": null,
+    "mailUnderline": null,
+    "copyHidden": false,
+    "hasAnalyticsCopy": false,
+    "hasIdentifyCopy": false,
+    "hasAnonymousClaim": false,
+    "hasEffective": false,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png",
+      "http://127.0.0.1:4377/screens/decision.webp",
+      "http://127.0.0.1:4377/screens/inbox.webp",
+      "http://127.0.0.1:4377/screens/notification.webp",
+      "http://127.0.0.1:4377/screens/agents.webp"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 535.28125
+      },
+      {
+        "tag": "button",
+        "name": "Copy install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 535.28125
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 606.28125
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 634.28125
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 634.28125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 535.28125
+      },
+      {
+        "tag": "button",
+        "name": "Copy install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 535.28125
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 606.28125
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 634.28125
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 634.28125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2302.734375
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true
+  },
+  {
+    "tag": "landing-1280-light-nojs",
+    "title": "AgentDesk: an inbox for your coding agents",
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "overflowing": [],
+    "scripts": 1,
+    "inlineOrSrcScripts": [
+      "inline"
+    ],
+    "cookie": "",
+    "bodyBg": "rgb(255, 255, 255)",
+    "bodyColor": "rgb(0, 0, 0)",
+    "mailto": 0,
+    "mailColor": null,
+    "mailUnderline": null,
+    "copyHidden": true,
+    "hasAnalyticsCopy": false,
+    "hasIdentifyCopy": false,
+    "hasAnonymousClaim": false,
+    "hasEffective": false,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png",
+      "http://127.0.0.1:4377/screens/decision.webp",
+      "http://127.0.0.1:4377/screens/inbox.webp",
+      "http://127.0.0.1:4377/screens/notification.webp",
+      "http://127.0.0.1:4377/screens/agents.webp"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 535.6875
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 605.875
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 633.875
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 633.875
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 535.6875
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 605.875
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 633.875
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 633.875
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2302.734375
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true
+  },
+  {
+    "tag": "landing-1280-dark-js",
+    "title": "AgentDesk: an inbox for your coding agents",
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "overflowing": [],
+    "scripts": 1,
+    "inlineOrSrcScripts": [
+      "inline"
+    ],
+    "cookie": "",
+    "bodyBg": "rgb(0, 0, 0)",
+    "bodyColor": "rgb(255, 255, 255)",
+    "mailto": 0,
+    "mailColor": null,
+    "mailUnderline": null,
+    "copyHidden": false,
+    "hasAnalyticsCopy": false,
+    "hasIdentifyCopy": false,
+    "hasAnonymousClaim": false,
+    "hasEffective": false,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png",
+      "http://127.0.0.1:4377/screens/decision.webp",
+      "http://127.0.0.1:4377/screens/inbox.webp",
+      "http://127.0.0.1:4377/screens/notification.webp",
+      "http://127.0.0.1:4377/screens/agents.webp"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 535.28125
+      },
+      {
+        "tag": "button",
+        "name": "Copy install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 535.28125
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 606.28125
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 634.28125
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 634.28125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 535.28125
+      },
+      {
+        "tag": "button",
+        "name": "Copy install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 535.28125
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 606.28125
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 634.28125
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 634.28125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2302.734375
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true
+  },
+  {
+    "tag": "landing-1280-dark-nojs",
+    "title": "AgentDesk: an inbox for your coding agents",
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "overflowing": [],
+    "scripts": 1,
+    "inlineOrSrcScripts": [
+      "inline"
+    ],
+    "cookie": "",
+    "bodyBg": "rgb(0, 0, 0)",
+    "bodyColor": "rgb(255, 255, 255)",
+    "mailto": 0,
+    "mailColor": null,
+    "mailUnderline": null,
+    "copyHidden": true,
+    "hasAnalyticsCopy": false,
+    "hasIdentifyCopy": false,
+    "hasAnonymousClaim": false,
+    "hasEffective": false,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png",
+      "http://127.0.0.1:4377/screens/decision.webp",
+      "http://127.0.0.1:4377/screens/inbox.webp",
+      "http://127.0.0.1:4377/screens/notification.webp",
+      "http://127.0.0.1:4377/screens/agents.webp"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 535.6875
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 605.875
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 633.875
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 633.875
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 22.40625
+      },
+      {
+        "tag": "pre",
+        "name": "Install command",
+        "href": null,
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 535.6875
+      },
+      {
+        "tag": "a",
+        "name": "View the source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 605.875
+      },
+      {
+        "tag": "a",
+        "name": "App Store",
+        "href": "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 633.875
+      },
+      {
+        "tag": "a",
+        "name": "Google Play",
+        "href": "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 633.875
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2302.734375
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2302.734375
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true
+  },
+  {
+    "tag": "privacy-320-light-js",
+    "title": "Privacy policy · AgentDesk",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "overflowing": [],
+    "scripts": 0,
+    "inlineOrSrcScripts": [],
+    "cookie": "",
+    "bodyBg": "rgb(255, 255, 255)",
+    "bodyColor": "rgb(0, 0, 0)",
+    "mailto": 4,
+    "mailColor": "rgb(79, 70, 229)",
+    "mailUnderline": "underline",
+    "copyHidden": null,
+    "hasAnalyticsCopy": true,
+    "hasIdentifyCopy": true,
+    "hasAnonymousClaim": false,
+    "hasEffective": true,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/privacy",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 320.65625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3933.28125
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6380.984375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6656.328125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6776.515625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6800.515625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6800.515625
+      },
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 320.65625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3933.28125
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6380.984375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6656.328125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6776.515625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6800.515625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6800.515625
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true,
+    "analyticsLinkFocusRing": "mailto:privacy@kidus.sh solid 2px rgb(79, 70, 229) offset 2px"
+  },
+  {
+    "tag": "privacy-320-light-nojs",
+    "title": "Privacy policy · AgentDesk",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "overflowing": [],
+    "scripts": 0,
+    "inlineOrSrcScripts": [],
+    "cookie": "",
+    "bodyBg": "rgb(255, 255, 255)",
+    "bodyColor": "rgb(0, 0, 0)",
+    "mailto": 4,
+    "mailColor": "rgb(79, 70, 229)",
+    "mailUnderline": "underline",
+    "copyHidden": null,
+    "hasAnalyticsCopy": true,
+    "hasIdentifyCopy": true,
+    "hasAnonymousClaim": false,
+    "hasEffective": true,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/privacy",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 320.65625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3933.28125
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6380.984375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6656.328125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6776.515625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6800.515625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6800.515625
+      },
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 320.65625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3933.28125
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6380.984375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6656.328125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6776.515625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6800.515625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 6800.515625
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true,
+    "analyticsLinkFocusRing": "mailto:privacy@kidus.sh solid 2px rgb(79, 70, 229) offset 2px"
+  },
+  {
+    "tag": "privacy-320-dark-js",
+    "title": "Privacy policy · AgentDesk",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "overflowing": [],
+    "scripts": 0,
+    "inlineOrSrcScripts": [],
+    "cookie": "",
+    "bodyBg": "rgb(0, 0, 0)",
+    "bodyColor": "rgb(255, 255, 255)",
+    "mailto": 4,
+    "mailColor": "rgb(153, 147, 255)",
+    "mailUnderline": "underline",
+    "copyHidden": null,
+    "hasAnalyticsCopy": true,
+    "hasIdentifyCopy": true,
+    "hasAnonymousClaim": false,
+    "hasEffective": true,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/privacy",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 320.65625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3933.28125
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6380.984375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6656.328125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6776.515625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6800.515625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6800.515625
+      },
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 320.65625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3933.28125
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6380.984375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6656.328125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6776.515625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6800.515625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6800.515625
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true,
+    "analyticsLinkFocusRing": "mailto:privacy@kidus.sh solid 2px rgb(153, 147, 255) offset 2px"
+  },
+  {
+    "tag": "privacy-320-dark-nojs",
+    "title": "Privacy policy · AgentDesk",
+    "scrollWidth": 320,
+    "clientWidth": 320,
+    "overflowing": [],
+    "scripts": 0,
+    "inlineOrSrcScripts": [],
+    "cookie": "",
+    "bodyBg": "rgb(0, 0, 0)",
+    "bodyColor": "rgb(255, 255, 255)",
+    "mailto": 4,
+    "mailColor": "rgb(153, 147, 255)",
+    "mailUnderline": "underline",
+    "copyHidden": null,
+    "hasAnalyticsCopy": true,
+    "hasIdentifyCopy": true,
+    "hasAnonymousClaim": false,
+    "hasEffective": true,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/privacy",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 320.65625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3933.28125
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6380.984375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6656.328125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6776.515625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6800.515625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6800.515625
+      },
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 320.65625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3933.28125
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6380.984375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6656.328125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6776.515625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6800.515625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 6800.515625
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true,
+    "analyticsLinkFocusRing": "mailto:privacy@kidus.sh solid 2px rgb(153, 147, 255) offset 2px"
+  },
+  {
+    "tag": "privacy-1280-light-js",
+    "title": "Privacy policy · AgentDesk",
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "overflowing": [],
+    "scripts": 0,
+    "inlineOrSrcScripts": [],
+    "cookie": "",
+    "bodyBg": "rgb(255, 255, 255)",
+    "bodyColor": "rgb(0, 0, 0)",
+    "mailto": 4,
+    "mailColor": "rgb(79, 70, 229)",
+    "mailUnderline": "underline",
+    "copyHidden": null,
+    "hasAnalyticsCopy": true,
+    "hasIdentifyCopy": true,
+    "hasAnonymousClaim": false,
+    "hasEffective": true,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/privacy",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 307.265625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2125.515625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3215.734375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3436.703125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 307.265625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2125.515625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3215.734375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3436.703125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3556.890625
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true,
+    "analyticsLinkFocusRing": "mailto:privacy@kidus.sh solid 2px rgb(79, 70, 229) offset 2px"
+  },
+  {
+    "tag": "privacy-1280-light-nojs",
+    "title": "Privacy policy · AgentDesk",
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "overflowing": [],
+    "scripts": 0,
+    "inlineOrSrcScripts": [],
+    "cookie": "",
+    "bodyBg": "rgb(255, 255, 255)",
+    "bodyColor": "rgb(0, 0, 0)",
+    "mailto": 4,
+    "mailColor": "rgb(79, 70, 229)",
+    "mailUnderline": "underline",
+    "copyHidden": null,
+    "hasAnalyticsCopy": true,
+    "hasIdentifyCopy": true,
+    "hasAnonymousClaim": false,
+    "hasEffective": true,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/privacy",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 307.265625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2125.515625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3215.734375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3436.703125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 307.265625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 2125.515625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3215.734375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3436.703125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(79, 70, 229) offset 2px",
+        "top": 3556.890625
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true,
+    "analyticsLinkFocusRing": "mailto:privacy@kidus.sh solid 2px rgb(79, 70, 229) offset 2px"
+  },
+  {
+    "tag": "privacy-1280-dark-js",
+    "title": "Privacy policy · AgentDesk",
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "overflowing": [],
+    "scripts": 0,
+    "inlineOrSrcScripts": [],
+    "cookie": "",
+    "bodyBg": "rgb(0, 0, 0)",
+    "bodyColor": "rgb(255, 255, 255)",
+    "mailto": 4,
+    "mailColor": "rgb(153, 147, 255)",
+    "mailUnderline": "underline",
+    "copyHidden": null,
+    "hasAnalyticsCopy": true,
+    "hasIdentifyCopy": true,
+    "hasAnonymousClaim": false,
+    "hasEffective": true,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/privacy",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 307.265625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2125.515625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3215.734375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3436.703125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 307.265625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2125.515625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3215.734375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3436.703125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3556.890625
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true,
+    "analyticsLinkFocusRing": "mailto:privacy@kidus.sh solid 2px rgb(153, 147, 255) offset 2px"
+  },
+  {
+    "tag": "privacy-1280-dark-nojs",
+    "title": "Privacy policy · AgentDesk",
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "overflowing": [],
+    "scripts": 0,
+    "inlineOrSrcScripts": [],
+    "cookie": "",
+    "bodyBg": "rgb(0, 0, 0)",
+    "bodyColor": "rgb(255, 255, 255)",
+    "mailto": 4,
+    "mailColor": "rgb(153, 147, 255)",
+    "mailUnderline": "underline",
+    "copyHidden": null,
+    "hasAnalyticsCopy": true,
+    "hasIdentifyCopy": true,
+    "hasAnonymousClaim": false,
+    "hasEffective": true,
+    "horizontalScroll": false,
+    "requests": [
+      "http://127.0.0.1:4377/privacy",
+      "http://127.0.0.1:4377/_astro/Base.BCU11zsq.css",
+      "http://127.0.0.1:4377/mark.png"
+    ],
+    "crossOriginRequests": [],
+    "cookies": 0,
+    "tabOrder": [
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 307.265625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2125.515625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3215.734375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3436.703125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "AgentDesk",
+        "href": "/",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 20
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 307.265625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 2125.515625
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3215.734375
+      },
+      {
+        "tag": "a",
+        "name": "privacy@kidus.sh",
+        "href": "mailto:privacy@kidus.sh",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3436.703125
+      },
+      {
+        "tag": "a",
+        "name": "Open source under the MIT license",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk/blob/main/LICENSE",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Source on GitHub",
+        "href": "https://github.com/kidus-tiliksew/AgentDesk",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3556.890625
+      },
+      {
+        "tag": "a",
+        "name": "Privacy",
+        "href": "/privacy",
+        "focusVisible": true,
+        "outline": "solid 2px rgb(153, 147, 255) offset 2px",
+        "top": 3556.890625
+      }
+    ],
+    "allFocusVisible": true,
+    "tabInReadingOrder": false,
+    "imagesLoaded": true,
+    "analyticsLinkFocusRing": "mailto:privacy@kidus.sh solid 2px rgb(153, 147, 255) offset 2px"
+  }
+]

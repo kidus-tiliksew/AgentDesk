@@ -1,0 +1,13 @@
+# head=4634734129c892ee42fa957c6e846adf9817d9bc node=v22.23.4 cmd=pnpm --filter @agentdesk/website typecheck
+
+> @agentdesk/website@0.0.0 typecheck /Users/kidusteshome/.conveyor/worktrees/agentdesk-task-261104-9da5be/apps/website
+> astro check
+
+14:53:26 [types] Generated 22ms
+14:53:26 [check] Getting diagnostics for Astro files in /Users/kidusteshome/.conveyor/worktrees/agentdesk-task-261104-9da5be/apps/website...
+Result (12 files): 
+- 0 errors
+- 0 warnings
+- 0 hints
+
+# exit=0

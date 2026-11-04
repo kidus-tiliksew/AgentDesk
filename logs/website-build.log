@@ -1,0 +1,25 @@
+# head=4634734129c892ee42fa957c6e846adf9817d9bc node=v22.23.4 cmd=pnpm --filter @agentdesk/website build
+
+> @agentdesk/website@0.0.0 build /Users/kidusteshome/.conveyor/worktrees/agentdesk-task-261104-9da5be/apps/website
+> astro build
+
+14:53:28 [types] Generated 20ms
+14:53:28 [build] output: "static"
+14:53:28 [build] mode: "static"
+14:53:28 [build] directory: /Users/kidusteshome/.conveyor/worktrees/agentdesk-task-261104-9da5be/apps/website/dist/
+14:53:28 [build] Collecting build info...
+14:53:28 [build] ✓ Completed in 28ms.
+14:53:28 [build] Building static entrypoints...
+14:53:28 [vite] ✓ built in 61ms
+14:53:28 [vite] ✓ built in 8ms
+14:53:28 [build] Rearranging server assets...
+
+ generating static routes 
+14:53:28   ├─ /privacy/index.html (+5ms) 
+14:53:28   ├─ /index.html (+1ms) 
+14:53:28 ✓ Completed in 11ms.
+
+14:53:28 [build] ✓ Completed in 96ms.
+14:53:28 [build] 2 page(s) built in 125ms
+14:53:28 [build] Complete!
+# exit=0
