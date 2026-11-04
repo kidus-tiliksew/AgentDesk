@@ -40,7 +40,7 @@ describe("operator and contact (AC-3.1)", () => {
   });
 
   test("shows the effective date and how changes are published", () => {
-    expect(text()).toContain("Effective 21 October 2026");
+    expect(text()).toContain("Effective 4 November 2026");
     expect(text()).toContain("published on this page with a new effective date");
   });
 });
@@ -88,6 +88,12 @@ describe("content", () => {
     }
   });
 
+  test("excepts the account identifier and email address shared for analytics (AC-3.2)", () => {
+    expect(text()).toContain(
+      "uses this data only to show it to you and to deliver your notifications, apart from the account identifier and email address it shares with PostHog",
+    );
+  });
+
   test("says what push notifications carry and that they carry no body (AC-3.3)", () => {
     const body = text();
     expect(body).toContain(
@@ -118,14 +124,61 @@ describe("content", () => {
     );
   });
 
-  test("describes anonymous app analytics and a website without cookies (AC-3.5)", () => {
+  test("states what PostHog receives, without the anonymous claim (AC-3.4)", () => {
+    const row = html.match(/<th scope="row">PostHog<\/th>\s*<td>([^<]*)<\/td>/);
+    expect(row?.[1]).toBe(
+      "App usage, your account identifier and email address, and whether your account has a connected Mac app, as Analytics describes below.",
+    );
+    expect(text()).not.toContain("Anonymous app usage");
+  });
+
+  test("identifies signed-in usage and keeps pre-sign-in events unidentified (AC-3.5)", () => {
     const body = text();
-    expect(body).toContain("carry no account or identity");
-    expect(body).toContain("derives no location");
+    expect(body).toContain("installed, updated, opened, or moved to the background");
+    expect(body).toContain("/agent/[id]");
+    expect(body).toContain(
+      "Once you sign in, the app identifies you to PostHog by your Clerk user ID, which is your account identifier, with your email address, and attaches its usage events to them.",
+    );
+    expect(body).toContain("Events the app sends before you sign in carry neither.");
+    expect(body).not.toContain("carry no account or identity");
+  });
+
+  test("states the backend's Mac app property and that the Mac app sends none (AC-3.5)", () => {
+    const body = text();
+    expect(body).toContain(
+      "The AgentDesk backend tells PostHog whether your account has a connected Mac app.",
+    );
+    expect(body).toContain("The Mac app itself sends no analytics.");
+  });
+
+  test("keeps the analytics limits and the no-tracking promise (AC-3.5)", () => {
+    const body = text();
+    expect(body).toContain("PostHog derives no location from these events.");
     expect(body).toContain("no touches, screen content, session recordings, or surveys");
-    expect(body).toContain("sets no cookies and runs no analytics");
-    expect(body).toContain("does not sell your data, does not use it for advertising");
-    expect(body).toContain("does not track you");
+    expect(body).toContain("This website sets no cookies and runs no analytics.");
+    expect(body).toContain(
+      "AgentDesk does not sell your data, does not use it for advertising, and does not track you across other companies' apps or websites.",
+    );
+  });
+
+  test("has no analytics setting and sends objections to the contact (AC-3.5)", () => {
+    expect(text()).toContain(
+      `The app has no setting to turn analytics off. To object or to ask for removal, email ${PRIVACY_CONTACT}`,
+    );
+  });
+
+  test("states how long PostHog keeps identified analytics (AC-3.11)", () => {
+    const body = text();
+    expect(body).toContain(
+      "Usage analytics identified to your account stay in PostHog until your account is deleted.",
+    );
+    expect(body).toContain(
+      "Deleting your account asks PostHog to delete the person it holds for your account and that person's events.",
+    );
+    expect(body).toContain(
+      "PostHog removes events in scheduled batches, usually within two weeks.",
+    );
+    expect(body).toContain("Events sent before sign-in carry no account and are not deleted.");
   });
 
   test("states the retention periods (AC-3.6)", () => {
@@ -145,13 +198,21 @@ describe("content", () => {
   test("says how to delete data (AC-3.7)", () => {
     const body = text();
     expect(body).toContain("Delete Account");
-    expect(body).toContain("deleted within 24 hours");
+    expect(body).toContain("Your data and your Clerk sign-in account are deleted within 24 hours.");
     expect(body).toContain("swipe it in History and choose Delete");
     expect(body).toContain("choose Revoke");
     expect(body).toContain("agentdesk uninstall");
     expect(body).toContain(
       `To get a copy of your data or have it deleted, email ${PRIVACY_CONTACT}`,
     );
+  });
+
+  test("gives 24 hours to the PostHog request and not to its event removal (AC-3.11)", () => {
+    const body = text();
+    expect(body).toContain(
+      "Within those 24 hours, AgentDesk also asks PostHog to delete the person it holds for your account and that person's events. PostHog removes the events later, in scheduled batches, usually within two weeks.",
+    );
+    expect(body).not.toMatch(/PostHog removes[^.]*(immediately|within 24 hours)/);
   });
 
   test("states that AgentDesk is not directed at children (AC-3.8)", () => {
