@@ -1,6 +1,20 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
 
+// One retried step of an account deletion: the Clerk deletion or the PostHog
+// person deletion.
+const deletionStep = v.object({
+  state: v.union(v.literal("pending"), v.literal("done")),
+  // The current attempt number. An outcome for another attempt is ignored.
+  attempt: v.number(),
+  // When the current attempt is due.
+  nextAttemptAt: v.number(),
+  // A short failure code such as `network`, `http_503`, or `missing_secret`;
+  // never a response body or a credential.
+  lastError: v.optional(v.string()),
+  doneAt: v.optional(v.number()),
+});
+
 // The identity domain's tables, spread into convex/schema.ts
 // (component-backend-foundation §Composition; component-identity §Tables).
 export const tables = {
@@ -103,10 +117,11 @@ export const tables = {
   }).index("by_user_at", ["userId", "at"]),
 
   // One account deletion (component-identity §Account deletion). It drives
-  // the purge and the Clerk deletion, and it outlives the `users` row, so the
-  // Clerk subject cannot create a new account: while the Clerk deletion is
-  // retried, and for REFUSAL_WINDOW_MS after both steps finish. It holds no
-  // email, token, decision, or device data.
+  // the purge, the Clerk deletion, and the PostHog person deletion, and it
+  // outlives the `users` row, so the Clerk subject cannot create a new account:
+  // while the Clerk or PostHog deletion is retried, and for REFUSAL_WINDOW_MS
+  // after every step finishes. It holds no email, token, decision, or device
+  // data.
   accountDeletions: defineTable({
     userId: v.id("users"),
     clerkUserId: v.string(),
@@ -134,21 +149,15 @@ export const tables = {
     purgedAt: v.optional(v.number()),
     // Set when the deletion first ran past its 24-hour deadline unfinished.
     overdueAt: v.optional(v.number()),
-    // Set once both the purge and the Clerk deletion are done: the record
-    // keeps refusing the Clerk subject until then, because a Convex token
-    // Clerk issued before the deletion still authenticates until it expires.
+    // Set once the purge, the Clerk deletion, and any PostHog deletion are
+    // done: the record keeps refusing the Clerk subject until then, because a
+    // Convex token Clerk issued before the deletion still authenticates until
+    // it expires, and the PostHog request needs the Clerk user ID.
     refuseUntil: v.optional(v.number()),
-    clerk: v.object({
-      state: v.union(v.literal("pending"), v.literal("done")),
-      // The current attempt number. An outcome for another attempt is ignored.
-      attempt: v.number(),
-      // When the current attempt is due.
-      nextAttemptAt: v.number(),
-      // A short failure code such as `network`, `http_503`, or
-      // `missing_secret`; never a response body or a credential.
-      lastError: v.optional(v.string()),
-      doneAt: v.optional(v.number()),
-    }),
+    clerk: deletionStep,
+    // A record without this field counts as done, which covers deletions
+    // started before the field existed.
+    posthog: v.optional(deletionStep),
   })
     .index("by_clerk", ["clerkUserId"])
     // Recovery reads deletions still running: no `refuseUntil` yet.

@@ -17,6 +17,7 @@ import {
 import {
   CLERK_FIRST_DELAY_MS,
   DELETION_WINDOW_MS,
+  POSTHOG_FIRST_DELAY_MS,
   PURGE_BATCH,
   REFUSAL_WINDOW_MS,
   STALL_MS,
@@ -30,7 +31,7 @@ import { hashToken } from "./tokens";
 // and the deleting-account guards on background work. The real push
 // component is mounted; fake timers keep its sender and every scheduled
 // purge batch from running unless a test runs them, and `fetch` throws, so
-// no test contacts Expo or Clerk.
+// no test contacts Expo, Clerk, or PostHog.
 
 const START = Date.UTC(2026, 9, 13, 12, 0, 0);
 const MINUTE = 60_000;
@@ -387,6 +388,14 @@ describe("deleteAccount", () => {
     const clerk = await scheduled(t, "identity/clerkDeletion:deleteClerkUser");
     expect(clerk).toHaveLength(1);
     expect(clerk[0]?.scheduledTime).toBe(START + CLERK_FIRST_DELAY_MS);
+    // The PostHog deletion waits five minutes, with one pending attempt.
+    expect(POSTHOG_FIRST_DELAY_MS).toBe(5 * MINUTE);
+    const posthog = await scheduled(t, "identity/posthogDeletion:deletePostHogPerson");
+    expect(posthog).toHaveLength(1);
+    expect(posthog[0]?.scheduledTime).toBe(START + POSTHOG_FIRST_DELAY_MS);
+    expect(await deletionOf(t, "user_a")).toMatchObject({
+      posthog: { state: "pending", attempt: 1, nextAttemptAt: START + POSTHOG_FIRST_DELAY_MS },
+    });
   });
 
   test("a repeated call returns the first times and does nothing more", async () => {
@@ -405,6 +414,10 @@ describe("deleteAccount", () => {
     expect(await t.run((ctx) => ctx.db.query("accountDeletions").collect())).toHaveLength(1);
     expect(await scheduled(t, "identity/accountDeletion:purgeBatch")).toHaveLength(1);
     expect(await scheduled(t, "identity/clerkDeletion:deleteClerkUser")).toHaveLength(1);
+    expect(await scheduled(t, "identity/posthogDeletion:deletePostHogPerson")).toHaveLength(1);
+    expect(await deletionOf(t, "user_a")).toMatchObject({
+      posthog: { attempt: 1, nextAttemptAt: START + POSTHOG_FIRST_DELAY_MS },
+    });
   });
 
   test("keeps a credential's earlier revocation time", async () => {
@@ -455,6 +468,37 @@ describe("deleteAccount", () => {
     expect(await owned(t, userA, a)).toMatchObject({ devices: 1 });
     expect(await tokenStatus(t, a.deviceId)).toMatchObject({ hasToken: true });
     expect(await t.run((ctx) => ctx.db.query("accountDeletions").collect())).toHaveLength(0);
+  });
+
+  test("a failure to schedule the PostHog attempt rolls the whole start back", async () => {
+    const { t, userA, asA, a } = await seedBoth();
+    // The scheduling syscall convex-test serves, refused for this one function.
+    type Syscall = (op: string, args: string) => Promise<string>;
+    const convex = (globalThis as unknown as { Convex: { asyncSyscall: unknown } }).Convex;
+    const real = Object.getOwnPropertyDescriptor(convex, "asyncSyscall")?.get;
+    if (real === undefined) {
+      throw new Error("convex-test has no asyncSyscall getter");
+    }
+    vi.spyOn(convex, "asyncSyscall", "get").mockImplementation(
+      () => (op: string, args: string) =>
+        op === "1.0/schedule" && args.includes("posthogDeletion")
+          ? Promise.reject(new Error("scheduler unavailable"))
+          : (real.call(convex) as Syscall)(op, args),
+    );
+
+    await expect(asA.mutation(identity.accountDeletion.deleteAccount, {})).rejects.toThrow(
+      "scheduler unavailable",
+    );
+    vi.restoreAllMocks();
+
+    const user = await t.run((ctx) => ctx.db.get("users", userA));
+    expect(user?.deletingAt).toBeUndefined();
+    expect(await resolve(t, a.tokens[0] ?? "")).toMatchObject({ userId: userA });
+    expect(await owned(t, userA, a)).toMatchObject({ devices: 1 });
+    expect(await t.run((ctx) => ctx.db.query("accountDeletions").collect())).toHaveLength(0);
+    expect(await scheduled(t, "identity/accountDeletion:purgeBatch")).toHaveLength(0);
+    expect(await scheduled(t, "identity/clerkDeletion:deleteClerkUser")).toHaveLength(0);
+    expect(await scheduled(t, "identity/posthogDeletion:deletePostHogPerson")).toHaveLength(0);
   });
 });
 
@@ -672,19 +716,22 @@ describe("purge", () => {
     expect(String(error.mock.calls[0]?.[0])).not.toContain("user_a");
   });
 
-  test("the scheduled chains finish the purge and the Clerk deletion on their own", async () => {
+  test("the scheduled chains finish the purge, the Clerk deletion, and the PostHog deletion on their own", async () => {
     const { t, userA, asA, a } = await seedBoth();
-    // The push component's sender and the Clerk attempt would call fetch.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) =>
-        String(url).startsWith("https://exp.host")
-          ? new Response(JSON.stringify({ data: [{ status: "ok", id: "x" }] }))
-          : new Response(null, { status: 200 }),
-      ),
+    // The push component's sender and the Clerk and PostHog attempts would
+    // call fetch.
+    const fetchStub = vi.fn(async (url: string) =>
+      String(url).startsWith("https://exp.host")
+        ? new Response(JSON.stringify({ data: [{ status: "ok", id: "x" }] }))
+        : new Response(null, { status: 200 }),
     );
+    vi.stubGlobal("fetch", fetchStub);
     vi.stubEnv("CLERK_SECRET_KEY", "sk_test");
+    vi.stubEnv("POSTHOG_PROJECT_ID", "42");
+    vi.stubEnv("POSTHOG_PERSONAL_API_KEY", "phx_test");
     await asA.mutation(identity.accountDeletion.deleteAccount, {});
+    const postHogCalls = () =>
+      fetchStub.mock.calls.filter(([url]) => String(url).includes("/persons/bulk_delete/"));
 
     // Two minutes of scheduler time, a second at a time: the purge's batches,
     // the other account's queued push, and the Clerk attempt at one minute.
@@ -693,10 +740,100 @@ describe("purge", () => {
       await t.finishInProgressScheduledFunctions();
     }
 
+    // The purge and the Clerk deletion finished without waiting for PostHog,
+    // and the record stays for the PostHog request.
     expect(Object.values(await owned(t, userA, a)).every((count) => count === 0)).toBe(true);
-    // Both steps are done; the record keeps refusing the subject for the
-    // refusal window.
-    expect(await deletionOf(t, "user_a")).toMatchObject({ refuseUntil: expect.any(Number) });
+    const waiting = await deletionOf(t, "user_a");
+    expect(waiting).toMatchObject({
+      purgedAt: expect.any(Number),
+      clerk: { state: "done" },
+      posthog: { state: "pending", attempt: 1 },
+    });
+    expect(waiting?.refuseUntil).toBeUndefined();
+    expect(postHogCalls()).toHaveLength(0);
+
+    // The PostHog attempt runs at five minutes.
+    for (let i = 0; i < 200; i++) {
+      vi.advanceTimersByTime(1_000);
+      await t.finishInProgressScheduledFunctions();
+    }
+
+    expect(postHogCalls()).toHaveLength(1);
+    const finished = await deletionOf(t, "user_a");
+    expect(finished).toMatchObject({
+      posthog: { state: "done", doneAt: START + POSTHOG_FIRST_DELAY_MS },
+      refuseUntil: START + POSTHOG_FIRST_DELAY_MS + REFUSAL_WINDOW_MS,
+    });
+    vi.unstubAllEnvs();
+  });
+
+  test("a failing PostHog deletion holds back neither the purge nor the Clerk deletion", async () => {
+    const { t, userA, asA, a } = await seedBoth();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (String(url).startsWith("https://exp.host")) {
+          return new Response(JSON.stringify({ data: [{ status: "ok", id: "x" }] }));
+        }
+        return String(url).includes("/persons/bulk_delete/")
+          ? new Response("{}", { status: 503 })
+          : new Response(null, { status: 200 });
+      }),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test");
+    vi.stubEnv("POSTHOG_PROJECT_ID", "42");
+    vi.stubEnv("POSTHOG_PERSONAL_API_KEY", "phx_test");
+    await asA.mutation(identity.accountDeletion.deleteAccount, {});
+
+    // The attempts at five and six minutes fail; the next is due at eight.
+    for (let i = 0; i < 400; i++) {
+      vi.advanceTimersByTime(1_000);
+      await t.finishInProgressScheduledFunctions();
+    }
+
+    expect(Object.values(await owned(t, userA, a)).every((count) => count === 0)).toBe(true);
+    const record = await deletionOf(t, "user_a");
+    expect(record).toMatchObject({
+      purgedAt: expect.any(Number),
+      clerk: { state: "done" },
+      posthog: { state: "pending", attempt: 3, lastError: "http_503" },
+    });
+    expect(record?.refuseUntil).toBeUndefined();
+    vi.unstubAllEnvs();
+  });
+
+  test("a record without a PostHog step keeps its former lifecycle and sends no PostHog request", async () => {
+    const { t, userA } = await setup();
+    const fetchStub = vi.fn(async () => new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchStub);
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test");
+    vi.stubEnv("POSTHOG_PROJECT_ID", "42");
+    vi.stubEnv("POSTHOG_PERSONAL_API_KEY", "phx_test");
+    // A deletion started before the `posthog` field existed.
+    const deletionId = await t.run(async (ctx) => {
+      await ctx.db.patch("users", userA, { deletingAt: START });
+      return await ctx.db.insert("accountDeletions", {
+        userId: userA,
+        clerkUserId: "user_a",
+        startedAt: START,
+        phase: "decisions",
+        generation: 1,
+        updatedAt: START,
+        restarts: 0,
+        clerk: { state: "pending", attempt: 1, nextAttemptAt: START },
+      });
+    });
+
+    await runPurge(t, "user_a");
+    await t.action(identity.clerkDeletion.deleteClerkUser, { deletionId, attempt: 1 });
+    await t.action(identity.posthogDeletion.deletePostHogPerson, { deletionId, attempt: 1 });
+
+    expect(fetchStub).toHaveBeenCalledTimes(1);
+    const record = await deletionOf(t, "user_a");
+    expect(record?.posthog).toBeUndefined();
+    expect(record?.refuseUntil).toBe(START + REFUSAL_WINDOW_MS);
+    expect(await scheduled(t, "identity/posthogDeletion:deletePostHogPerson")).toHaveLength(0);
     vi.unstubAllEnvs();
   });
 });
@@ -704,7 +841,7 @@ describe("purge", () => {
 describe("refusals while an account is being deleted", () => {
   // Review round 3: Convex accepts any unexpired Clerk-signed token, and
   // deleting the Clerk user does not withdraw tokens already issued.
-  test("a still-valid token of the deleted subject cannot recreate the account after the purge and the Clerk deletion", async () => {
+  test("a still-valid token of the deleted subject cannot recreate the account after the purge, the Clerk deletion, and the PostHog deletion", async () => {
     const { t, userB } = await seedBoth();
     const asA = t.withIdentity({ subject: "user_a", email: "a@example.com" });
     vi.stubGlobal(
@@ -722,9 +859,14 @@ describe("refusals while an account is being deleted", () => {
       deletionId: record._id,
       attempt: 1,
     });
+    await t.action(identity.posthogDeletion.deletePostHogPerson, {
+      deletionId: record._id,
+      attempt: 1,
+    });
+    expect(await deletionOf(t, "user_a")).toMatchObject({ refuseUntil: expect.any(Number) });
     vi.unstubAllEnvs();
 
-    // The same token, replayed after both steps finished.
+    // The same token, replayed after every step finished.
     await expect(asA.mutation(identity.accounts.ensureAccount, {})).rejects.toMatchObject(
       unauthenticated,
     );
@@ -760,6 +902,10 @@ describe("refusals while an account is being deleted", () => {
       throw new Error("No deletion record");
     }
     await t.action(identity.clerkDeletion.deleteClerkUser, {
+      deletionId: record._id,
+      attempt: 1,
+    });
+    await t.action(identity.posthogDeletion.deletePostHogPerson, {
       deletionId: record._id,
       attempt: 1,
     });
