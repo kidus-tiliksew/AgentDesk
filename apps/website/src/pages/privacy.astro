@@ -41,7 +41,11 @@ const providers = [
     receives:
       "Requests from your agents and the installer to the AgentDesk gateway. It reads the IP address of a machine sign-in request to limit how often one can start, and AgentDesk keeps no copy of it.",
   },
-  { name: "PostHog", receives: "Anonymous app usage, as Analytics describes below." },
+  {
+    name: "PostHog",
+    receives:
+      "App usage, your account identifier and email address, and whether your account has a connected Mac app, as Analytics describes below.",
+  },
   { name: "Vercel", receives: "Requests to this website." },
   { name: "GitHub", receives: "Downloads of the AgentDesk installer." },
 ];
@@ -91,8 +95,9 @@ const providers = [
         <li>Your notification rules and settings.</li>
       </ul>
       <p>
-        AgentDesk uses this data only to show it to you and to deliver your notifications.
-        Connection tokens are stored only as SHA-256 hashes. AgentDesk does not store your IP
+        AgentDesk uses this data only to show it to you and to deliver your notifications, apart
+        from the account identifier and email address it shares with PostHog, as Analytics describes
+        below. Connection tokens are stored only as SHA-256 hashes. AgentDesk does not store your IP
         address.
       </p>
     </section>
@@ -139,9 +144,19 @@ const providers = [
       <p>
         The app sends usage events to PostHog when it is installed, updated, opened, or moved to the
         background, and when you open a screen. A screen is named by its route pattern, such as{" "}
-        <code>/agent/[id]</code>, never by the id itself. These events carry no account or identity,
-        and PostHog derives no location from them. The app records no touches, screen content,
-        session recordings, or surveys.
+        <code>/agent/[id]</code>, never by the id itself. Once you sign in, the app identifies you to
+        PostHog by your Clerk user ID, which is your account identifier, with your email address,
+        and attaches its usage events to them. Events the app sends before you sign in carry
+        neither. PostHog derives no location from these events. The app records no touches, screen
+        content, session recordings, or surveys.
+      </p>
+      <p>
+        The AgentDesk backend tells PostHog whether your account has a connected Mac app. The Mac
+        app itself sends no analytics.
+      </p>
+      <p>
+        The app has no setting to turn analytics off. To object or to ask for removal, email{" "}
+        <a href={mailto}>{PRIVACY_CONTACT}</a>.
       </p>
       <p>This website sets no cookies and runs no analytics.</p>
       <p>
@@ -174,6 +189,12 @@ const providers = [
           After your account is deleted, AgentDesk keeps only your Clerk user ID, for 30 days, so an
           old sign-in cannot recreate the account.
         </li>
+        <li>
+          Usage analytics identified to your account stay in PostHog until your account is deleted.
+          Deleting your account asks PostHog to delete the person it holds for your account and that
+          person's events. PostHog removes events in scheduled batches, usually within two weeks.
+          Events sent before sign-in carry no account and are not deleted.
+        </li>
       </ul>
     </section>
 
@@ -183,7 +204,9 @@ const providers = [
         <li>
           To delete your account, open Settings, then Account, and choose Delete Account. Every
           connection and device is disconnected at once. Your data and your Clerk sign-in account
-          are deleted within 24 hours.
+          are deleted within 24 hours. Within those 24 hours, AgentDesk also asks PostHog to delete
+          the person it holds for your account and that person's events. PostHog removes the events
+          later, in scheduled batches, usually within two weeks.
         </li>
         <li>To delete one settled decision, swipe it in History and choose Delete.</li>
         <li>To revoke one connection, swipe it in Settings, then Connections, and choose Revoke.</li>

@@ -9,4 +9,4 @@ export const PRIVACY_CONTACT = "privacy@kidus.sh";
 export const APP_STORE_URL = "https://apps.apple.com/us/app/agentdesk-ai-agent-inbox/id6822604382";
 export const GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=sh.kidus.agentdesk";
 // The date the privacy policy takes effect, as YYYY-MM-DD (AC-3.1).
-export const PRIVACY_EFFECTIVE_DATE = "2026-10-21";
+export const PRIVACY_EFFECTIVE_DATE = "2026-11-04";
