@@ -13,11 +13,12 @@ import { findDeletion, findUser } from "./users";
 // component-identity §Account deletion (req-accounts-and-connections REQ-5,
 // AC-5.1). `deleteAccount` stops the account at once: it sets `deletingAt`,
 // revokes every credential, and removes every device with its queued pushes
-// in one transaction. It then starts two independent chains of scheduled
+// in one transaction. It then starts three independent chains of scheduled
 // work: the purge, which deletes the account's rows domain by domain in
-// bounded batches and deletes the `users` row last, and the Clerk user's
-// deletion (`./clerkDeletion`). Identity drives the purge; each domain's own
-// module deletes that domain's tables.
+// bounded batches and deletes the `users` row last, the Clerk user's deletion
+// (`./clerkDeletion`), and the PostHog person's deletion (`./posthogDeletion`,
+// AC-5.2). Identity drives the purge; each domain's own module deletes that
+// domain's tables.
 
 // What one domain's purge call did: how many rows it deleted, and whether the
 // domain holds no more rows for the account.
@@ -28,8 +29,8 @@ export const DELETION_WINDOW_MS = 24 * 60 * 60_000;
 // The most rows one purge batch deletes, which keeps each batch well inside
 // Convex's per-transaction limits.
 export const PURGE_BATCH = 200;
-// A deletion whose purge or Clerk deletion has made no progress for this long
-// is restarted by the hourly `resumePurges`.
+// A deletion whose purge, Clerk deletion, or PostHog deletion has made no
+// progress for this long is restarted by the hourly `resumePurges`.
 export const STALL_MS = 10 * 60_000;
 // The most deletions one `resumePurges` run restarts; a full page schedules
 // another run for the rest.
@@ -37,9 +38,10 @@ export const RESUME_PAGE = 50;
 // A batch that deleted nothing because a domain is waiting, such as the push
 // cancellation, schedules the next batch this much later instead of at once.
 export const PURGE_WAIT_MS = 30_000;
-// How long the record keeps refusing the Clerk subject after both the purge
-// and the Clerk deletion are done. Convex accepts any unexpired token signed
-// by the Clerk issuer and does not ask Clerk whether the user still exists,
+// How long the record keeps refusing the Clerk subject after the purge, the
+// Clerk deletion, and any PostHog deletion are done. Convex accepts any
+// unexpired token signed by the Clerk issuer and does not ask Clerk whether
+// the user still exists,
 // so a token issued before the Clerk deletion keeps authenticating until it
 // expires. Clerk session tokens, which the app sends through the Convex
 // integration, live 60 seconds; a `convex` JWT template sets its own
@@ -49,6 +51,10 @@ export const REFUSAL_WINDOW_MS = 30 * 24 * 60 * 60_000;
 // The first Clerk attempt waits this long, so the app's sign-out of the
 // deleting session finishes before Clerk deletes the user.
 export const CLERK_FIRST_DELAY_MS = 60_000;
+// The first PostHog attempt waits this long, so events the app queued before
+// its sign-out arrive first; PostHog deletes only events captured before the
+// request.
+export const POSTHOG_FIRST_DELAY_MS = 5 * 60_000;
 
 type Phase = Doc<"accountDeletions">["phase"];
 
@@ -151,9 +157,9 @@ function result(startedAt: number) {
 // Deletes the signed-in person's account. The Clerk identity alone selects
 // the account; the call takes no arguments. The first call sets `deletingAt`,
 // marks every credential and install key revoked, removes every device and
-// cancels its queued pushes, records the deletion, and schedules the purge's first batch
-// and the Clerk deletion, all in one transaction, so a failure leaves the
-// account active with nothing revoked. From that commit on, every credential
+// cancels its queued pushes, records the deletion, and schedules the purge's
+// first batch, the Clerk deletion, and the PostHog deletion, all in one
+// transaction, so a failure leaves the account active with nothing revoked. From that commit on, every credential
 // resolution, device registration, and app call for the account is refused
 // (§Credentials, §Accounts). A later call, including one after the purge has
 // deleted the `users` row, returns the first call's times and does nothing.
@@ -209,6 +215,7 @@ export const deleteAccount = mutation({
       updatedAt: now,
       restarts: 0,
       clerk: { state: "pending", attempt: 1, nextAttemptAt: now + CLERK_FIRST_DELAY_MS },
+      posthog: { state: "pending", attempt: 1, nextAttemptAt: now + POSTHOG_FIRST_DELAY_MS },
     });
     await ctx.scheduler.runAfter(0, identity.accountDeletion.purgeBatch, {
       deletionId,
@@ -218,19 +225,28 @@ export const deleteAccount = mutation({
       deletionId,
       attempt: 1,
     });
+    await ctx.scheduler.runAfter(
+      POSTHOG_FIRST_DELAY_MS,
+      identity.posthogDeletion.deletePostHogPerson,
+      { deletionId, attempt: 1 },
+    );
     return result(startedAt);
   },
 });
 
-// When the record may stop refusing the Clerk subject: REFUSAL_WINDOW_MS
-// after the later of the purge and the Clerk deletion, once both are done.
-// Until then the record stays, and every `ensureUser` and development mint for
-// the subject is refused.
+// When the record may stop refusing the Clerk subject: REFUSAL_WINDOW_MS after
+// the latest of the purge, the Clerk deletion, and the PostHog deletion, once
+// all are done. A record without `posthog` counts that step as done. Until then
+// the record stays, and every `ensureUser` and development mint for the subject
+// is refused.
 export function refusalEnd(record: Doc<"accountDeletions">): number | undefined {
-  if (record.purgedAt === undefined || record.clerk.state !== "done") {
+  const { purgedAt, clerk, posthog } = record;
+  if (purgedAt === undefined || clerk.state !== "done" || posthog?.state === "pending") {
     return undefined;
   }
-  return Math.max(record.purgedAt, record.clerk.doneAt ?? record.purgedAt) + REFUSAL_WINDOW_MS;
+  return (
+    Math.max(purgedAt, clerk.doneAt ?? purgedAt, posthog?.doneAt ?? purgedAt) + REFUSAL_WINDOW_MS
+  );
 }
 
 // Marks a deletion past its 24-hour deadline once, and logs it without the
@@ -314,8 +330,8 @@ export const purgeBatch = internalMutation({
 // Hourly recovery from convex/crons.ts. It deletes each finished record whose
 // refusal window has passed, and it restarts each deletion with no progress
 // for STALL_MS: a purge that is not finished gets a new chain under
-// a new generation, which stops the old one, and a Clerk deletion whose
-// attempt is overdue by STALL_MS gets a new attempt. A purge batch that
+// a new generation, which stops the old one, and a Clerk or PostHog deletion
+// whose attempt is overdue by STALL_MS gets a new attempt. A purge batch that
 // failed, for example, left its chain without a successor; this run picks it
 // up again. A full page schedules another run for the rest.
 export const resumePurges = internalMutation({
@@ -343,6 +359,14 @@ export const resumePurges = internalMutation({
         const attempt = record.clerk.attempt + 1;
         patch.clerk = { ...record.clerk, attempt, nextAttemptAt: now };
         await ctx.scheduler.runAfter(0, identity.clerkDeletion.deleteClerkUser, {
+          deletionId: record._id,
+          attempt,
+        });
+      }
+      if (record.posthog?.state === "pending" && record.posthog.nextAttemptAt <= now - STALL_MS) {
+        const attempt = record.posthog.attempt + 1;
+        patch.posthog = { ...record.posthog, attempt, nextAttemptAt: now };
+        await ctx.scheduler.runAfter(0, identity.posthogDeletion.deletePostHogPerson, {
           deletionId: record._id,
           attempt,
         });
