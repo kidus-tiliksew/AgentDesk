@@ -222,8 +222,11 @@ func scrollEvidence(_ failures: inout [String]) {
   line(String(format: "with the Undo strip: popover %.0f pt, list %.0f pt", stage.host.view.bounds.height, stage.list.bounds.height))
   check("the Undo strip shortens the list and the popover stays within 560 pt", stage.host.preferredContentSize.height <= 560)
   check("the strip leaves the first row at the top of the list", firstRowShows(stage))
+  let listWithStrip = stage.list.bounds.height
   model.undo = nil
   stage.settle()
+  line(String(format: "strip gone: list %.0f pt, %.0f pt with it", stage.list.bounds.height, listWithStrip))
+  check("the list grows back when the strip leaves", stage.list.bounds.height > listWithStrip)
 
   // The agents list expanded with the quiet sessions revealed.
   model.expanded = true
