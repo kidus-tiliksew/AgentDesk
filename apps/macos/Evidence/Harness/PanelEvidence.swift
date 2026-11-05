@@ -446,6 +446,8 @@ func pairedWindowEvidence(_ failures: inout [String]) {
   let lifetime = PairedWindowLifetime(
     isOwned: { window in window === popoverWindow || window === panel.window },
     isStatusItem: { $0 === statusWindow },
+    // A real click by the Mac's user during the run must not close the pair.
+    watchesOtherApps: false,
     close: { if popover.isShown { popover.performClose(nil) } })
   model.closePopover = { if popover.isShown { popover.performClose(nil) } }
   events.onWillShow = { lifetime.start() }

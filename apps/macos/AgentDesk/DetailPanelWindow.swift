@@ -160,13 +160,17 @@ final class PairedWindowLifetime {
   /// Moves on every stop, so a click the global monitor queued before a stop
   /// never closes a later pair.
   private var generation = 0
+  /// Whether clicks in other apps close the pair. The evidence harness turns
+  /// this off, so whatever the Mac's user clicks during a run changes nothing.
+  private let watchesOtherApps: Bool
 
   init(
     isOwned: @escaping (NSWindow) -> Bool, isStatusItem: @escaping (NSWindow) -> Bool,
-    close: @escaping () -> Void
+    watchesOtherApps: Bool = true, close: @escaping () -> Void
   ) {
     self.isOwned = isOwned
     self.isStatusItem = isStatusItem
+    self.watchesOtherApps = watchesOtherApps
     self.close = close
   }
 
@@ -182,11 +186,13 @@ final class PairedWindowLifetime {
     }
     // A click in another app never reaches the local monitor, and it does not
     // deactivate this app when it lands on the desktop or the menu bar.
-    let generation = self.generation
-    globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
-      Task { @MainActor in
-        guard let self, self.generation == generation else { return }
-        self.apply(.elsewhere)
+    if watchesOtherApps {
+      let generation = self.generation
+      globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
+        Task { @MainActor in
+          guard let self, self.generation == generation else { return }
+          self.apply(.elsewhere)
+        }
       }
     }
     observe(.default, NSApplication.didResignActiveNotification) { $0.close() }
