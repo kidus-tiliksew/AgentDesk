@@ -181,20 +181,20 @@ ok a held answer has only the close control
 
 ## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
 screen visible frame: 1728x1084 pt; app active: false
-left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
-ok left end of the screen: the panel is 400 pt wide with the popover still showing
-ok left end of the screen: the panel sits right of the popover, 8 pt away
-ok left end of the screen: the tops meet
-right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
-ok right end of the screen: the panel is 400 pt wide with the popover still showing
-ok right end of the screen: the panel sits left of the popover, 8 pt away
-ok right end of the screen: the tops meet
-ok the lifetime runs while the popover shows
-ok a click in the panel keeps both
-ok a click in the popover keeps both
-ok a click on the menu bar item's window leaves both to the item's action
-ok a click while a menu tracks keeps both
-ok losing key status alone closes nothing
+left end of the screen: popover x 35...375, panel x 0...400, panel 400x319 pt
+FAIL left end of the screen: the panel is 400 pt wide with the popover still showing
+FAIL left end of the screen: the panel sits right of the popover, 8 pt away
+FAIL left end of the screen: the tops meet
+right end of the screen: popover x 1363...1703, panel x 0...400, panel 400x319 pt
+FAIL right end of the screen: the panel is 400 pt wide with the popover still showing
+FAIL right end of the screen: the panel sits left of the popover, 8 pt away
+FAIL right end of the screen: the tops meet
+FAIL the lifetime runs while the popover shows
+FAIL a click in the panel keeps both
+FAIL a click in the popover keeps both
+FAIL a click on the menu bar item's window leaves both to the item's action
+FAIL a click while a menu tracks keeps both
+FAIL losing key status alone closes nothing
 ok a click in another window closes both
 ok the popover's close event ran once
 ok the lifetime stopped with it
@@ -220,6 +220,7 @@ ok ⌘↩ still sends from a text field
 ok Escape from a text field closes the panel
 ok Escape closes the panel first and the popover stays
 ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
 macOS Keyboard navigation setting on: false
 Tab stops from the panel's start: Note for the agent (optional)
 ok Tab reaches the panel's note field
@@ -411,4 +412,16 @@ AXIsProcessTrusted=true: live VoiceOver output and the live NSPopover open and c
 Keys from a physical keyboard are not captured. The paired-window section above posts key events to the shipped observers, and PopoverKeysTests covers the key-to-action mapping; Escape with no panel open closes the popover.
 Live notifications are not captured: UNUserNotificationCenter needs the app bundle and the user's permission. The permission prompt, a delivered banner, a click opening the popover, the Reject and Approve buttons, and removal from Notification Center are checked on a Mac before each release; the content, category, and Notifier timeline above use the shipped code with a fixture center.
 
-RESULT: PASS
+RESULT: FAIL
+  paired windows: left end of the screen: the panel is 400 pt wide with the popover still showing
+  paired windows: left end of the screen: the panel sits right of the popover, 8 pt away
+  paired windows: left end of the screen: the tops meet
+  paired windows: right end of the screen: the panel is 400 pt wide with the popover still showing
+  paired windows: right end of the screen: the panel sits left of the popover, 8 pt away
+  paired windows: right end of the screen: the tops meet
+  paired windows: the lifetime runs while the popover shows
+  paired windows: a click in the panel keeps both
+  paired windows: a click in the popover keeps both
+  paired windows: a click on the menu bar item's window leaves both to the item's action
+  paired windows: a click while a menu tracks keeps both
+  paired windows: losing key status alone closes nothing
