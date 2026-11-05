@@ -583,6 +583,7 @@ MainActor.assumeIsolated {
 
   panelEvidence(&failures)
   pairedWindowEvidence(&failures)
+  linkedRecoveryEvidence(&failures)
 
   line("## Strips")
   line("undo: \(DecisionPresentation.undoText(.approve, decision: decisions.first { $0.id == "d2" }!)) [Undo]")

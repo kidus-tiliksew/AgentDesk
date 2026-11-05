@@ -88,6 +88,8 @@ public final class PendingAnswers {
   /// Runs when an attempt fails and its row returns, so the app restores
   /// its draft.
   public var onRestore: (@MainActor (Attempt) -> Void)?
+  /// Runs when an attempt of the current account ends, before `onChange`.
+  public var onComplete: (@MainActor (Attempt, Outcome) -> Void)?
 
   private let sender: any AnswerSender
   private let clock: any SyncClock
@@ -212,6 +214,13 @@ public final class PendingAnswers {
     if before.0 != settled || before.1 != failures { changed() }
   }
 
+  /// The decision is confirmed settled or gone, so its failure message goes
+  /// with it, whatever the list last read.
+  public func forgetFailure(_ id: String) {
+    guard failures.removeValue(forKey: id) != nil else { return }
+    changed()
+  }
+
   /// Clears every attempt without sending it. Signing out calls it; late
   /// answers for the old account change nothing.
   public func reset() {
@@ -268,6 +277,7 @@ public final class PendingAnswers {
       failures[id] = Self.failureMessage
       onRestore?(attempt)
     }
+    onComplete?(attempt, outcome)
     changed()
   }
 

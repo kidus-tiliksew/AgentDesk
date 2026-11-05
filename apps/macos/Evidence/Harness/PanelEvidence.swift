@@ -34,9 +34,10 @@ private func presentation(
 private struct PanelFixture: View {
   let presentation: DetailPanelPresentation
   var maxHeight = CGFloat(DetailPanelPlacement.maxHeight)
+  var actions = DecisionDetailActions()
 
   var body: some View {
-    DecisionDetailView(presentation: presentation, maxHeight: maxHeight)
+    DecisionDetailView(presentation: presentation, maxHeight: maxHeight, actions: actions)
   }
 }
 
@@ -676,5 +677,136 @@ func pairedWindowEvidence(_ failures: inout [String]) {
   statusWindow.orderOut(nil)
   otherWindow.orderOut(nil)
   NSApp.setActivationPolicy(.prohibited)
+  line("")
+}
+
+// MARK: Linked recovery
+
+/// A decision the list does not hold, answered through the shipped
+/// `DecisionCoordinator`, which `AppState` delegates to. Only the sender, the
+/// reader, and the clock are fixtures.
+private final class ScriptedAnswers: AnswerSender, DecisionReader, @unchecked Sendable {
+  private let lock = NSLock()
+  private var failing = true
+  private var posted = 0
+  private var reads = 0
+  private let record: Decision
+
+  init(record: Decision) {
+    self.record = record
+  }
+
+  var posts: Int { lock.withLock { posted } }
+  var readCount: Int { lock.withLock { reads } }
+  func setFailing(_ value: Bool) { lock.withLock { failing = value } }
+
+  func answer(id: String, answer: Answer, note: String?) async throws(APIError) -> Decision {
+    let fails = lock.withLock {
+      posted += 1
+      return failing
+    }
+    if fails { throw .transport("offline") }
+    return record
+  }
+
+  func decision(id: String) async throws(APIError) -> Decision {
+    let fails = lock.withLock {
+      reads += 1
+      return failing
+    }
+    if fails { throw .transport("offline") }
+    return record
+  }
+}
+
+/// Holds an answer until the harness flushes it, and refreshes nothing.
+private struct HoldingClock: SyncClock {
+  func sleep(seconds: TimeInterval) async throws { try await Task.sleep(nanoseconds: 3_600_000_000_000) }
+}
+
+@MainActor
+func linkedRecoveryEvidence(_ failures: inout [String]) {
+  line("## Linked recovery (the shipped DecisionCoordinator with a fixture sender, reader, and clock)")
+  func check(_ name: String, _ passed: Bool, _ failures: inout [String]) {
+    line("\(passed ? "ok" : "FAIL") \(name)")
+    if !passed { failures.append("linked recovery: \(name)") }
+  }
+  let linked = panelDecisions[3].1
+  let visible = decisions.filter { $0.id == "d2" }
+  let script = ScriptedAnswers(record: linked)
+  script.setFailing(false)
+  let coordinator = DecisionCoordinator(sender: script, reader: script, clock: HoldingClock())
+  coordinator.applySnapshot(visible, isNewRead: true)
+  coordinator.show(linked.id)
+  RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+  check("a pending decision absent from the list loads in the panel", coordinator.detail.decision == linked, &failures)
+  coordinator.drafts[linked.id]?.text = "agentdesk-kit"
+  coordinator.drafts[linked.id]?.note = "It matches the repository."
+  let readsBefore = script.readCount
+
+  func saveRender(_ view: NSView, _ name: String) { save(snapshot(view), name) }
+  func savePopover(_ name: String, undo: String? = nil, _ failures: inout [String]) {
+    for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
+      let fixture = PopoverFixture(
+        items: items(coordinator.listed, failures: coordinator.pending.failures), expanded: false, undoText: undo)
+      let (window, container) = host(fixture, appearance: appearance, background: .vibrant)
+      saveRender(container, "\(name)-\(mode).png")
+      line("\(name)-\(mode).png: \(Int(container.bounds.width))x\(Int(container.bounds.height)) pt")
+      if container.bounds.width != 340 || container.bounds.height > 560 {
+        failures.append("\(name)-\(mode) exceeds 340 x 560 pt")
+      }
+      _ = window
+    }
+  }
+
+  // Undo: the row, the draft, and the panel return with no read or send.
+  coordinator.send(linked.id)
+  check("answering closes the panel and hides the row", coordinator.detail.shownID == nil && coordinator.listed.map(\.id) == ["d2"], &failures)
+  savePopover("popover-linked-held", undo: coordinator.pending.undoText, &failures)
+  coordinator.undo()
+  check("Undo restores the row", coordinator.listed.contains { $0.id == linked.id }, &failures)
+  check("Undo reopens the panel from the held record", coordinator.detail.shownID == linked.id && coordinator.detail.decision == linked, &failures)
+  check("Undo keeps the draft and note", coordinator.drafts[linked.id]?.note == "It matches the repository." && coordinator.drafts[linked.id]?.text == "agentdesk-kit", &failures)
+  RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+  check("Undo reads nothing and sends nothing", script.readCount == readsBefore && script.posts == 0, &failures)
+
+  // A failed send, a failed list read, and a publish of the retained snapshot.
+  script.setFailing(true)
+  coordinator.send(linked.id)
+  coordinator.pending.flush()
+  runAsync { _ = await coordinator.pending.flushAndWait() }
+  check("a failed send restores the row at once", coordinator.listed.contains { $0.id == linked.id }, &failures)
+  check("a failed send keeps the failure message", coordinator.pending.failures[linked.id] == PendingAnswers.failureMessage, &failures)
+  check("a failed send keeps the draft and note", coordinator.drafts[linked.id]?.note == "It matches the repository." && coordinator.drafts[linked.id]?.text == "agentdesk-kit", &failures)
+  coordinator.applySnapshot(visible, isNewRead: false)
+  check("a retained-snapshot publish prunes nothing", coordinator.pending.failures[linked.id] != nil && coordinator.drafts[linked.id] != nil && coordinator.listed.contains { $0.id == linked.id }, &failures)
+  coordinator.applySnapshot(visible, isNewRead: true)
+  RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+  check("a new read with a failed direct read prunes nothing", coordinator.pending.failures[linked.id] != nil && coordinator.drafts[linked.id] != nil && coordinator.listed.contains { $0.id == linked.id }, &failures)
+  savePopover("popover-linked-send-failed", &failures)
+  coordinator.toggle(linked.id)
+  let retry = DetailPanelPresentation(
+    content: .loaded(panelModel(linked), linked), failure: coordinator.pending.failures[linked.id])
+  check("the restored row opens the retained record", coordinator.detail.decision == linked && coordinator.shownIsAnswerable, &failures)
+  for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
+    // The shipped view reads the restored draft, as `DetailPanelRoot` binds it.
+    let restored = DecisionDetailActions(draft: { .constant(coordinator.drafts[$0.id] ?? .forPanel($0)) })
+    let (window, container, _) = settled(
+      PanelFixture(presentation: retry, actions: restored), appearance: appearance)
+    saveRender(container, "panel-linked-send-failed-\(mode).png")
+    line("panel-linked-send-failed-\(mode).png: \(Int(container.bounds.width))x\(Int(container.bounds.height)) pt")
+    _ = window
+  }
+
+  // The retry lands once.
+  script.setFailing(false)
+  let posts = script.posts
+  coordinator.send(linked.id)
+  runAsync { _ = await coordinator.pending.flushAndWait() }
+  check("the retry posts once", script.posts == posts + 1, &failures)
+  check("a landed retry leaves no record, draft, or message", coordinator.retainedIDs.isEmpty && coordinator.drafts[linked.id] == nil && coordinator.pending.failures[linked.id] == nil, &failures)
+  coordinator.reset()
+  check("sign-out leaves nothing", coordinator.listed.isEmpty && coordinator.drafts.isEmpty, &failures)
+  line("AppState delegates its list, panel, drafts, answers, and Undo to this object; its own wiring is compiled by the Xcode build and is not run here.")
   line("")
 }

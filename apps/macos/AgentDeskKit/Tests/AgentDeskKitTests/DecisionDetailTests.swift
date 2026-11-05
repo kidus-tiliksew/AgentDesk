@@ -3,47 +3,6 @@ import XCTest
 
 @testable import AgentDeskKit
 
-/// A `DecisionReader` that answers from a script and can hold a read.
-private final class FakeDecisionReader: DecisionReader, @unchecked Sendable {
-  private let lock = NSLock()
-  private var scripts: [String: [Result<Decision, APIError>]] = [:]
-  private var fallback: [String: Result<Decision, APIError>] = [:]
-  private var holds: [String: Gate] = [:]
-  private var recorded: [String] = []
-
-  var reads: [String] { lock.withLock { recorded } }
-
-  /// Answers the next reads of `id` in order, and repeats the last one.
-  func answer(_ id: String, _ results: Result<Decision, APIError>...) {
-    lock.withLock {
-      scripts[id, default: []] += results
-      fallback[id] = results.last
-    }
-  }
-
-  func holdNextRead(of id: String) -> Gate {
-    let gate = Gate()
-    lock.withLock { holds[id] = gate }
-    return gate
-  }
-
-  func decision(id: String) async throws(APIError) -> Decision {
-    let (result, hold): (Result<Decision, APIError>?, Gate?) = lock.withLock {
-      recorded.append(id)
-      let hold = holds.removeValue(forKey: id)
-      if var script = scripts[id], !script.isEmpty {
-        let next = script.removeFirst()
-        scripts[id] = script
-        return (next, hold)
-      }
-      return (fallback[id], hold)
-    }
-    if let hold { await hold.wait() }
-    guard let result else { throw .transport("unscripted") }
-    return try result.get()
-  }
-}
-
 /// The panel's target and its reads on virtual time (req-mac-app AC-4.8,
 /// AC-6.4, AC-11.5, AC-11.6, AC-11.7).
 @MainActor
@@ -272,7 +231,10 @@ final class DecisionDetailTests: XCTestCase {
     detail.answerUndone("a", known: pendingA)
     XCTAssertEqual(detail.shownID, "a")
     XCTAssertEqual(detail.content, .loaded(pendingA))
-    await eventually("a new read") { self.reader.reads.count == 2 }
+    await sleeping()
+    XCTAssertEqual(reader.reads, ["a"], "Undo shows the record it held and reads nothing yet")
+    clock.advance(by: DecisionDetail.refreshInterval)
+    await eventually("the next refresh") { self.reader.reads.count == 2 }
   }
 
   func testAnAnswerToAnotherRowLeavesThePanel() async {

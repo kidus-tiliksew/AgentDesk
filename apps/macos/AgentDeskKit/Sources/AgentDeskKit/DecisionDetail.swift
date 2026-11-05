@@ -11,6 +11,7 @@ extension APIClient: DecisionReader {}
 /// §Detail panel; req-mac-app AC-11.2, AC-11.5, AC-11.6).
 ///
 /// The panel reads its target at once and every 5 seconds while it shows it,
+/// except that Undo shows the record it held and reads first after 5 seconds,
 /// apart from the pending-only list, so a target that leaves the list shows
 /// its recorded outcome instead of closing. Each target has a token, so a
 /// response for a closed, replaced, or signed-out target changes nothing.
@@ -108,7 +109,8 @@ public final class DecisionDetail {
     changed()
   }
 
-  /// The held answer was undone: the panel reopens when that answer closed it.
+  /// The held answer was undone: the panel reopens from `known` when that
+  /// answer closed it, with no read until the next refresh.
   public func answerUndone(_ id: String, known: Decision?) {
     guard panel.reopenOnUndo == id else {
       panel.answerUndone(id)
@@ -116,7 +118,7 @@ public final class DecisionDetail {
     }
     let wasShown = panel.shownID == id
     panel.answerUndone(id)
-    if !wasShown { start(id, known: known, closesIfStale: false) }
+    if !wasShown { start(id, known: known, closesIfStale: false, readsAtOnce: false) }
   }
 
   /// Sign-out: nothing of the old account stays, and no late read lands.
@@ -136,7 +138,9 @@ public final class DecisionDetail {
     reading = nil
   }
 
-  private func start(_ id: String, known: Decision?, closesIfStale: Bool) {
+  private func start(
+    _ id: String, known: Decision?, closesIfStale: Bool, readsAtOnce: Bool = true
+  ) {
     stopReading()
     self.closesIfStale = closesIfStale
     content = known.map(Content.loaded) ?? .loading
@@ -145,6 +149,13 @@ public final class DecisionDetail {
     let reader = self.reader
     let clock = self.clock
     reading = Task { [weak self] in
+      if !readsAtOnce {
+        do {
+          try await clock.sleep(seconds: Self.refreshInterval)
+        } catch {
+          return
+        }
+      }
       while !Task.isCancelled {
         let result = await Self.read(id, reader: reader)
         guard let self, self.token == token else { return }
