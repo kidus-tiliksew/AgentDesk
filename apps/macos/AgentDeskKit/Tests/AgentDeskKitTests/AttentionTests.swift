@@ -73,13 +73,15 @@ final class AttentionTests: XCTestCase {
     XCTAssertEqual(empty.count, 0)
   }
 
-  func testStyleDefaultsToDotAndPersists() {
+  func testStyleIsCountUntilChosenAndPersists() {
     let defaults = makeDefaults()
-    XCTAssertEqual(MenuBarStyle(defaults: defaults), .dot)
+    XCTAssertEqual(MenuBarStyle(defaults: defaults), .count, "an unset style is count")
+    MenuBarStyle.dot.save(to: defaults)
+    XCTAssertEqual(MenuBarStyle(defaults: defaults), .dot, "a stored dot stays dot")
     MenuBarStyle.count.save(to: defaults)
     XCTAssertEqual(MenuBarStyle(defaults: defaults), .count)
     defaults.set("sparkle", forKey: MenuBarStyle.key)
-    XCTAssertEqual(MenuBarStyle(defaults: defaults), .dot)
+    XCTAssertEqual(MenuBarStyle(defaults: defaults), .count, "an unknown value is count")
   }
 }
 

@@ -8,12 +8,15 @@ public struct DecisionRowModel: Equatable, Sendable, Identifiable {
   /// Drawn semibold while new, medium once seen (AC-4.4).
   public var isNew: Bool
   public var isUrgent: Bool
+  /// "Urgent", drawn red, when the decision is urgent (AC-4.3).
+  public var urgentMarker: String?
   public var agentName: String
   public var age: String
   public var timeLeft: String?
-  /// The time left is the only red element of a row (AC-4.3).
+  /// Red on an urgent decision and on a deadline under 5 minutes away. The
+  /// Urgent marker and this time are a row's only red elements (AC-4.3).
   public var timeLeftIsRed: Bool
-  /// "Suggests <answer>", for every input type except approve-or-reject.
+  /// "Suggests <answer>" whenever the decision has a recommendation (AC-4.2).
   public var suggestion: String?
 
   public init(decision: Decision, agents: [AgentSession], seen: Set<String>, now: Date) {
@@ -21,10 +24,11 @@ public struct DecisionRowModel: Equatable, Sendable, Identifiable {
     title = decision.title
     isNew = Attention.isNew(decision, seen: seen)
     isUrgent = Attention.isUrgent(decision)
+    urgentMarker = isUrgent ? "Urgent" : nil
     agentName = DecisionPresentation.agentName(for: decision, agents: agents)
     age = DecisionPresentation.age(since: decision.createdAt, now: now)
     timeLeft = decision.deadline.map { DecisionPresentation.timeLeft(until: $0, now: now) }
-    timeLeftIsRed = Attention.isDueSoon(decision, now: now)
+    timeLeftIsRed = isUrgent || Attention.isDueSoon(decision, now: now)
     suggestion = DecisionPresentation.suggestion(for: decision).map { "Suggests \($0)" }
   }
 
@@ -80,11 +84,9 @@ public enum DecisionPresentation {
   }
 
   /// The recommendation as the user reads it, with option ids resolved to
-  /// their labels, or nil for approve-or-reject and for no recommendation.
+  /// their labels, or nil for no recommendation.
   public static func suggestion(for decision: Decision) -> String? {
-    guard decision.inputType != .approveReject, let recommendation = decision.recommendation
-    else { return nil }
-    return answerText(recommendation, options: decision.options)
+    decision.recommendation.map { answerText($0, options: decision.options) }
   }
 
   public static func answerText(_ answer: Answer, options: [Option]?) -> String {

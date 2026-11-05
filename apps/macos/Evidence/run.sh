@@ -22,15 +22,15 @@ trap 'rm -rf "$work"' EXIT
 mkdir -p "$out" "$work/src"
 rm -f "$out"/*.png "$out"/*.txt "$out"/*.log "$out"/manifest.json
 
-# The harness compiles the kit and seven app-target files into one module, so
+# The harness compiles the kit and eight app-target files into one module, so
 # their `import AgentDeskKit` lines are dropped.
 cp "$macos"/AgentDeskKit/Sources/AgentDeskKit/*.swift "$macos"/AgentDeskKit/Sources/AgentDeskKit/Models/*.swift "$work/src/"
-for file in DecisionRow AnswerControls AgentsView Ink MenuBarLabel NotificationController NotificationPauseLine; do
+for file in DecisionRow AnswerControls AgentsView ScrollSupport Ink MenuBarLabel NotificationController NotificationPauseLine; do
   sed '/^import AgentDeskKit$/d' "$macos/AgentDesk/$file.swift" >"$work/src/$file.swift"
 done
 cp "$here"/Harness/*.swift "$work/src/"
 
-build_cmd="swiftc -swift-version 6 -O -o <tmp>/evidence <kit sources> AgentDesk/{DecisionRow,AnswerControls,AgentsView,Ink,MenuBarLabel,NotificationController,NotificationPauseLine}.swift Evidence/Harness/*.swift"
+build_cmd="swiftc -swift-version 6 -O -o <tmp>/evidence <kit sources> AgentDesk/{DecisionRow,AnswerControls,AgentsView,ScrollSupport,Ink,MenuBarLabel,NotificationController,NotificationPauseLine}.swift Evidence/Harness/*.swift"
 swiftc -swift-version 6 -O -o "$work/evidence" "$work"/src/*.swift >"$out/build.log" 2>&1
 build_exit=$?
 
@@ -83,6 +83,42 @@ bundle_exit=0
   sparkle_version=$(plutil -extract CFBundleShortVersionString raw -o - "$framework/Resources/Info.plist" 2>/dev/null) || sparkle_version="<missing>"
   if [ "$sparkle_version" = 2.10.1 ]; then verdict=ok; else verdict=FAIL; bundle_exit=1; fi
   printf '%s Contents/Frameworks/Sparkle.framework CFBundleShortVersionString = %s\n' "$verdict" "$sparkle_version"
+
+  # The app icon (req-mac-app AC-1.4): the catalog's slots, the build setting,
+  # the compiled resources, and the icon macOS returns for the built bundle.
+  # Nothing here launches the app.
+  iconset="$macos/AgentDesk/Assets.xcassets/AppIcon.appiconset"
+  source_icon="$root/apps/mobile/assets/icon.png"
+  index=0
+  while file=$(plutil -extract "images.$index.filename" raw -o - "$iconset/Contents.json" 2>/dev/null); do
+    size=$(plutil -extract "images.$index.size" raw -o - "$iconset/Contents.json")
+    scale=$(plutil -extract "images.$index.scale" raw -o - "$iconset/Contents.json")
+    idiom=$(plutil -extract "images.$index.idiom" raw -o - "$iconset/Contents.json")
+    want=$(( ${size%x*} * ${scale%x} ))
+    got=$(sips -g pixelWidth "$iconset/$file" 2>/dev/null | awk '/pixelWidth/ {print $2}')
+    if [ "$idiom" = mac ] && [ "$got" = "$want" ]; then verdict=ok; else verdict=FAIL; bundle_exit=1; fi
+    printf '%s AppIcon %s %s %s = %s pixels\n' "$verdict" "$size" "$scale" "$file" "${got:-<missing>}"
+    index=$((index + 1))
+  done
+  if [ "$index" = 10 ]; then verdict=ok; else verdict=FAIL; bundle_exit=1; fi
+  printf '%s AppIcon has %s slots\n' "$verdict" "$index"
+  if cmp -s "$source_icon" "$iconset/icon_512x512@2x.png"; then verdict=ok; else verdict=FAIL; bundle_exit=1; fi
+  printf '%s the 1024 pixel file equals apps/mobile/assets/icon.png, sha256 %s\n' "$verdict" "$(shasum -a 256 "$source_icon" | cut -d' ' -f1)"
+  settings=$(grep -c 'ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;' "$macos/AgentDesk.xcodeproj/project.pbxproj")
+  if [ "$settings" = 2 ]; then verdict=ok; else verdict=FAIL; bundle_exit=1; fi
+  printf '%s ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon in %s configurations\n' "$verdict" "$settings"
+  for key in CFBundleIconName CFBundleIconFile; do
+    got_value=$(plutil -extract "$key" raw -o - "$info" 2>/dev/null) || got_value="<missing>"
+    if [ "$got_value" = AppIcon ]; then verdict=ok; else verdict=FAIL; bundle_exit=1; fi
+    printf '%s %s = %s\n' "$verdict" "$key" "$got_value"
+  done
+  for resource in AppIcon.icns Assets.car; do
+    if [ -s "$app/Contents/Resources/$resource" ]; then verdict=ok; else verdict=FAIL; bundle_exit=1; fi
+    printf '%s Contents/Resources/%s\n' "$verdict" "$resource"
+  done
+  if xcrun assetutil --info "$app/Contents/Resources/Assets.car" 2>/dev/null | grep -q '"Name" : "AppIcon"'; then verdict=ok; else verdict=FAIL; bundle_exit=1; fi
+  printf '%s Assets.car holds AppIcon\n' "$verdict"
+  if swiftc -swift-version 5 -O -o "$work/icon-audit" "$here/IconAudit/main.swift" && "$work/icon-audit" "$app" "$source_icon" "$out/bundle-icon-finder.png"; then :; else bundle_exit=1; fi
 } >"$out/bundle.txt" 2>&1
 
 # The release script: syntax of both scripts, then its stub-command checks.
@@ -131,7 +167,7 @@ done
 # <commit>:<path>`.
 tree() { git -C "$root" rev-parse "HEAD:$1"; }
 dirty=false
-if [ -n "$(git -C "$root" status --porcelain -- apps/macos/AgentDesk apps/macos/AgentDeskKit apps/macos/AgentDesk-Info.plist apps/macos/AgentDesk.xcodeproj apps/macos/scripts apps/macos/Evidence/Harness apps/macos/Evidence/run.sh)" ]; then
+if [ -n "$(git -C "$root" status --porcelain -- apps/macos/AgentDesk apps/macos/AgentDeskKit apps/macos/AgentDesk-Info.plist apps/macos/AgentDesk.xcodeproj apps/macos/scripts apps/macos/Evidence/Harness apps/macos/Evidence/IconAudit apps/macos/Evidence/run.sh)" ]; then
   dirty=true
 fi
 {
@@ -146,6 +182,7 @@ fi
   printf '    "apps/macos/AgentDesk.xcodeproj": "%s",\n' "$(tree apps/macos/AgentDesk.xcodeproj)"
   printf '    "apps/macos/scripts": "%s",\n' "$(tree apps/macos/scripts)"
   printf '    "apps/macos/Evidence/Harness": "%s",\n' "$(tree apps/macos/Evidence/Harness)"
+  printf '    "apps/macos/Evidence/IconAudit": "%s",\n' "$(tree apps/macos/Evidence/IconAudit)"
   printf '    "apps/macos/Evidence/run.sh": "%s"\n' "$(tree apps/macos/Evidence/run.sh)"
   printf '  },\n'
   printf '  "toolchain": "%s; %s",\n' "$(xcodebuild -version | tr '\n' ' ' | sed 's/ *$//')" "$(swift --version 2>&1 | head -1)"
@@ -156,7 +193,7 @@ fi
   printf '    {\n      "command": "<tmp>/evidence apps/macos/Evidence/output",\n      "exit": %d,\n      "log": "harness.log",\n      "report": "report.txt"\n    },\n' "$harness_exit"
   printf '    {\n      "command": "%s",\n      "exit": %d,\n      "log": "tests.log",\n      "summary": "freshness.txt"\n    },\n' "$tests_cmd" "$tests_exit"
   printf '    {\n      "command": "%s",\n      "exit": %d,\n      "log": "xcodebuild.log"\n    },\n' "$xcodebuild_cmd" "$xcodebuild_exit"
-  printf '    {\n      "command": "plutil and base64 on <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app",\n      "exit": %d,\n      "log": "bundle.txt"\n    },\n' "$bundle_exit"
+  printf '    {\n      "command": "plutil, base64, sips, assetutil, and Evidence/IconAudit on <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app",\n      "exit": %d,\n      "log": "bundle.txt"\n    },\n' "$bundle_exit"
   printf '    {\n      "command": "%s",\n      "exit": %d,\n      "log": "release-tests.log"\n    },\n' "$release_tests_cmd" "$release_tests_exit"
   printf '    {\n      "command": "apps/macos/scripts/release.sh dry runs in <tmp>/clone at source_commit",\n      "exit": %d,\n      "log": "release-dry-run.log"\n    }\n' "$dry_run_exit"
   printf '  ],\n'

@@ -6,7 +6,7 @@ import Foundation
 @MainActor
 final class AppState {
   var isSignedIn = true
-  var menuBarStyle = MenuBarStyle.dot
+  var menuBarStyle = MenuBarStyle.count
   var summary: MenuBarSummary
   var dotOpacity: Double = 0
   var labelDescription: String { summary.accessibilityDescription }

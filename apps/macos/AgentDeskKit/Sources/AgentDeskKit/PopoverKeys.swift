@@ -68,3 +68,49 @@ public enum PopoverKeys {
     return previous[..<index].last(where: rows.contains)
   }
 }
+
+/// Where the decision list should scroll (component-mac-app §List scrolling;
+/// req-mac-app AC-4.12). The generation moves on every request, so the latest
+/// one wins and a repeated target still scrolls.
+public struct ListScrollRequest: Equatable, Sendable {
+  public enum Target: Equatable, Sendable {
+    case top
+    case row(String)
+  }
+
+  public private(set) var target: Target = .top
+  public private(set) var generation = 0
+
+  public init() {}
+
+  /// An ordinary opening: the first row.
+  public mutating func toTop() {
+    target = .top
+    generation += 1
+  }
+
+  /// A row the keys or a notification asked for.
+  public mutating func toRow(_ id: String) {
+    target = .row(id)
+    generation += 1
+  }
+
+  /// Applies the current target again, once the content view is back in the
+  /// popover window. A row target stays a row target.
+  public mutating func repeatLast() {
+    generation += 1
+  }
+}
+
+/// The popover's height budget (component-mac-app §Popover).
+public enum PopoverLayout {
+  public static let maxHeight: Double = 560
+  /// The list keeps this much whatever else the popover shows.
+  public static let minListHeight: Double = 120
+
+  /// What remains of the popover for the list beside everything else it
+  /// shows: the header, strips, dividers, and agents line with its list.
+  public static func listMaxHeight(chromeHeight: Double) -> Double {
+    max(minListHeight, maxHeight - chromeHeight)
+  }
+}

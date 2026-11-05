@@ -30,8 +30,15 @@ final class AppState {
   private(set) var dotOpacity: Double = 0
 
   /// The row the arrow keys moved to or the user last opened, by decision
-  /// id (req-mac-app AC-7.1).
-  private(set) var selectedID: String?
+  /// id (req-mac-app AC-7.1). A change scrolls the list to it.
+  private(set) var selectedID: String? {
+    didSet {
+      if let selectedID, selectedID != oldValue { listScroll.toRow(selectedID) }
+    }
+  }
+  /// Where the list should scroll: its first row on opening, or a row the
+  /// keys or a notification asked for; the latest wins (req-mac-app AC-4.12).
+  private(set) var listScroll = ListScrollRequest()
   /// The one expanded row, by decision id (req-mac-app AC-4.6).
   private(set) var expandedID: String?
   /// Each expanded row's answer in progress, kept while its decision is
@@ -204,12 +211,20 @@ final class AppState {
     guard !isPopoverOpen else { return }
     isPopoverOpen = true
     Self.log.debug("Popover opened")
+    listScroll.toTop()
     listedIDs = Set(snapshot.decisions.map(\.id))
     notifier.isPopoverOpen = true
     pending.isPresented = true
     now = Date()
     let sync = self.sync
     Task { await sync.setOpen(true) }
+  }
+
+  /// The popover's content is back in its window: apply the scroll target
+  /// again, which may have landed while the content had no window. Repeating
+  /// keeps a notification's row (component-mac-app §List scrolling).
+  func popoverShown() {
+    listScroll.repeatLast()
   }
 
   /// The popover closed: a held answer is sent, and every decision it
@@ -301,6 +316,9 @@ final class AppState {
     guard case .expand(let id) = resolution else { return }
     selectedID = id
     if expandedID != id { toggle(id) }
+    // The clicked row wins over the opening's top reset, also when it was
+    // already selected.
+    listScroll.toRow(id)
   }
 
   func setMenuBarStyle(_ style: MenuBarStyle) {

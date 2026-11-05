@@ -3,8 +3,8 @@ import SwiftUI
 
 // Offscreen evidence for the popover, the menu bar label, and notifications.
 // The harness compiles the shipped `DecisionRow`, `AnswerControls`,
-// `AgentsView`, `Ink`, `MenuBarLabel`, `NotificationController`, and
-// `NotificationPauseLine` sources and every `AgentDeskKit` source into one
+// `AgentsView`, `ScrollSupport`, `Ink`, `MenuBarLabel`,
+// `NotificationController`, and `NotificationPauseLine` sources and every `AgentDeskKit` source into one
 // program, renders them from fixtures, and writes PNGs and `report.txt` to
 // the directory named by its first argument. `run.sh` builds and runs it.
 
@@ -48,7 +48,7 @@ func session(_ fields: [String: Any]) -> AgentSession {
   return try! JSONDecoder.agentDesk().decode(AgentSession.self, from: data)
 }
 
-let agents = [
+let agentsFixture = [
   session([
     "id": "ags_1", "display_name": "Claude Code · api", "state": "working",
     "line": "Running the migration tests", "link": "https://example.com/a",
@@ -62,6 +62,8 @@ let agents = [
     "last_activity_at": "2026-10-27T11:47:00Z", "line": "Waiting for review",
   ]),
 ]
+
+let agents = agentsFixture
 
 let decisions = DecisionOrder.sorted([
   decision([
@@ -82,11 +84,110 @@ let decisions = DecisionOrder.sorted([
   ]),
 ])
 let seen: Set<String> = ["d2"]
+
+// Live sessions in every group: blocked (one of them stale), active, and
+// quiet for minutes, hours, and days.
+let groupedAgents = [
+  session([
+    "id": "g_a1", "display_name": "Claude Code · api", "state": "working",
+    "line": "Running the migration tests", "last_activity_at": "2026-10-27T11:59:30Z",
+  ]),
+  session([
+    "id": "g_q1", "display_name": "Codex · billing", "state": "working", "stale": true,
+    "line": "Reading the invoice tests", "last_activity_at": "2026-10-25T09:00:00Z",
+  ]),
+  session([
+    "id": "g_b1", "display_name": "Codex · web", "state": "blocked",
+    "line": "Needs a decision on the release", "last_activity_at": "2026-10-27T11:58:00Z",
+  ]),
+  session([
+    "id": "g_q2", "display_name": "Cursor · docs", "state": "waiting", "stale": true,
+    "line": "Waiting for review", "last_activity_at": "2026-10-27T11:16:00Z",
+  ]),
+  session([
+    "id": "g_a2", "display_name": "Claude Code · web", "state": "waiting",
+    "line": "Waiting on the build", "last_activity_at": "2026-10-27T11:59:00Z",
+  ]),
+  session([
+    "id": "g_b2", "display_name": "Claude Code · infra", "state": "blocked", "stale": true,
+    "line": "Blocked on a credential", "last_activity_at": "2026-10-27T10:00:00Z",
+  ]),
+  session([
+    "id": "g_q3", "display_name": "OpenCode · search", "state": "working", "stale": true,
+    "line": "Reindexing", "last_activity_at": "2026-10-27T08:30:00Z",
+  ]),
+]
+
+// The live review's shape: 18 sessions, most of them quiet.
+let manyAgents: [AgentSession] = (1...18).map { index in
+  var fields: [String: Any] = ["id": "m\(index)", "state": "working"]
+  if index % 5 == 0 {
+    fields["display_name"] = "Agent \(index) · active"
+    fields["line"] = "Working on item \(index)"
+  } else {
+    fields["display_name"] = "Agent \(index) · quiet"
+    fields["line"] = "Last status of item \(index)"
+    fields["stale"] = true
+    // 25 minutes apart, so the list reaches hours.
+    fields["last_activity_at"] = String(
+      format: "2026-10-27T%02d:%02d:00Z", (12 * 60 - index * 25) / 60, (12 * 60 - index * 25) % 60)
+  }
+  return session(fields)
+}
+
+// Each marker a row can carry, with titles that fill the two lines.
+let markerDecisions = DecisionOrder.sorted([
+  decision([
+    "id": "k1", "title": "Roll back the payments deploy now that the error rate has passed the alert threshold?",
+    "priority": "urgent", "deadline": "2026-10-27T15:00:00Z", "agent_session_id": "ags_2",
+    "recommendation": ["kind": "reject"],
+  ]),
+  decision([
+    "id": "k2", "title": "Rotate the signing key today?", "priority": "urgent",
+    "agent_session_id": "ags_1", "recommendation": ["kind": "approve"],
+  ]),
+  decision([
+    "id": "k3", "title": "Run the vacuum on the events table during the maintenance window tonight or wait?",
+    "deadline": "2026-10-27T12:03:00Z", "agent_session_id": "ags_1",
+    "input_type": "single_choice",
+    "options": [["id": "t", "label": "Tonight"], ["id": "w", "label": "Wait"]],
+    "recommendation": ["kind": "option", "option_id": "t"],
+  ]),
+  decision([
+    "id": "k4", "title": "Delete the stale preview databases?", "deadline": "2026-10-27T14:00:00Z",
+    "agent_session_id": "ags_1", "recommendation": ["kind": "approve"],
+  ]),
+  decision([
+    "id": "k5", "title": "Which name should the new package use?", "input_type": "free_text",
+    "agent_session_id": "ags_3", "recommendation": ["kind": "text", "text": "agentdesk-core"],
+  ]),
+])
+/// k2 and k4 are seen; the others are new.
+let markerSeen: Set<String> = ["k2", "k4"]
+
+// Enough rows, all with two-line titles, to overflow the list.
+let overflowDecisions = DecisionOrder.sorted(
+  [
+    decision([
+      "id": "o0", "title": "Ship the 2.4 release to production now that the staging soak passed without errors?",
+      "priority": "urgent", "deadline": "2026-10-27T12:04:00Z", "agent_session_id": "ags_2",
+    ])
+  ]
+    + (1...17).map { index in
+      decision([
+        "id": "o\(index)",
+        "title": "Decision \(index): apply the proposed change to the staging environment and report back?",
+        "agent_session_id": "ags_1", "created_at": "2026-10-27T1\(index % 2):0\(index % 6):00Z",
+      ])
+    })
+
 let rows = decisions.map { DecisionRowModel(decision: $0, agents: agents, seen: seen, now: now) }
 
 /// Each decision as the list item `AppState.listItems` builds.
 @MainActor
-func items(_ list: [Decision], failures: [String: String] = [:]) -> [DecisionListItem] {
+func items(
+  _ list: [Decision], failures: [String: String] = [:], seen: Set<String> = seen
+) -> [DecisionListItem] {
   var calendar = Calendar(identifier: .gregorian)
   calendar.timeZone = TimeZone(identifier: "UTC")!
   return list.map { decision in
@@ -155,16 +256,22 @@ let expandable: [(String, Decision)] = [
 
 // MARK: Views
 
-/// The signed-in popover's body below the header, built from the shipped
-/// list, row, empty-state, and agents views. The header and menu need the
-/// app's `AppState`, so the header here is a static copy of its text.
+/// The signed-in popover's body, built from the shipped list, row,
+/// empty-state, and agents views with the height budget `SignedInView` uses.
+/// The header and menu need the app's `AppState`, so the header here is a
+/// static copy of its text.
 struct PopoverFixture: View {
   let items: [DecisionListItem]
   @State var expanded: Bool
+  var agents: [AgentSession] = agentsFixture
+  @State var quietRevealed = false
   var selectedID: String? = nil
   var expandedID: String? = nil
   var undoText: String? = nil
   var outcome: String? = nil
+  @State private var headerHeight: CGFloat = 0
+  @State private var stripsHeight: CGFloat = 0
+  @State private var agentsHeight: CGFloat = 0
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -176,19 +283,24 @@ struct PopoverFixture: View {
       }
       .padding(.horizontal, 14)
       .padding(.vertical, 10)
+      .measuredHeight($headerHeight)
       Divider()
       AnswerStrips(outcome: outcome, undoText: undoText)
+        .measuredHeight($stripsHeight)
       if items.isEmpty {
         EmptyDecisions()
       } else {
         DecisionList(
           items: items, selectedID: selectedID, expandedID: expandedID,
-          maxHeight: expanded ? 470 - AgentsView.maxListHeight : 470)
+          maxHeight: CGFloat(
+            PopoverLayout.listMaxHeight(chromeHeight: Double(headerHeight + stripsHeight + agentsHeight + 2))))
       }
       Divider()
-      AgentsView(agents: agents, now: now, expanded: $expanded)
+      AgentsView(agents: agents, now: now, expanded: $expanded, quietRevealed: $quietRevealed)
+        .measuredHeight($agentsHeight)
     }
     .frame(width: 340)
+    .frame(maxHeight: CGFloat(PopoverLayout.maxHeight), alignment: .top)
   }
 }
 
@@ -389,6 +501,37 @@ MainActor.assumeIsolated {
           selectedID: "d2")
       ),
     ]
+    // Every row marker, and the list and agents lists overflowing.
+    scenes.append(
+      ("popover-markers", PopoverFixture(items: items(markerDecisions, seen: markerSeen), expanded: false)))
+    scenes.append(("popover-overflow", PopoverFixture(items: items(overflowDecisions, seen: []), expanded: false)))
+    scenes.append(
+      (
+        "popover-overflow-undo",
+        PopoverFixture(
+          items: items(overflowDecisions, seen: []), expanded: false,
+          undoText: DecisionPresentation.undoText(.approve, decision: held))
+      ))
+    scenes.append(
+      (
+        "popover-agents-line",
+        PopoverFixture(items: items(decisions), expanded: false, agents: groupedAgents)
+      ))
+    scenes.append(
+      (
+        "popover-agents-quiet-hidden",
+        PopoverFixture(items: items(decisions), expanded: true, agents: groupedAgents)
+      ))
+    scenes.append(
+      (
+        "popover-agents-quiet-revealed",
+        PopoverFixture(items: items(decisions), expanded: true, agents: groupedAgents, quietRevealed: true)
+      ))
+    scenes.append(
+      (
+        "popover-agents-overflow",
+        PopoverFixture(items: items(overflowDecisions, seen: []), expanded: true, agents: manyAgents, quietRevealed: true)
+      ))
     for (type, expandedDecision) in expandable {
       scenes.append(
         (
@@ -400,6 +543,13 @@ MainActor.assumeIsolated {
     }
     for (name, view) in scenes {
       let (window, container) = host(view, appearance: appearance, background: .vibrant)
+      // The agents list holds 160 pt, so the revealed quiet sessions show once
+      // it is scrolled to its end.
+      if name == "popover-agents-quiet-revealed", let list = scrollViews(in: container).last {
+        list.documentView?.scroll(NSPoint(x: 0, y: list.documentView?.bounds.height ?? 0))
+        list.reflectScrolledClipView(list.contentView)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+      }
       let rep = snapshot(container)
       save(rep, "\(name)-\(mode).png")
       line("\(name)-\(mode).png: \(Int(container.bounds.width))x\(Int(container.bounds.height)) pt")
@@ -413,11 +563,34 @@ MainActor.assumeIsolated {
 
   // Row text and the accessibility value each row exposes.
   line("## Rows (DecisionRowModel, as DecisionRow draws and labels them)")
-  for row in rows {
+  @MainActor func describe(_ row: DecisionRowModel) {
     line(
-      "- \(row.id): title weight \(row.isNew ? "semibold" : "medium"); time left \(row.timeLeft ?? "none")\(row.timeLeftIsRed ? " (red)" : "")")
+      "- \(row.id): \(row.isNew ? "leading 6 pt dot, title semibold" : "no dot, title medium"); marker \(row.urgentMarker.map { "\($0) (red)" } ?? "none"); time left \(row.timeLeft ?? "none")\(row.timeLeftIsRed ? " (red)" : ""); \(row.suggestion ?? "no suggestion")")
     line("  accessibility label: \(row.accessibilityLabel)")
     line("  accessibility value: \(row.accessibilityValue)")
+  }
+  for row in rows { describe(row) }
+  line("")
+  line("## Row markers (popover-markers)")
+  let markerRows = markerDecisions.map {
+    DecisionRowModel(decision: $0, agents: agents, seen: markerSeen, now: now)
+  }
+  for row in markerRows { describe(row) }
+  // Checks the markers against the fixture, so a regression fails the run.
+  func markerRow(_ id: String) -> DecisionRowModel { markerRows.first { $0.id == id }! }
+  let markerChecks: [(String, Bool)] = [
+    ("new urgent row with a distant deadline has the marker and a red time", markerRow("k1").urgentMarker == "Urgent" && markerRow("k1").timeLeftIsRed && markerRow("k1").isNew),
+    ("reject recommendation reads as a suggestion", markerRow("k1").suggestion == "Suggests Reject"),
+    ("seen urgent row keeps the marker, has no dot, and has no time to color", markerRow("k2").urgentMarker == "Urgent" && !markerRow("k2").isNew && markerRow("k2").timeLeft == nil),
+    ("approve recommendation reads as a suggestion", markerRow("k2").suggestion == "Suggests Approve"),
+    ("due-soon row has a red time and no marker", markerRow("k3").timeLeftIsRed && markerRow("k3").urgentMarker == nil),
+    ("seen row due later has neither red nor a marker", !markerRow("k4").timeLeftIsRed && markerRow("k4").urgentMarker == nil && !markerRow("k4").isNew),
+    ("new row without a deadline has the dot only", markerRow("k5").isNew && markerRow("k5").urgentMarker == nil && !markerRow("k5").timeLeftIsRed),
+    ("VoiceOver reads new, urgent, and the suggestion", markerRow("k1").accessibilityValue.contains("new, urgent, suggests Reject")),
+  ]
+  for (name, passed) in markerChecks {
+    line("\(passed ? "ok" : "FAIL") \(name)")
+    if !passed { failures.append("row marker: \(name)") }
   }
   line("")
 
@@ -436,7 +609,7 @@ MainActor.assumeIsolated {
     if let text = draft.suggestedText { line("  text placeholder: \(text)") }
     if expandedDecision.inputType == .approveReject {
       line(
-        "  buttons: Reject\(draft.isSuggested(.reject) ? " (accent, hint \"Suggested by the agent\")" : ""), Approve\(draft.isSuggested(.approve) ? " (accent, hint \"Suggested by the agent\")" : "")")
+        "  buttons, one neutral style: Reject\(draft.isSuggested(.reject) ? " (hint \"Suggested by the agent\")" : ""), Approve\(draft.isSuggested(.approve) ? " (hint \"Suggested by the agent\")" : "")")
     }
   }
   line("")
@@ -447,11 +620,55 @@ MainActor.assumeIsolated {
   line("conflict, outcome unread: \(PendingAnswers.unreadOutcome)")
   line("send failed, under the row: \(PendingAnswers.failureMessage)")
   line("")
-  let summary = AgentsSummary(agents: agents)
-  line("agents line: \(summary.runningText)\(summary.blockedText ?? "")")
-  for session in AgentSessionOrder.sorted(agents) {
+  line("## Agents line and list (popover-agents-*)")
+  let summary = AgentsSummary(agents: groupedAgents)
+  line("agents line: \(summary.text)")
+  line("accessibility: \(summary.accessibilityLabel)")
+  line("no sessions: \(AgentsSummary(agents: []).text)")
+  for session in AgentSessionOrder.listed(groupedAgents) {
     let entry = AgentEntryModel(session: session, now: now)
-    line("  entry: \(entry.accessibilityLabel)\(entry.link.map { " -> opens \($0.absoluteString)" } ?? "")")
+    line("  entry: \(entry.accessibilityLabel)")
+  }
+  line("  control: \(summary.showQuietText), then \(AgentsSummary.hideQuietText)")
+  for session in AgentSessionOrder.quiet(groupedAgents) {
+    let entry = AgentEntryModel(session: session, now: now)
+    line("  revealed: \(entry.accessibilityLabel)")
+  }
+  let manySummary = AgentsSummary(agents: manyAgents)
+  line("18 sessions: \(manySummary.text); listed first: \(AgentSessionOrder.listed(manyAgents).prefix(3).map(\.displayName).joined(separator: ", "))")
+  func quietTexts(_ sessions: [AgentSession]) -> [String] {
+    AgentSessionOrder.quiet(sessions).map { AgentEntryModel(session: $0, now: now).stateText }
+  }
+  let agentChecks: [(String, Bool)] = [
+    ("line reads active, quiet, and blocked", summary.text == "2 active · 3 quiet · 2 blocked"),
+    ("each session is in one group", summary.total == groupedAgents.count),
+    ("list shows blocked then active in API order", AgentSessionOrder.listed(groupedAgents).map(\.id) == ["g_b1", "g_b2", "g_a1", "g_a2"]),
+    ("quiet is most recent first in minutes, hours, and days", quietTexts(groupedAgents) == ["quiet 44m", "quiet 3h", "quiet 2d"]),
+    ("a stale blocked session reads blocked", AgentEntryModel(session: groupedAgents[5], now: now).stateText == "blocked"),
+    ("a zero group is left out except active", AgentsSummary(agents: []).text == "0 active"),
+  ]
+  for (name, passed) in agentChecks {
+    line("\(passed ? "ok" : "FAIL") \(name)")
+    if !passed { failures.append("agents: \(name)") }
+  }
+  line("")
+
+  scrollEvidence(&failures)
+
+  // The menu bar style: count until the user chooses another.
+  line("## Menu bar style")
+  let styleDefaults = UserDefaults(suiteName: "agentdesk-evidence-\(UUID().uuidString)")!
+  let unsetStyle = MenuBarStyle(defaults: styleDefaults)
+  MenuBarStyle.dot.save(to: styleDefaults)
+  let storedDot = MenuBarStyle(defaults: styleDefaults)
+  line("unset: \(unsetStyle.rawValue); stored dot: \(storedDot.rawValue)")
+  if unsetStyle != .count || storedDot != .dot { failures.append("menu bar style default") }
+  let labelState = AppState(
+    summary: MenuBarSummary(decisions: decisions, seen: seen, now: now))
+  let labelImage = MenuBarLabel.image(for: labelState)
+  line("default label with 3 waiting: \(labelImage.accessibilityDescription ?? ""), width \(Int(labelImage.size.width)) pt, template=\(labelImage.isTemplate)")
+  if !labelImage.isTemplate || labelImage.size.width <= PromptGlyph.size.width {
+    failures.append("the default label does not draw the count")
   }
   line("")
 
@@ -597,6 +814,8 @@ MainActor.assumeIsolated {
   notificationEvidence(&failures)
 
   line("## Not available in this harness")
+  line("The live NSPopover and its will-show and did-show events are not captured: the harness opens no window on screen. The scroll section above drives the shipped list in a retained hosting controller moved between offscreen windows, and calls the requests AppState makes on those events.")
+  line("The scroller under a live change of the Show scroll bars setting is not captured; the scroll section above posts the change notification instead.")
   line("AXIsProcessTrusted=\(AXIsProcessTrusted()): live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject, Approve, and the expanded controls as separate elements.")
   line("Keys are not captured: the popover's key monitor needs the live popover window as key window. PopoverKeysTests covers the key-to-action mapping; Escape with no row expanded closes the popover.")
   line("Live notifications are not captured: UNUserNotificationCenter needs the app bundle and the user's permission. The permission prompt, a delivered banner, a click opening the popover, the Reject and Approve buttons, and removal from Notification Center are checked on a Mac before each release; the content, category, and Notifier timeline above use the shipped code with a fixture center.")
