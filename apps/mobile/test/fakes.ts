@@ -441,10 +441,76 @@ export function readQuery(name: string, args: unknown): unknown {
 // explanation deletes that answer). Each screen query returns an empty
 // list. The answer mutation fails until a test scripts it.
 // The PostHog fake: the props the app last mounted PostHogProvider with, or
-// null when it mounted none, and every screen view the app recorded.
+// null when it mounted none, and a client that keeps an identity as the SDK
+// does. The ID getters return an empty string until `ready` resolves. reset
+// rotates the anonymous ID and makes it the distinct ID. identify with a new ID
+// links the current distinct ID, as the SDK's $anon_distinct_id does. `calls`
+// holds identity calls and screen views in order, and each screen view records
+// the distinct ID an event would carry at that moment.
+export type AnalyticsCall =
+  | { call: "reset" }
+  | { call: "identify"; id: string; properties: unknown; linkedAnonymousId: string | null }
+  | { call: "screen"; name: string; distinctId: string };
+
 export const analytics = {
   provider: null as null | Record<string, unknown>,
   screen: jest.fn<void, [string]>(),
+  calls: [] as AnalyticsCall[],
+  initialized: true,
+  readiness: Promise.resolve(),
+  anonymousId: "anon_0",
+  distinctId: "anon_0",
+  rotations: 0,
+  // The SDK's persisted identity from an earlier launch.
+  persistIdentity(id: string) {
+    analytics.distinctId = id;
+  },
+  // Holds the SDK before initialization until a test releases it.
+  holdReady() {
+    const gate = deferred<void>();
+    analytics.initialized = false;
+    analytics.readiness = gate.promise.then(() => {
+      analytics.initialized = true;
+    });
+    return gate.resolve;
+  },
+  identifies() {
+    return analytics.calls.filter((entry) => entry.call === "identify");
+  },
+  resets() {
+    return analytics.calls.filter((entry) => entry.call === "reset");
+  },
+  screens() {
+    return analytics.calls.filter((entry) => entry.call === "screen");
+  },
+  client: {
+    ready: () => analytics.readiness,
+    getDistinctId: () => (analytics.initialized ? analytics.distinctId : ""),
+    getAnonymousId: () => (analytics.initialized ? analytics.anonymousId : ""),
+    reset: () => {
+      analytics.rotations += 1;
+      analytics.anonymousId = `anon_${analytics.rotations}`;
+      analytics.distinctId = analytics.anonymousId;
+      analytics.calls.push({ call: "reset" });
+    },
+    identify: (id: string, properties: unknown) => {
+      const changed = id !== analytics.distinctId;
+      analytics.calls.push({
+        call: "identify",
+        id,
+        properties,
+        linkedAnonymousId: changed ? analytics.distinctId : null,
+      });
+      if (changed) {
+        analytics.anonymousId = analytics.distinctId;
+        analytics.distinctId = id;
+      }
+    },
+    screen: (name: string) => {
+      analytics.calls.push({ call: "screen", name, distinctId: analytics.distinctId });
+      analytics.screen(name);
+    },
+  },
 };
 
 // expo-web-browser. A test reads which URLs the app opened in the in-app
@@ -549,4 +615,10 @@ export function resetFakes() {
   queryCalls.length = 0;
   analytics.provider = null;
   analytics.screen.mockClear();
+  analytics.calls = [];
+  analytics.initialized = true;
+  analytics.readiness = Promise.resolve();
+  analytics.anonymousId = "anon_0";
+  analytics.distinctId = "anon_0";
+  analytics.rotations = 0;
 }
