@@ -181,10 +181,12 @@ ok a held answer has only the close control
 
 ## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
 screen visible frame: 1728x1084 pt; app active: false
+ok left end of the screen: the panel has not taken key focus
 left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
 ok left end of the screen: the panel is 400 pt wide with the popover still showing
 ok left end of the screen: the panel sits right of the popover, 8 pt away
 ok left end of the screen: the tops meet
+ok right end of the screen: the panel has not taken key focus
 right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
 ok right end of the screen: the panel is 400 pt wide with the popover still showing
 ok right end of the screen: the panel sits left of the popover, 8 pt away
@@ -227,7 +229,7 @@ ok Tab reaches the panel's note field
 ok the panel is excluded from the Windows menu
 ok the panel ignores window cycling
 ok the panel can take key focus
-ok the harness left the app inactive, so the user's focus never moved
+ok this process never became the active app, so the user's focus never moved
 
 ## Linked recovery (the shipped DecisionCoordinator with a fixture sender, reader, and clock)
 ok a pending decision absent from the list loads in the panel
@@ -418,7 +420,7 @@ category decision.approve_reject: actions reject "Reject", approve "Approve"
 - t+300s sign-out while dec_late's post is in flight: add dec_late in flight; remove all delivered; add dec_late: "Approve?" / "Claude Code · api"; remove delivered ["dec_late"]; delivered now []
 
 ### Notification answers (PendingAnswers.sendNow)
-- Approve on dec_ship: accepted true; a repeated action accepted false; posts ["dec_pick option(id: \"eu\")", "dec_ship approve"]
+- Approve on dec_ship: accepted true; a repeated action accepted false; posts ["dec_ship approve", "dec_pick option(id: \"eu\")"]
   the popover's held answer for dec_pick was sent only by the quit flush that ends this step, never by the notification action
 - Approve on dec_taken answers 409 while the popover is closed: outcome kept for the next opening: "Already answered in the app: Reject"
 
@@ -432,7 +434,7 @@ category decision.approve_reject: actions reject "Reject", approve "Approve"
 ## Not available in this harness
 The installed app's own menu bar item, popover, and panel are not exercised: the harness never launches a build, and it shows only fully transparent windows while its app stays inactive. The paired-window section above drives a real NSPopover with the shipped panel, lifetime, and key observer through events posted to this process, with no pointer or keyboard involved; PopoverController, AppState, and physical input are not part of it. The scroll section above drives the shipped list in a retained hosting controller moved between offscreen windows, and calls the requests AppState makes on those events.
 The scroller under a live change of the Show scroll bars setting is not captured; the scroll section above posts the change notification instead.
-AXIsProcessTrusted=true: live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject and Approve as separate elements. The panel's controls above are read from its AppKit views; SwiftUI builds its accessibility tree only for a running assistive client, so the panel's VoiceOver output is not captured.
+AXIsProcessTrusted=true: live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject and Approve as separate elements. The panel's controls above are read from its AppKit views, and access.txt reads its accessibility tree through the Accessibility API; VoiceOver's speech is not captured.
 Keys from a physical keyboard are not captured. The paired-window section above posts key events to the shipped observers, and PopoverKeysTests covers the key-to-action mapping; Escape with no panel open closes the popover.
 Live notifications are not captured: UNUserNotificationCenter needs the app bundle and the user's permission. The permission prompt, a delivered banner, a click opening the popover, the Reject and Approve buttons, and removal from Notification Center are checked on a Mac before each release; the content, category, and Notifier timeline above use the shipped code with a fixture center.
 
