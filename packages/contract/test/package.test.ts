@@ -31,6 +31,8 @@ describe("public exports", () => {
       "statusInputSchema",
       "decisionSchema",
       "agentSessionSchema",
+      "statusHistoryEntrySchema",
+      "agentSessionHistorySchema",
       "webhookEventSchema",
       "ROUTES",
       "ERROR_STATUS",

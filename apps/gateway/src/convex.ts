@@ -18,6 +18,7 @@ export type ServiceRoute =
   | "agents/status"
   | "agents/list"
   | "agents/get"
+  | "agents/history"
   | "decisions/create"
   | "decisions/poll"
   | "decisions/watch"

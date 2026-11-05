@@ -1,4 +1,9 @@
-import { type AgentSession, ROUTES, type RouteId } from "@agentdesk/contract";
+import {
+  type AgentSession,
+  ROUTES,
+  type RouteId,
+  type StatusHistoryEntry,
+} from "@agentdesk/contract";
 import { describe, expect, it } from "vitest";
 import { hashToken } from "../src/auth.js";
 import { ServiceError, type ServiceRoute, UpstreamError } from "../src/convex.js";
@@ -33,6 +38,16 @@ function agentSession(overrides: Partial<AgentSession> = {}): AgentSession {
   };
 }
 
+function historyEntry(overrides: Partial<StatusHistoryEntry> = {}): StatusHistoryEntry {
+  return {
+    state: "waiting",
+    line: "Waiting for CI",
+    link: null,
+    at: "2026-10-11T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
 type Handler = (body: Record<string, unknown>) => unknown;
 
 // The fake identity resolves the API token, the connection token, and the
@@ -58,6 +73,7 @@ function fakeApi(overrides: Partial<Record<ServiceRoute, Handler>> = {}) {
     "decisions/cancel": () => decision({ state: "cancelled" }),
     "agents/list": () => ({ items: [agentSession()], next_cursor: null }),
     "agents/get": () => agentSession(),
+    "agents/history": () => ({ items: [historyEntry()] }),
     ...overrides,
   });
 }
@@ -115,6 +131,12 @@ const CASES: Record<
     route: "agents/get",
     sent: { userId: USER, agentSessionId: AGENT },
   },
+  "agent_sessions.history": {
+    method: "GET",
+    path: `/v1/agent-sessions/${AGENT}/history`,
+    route: "agents/history",
+    sent: { userId: USER, agentSessionId: AGENT },
+  },
 };
 
 const IDS = ROUTES.map((route) => route.id);
@@ -141,6 +163,9 @@ describe("routing", () => {
     ["GET", "/v1/decisions/"],
     ["GET", "/v1/unknown"],
     ["GET", "/v1/agent-sessions/a/b"],
+    ["GET", "/v1/agent-sessions//history"],
+    ["GET", "/v1/agent-sessions/a/history/b"],
+    ["POST", "/v1/agent-sessions/a/history"],
   ])("answers %s %s with 404 and calls nothing", async (method, path) => {
     const convex = fakeApi();
 
@@ -282,6 +307,7 @@ describe("400", () => {
     ["decisions.answer", "decisionId", "decision_id"],
     ["decisions.cancel", "decisionId", "decision_id"],
     ["agent_sessions.get", "agentSessionId", "agent_session_id"],
+    ["agent_sessions.history", "agentSessionId", "agent_session_id"],
   ])("%s restates a malformed service id as %s", async (id, serviceField, publicField) => {
     const convex = fakeApi({
       [CASES[id].route]: () => {
@@ -316,21 +342,107 @@ describe("400", () => {
 });
 
 describe("404", () => {
-  it.each<RouteId>(["decisions.get", "decisions.answer", "decisions.cancel", "agent_sessions.get"])(
-    "%s passes a service not_found through as 404",
-    async (id) => {
-      const convex = fakeApi({
-        [CASES[id].route]: () => {
-          throw new ServiceError("not_found", "Decision not found");
-        },
-      });
+  it.each<RouteId>([
+    "decisions.get",
+    "decisions.answer",
+    "decisions.cancel",
+    "agent_sessions.get",
+    "agent_sessions.history",
+  ])("%s passes a service not_found through as 404", async (id) => {
+    const convex = fakeApi({
+      [CASES[id].route]: () => {
+        throw new ServiceError("not_found", "Decision not found");
+      },
+    });
 
-      const response = await handle(request(id), withLimit(), convex.svc);
+    const response = await handle(request(id), withLimit(), convex.svc);
 
-      expect(response.status).toBe(404);
-      expect(await errorOf(response)).toEqual({ code: "not_found", message: "Decision not found" });
-    },
-  );
+    expect(response.status).toBe(404);
+    expect(await errorOf(response)).toEqual({ code: "not_found", message: "Decision not found" });
+  });
+});
+
+// req-public-api-and-webhooks AC-2.4. Backend tests establish database order
+// and ownership; these establish what the route does with the service result.
+describe("agent_sessions.history", () => {
+  const itemsOf = async (response: Response) =>
+    ((await response.json()) as { items: unknown[] }).items;
+
+  it("returns the service's entries in its order with no-store", async () => {
+    const items = [
+      historyEntry({ line: "newer", at: "2026-10-11T00:01:00.000Z" }),
+      historyEntry({ line: "older", link: "https://x.dev/1" }),
+    ];
+    const convex = fakeApi({ "agents/history": () => ({ items }) });
+
+    const response = await handle(request("agent_sessions.history"), withLimit(), convex.svc);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(await response.json()).toEqual({ items });
+  });
+
+  it("returns an empty history", async () => {
+    const convex = fakeApi({ "agents/history": () => ({ items: [] }) });
+
+    const response = await handle(request("agent_sessions.history"), withLimit(), convex.svc);
+
+    expect(response.status).toBe(200);
+    expect(await itemsOf(response)).toEqual([]);
+  });
+
+  it("returns 20 entries and answers 503 for a service result of 21", async () => {
+    const entries = (length: number) => Array.from({ length }, () => historyEntry());
+    const full = fakeApi({ "agents/history": () => ({ items: entries(20) }) });
+    const over = fakeApi({ "agents/history": () => ({ items: entries(21) }) });
+
+    const fullResponse = await handle(request("agent_sessions.history"), withLimit(), full.svc);
+    const overResponse = await handle(request("agent_sessions.history"), withLimit(), over.svc);
+
+    expect(await itemsOf(fullResponse)).toHaveLength(20);
+    expect(overResponse.status).toBe(503);
+  });
+
+  it("drops a service field outside the read shape", async () => {
+    const convex = fakeApi({
+      "agents/history": () => ({ items: [{ ...historyEntry(), extra: 1 }], next_cursor: "x" }),
+    });
+
+    const response = await handle(request("agent_sessions.history"), withLimit(), convex.svc);
+
+    expect(await response.json()).toEqual({ items: [historyEntry()] });
+  });
+
+  it("restates a malformed id with the same answer as agent_sessions.get", async () => {
+    const refuse = () => {
+      throw new ServiceError("invalid", "Invalid agentSessionId", "agentSessionId");
+    };
+    const convex = fakeApi({ "agents/get": refuse, "agents/history": refuse });
+
+    const get = await handle(request("agent_sessions.get"), withLimit(), convex.svc);
+    const history = await handle(request("agent_sessions.history"), withLimit(), convex.svc);
+
+    expect(history.status).toBe(400);
+    const error = await errorOf(history);
+    expect(error).toEqual({
+      code: "invalid",
+      message: "agent_session_id is not a valid agent session id",
+      field: "agent_session_id",
+    });
+    expect(error).toEqual(await errorOf(get));
+  });
+
+  it("decodes the path id and takes the user from the credential", async () => {
+    const convex = fakeApi();
+
+    await handle(
+      v1("GET", "/v1/agent-sessions/a%20b/history?userId=other"),
+      withLimit(),
+      convex.svc,
+    );
+
+    expect(convex.calls[1]?.body).toEqual({ userId: USER, agentSessionId: "a b" });
+  });
 });
 
 describe("409", () => {

@@ -55,6 +55,10 @@ const HANDLERS: Record<RouteId, (input: Input) => [ServiceRoute, Record<string, 
     "agents/get",
     { userId: caller.userId, agentSessionId: path.agent_session_id },
   ],
+  "agent_sessions.history": ({ caller, path }) => [
+    "agents/history",
+    { userId: caller.userId, agentSessionId: path.agent_session_id },
+  ],
 };
 
 interface CompiledRoute {

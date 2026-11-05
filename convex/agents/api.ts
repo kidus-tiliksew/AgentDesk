@@ -1,4 +1,9 @@
-import { type AgentSession, type AgentSessionPage, errorCodeSchema } from "@agentdesk/contract";
+import {
+  type AgentSession,
+  type AgentSessionHistory,
+  type AgentSessionPage,
+  errorCodeSchema,
+} from "@agentdesk/contract";
 import { v } from "convex/values";
 import { z } from "zod";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -8,12 +13,14 @@ import { decodeCursorJson, encodeCursorJson } from "../decisions/cursor";
 import { appError } from "../lib/errors";
 import { getOwned } from "../lib/owned";
 import { liveSessionsFor, recentSessionsFor, withPendingCounts } from "./app";
+import { statusHistoryFor } from "./history";
 import { toAgentSession } from "./sessions";
 
 // component-agent-presence §Service routes: the public HTTP API's agent
-// session reads, behind `/svc/agents/list` and `/svc/agents/get`. They follow
-// the app's rules: only activated sessions appear, and the ended set is the
-// app's 7-day recent window (req-public-api-and-webhooks REQ-2).
+// session reads, behind `/svc/agents/list`, `/svc/agents/get`, and
+// `/svc/agents/history`. They follow the app's rules: only activated sessions
+// appear, and the ended set is the app's 7-day recent window
+// (req-public-api-and-webhooks REQ-2).
 
 type Phase = "live" | "ended";
 
@@ -106,18 +113,37 @@ export const list = internalQuery({
 
 // One owned activated session, live or ended. A missing, a foreign, and an
 // only-initialized session are all `not_found`, as in `agents/app:get`.
+async function ownedActivatedSession(
+  ctx: Pick<QueryCtx, "db">,
+  args: { userId: string; agentSessionId: string },
+): Promise<Doc<"agentSessions">> {
+  const userId = parseUserId(ctx, args.userId);
+  const agentSessionId = ctx.db.normalizeId("agentSessions", args.agentSessionId);
+  if (agentSessionId === null) {
+    throw appError(errorCodeSchema.enum.invalid, "Invalid agentSessionId", "agentSessionId");
+  }
+  const session = await getOwned(ctx, "agentSessions", agentSessionId, userId);
+  if (session === null || session.activatedAt === undefined) {
+    throw appError(errorCodeSchema.enum.not_found, "Agent session not found");
+  }
+  return session;
+}
+
 export const get = internalQuery({
   args: { userId: v.string(), agentSessionId: v.string() },
   handler: async (ctx, args): Promise<AgentSession> => {
-    const userId = parseUserId(ctx, args.userId);
-    const agentSessionId = ctx.db.normalizeId("agentSessions", args.agentSessionId);
-    if (agentSessionId === null) {
-      throw appError(errorCodeSchema.enum.invalid, "Invalid agentSessionId", "agentSessionId");
-    }
-    const session = await getOwned(ctx, "agentSessions", agentSessionId, userId);
-    if (session === null || session.activatedAt === undefined) {
-      throw appError(errorCodeSchema.enum.not_found, "Agent session not found");
-    }
-    return toAgentSession(session, await pendingCountForAgent(ctx, agentSessionId));
+    const session = await ownedActivatedSession(ctx, args);
+    return toAgentSession(session, await pendingCountForAgent(ctx, session._id));
+  },
+});
+
+// The session's previous statuses, newest first
+// (req-public-api-and-webhooks AC-2.4). A direct read has no 7-day window, as
+// in `get`.
+export const history = internalQuery({
+  args: { userId: v.string(), agentSessionId: v.string() },
+  handler: async (ctx, args): Promise<AgentSessionHistory> => {
+    const session = await ownedActivatedSession(ctx, args);
+    return { items: await statusHistoryFor(ctx, session._id) };
   },
 });

@@ -83,6 +83,16 @@ export const agentSessionSchema = z.object({
 });
 export type AgentSession = z.infer<typeof agentSessionSchema>;
 
+// A previous status of a session (req-public-api-and-webhooks AC-2.4). The
+// mobile app's agent screen and agent_sessions.history share this shape.
+export const statusHistoryEntrySchema = z.object({
+  state: statusStateSchema,
+  line: statusLineSchema,
+  link: statusLinkSchema.nullable(),
+  at: instantSchema,
+});
+export type StatusHistoryEntry = z.infer<typeof statusHistoryEntrySchema>;
+
 export const decisionEventKindSchema = z.enum([
   "decision.created",
   "decision.expired",

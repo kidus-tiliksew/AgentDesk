@@ -707,7 +707,7 @@
     }
   },
   "info": {
-    "description": "List, read, answer, and cancel decisions, and list and read agent sessions. Clients ignore unknown response fields, because later versions may add fields.",
+    "description": "List, read, answer, and cancel decisions, and list and read agent sessions and their status history. Clients ignore unknown response fields, because later versions may add fields.",
     "title": "AgentDesk HTTP API",
     "version": "1.0.0"
   },
@@ -862,6 +862,122 @@
           }
         ],
         "summary": "Get an agent session"
+      }
+    },
+    "/v1/agent-sessions/{agent_session_id}/history": {
+      "get": {
+        "description": "Returns the session's previous statuses, newest first, up to the 20 the server keeps. The current status is on the agent session, not in its history.",
+        "operationId": "agent_sessions.history",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_session_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "at": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                            "type": "string"
+                          },
+                          "line": {
+                            "maxLength": 200,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "link": {
+                            "anyOf": [
+                              {
+                                "description": "An absolute http or https URL.",
+                                "format": "uri",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "state": {
+                            "enum": ["working", "waiting", "blocked", "done"],
+                            "type": "string"
+                          }
+                        },
+                        "required": ["state", "line", "link", "at"],
+                        "type": "object"
+                      },
+                      "maxItems": 20,
+                      "type": "array"
+                    }
+                  },
+                  "required": ["items"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Get an agent session's status history"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error code `invalid`."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error code `unauthenticated`."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error code `not_found`."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error code `rate_limited`."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get an agent session's status history"
       }
     },
     "/v1/decisions": {

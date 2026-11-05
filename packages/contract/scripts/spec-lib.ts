@@ -179,7 +179,7 @@ export function buildOpenApi(routes: readonly RouteDefinition[] = ROUTES): JsonO
       title: "AgentDesk HTTP API",
       version: "1.0.0",
       description:
-        "List, read, answer, and cancel decisions, and list and read agent sessions. Clients ignore unknown response fields, because later versions may add fields.",
+        "List, read, answer, and cancel decisions, and list and read agent sessions and their status history. Clients ignore unknown response fields, because later versions may add fields.",
     },
     paths,
     components: {

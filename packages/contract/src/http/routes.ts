@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { answerSubmissionSchema } from "../answers.js";
 import type { ErrorCode } from "../errors.js";
-import { agentSessionSchema, decisionSchema, decisionStateSchema } from "../read-shapes.js";
+import {
+  agentSessionSchema,
+  decisionSchema,
+  decisionStateSchema,
+  statusHistoryEntrySchema,
+} from "../read-shapes.js";
 import { topicInputSchema } from "../topics.js";
 
 // component-contract §Route table and specification: every public HTTP
@@ -49,6 +54,14 @@ export const agentSessionPageSchema = z.object({
   next_cursor: cursorSchema.nullable(),
 });
 export type AgentSessionPage = z.infer<typeof agentSessionPageSchema>;
+
+// A session's previous statuses, newest first, up to the 20 that
+// req-agent-status keeps. The whole history fits one response, so it has no
+// cursor (req-public-api-and-webhooks AC-2.4).
+export const agentSessionHistorySchema = z.object({
+  items: z.array(statusHistoryEntrySchema).max(20),
+});
+export type AgentSessionHistory = z.infer<typeof agentSessionHistorySchema>;
 
 // `topic` is normalized and then matched with topicMatches, so `a/b` also
 // lists decisions under `a/b/c` (req-public-api-and-webhooks AC-2.1).
@@ -166,6 +179,18 @@ export const ROUTES = [
     security: "bearer",
     pathParams: agentSessionPathSchema,
     response: agentSessionSchema,
+    errors: READ_ERRORS,
+  },
+  {
+    id: "agent_sessions.history",
+    method: "get",
+    path: "/v1/agent-sessions/{agent_session_id}/history",
+    summary: "Get an agent session's status history",
+    description:
+      "Returns the session's previous statuses, newest first, up to the 20 the server keeps. The current status is on the agent session, not in its history.",
+    security: "bearer",
+    pathParams: agentSessionPathSchema,
+    response: agentSessionHistorySchema,
     errors: READ_ERRORS,
   },
 ] as const satisfies readonly RouteDefinition[];

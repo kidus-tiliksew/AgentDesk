@@ -72,4 +72,13 @@ export const routes: RouteSpec[] = [
       (ctx, input) => ctx.runQuery(agents.api.get, input),
     ),
   },
+  {
+    // The public API's `agent_sessions.history`.
+    path: "/svc/agents/history",
+    method: "POST",
+    handler: serviceRoute(
+      z.object({ userId: z.string().min(1), agentSessionId: z.string().min(1) }),
+      (ctx, input) => ctx.runQuery(agents.api.history, input),
+    ),
+  },
 ];
