@@ -15,11 +15,6 @@ popover-agents-line-light.png: 340x296 pt
 popover-agents-quiet-hidden-light.png: 340x456 pt
 popover-agents-quiet-revealed-light.png: 340x456 pt
 popover-agents-overflow-light.png: 340x560 pt
-popover-expanded-approve-reject-light.png: 340x486 pt
-popover-expanded-single-choice-light.png: 340x459 pt
-popover-expanded-multiple-choice-light.png: 340x477 pt
-popover-expanded-free-text-light.png: 340x444 pt
-popover-expanded-single-choice-or-text-light.png: 340x529 pt
 popover-agents-expanded-dark.png: 340x405 pt
 popover-agents-collapsed-dark.png: 340x296 pt
 popover-empty-dark.png: 340x162 pt
@@ -33,11 +28,6 @@ popover-agents-line-dark.png: 340x296 pt
 popover-agents-quiet-hidden-dark.png: 340x456 pt
 popover-agents-quiet-revealed-dark.png: 340x456 pt
 popover-agents-overflow-dark.png: 340x560 pt
-popover-expanded-approve-reject-dark.png: 340x486 pt
-popover-expanded-single-choice-dark.png: 340x459 pt
-popover-expanded-multiple-choice-dark.png: 340x477 pt
-popover-expanded-free-text-dark.png: 340x444 pt
-popover-expanded-single-choice-or-text-dark.png: 340x529 pt
 
 ## Rows (DecisionRowModel, as DecisionRow draws and labels them)
 - d1: leading 6 pt dot, title semibold; marker Urgent (red); time left 4m left (red); Suggests Ship now
@@ -75,27 +65,168 @@ ok seen row due later has neither red nor a marker
 ok new row without a deadline has the dot only
 ok VoiceOver reads new, urgent, and the suggestion
 
-## Expanded rows (AnswerDraft as the controls start, untouched)
+## Detail panel (the shipped DecisionDetailView, offscreen)
+panel-approve-reject-light.png: 400x301 pt
+panel-single-choice-light.png: 400x319 pt
+panel-multiple-choice-light.png: 400x338 pt
+panel-free-text-light.png: 400x304 pt
+panel-single-choice-or-text-light.png: 400x368 pt
+panel-settled-answered-light.png: 400x260 pt
+panel-settled-chat-light.png: 400x213 pt
+panel-settled-default-light.png: 400x211 pt
+panel-settled-expired-light.png: 400x173 pt
+panel-settled-cancelled-light.png: 400x154 pt
+panel-long-light.png: 400x560 pt
+ok the long panel (light) scrolls: 1761 pt of content in 528 pt
+ok the long panel (light) keeps a visible scroller
+panel-linked-light.png: 400x437 pt
+panel-send-failed-light.png: 400x342 pt
+panel-refresh-failed-light.png: 400x328 pt
+panel-answer-held-light.png: 400x262 pt
+panel-loading-light.png: 400x71 pt
+panel-unavailable-light.png: 400x71 pt
+panel-load-failed-light.png: 400x99 pt
+panel-beside-popover-light.png: 748x310 pt
+ok the popover (340 pt), the gap (8 pt), and the panel (400 pt) sit side by side (light)
+panel-approve-reject-dark.png: 400x301 pt
+panel-single-choice-dark.png: 400x319 pt
+panel-multiple-choice-dark.png: 400x338 pt
+panel-free-text-dark.png: 400x304 pt
+panel-single-choice-or-text-dark.png: 400x368 pt
+panel-settled-answered-dark.png: 400x260 pt
+panel-settled-chat-dark.png: 400x213 pt
+panel-settled-default-dark.png: 400x211 pt
+panel-settled-expired-dark.png: 400x173 pt
+panel-settled-cancelled-dark.png: 400x154 pt
+panel-long-dark.png: 400x560 pt
+ok the long panel (dark) scrolls: 1761 pt of content in 528 pt
+ok the long panel (dark) keeps a visible scroller
+panel-linked-dark.png: 400x437 pt
+panel-send-failed-dark.png: 400x342 pt
+panel-refresh-failed-dark.png: 400x328 pt
+panel-answer-held-dark.png: 400x262 pt
+panel-loading-dark.png: 400x71 pt
+panel-unavailable-dark.png: 400x71 pt
+panel-load-failed-dark.png: 400x99 pt
+panel-beside-popover-dark.png: 748x310 pt
+ok the popover (340 pt), the gap (8 pt), and the panel (400 pt) sit side by side (dark)
+
+### What each input type's untouched AnswerDraft submits
 - approve-reject: Send and ⌘↩ submit Approve
-  default sentence: If nobody answers by 2:00 PM, the agent goes with Reject.
-  agent page: https://example.com/a
+  default: If nobody answers by 2:00 PM, the agent goes with Reject.
   buttons, one neutral style: Reject, Approve (hint "Suggested by the agent")
+ok the note field is open, so a note reaches the answer (approve-reject)
 - single-choice: Send and ⌘↩ submit Ship now
-  default sentence: none
-  agent page: none
+  default: No default
   labelled Suggested: Ship now
+ok the note field is open, so a note reaches the answer (single-choice)
 - multiple-choice: Send and ⌘↩ submit Europe, United States
-  default sentence: none
-  agent page: https://example.com/a
+  default: No default
   labelled Suggested: Europe, United States
+ok the note field is open, so a note reaches the answer (multiple-choice)
 - free-text: Send and ⌘↩ submit agentdesk-core
-  default sentence: none
-  agent page: https://example.com/a
+  default: No default
   text placeholder: agentdesk-core
+ok the note field is open, so a note reaches the answer (free-text)
 - single-choice-or-text: Send and ⌘↩ submit Tonight at 02:00
-  default sentence: If nobody answers by 1:00 PM, the agent goes with Tonight at 02:00.
-  agent page: https://example.com/a
+  default: If nobody answers by 1:00 PM, the agent goes with Tonight at 02:00.
   labelled Suggested: Tonight at 02:00
+ok the note field is open, so a note reaches the answer (single-choice-or-text)
+
+### Settled decisions (the recorded outcome, and no controls)
+- settled-answered: Answered in the app: Approve
+  note: Keep pr-412 for the demo.
+ok settled-answered has an outcome
+ok settled-answered has no answer control: only the close control
+- settled-chat: Answered in chat: Wait for Monday
+  chat message, word for word: **wait** until monday, the team is out
+ok settled-chat has an outcome
+ok settled-chat has no answer control: only the close control
+- settled-default: Expired. The default applied: Tonight at 02:00
+ok settled-default has an outcome
+ok settled-default has no answer control: only the close control
+- settled-expired: Expired without an answer
+ok settled-expired has an outcome
+ok settled-expired has no answer control: only the close control
+- settled-cancelled: Cancelled. No answer was recorded.
+ok settled-cancelled has an outcome
+ok settled-cancelled has no answer control: only the close control
+
+### AppKit controls of each scene
+- panel-approve-reject: button; text field: Note for the agent (optional)
+- panel-single-choice: button; button; button; text field: Note for the agent (optional)
+- panel-multiple-choice: button; button; button; button; text field: Note for the agent (optional)
+- panel-free-text: button; text field: agentdesk-core; text field: Note for the agent (optional)
+- panel-single-choice-or-text: button; button; button; text field: Or type another answer; text field: Note for the agent (optional)
+- panel-settled-answered: button
+- panel-settled-chat: button
+- panel-settled-default: button
+- panel-settled-expired: button
+- panel-settled-cancelled: button
+- panel-linked: button; button; button; button; button; button; text field: Note for the agent (optional)
+- panel-send-failed: button; button; button; text field: Note for the agent (optional)
+- panel-refresh-failed: button; text field: Note for the agent (optional)
+- panel-answer-held: button
+- panel-loading: button
+- panel-unavailable: button
+- panel-load-failed: button
+ok each input type has a note field
+ok single choice has the close control and two radio buttons
+ok multiple choice has the close control and three checkboxes
+ok free text has its text field with the suggestion as placeholder
+ok single choice or text has its radio buttons and its text field
+ok the linked panel adds three links to the close control and two radio buttons
+ok an unavailable decision has only the close control
+ok a held answer has only the close control
+
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+ok left end of the screen: the panel is 400 pt wide with the popover still showing
+ok left end of the screen: the panel sits right of the popover, 8 pt away
+ok left end of the screen: the tops meet
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+ok right end of the screen: the panel is 400 pt wide with the popover still showing
+ok right end of the screen: the panel sits left of the popover, 8 pt away
+ok right end of the screen: the tops meet
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+ok the app's deactivation (posted) closes both
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok the harness left the app inactive, so the user's focus never moved
 
 ## Strips
 undo: Approve · Delete the stale preview databases? [Undo]
@@ -262,22 +393,22 @@ category decision.approve_reject: actions reject "Reject", approve "Approve"
 - t+300s sign-out while dec_late's post is in flight: add dec_late in flight; remove all delivered; add dec_late: "Approve?" / "Claude Code · api"; remove delivered ["dec_late"]; delivered now []
 
 ### Notification answers (PendingAnswers.sendNow)
-- Approve on dec_ship: accepted true; a repeated action accepted false; posts ["dec_pick option(id: \"eu\")", "dec_ship approve"]
+- Approve on dec_ship: accepted true; a repeated action accepted false; posts ["dec_ship approve", "dec_pick option(id: \"eu\")"]
   the popover's held answer for dec_pick was sent only by the quit flush that ends this step, never by the notification action
 - Approve on dec_taken answers 409 while the popover is closed: outcome kept for the next opening: "Already answered in the app: Reject"
 
 ### Notification click (NotificationFocus)
-- click on a listed decision: expand("dec_ship")
+- click on a listed decision: open("dec_ship")
 - click during a refresh: wait
   the read in flight finished before the click: wait
-  the read after the click: expand("dec_new")
+  the read after the click: open("dec_new")
 - click on a settled decision, after the next read: drop
 
 ## Not available in this harness
-The live NSPopover and its will-show and did-show events are not captured: the harness opens no window on screen. The scroll section above drives the shipped list in a retained hosting controller moved between offscreen windows, and calls the requests AppState makes on those events.
+The installed app's own menu bar item, popover, and panel are not exercised: the harness never launches a build, and it shows only fully transparent windows while its app stays inactive. The paired-window section above drives a real NSPopover with the shipped panel, lifetime, and key observer through events posted to this process, with no pointer or keyboard involved; PopoverController, AppState, and physical input are not part of it. The scroll section above drives the shipped list in a retained hosting controller moved between offscreen windows, and calls the requests AppState makes on those events.
 The scroller under a live change of the Show scroll bars setting is not captured; the scroll section above posts the change notification instead.
-AXIsProcessTrusted=true: live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject, Approve, and the expanded controls as separate elements.
-Keys are not captured: the popover's key monitor needs the live popover window as key window. PopoverKeysTests covers the key-to-action mapping; Escape with no row expanded closes the popover.
+AXIsProcessTrusted=true: live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject and Approve as separate elements. The panel's controls above are read from its AppKit views; SwiftUI builds its accessibility tree only for a running assistive client, so the panel's VoiceOver output is not captured.
+Keys from a physical keyboard are not captured. The paired-window section above posts key events to the shipped observers, and PopoverKeysTests covers the key-to-action mapping; Escape with no panel open closes the popover.
 Live notifications are not captured: UNUserNotificationCenter needs the app bundle and the user's permission. The permission prompt, a delivered banner, a click opening the popover, the Reject and Approve buttons, and removal from Notification Center are checked on a Mac before each release; the content, category, and Notifier timeline above use the shipped code with a fixture center.
 
 RESULT: PASS
