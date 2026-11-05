@@ -157,7 +157,9 @@ struct DecisionDetailView: View {
           HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(deadline)
             if let timeLeft = model.timeLeft {
-              Text("·").foregroundStyle(Ink.secondary)
+              Text("·")
+                .foregroundStyle(Ink.secondary)
+                .accessibilityHidden(true)
               Text(timeLeft).foregroundStyle(model.timeLeftIsRed ? Ink.red : Color.primary)
             }
           }
@@ -236,7 +238,9 @@ private struct Fact<Value: View>: View {
 }
 
 /// A settled decision's recorded outcome, with no controls (req-mac-app
-/// AC-11.6). A chat message and a note read as plain text, word for word.
+/// AC-11.6). A chat message and a note read as plain text, word for word. Each
+/// line stays its own text element, because combining them with selectable text
+/// gave assistive clients an element of unknown role.
 private struct OutcomeView: View {
   let outcome: DecisionOutcome
 
@@ -260,7 +264,6 @@ private struct OutcomeView: View {
     .padding(10)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.06)))
-    .accessibilityElement(children: .combine)
   }
 
   private func labelled(_ label: String, _ text: String) -> some View {

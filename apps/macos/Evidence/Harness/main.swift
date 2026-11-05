@@ -455,6 +455,12 @@ func measure(_ rep: NSBitmapImageRep) -> [(ratio: Double, text: NSColor, backgro
 
 MainActor.assumeIsolated {
   _ = NSApplication.shared
+  ActivationWatch.shared.start()
+  // `run.sh` runs this process a second time with only full keyboard access
+  // overridden, for the panel's Tab stops and accessibility tree.
+  if CommandLine.arguments.contains("--access") {
+    exit(accessEvidence())
+  }
   NSApp.setActivationPolicy(.prohibited)
   var failures: [String] = []
 
@@ -788,7 +794,7 @@ MainActor.assumeIsolated {
   line("## Not available in this harness")
   line("The installed app's own menu bar item, popover, and panel are not exercised: the harness never launches a build, and it shows only fully transparent windows while its app stays inactive. The paired-window section above drives a real NSPopover with the shipped panel, lifetime, and key observer through events posted to this process, with no pointer or keyboard involved; PopoverController, AppState, and physical input are not part of it. The scroll section above drives the shipped list in a retained hosting controller moved between offscreen windows, and calls the requests AppState makes on those events.")
   line("The scroller under a live change of the Show scroll bars setting is not captured; the scroll section above posts the change notification instead.")
-  line("AXIsProcessTrusted=\(AXIsProcessTrusted()): live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject and Approve as separate elements. The panel's controls above are read from its AppKit views; SwiftUI builds its accessibility tree only for a running assistive client, so the panel's VoiceOver output is not captured.")
+  line("AXIsProcessTrusted=\(AXIsProcessTrusted()): live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject and Approve as separate elements. The panel's controls above are read from its AppKit views, and access.txt reads its accessibility tree through the Accessibility API; VoiceOver's speech is not captured.")
   line("Keys from a physical keyboard are not captured. The paired-window section above posts key events to the shipped observers, and PopoverKeysTests covers the key-to-action mapping; Escape with no panel open closes the popover.")
   line("Live notifications are not captured: UNUserNotificationCenter needs the app bundle and the user's permission. The permission prompt, a delivered banner, a click opening the popover, the Reject and Approve buttons, and removal from Notification Center are checked on a Mac before each release; the content, category, and Notifier timeline above use the shipped code with a fixture center.")
   line("")

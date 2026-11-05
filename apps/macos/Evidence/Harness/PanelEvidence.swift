@@ -1,6 +1,23 @@
 import AppKit
 import SwiftUI
 
+/// Counts every time this process becomes the active app, so a harness run that
+/// takes focus from the Mac user's work fails.
+@MainActor
+final class ActivationWatch {
+  static let shared = ActivationWatch()
+  private(set) var count = 0
+  private var observer: NSObjectProtocol?
+
+  func start() {
+    observer = NotificationCenter.default.addObserver(
+      forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+    ) { _ in
+      MainActor.assumeIsolated { ActivationWatch.shared.count += 1 }
+    }
+  }
+}
+
 // The detail panel (component-mac-app §Detail panel; req-mac-app REQ-11).
 // `panelEvidence` renders the shipped `DecisionDetailView` offscreen from
 // fixtures. `pairedWindowEvidence` drives a real `NSPopover` beside the shipped
@@ -21,7 +38,7 @@ private func panelModel(_ decision: Decision, titles: [String: String] = [:]) ->
     locale: Locale(identifier: "en_US"))
 }
 
-private func presentation(
+func presentation(
   _ decision: Decision, titles: [String: String] = [:], failure: String? = nil, isAnswerable: Bool = true,
   refreshFailed: Bool = false
 ) -> DetailPanelPresentation {
@@ -101,8 +118,8 @@ private func controlTitles(in view: NSView) -> [String] {
 
 // MARK: Fixtures
 
-private let followUpTitles = ["dp_parent": "Run the staging soak first?", "dp_up2": "Tell the team about the release?"]
-private let linkedDecision = decision([
+let followUpTitles = ["dp_parent": "Run the staging soak first?", "dp_up2": "Tell the team about the release?"]
+let linkedDecision = decision([
   "id": "dp_linked", "title": "Ship the 2.4 release now that the staging soak passed?", "input_type": "single_choice",
   "agent_session_id": "ags_2", "body": "This follows the soak decision.", "topic": "release", "priority": "urgent",
   "options": [["id": "a", "label": "Ship now"], ["id": "b", "label": "Wait"]],
@@ -118,7 +135,7 @@ private let longDecision = decision([
   "agent_session_id": "ags_1", "body": longBody, "recommendation": ["kind": "approve"],
 ])
 
-private let settledFixtures: [(String, Decision)] = [
+let settledFixtures: [(String, Decision)] = [
   (
     "settled-answered",
     decision([
@@ -463,7 +480,7 @@ func pairedWindowEvidence(_ failures: inout [String]) {
       panel.hide()
       panel.window.alphaValue = 0
     } else if popover.isShown {
-      panel.present(beside: host.view)
+      panel.present(beside: host.view, takesKeyFocus: false)
     }
   }
 
@@ -474,8 +491,7 @@ func pairedWindowEvidence(_ failures: inout [String]) {
   }
   func pair() -> Bool { popover.isShown && panel.isVisible }
 
-  let startedActive = NSApp.isActive
-  line("screen visible frame: \(Int(screen.visibleFrame.width))x\(Int(screen.visibleFrame.height)) pt; app active: \(startedActive)")
+  line("screen visible frame: \(Int(screen.visibleFrame.width))x\(Int(screen.visibleFrame.height)) pt; app active: \(NSApp.isActive)")
 
   // Placement beside a real popover frame, at both ends of the screen (AC-11.1).
   for (name, x, side) in [
@@ -486,6 +502,7 @@ func pairedWindowEvidence(_ failures: inout [String]) {
     open(beside: anchor)
     detail.show("a", known: record)
     drain(0.3)
+    check("\(name): the panel has not taken key focus", !panel.window.isKeyWindow, &failures)
     let popoverFrame = popoverWindow?.convertToScreen(host.view.convert(host.view.bounds, to: nil)) ?? .zero
     let frame = panel.window.frame
     line(
@@ -672,7 +689,7 @@ func pairedWindowEvidence(_ failures: inout [String]) {
   check("the panel is excluded from the Windows menu", panel.window.isExcludedFromWindowsMenu, &failures)
   check("the panel ignores window cycling", panel.window.collectionBehavior.contains(.ignoresCycle), &failures)
   check("the panel can take key focus", panel.window.canBecomeKey, &failures)
-  check("the harness left the app inactive, so the user's focus never moved", NSApp.isActive == startedActive, &failures)
+  check("this process never became the active app, so the user's focus never moved", ActivationWatch.shared.count == 0 && !NSApp.isActive, &failures)
   anchor.orderOut(nil)
   statusWindow.orderOut(nil)
   otherWindow.orderOut(nil)

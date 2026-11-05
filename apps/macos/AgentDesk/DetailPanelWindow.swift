@@ -58,15 +58,21 @@ final class DetailPanelController<Root: View> {
 
   /// Shows the panel beside `anchor`, the popover's content view, at its
   /// window's level, and gives it key focus with no control focused, so the
-  /// arrow keys and Return keep moving the list until the user tabs in.
-  func present(beside anchor: NSView) {
+  /// arrow keys and Return keep moving the list until the user tabs in. The
+  /// evidence harness passes false, because a key panel can activate its app and
+  /// take focus from the Mac user's work.
+  func present(beside anchor: NSView, takesKeyFocus: Bool = true) {
     guard let anchorWindow = anchor.window else { return }
     let isNewAnchor = self.anchor !== anchor || !window.isVisible
     self.anchor = anchor
     window.level = anchorWindow.level
     if isNewAnchor { observePlacement(of: anchorWindow) }
     place()
-    window.makeKeyAndOrderFront(nil)
+    if takesKeyFocus {
+      window.makeKeyAndOrderFront(nil)
+    } else {
+      window.orderFront(nil)
+    }
     window.makeFirstResponder(nil)
   }
 
