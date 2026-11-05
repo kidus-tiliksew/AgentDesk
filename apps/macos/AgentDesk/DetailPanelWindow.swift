@@ -157,6 +157,9 @@ final class PairedWindowLifetime {
   private var globalMonitor: Any?
   private var observers: [(NotificationCenter, NSObjectProtocol)] = []
   private var menuIsTracking = false
+  /// Moves on every stop, so a click the global monitor queued before a stop
+  /// never closes a later pair.
+  private var generation = 0
 
   init(
     isOwned: @escaping (NSWindow) -> Bool, isStatusItem: @escaping (NSWindow) -> Bool,
@@ -179,8 +182,12 @@ final class PairedWindowLifetime {
     }
     // A click in another app never reaches the local monitor, and it does not
     // deactivate this app when it lands on the desktop or the menu bar.
+    let generation = self.generation
     globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
-      Task { @MainActor in self?.apply(.elsewhere) }
+      Task { @MainActor in
+        guard let self, self.generation == generation else { return }
+        self.apply(.elsewhere)
+      }
     }
     observe(.default, NSApplication.didResignActiveNotification) { $0.close() }
     observe(NSWorkspace.shared.notificationCenter, NSWorkspace.activeSpaceDidChangeNotification) {
@@ -191,6 +198,7 @@ final class PairedWindowLifetime {
   }
 
   func stop() {
+    generation += 1
     if let localMonitor { NSEvent.removeMonitor(localMonitor) }
     if let globalMonitor { NSEvent.removeMonitor(globalMonitor) }
     localMonitor = nil

@@ -8,6 +8,9 @@ struct DecisionListItem: Identifiable {
   let decision: Decision
   /// "Couldn't send. Try again." under a row whose answer failed.
   let failure: String?
+  /// False when the decision's draft holds a note over the limit, which
+  /// refuses every answer until the user shortens it in the panel.
+  var noteIsValid = true
 
   var id: String { row.id }
 }
@@ -39,6 +42,7 @@ struct DecisionRow: View {
         ApproveRejectButtons(recommendation: item.decision.recommendation) {
           actions.answer(item.id, $0)
         }
+        .disabled(!item.noteIsValid)
       }
       if let failure = item.failure {
         Text(failure)

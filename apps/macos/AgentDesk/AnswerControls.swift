@@ -84,6 +84,7 @@ struct AnswerControls: View {
   private var footer: some View {
     if decision.inputType == .approveReject {
       ApproveRejectButtons(recommendation: decision.recommendation, answer: answer)
+        .disabled(!draft.noteIsValid)
     } else {
       HStack(spacing: 10) {
         Spacer(minLength: 0)

@@ -180,7 +180,8 @@ final class AppState {
       DecisionListItem(
         row: DecisionRowModel(decision: decision, agents: snapshot.agents, seen: seenIDs, now: now),
         decision: decision,
-        failure: failures[decision.id])
+        failure: failures[decision.id],
+        noteIsValid: drafts[decision.id]?.noteIsValid ?? true)
     }
   }
 

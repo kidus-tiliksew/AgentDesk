@@ -561,7 +561,11 @@ func pairedWindowEvidence(_ failures: inout [String]) {
 
   // The keys (AC-7.1, AC-11.7), from whichever window has them.
   open(beside: anchor)
-  guard let keysPopover = popoverWindow else { return }
+  guard let keysPopover = popoverWindow else {
+    failures.append("paired windows: the popover opened no window, so the keys were not checked")
+    NSApp.setActivationPolicy(.prohibited)
+    return
+  }
   press(downKey, in: keysPopover)
   check("↓ selects the first row", model.selected == "a", &failures)
   press(downKey, in: keysPopover)
@@ -612,6 +616,32 @@ func pairedWindowEvidence(_ failures: inout [String]) {
   press(escapeKey, in: keysPopover)
   drain()
   check("Escape again closes the popover", !popover.isShown, &failures)
+
+  // A focused radio button keeps the arrows, when this machine's Keyboard
+  // navigation setting lets a button take focus at all.
+  open(beside: anchor)
+  detail.show("b", known: record)
+  drain(0.2)
+  func firstButton(in view: NSView) -> NSButton? {
+    for child in view.subviews {
+      if let button = child as? NSButton { return button }
+      if let found = firstButton(in: child) { return found }
+    }
+    return nil
+  }
+  if let radio = panel.window.contentView.flatMap(firstButton), panel.window.makeFirstResponder(radio),
+    panel.window.firstResponder is NSControl
+  {
+    model.selected = "b"
+    press(downKey, in: panel.window)
+    check("a focused control in the panel keeps ↓", model.selected == "b", &failures)
+    panel.window.makeFirstResponder(nil)
+  } else {
+    line("not exercised: a focused control keeping ↓, since a button cannot take focus with Keyboard navigation off")
+  }
+  press(escapeKey, in: panel.window)
+  popover.close()
+  drain()
 
   // Tab walks AppKit's key view loop, which the observers never read (AC-11.11).
   open(beside: anchor)
