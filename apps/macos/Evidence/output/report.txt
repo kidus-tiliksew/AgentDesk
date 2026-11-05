@@ -229,6 +229,30 @@ ok the panel ignores window cycling
 ok the panel can take key focus
 ok the harness left the app inactive, so the user's focus never moved
 
+## Linked recovery (the shipped DecisionCoordinator with a fixture sender, reader, and clock)
+ok a pending decision absent from the list loads in the panel
+ok answering closes the panel and hides the row
+popover-linked-held-light.png: 340x174 pt
+popover-linked-held-dark.png: 340x174 pt
+ok Undo restores the row
+ok Undo reopens the panel from the held record
+ok Undo keeps the draft and note
+ok Undo reads nothing and sends nothing
+ok a failed send restores the row at once
+ok a failed send keeps the failure message
+ok a failed send keeps the draft and note
+ok a retained-snapshot publish prunes nothing
+ok a new read with a failed direct read prunes nothing
+popover-linked-send-failed-light.png: 340x234 pt
+popover-linked-send-failed-dark.png: 340x234 pt
+ok the restored row opens the retained record
+panel-linked-send-failed-light.png: 400x327 pt
+panel-linked-send-failed-dark.png: 400x327 pt
+ok the retry posts once
+ok a landed retry leaves no record, draft, or message
+ok sign-out leaves nothing
+AppState delegates its list, panel, drafts, answers, and Undo to this object; its own wiring is compiled by the Xcode build and is not run here.
+
 ## Strips
 undo: Approve · Delete the stale preview databases? [Undo]
 conflict: Already answered in chat: Reject
@@ -394,7 +418,7 @@ category decision.approve_reject: actions reject "Reject", approve "Approve"
 - t+300s sign-out while dec_late's post is in flight: add dec_late in flight; remove all delivered; add dec_late: "Approve?" / "Claude Code · api"; remove delivered ["dec_late"]; delivered now []
 
 ### Notification answers (PendingAnswers.sendNow)
-- Approve on dec_ship: accepted true; a repeated action accepted false; posts ["dec_ship approve", "dec_pick option(id: \"eu\")"]
+- Approve on dec_ship: accepted true; a repeated action accepted false; posts ["dec_pick option(id: \"eu\")", "dec_ship approve"]
   the popover's held answer for dec_pick was sent only by the quit flush that ends this step, never by the notification action
 - Approve on dec_taken answers 409 while the popover is closed: outcome kept for the next opening: "Already answered in the app: Reject"
 
