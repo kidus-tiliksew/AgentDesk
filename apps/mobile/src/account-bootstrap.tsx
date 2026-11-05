@@ -8,7 +8,7 @@ import { Text } from "react-native";
 // convex/_generated/api, so it builds without local codegen. Later screens
 // import their domain's refs from ../../../convex/<domain>/refs the same way.
 import { identity } from "../../../convex/identity/refs";
-import { identifyAnalytics, useAnalyticsClient } from "./analytics";
+import { identifyAnalytics, useAnalyticsClient, useMarkAnalyticsIdentified } from "./analytics";
 import { Button } from "./button";
 import { HeaderlessScreen } from "./headerless-screen";
 import { Loading } from "./loading";
@@ -59,6 +59,7 @@ export function AccountGate({ children }: { children: ReactNode }) {
   const { isLoading, isAuthenticated } = useConvexAuth();
   const ensureAccount = useMutation(identity.accounts.ensureAccount);
   const analytics = useAnalyticsClient();
+  const markIdentified = useMarkAnalyticsIdentified();
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ key: string; outcome: Outcome } | null>(null);
   const requested = useRef<string | null>(null);
@@ -134,7 +135,12 @@ export function AccountGate({ children }: { children: ReactNode }) {
     ensureAccount({}).then(
       (account) => {
         if (active.current === key) {
-          identifyAnalytics(analytics, account, () => active.current === key);
+          identifyAnalytics(
+            analytics,
+            account,
+            () => active.current === key,
+            () => markIdentified(sessionId),
+          );
           setResult({ key, outcome: "ready" });
         }
       },
@@ -152,7 +158,16 @@ export function AccountGate({ children }: { children: ReactNode }) {
         setResult({ key, outcome: "failed" });
       },
     );
-  }, [sessionId, key, isLoading, isAuthenticated, ensureAccount, signOut, analytics]);
+  }, [
+    sessionId,
+    key,
+    isLoading,
+    isAuthenticated,
+    ensureAccount,
+    signOut,
+    analytics,
+    markIdentified,
+  ]);
 
   const outcome = result !== null && result.key === key ? result.outcome : null;
   if (outcome === "refused") {

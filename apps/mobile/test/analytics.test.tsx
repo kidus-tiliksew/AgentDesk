@@ -347,11 +347,111 @@ describe("analytics identity", () => {
     await signedInScreen();
 
     expect(analytics.resets()).toEqual([]);
+    await waitFor(() => expect(analytics.screens()).toHaveLength(1));
     expect(analytics.screens()[0]).toEqual({
       call: "screen",
       name: "/",
       distinctId: account.clerkUserId,
     });
+  });
+
+  test("a session starting while the SDK starts keeps the queued clear, before its identify", async () => {
+    analytics.persistIdentity("user_other");
+    const pending = deferred<typeof account>();
+    ensureAccount.mockReturnValueOnce(pending.promise);
+    const release = analytics.holdReady();
+
+    renderApp("/");
+    await screen.findByLabelText("Email address");
+    expect(analytics.calls).toEqual([]);
+
+    act(() => signInAs("sess_a"));
+    await waitFor(() => expect(ensureAccount).toHaveBeenCalledTimes(1));
+    await act(async () => release());
+
+    // The earlier account is gone while this session's account is still pending.
+    expect(analytics.calls).toEqual([{ call: "reset" }]);
+    expect(analytics.distinctId).not.toBe("user_other");
+
+    await act(async () => pending.resolve(account));
+    await waitFor(() => expect(analytics.screens()).toHaveLength(1));
+
+    const calls = analytics.calls.map((entry) => entry.call);
+    expect(calls.indexOf("reset")).toBe(0);
+    expect(calls.indexOf("identify")).toBeGreaterThan(0);
+    expect(analytics.screens()[0]?.distinctId).toBe(account.clerkUserId);
+  });
+
+  test("a restored session's first screen waits for identify, not the earlier account on the device", async () => {
+    analytics.persistIdentity("user_other");
+    const pending = deferred<typeof account>();
+    ensureAccount.mockReturnValueOnce(pending.promise);
+    signInAs("sess_a");
+
+    renderApp("/");
+    await screen.findByText("Setting up your account");
+    await waitFor(() => expect(ensureAccount).toHaveBeenCalledTimes(1));
+    await act(async () => undefined);
+    expect(analytics.calls).toEqual([]);
+
+    await act(async () => pending.resolve(account));
+    await waitFor(() => expect(analytics.screens()).toHaveLength(1));
+
+    expect(analytics.calls).toEqual([
+      { call: "reset" },
+      expect.objectContaining({ call: "identify", id: account.clerkUserId }),
+      { call: "screen", name: "/", distinctId: account.clerkUserId },
+    ]);
+  });
+
+  test("the first screen after signing in carries the account, not an anonymous ID", async () => {
+    renderApp("/");
+    await screen.findByLabelText("Email address");
+    await waitFor(() => expect(analytics.screen).toHaveBeenCalledWith("/sign-in"));
+
+    act(() => signInAs("sess_a"));
+    await findInbox();
+    await waitFor(() => expect(analytics.screen).toHaveBeenLastCalledWith("/"));
+
+    expect(analytics.screens()).toEqual([
+      { call: "screen", name: "/sign-in", distinctId: "anon_0" },
+      { call: "screen", name: "/", distinctId: account.clerkUserId },
+    ]);
+  });
+
+  test("a failed account records no screen until its retry identifies", async () => {
+    ensureAccount.mockRejectedValueOnce(new Error("offline"));
+    signInAs("sess_a");
+
+    renderApp("/");
+
+    const retry = await screen.findByRole("button", { name: "Try again" });
+    await act(async () => undefined);
+    expect(analytics.calls).toEqual([]);
+
+    fireEvent.press(retry);
+    await signedInScreen();
+    await waitFor(() => expect(analytics.screens()).toHaveLength(1));
+    expect(analytics.screens()[0]?.distinctId).toBe(account.clerkUserId);
+  });
+
+  test("a new session's screen waits for its own identify", async () => {
+    signInAs("sess_a");
+    renderApp("/");
+    await signedInScreen();
+    await waitFor(() => expect(analytics.screens()).toHaveLength(1));
+
+    const second = deferred<typeof account>();
+    ensureAccount.mockReturnValueOnce(second.promise);
+    const other = { ...account, clerkUserId: "user_b" };
+    act(() => signInAs("sess_b"));
+    await waitFor(() => expect(ensureAccount).toHaveBeenCalledTimes(2));
+    await act(async () => undefined);
+    expect(analytics.screens()).toHaveLength(1);
+
+    await act(async () => second.resolve(other));
+    await waitFor(() => expect(analytics.screens()).toHaveLength(2));
+    expect(analytics.screens()[1]?.distinctId).toBe("user_b");
   });
 
   test("makes no SDK call without a key, through account success and sign-out", async () => {
