@@ -26,7 +26,7 @@ ok single-choice-or-text: Tab moves from the answer field to the note field
 
 Route 2, NSApp.isFullKeyboardAccessEnabled replaced in this process only: it reads true.
 The key view loop did not change: AppKit and SwiftUI decide button focus from a value this method does not supply.
-NOT EXERCISED: buttons, links, radio buttons, and checkboxes in the Tab order with the Mac's Keyboard navigation setting on. Neither override reproduces that setting, and the setting was not changed.
+NOT EXERCISED, assigned to the operator's pre-release checks: buttons, links, radio buttons, and checkboxes in the Tab order with the Mac's Keyboard navigation setting on. Neither override reproduces that setting, and the setting was not changed.
 
 ## Assistive client (AXUIElement calls within this process, with AXIsProcessTrusted true)
 AXManualAccessibility set returned -25205, which is kAXErrorAttributeUnsupported on this OS; the tree below builds without it. These calls stay inside this process.
@@ -444,8 +444,10 @@ ok row: it offers AXPress
 ok row: Reject and Approve are separate named buttons
 
 ## What this does not establish
-NOT EXERCISED: VoiceOver speech. VoiceOver did not run; the tree above is what it would be given.
+This evidence is non-live, and it does not establish the reach req-mac-app AC-11.11 sets. These checks are assigned to the operator's pre-release checks:
+NOT EXERCISED: VoiceOver speech and focus. VoiceOver did not run; the tree above is what it would be given.
 NOT EXERCISED: the Mac's Keyboard navigation setting on, and physical Tab or Shift-Tab keys.
+NOT EXERCISED: focus moving on opening, replacing, and closing the panel in the live app.
 NOT EXERCISED: an assistive client in another process. These AXUIElement calls were answered inside this process.
 NOT EXERCISED: moving AX focus into a control, since this app stays inactive and its windows never take key focus. Focusable above means AXFocused is settable.
 
