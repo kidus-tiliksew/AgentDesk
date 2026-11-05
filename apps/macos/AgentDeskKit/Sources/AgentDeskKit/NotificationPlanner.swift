@@ -152,15 +152,15 @@ public struct NotificationRequest: Equatable, Sendable {
   }
 }
 
-/// The decision a notification click asked the popover to expand
+/// The decision a notification click asked the detail panel to show
 /// (req-mac-app AC-6.4). The target waits for the first decisions read that
-/// lands after the click, so a click during a refresh still expands its row,
-/// and a target that read no longer lists expands nothing.
+/// lands after the click, so a click during a refresh still opens its
+/// decision, and a target that read no longer lists opens nothing.
 public struct NotificationFocus: Equatable, Sendable {
   public enum Resolution: Equatable, Sendable {
-    /// Select and expand this decision.
-    case expand(String)
-    /// The target is not listed; expand nothing.
+    /// Select this decision and show it in the panel.
+    case open(String)
+    /// The target is not listed; open nothing.
     case drop
     /// Keep waiting for a read.
     case wait
@@ -172,11 +172,11 @@ public struct NotificationFocus: Equatable, Sendable {
   public init() {}
 
   /// A click on the notification for `id` at `now`. A decision the list
-  /// already shows expands at once.
+  /// already shows opens at once.
   public mutating func request(_ id: String, at now: Date, listed: [String]) -> Resolution {
     if listed.contains(id) {
       clear()
-      return .expand(id)
+      return .open(id)
     }
     target = id
     requestedAt = now
@@ -189,7 +189,7 @@ public struct NotificationFocus: Equatable, Sendable {
     guard let target, let requestedAt else { return .wait }
     guard let fetchedAt, fetchedAt >= requestedAt else { return .wait }
     clear()
-    return listed.contains(target) ? .expand(target) : .drop
+    return listed.contains(target) ? .open(target) : .drop
   }
 
   /// Sign-out and the popover closing end the target.

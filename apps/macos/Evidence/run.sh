@@ -22,15 +22,15 @@ trap 'rm -rf "$work"' EXIT
 mkdir -p "$out" "$work/src"
 rm -f "$out"/*.png "$out"/*.txt "$out"/*.log "$out"/manifest.json
 
-# The harness compiles the kit and eight app-target files into one module, so
+# The harness compiles the kit and eleven app-target files into one module, so
 # their `import AgentDeskKit` lines are dropped.
 cp "$macos"/AgentDeskKit/Sources/AgentDeskKit/*.swift "$macos"/AgentDeskKit/Sources/AgentDeskKit/Models/*.swift "$work/src/"
-for file in DecisionRow AnswerControls AgentsView ScrollSupport Ink MenuBarLabel NotificationController NotificationPauseLine; do
+for file in DecisionRow AnswerControls DecisionDetailView DetailPanelWindow PopoverKeyObserver AgentsView ScrollSupport Ink MenuBarLabel NotificationController NotificationPauseLine; do
   sed '/^import AgentDeskKit$/d' "$macos/AgentDesk/$file.swift" >"$work/src/$file.swift"
 done
 cp "$here"/Harness/*.swift "$work/src/"
 
-build_cmd="swiftc -swift-version 6 -O -o <tmp>/evidence <kit sources> AgentDesk/{DecisionRow,AnswerControls,AgentsView,ScrollSupport,Ink,MenuBarLabel,NotificationController,NotificationPauseLine}.swift Evidence/Harness/*.swift"
+build_cmd="swiftc -swift-version 6 -O -o <tmp>/evidence <kit sources> AgentDesk/{DecisionRow,AnswerControls,DecisionDetailView,DetailPanelWindow,PopoverKeyObserver,AgentsView,ScrollSupport,Ink,MenuBarLabel,NotificationController,NotificationPauseLine}.swift Evidence/Harness/*.swift"
 swiftc -swift-version 6 -O -o "$work/evidence" "$work"/src/*.swift >"$out/build.log" 2>&1
 build_exit=$?
 
@@ -83,6 +83,10 @@ bundle_exit=0
   sparkle_version=$(plutil -extract CFBundleShortVersionString raw -o - "$framework/Resources/Info.plist" 2>/dev/null) || sparkle_version="<missing>"
   if [ "$sparkle_version" = 2.10.1 ]; then verdict=ok; else verdict=FAIL; bundle_exit=1; fi
   printf '%s Contents/Frameworks/Sparkle.framework CFBundleShortVersionString = %s\n' "$verdict" "$sparkle_version"
+  # No Dock icon, with the detail panel as with the popover (req-mac-app AC-1.1).
+  ui_element=$(plutil -extract LSUIElement raw -o - "$info" 2>/dev/null) || ui_element="<missing>"
+  if [ "$ui_element" = true ]; then verdict=ok; else verdict=FAIL; bundle_exit=1; fi
+  printf '%s LSUIElement = %s\n' "$verdict" "$ui_element"
 
   # The app icon (req-mac-app AC-1.4): the catalog's slots, the build setting,
   # the compiled resources, and the icon macOS returns for the built bundle.

@@ -110,13 +110,21 @@ public enum DecisionPresentation {
     for decision: Decision, now: Date, calendar: Calendar = .current, locale: Locale = .current
   ) -> String? {
     guard let deadline = decision.deadline, let fallback = decision.defaultAnswer else { return nil }
+    let time = time(deadline, now: now, calendar: calendar, locale: locale)
+    let answer = answerText(fallback, options: decision.options)
+    return "If nobody answers by \(time), the agent goes with \(answer)."
+  }
+
+  /// A time of day, with the date when it is not today.
+  public static func time(
+    _ date: Date, now: Date, calendar: Calendar = .current, locale: Locale = .current
+  ) -> String {
     var style = Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone)
       .hour().minute()
-    if !calendar.isDate(deadline, inSameDayAs: now) {
+    if !calendar.isDate(date, inSameDayAs: now) {
       style = style.month(.abbreviated).day()
     }
-    let answer = answerText(fallback, options: decision.options)
-    return "If nobody answers by \(deadline.formatted(style)), the agent goes with \(answer)."
+    return date.formatted(style)
   }
 
   /// The Undo strip's text: the answer and the decision's title.
@@ -157,13 +165,33 @@ public enum DecisionPresentation {
     }
   }
 
-  /// The asking session's page, when that session is live and its link is
-  /// an absolute http or https URL (req-mac-app AC-4.6).
-  public static func agentLink(for decision: Decision, agents: [AgentSession]) -> URL? {
-    guard let id = decision.agentSessionID, let session = agents.first(where: { $0.id == id }),
-      let link = session.link
-    else { return nil }
-    return AgentEntryModel.webURL(link)
+  /// What the panel shows for a decision that is not pending, in the same
+  /// surface and answer words as `recordedOutcome`, or nil while it is pending
+  /// (req-mac-app AC-11.6).
+  public static func settledOutcome(
+    _ decision: Decision, now: Date, calendar: Calendar = .current, locale: Locale = .current
+  ) -> DecisionOutcome? {
+    let answer = decision.answer.map { answerText($0, options: decision.options) }
+    let summary: String
+    switch decision.state {
+    case .pending:
+      return nil
+    case .answered:
+      switch (answer, decision.answeredVia) {
+      case (let answer?, let via?): summary = "Answered \(surface(via)): \(answer)"
+      case (let answer?, nil): summary = "Answered: \(answer)"
+      case (nil, _): summary = "Answered"
+      }
+    case .expired:
+      summary = answer.map { "Expired. The default applied: \($0)" } ?? "Expired without an answer"
+    case .cancelled:
+      summary = "Cancelled. No answer was recorded."
+    }
+    return DecisionOutcome(
+      summary: summary,
+      time: decision.answeredAt.map { time($0, now: now, calendar: calendar, locale: locale) },
+      chatMessage: decision.answeredVia == .chat ? decision.chatMessage : nil,
+      note: decision.note)
   }
 }
 

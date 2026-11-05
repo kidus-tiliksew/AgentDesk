@@ -186,9 +186,9 @@ final class NotificationPlannerTests: XCTestCase {
 
   // MARK: Click focus
 
-  func testAClickOnAListedDecisionExpandsItAtOnce() {
+  func testAClickOnAListedDecisionOpensItAtOnce() {
     var focus = NotificationFocus()
-    XCTAssertEqual(focus.request("dec_1", at: at(0), listed: ["dec_1"]), .expand("dec_1"))
+    XCTAssertEqual(focus.request("dec_1", at: at(0), listed: ["dec_1"]), .open("dec_1"))
     XCTAssertNil(focus.target)
   }
 
@@ -196,11 +196,11 @@ final class NotificationPlannerTests: XCTestCase {
     var focus = NotificationFocus()
     XCTAssertEqual(focus.request("dec_2", at: at(10), listed: ["dec_1"]), .wait)
     XCTAssertEqual(focus.resolve(fetchedAt: at(9), listed: ["dec_1"]), .wait, "an older read")
-    XCTAssertEqual(focus.resolve(fetchedAt: at(11), listed: ["dec_1", "dec_2"]), .expand("dec_2"))
+    XCTAssertEqual(focus.resolve(fetchedAt: at(11), listed: ["dec_1", "dec_2"]), .open("dec_2"))
     XCTAssertEqual(focus.resolve(fetchedAt: at(12), listed: ["dec_2"]), .wait, "resolved once")
   }
 
-  func testAStaleTargetExpandsNothing() {
+  func testAStaleTargetOpensNothing() {
     var focus = NotificationFocus()
     _ = focus.request("dec_gone", at: at(10), listed: ["dec_1"])
     XCTAssertEqual(focus.resolve(fetchedAt: at(11), listed: ["dec_1"]), .drop)

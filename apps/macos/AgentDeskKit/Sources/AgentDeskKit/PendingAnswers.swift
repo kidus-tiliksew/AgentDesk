@@ -49,8 +49,8 @@ public final class PendingAnswers {
     public let id: Int
     public let decision: Decision
     public let submission: AnswerDraft.Submission
-    /// The expanded row's draft when the user answered, restored with the
-    /// row on undo or failure.
+    /// The decision's draft when the user answered, restored with the row
+    /// on undo or failure.
     public let draft: AnswerDraft?
   }
 

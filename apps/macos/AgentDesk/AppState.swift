@@ -4,9 +4,10 @@ import Observation
 import OSLog
 
 /// The app's observable state: the account, its sign-in, Open at Login, the
-/// synced decisions and agents with their attention state, the answers the
-/// user gives from the popover or a notification, and the notifications it
-/// posts. It sends no request besides sign-in, sign-out, the sync reads, the
+/// synced decisions and agents with their attention state, the decision the
+/// detail panel shows, the answers the user gives from the popover, the panel,
+/// or a notification, and the notifications it posts. It sends no request
+/// besides sign-in, sign-out, the sync reads, the panel's decision read, the
 /// agent read that names a notification's agent, and answers (req-mac-app
 /// REQ-10).
 @MainActor
@@ -39,13 +40,13 @@ final class AppState {
   /// Where the list should scroll: its first row on opening, or a row the
   /// keys or a notification asked for; the latest wins (req-mac-app AC-4.12).
   private(set) var listScroll = ListScrollRequest()
-  /// The one expanded row, by decision id (req-mac-app AC-4.6).
-  private(set) var expandedID: String?
-  /// Each expanded row's answer in progress, kept while its decision is
-  /// pending so collapsing a row or a failed send loses nothing.
+  /// Each decision's answer in progress, kept while it is pending so closing
+  /// the panel or a failed send loses nothing.
   var drafts: [String: AnswerDraft] = [:]
   /// Moves on every change of `pending`, which is not observable itself.
   private var answersRevision = 0
+  /// Moves on every change of `detail`, which is not observable itself.
+  private var detailRevision = 0
   /// Notifications On, and the end of a running pause (req-mac-app AC-6.6).
   private(set) var notificationsOn: Bool
   private var notificationsPausedUntil: Date?
@@ -59,7 +60,7 @@ final class AppState {
   @ObservationIgnored private let seen: SeenStore
   @ObservationIgnored private let notifications: NotificationController
   @ObservationIgnored private let notifier: Notifier
-  /// The decision a notification click asked to expand (req-mac-app AC-6.4).
+  /// The decision a notification click asked to show (req-mac-app AC-6.4).
   @ObservationIgnored private var focus = NotificationFocus()
   /// Moves on every sign-out, so a notification action that waits for a
   /// read never answers for a later account.
@@ -77,6 +78,13 @@ final class AppState {
   /// The decision ids the list showed last, so the selection can move to a
   /// neighbour when its row leaves.
   @ObservationIgnored private var listedOrder: [String] = []
+  /// The decision the panel shows and its reads, apart from the pending list
+  /// (req-mac-app AC-4.6, AC-11.5, AC-11.6).
+  @ObservationIgnored private lazy var detail: DecisionDetail = {
+    let detail = DecisionDetail(reader: account.api)
+    detail.onChange = { [weak self] in self?.detailChanged() }
+    return detail
+  }()
   @ObservationIgnored private lazy var pending: PendingAnswers = {
     let pending = PendingAnswers(sender: account.api)
     // The popover starts closed; a conflict's outcome waits for it.
@@ -164,7 +172,7 @@ final class AppState {
     }
   }
 
-  /// Each listed decision with what its row shows when expanded.
+  /// Each listed decision with what its row shows.
   var listItems: [DecisionListItem] {
     _ = answersRevision
     let failures = pending.failures
@@ -172,10 +180,39 @@ final class AppState {
       DecisionListItem(
         row: DecisionRowModel(decision: decision, agents: snapshot.agents, seen: seenIDs, now: now),
         decision: decision,
-        agentLink: DecisionPresentation.agentLink(for: decision, agents: snapshot.agents),
-        defaultSentence: DecisionPresentation.defaultSentence(for: decision, now: now),
         failure: failures[decision.id])
     }
+  }
+
+  /// The decision the panel shows, by id.
+  var shownID: String? {
+    _ = detailRevision
+    return detail.shownID
+  }
+
+  /// What the panel shows; nil while it is closed (req-mac-app AC-11.2).
+  var detailPresentation: DetailPanelPresentation? {
+    _ = detailRevision
+    _ = answersRevision
+    guard let content = detail.content, let id = detail.shownID else { return nil }
+    let shown: DetailPanelPresentation.Content
+    switch content {
+    case .loading:
+      shown = .loading
+    case .unavailable:
+      shown = .unavailable
+    case .failed:
+      shown = .failed
+    case .loaded(let decision):
+      let titles = Dictionary(
+        snapshot.decisions.map { ($0.id, $0.title) }, uniquingKeysWith: { first, _ in first })
+      let model = DecisionDetailModel(
+        decision: decision, agents: snapshot.agents, titles: titles, now: now)
+      shown = .loaded(model, decision)
+    }
+    return DetailPanelPresentation(
+      content: shown, failure: pending.failures[id], isAnswerable: !pending.hides(id),
+      refreshFailed: detail.refreshFailed)
   }
 
   /// The Undo strip's text while an answer is held (req-mac-app AC-4.8).
@@ -227,11 +264,13 @@ final class AppState {
     listScroll.repeatLast()
   }
 
-  /// The popover closed: a held answer is sent, and every decision it
-  /// listed stops counting as new and posts no notification.
+  /// The popover closed: the panel closes with it, a held answer is sent,
+  /// and every decision it listed stops counting as new and posts no
+  /// notification.
   func popoverClosed() {
     guard isPopoverOpen else { return }
     isPopoverOpen = false
+    detail.close()
     pending.flush()
     pending.isPresented = false
     Self.log.debug("Popover closed; \(self.listedIDs.count, privacy: .public) listed")
@@ -270,7 +309,7 @@ final class AppState {
     notificationsOn = on
   }
 
-  /// A notification click: open the popover with that decision expanded.
+  /// A notification click: open the popover with that decision in the panel.
   /// A decision the list does not show yet waits for the read that opening
   /// the popover starts (req-mac-app AC-6.4).
   func openFromNotification(_ id: String) {
@@ -313,9 +352,11 @@ final class AppState {
   }
 
   private func applyFocus(_ resolution: NotificationFocus.Resolution) {
-    guard case .expand(let id) = resolution else { return }
+    guard case .open(let id) = resolution else { return }
     selectedID = id
-    if expandedID != id { toggle(id) }
+    // The list may be behind: a first read finding the decision settled or
+    // gone closes the panel, so a stale target shows nothing.
+    detail.show(id, known: decision(id), closesIfStale: true)
     // The clicked row wins over the opening's top reset, also when it was
     // already selected.
     listScroll.toRow(id)
@@ -441,9 +482,11 @@ final class AppState {
     if ordered.fetchedAt != nil {
       seen.prune(toPending: ids)
       seenIDs = seen.ids
-      // Drafts and the answer records go with decisions no longer pending.
+      // Drafts and the answer records go with decisions no longer pending. A
+      // pending decision the panel shows keeps its draft, listed or not.
       let pendingIDs = Set(ids)
-      drafts = drafts.filter { pendingIDs.contains($0.key) }
+      let shownPending = detail.decision.flatMap { $0.state == .pending ? $0.id : nil }
+      drafts = drafts.filter { pendingIDs.contains($0.key) || $0.key == shownPending }
       pending.reconcile(pending: pendingIDs)
     }
     if isPopoverOpen {
@@ -459,24 +502,35 @@ final class AppState {
 
   // MARK: Answers
 
-  /// Expands the row, or collapses it when it is expanded; one row is
-  /// expanded at a time (req-mac-app AC-4.6).
+  /// Opens the row in the panel, or closes the panel when it shows that row.
+  /// Another row replaces the shown one (req-mac-app AC-4.6, AC-11.7).
   func toggle(_ id: String) {
-    selectedID = id
-    if expandedID == id {
-      expandedID = nil
-      return
-    }
-    guard let decision = decision(id) else { return }
-    if drafts[id] == nil { drafts[id] = AnswerDraft(decision: decision) }
-    expandedID = id
+    let listed = decisions.first { $0.id == id }
+    if listed != nil { selectedID = id }
+    detail.toggle(id, known: listed)
+  }
+
+  /// A parent or follow-up link: shows that decision in the panel, listed or
+  /// not (req-mac-app AC-11.5).
+  func showLinked(_ id: String) {
+    let listed = decisions.first { $0.id == id }
+    if listed != nil { selectedID = id }
+    detail.show(id, known: listed)
+  }
+
+  func closeDetail() {
+    detail.close()
+  }
+
+  func retryDetail() {
+    detail.retry()
   }
 
   func select(_ id: String) {
     selectedID = id
   }
 
-  /// Reject or Approve on an approve-or-reject row, with the row's note.
+  /// Reject or Approve on an approve-or-reject decision, with its note.
   func answer(_ id: String, _ answer: Answer) {
     guard let decision = decision(id) else { return }
     let draft = drafts[id] ?? AnswerDraft(decision: decision)
@@ -484,8 +538,8 @@ final class AppState {
     hold(decision, submission, draft: drafts[id])
   }
 
-  /// Send, or ⌘↩: the row's chosen answer, or its recommendation when none
-  /// is chosen. Sends nothing when neither exists (req-mac-app AC-7.1).
+  /// Send, or ⌘↩: the decision's chosen answer, or its recommendation when
+  /// none is chosen. Sends nothing when neither exists (req-mac-app AC-7.1).
   func send(_ id: String) {
     guard let decision = decision(id) else { return }
     let draft = drafts[id] ?? AnswerDraft(decision: decision)
@@ -493,46 +547,75 @@ final class AppState {
     hold(decision, submission, draft: drafts[id])
   }
 
-  /// Undo restores the row and the draft it had, expanded again when it was
-  /// expanded, and sends nothing (req-mac-app AC-4.8).
+  /// Undo restores the row and the draft it had, reopens the panel when the
+  /// answer closed it, and sends nothing (req-mac-app AC-4.8).
   func undo() {
     guard let attempt = pending.undo() else { return }
     let id = attempt.decision.id
     selectedID = id
-    if let draft = attempt.draft {
-      drafts[id] = draft
-      expandedID = id
-    }
+    if let draft = attempt.draft { drafts[id] = draft }
+    detail.answerUndone(id, known: attempt.decision)
   }
 
-  /// Handles a popover key. Returns false to leave the key to the focused
-  /// control or the window (req-mac-app AC-7.1).
+  /// Handles a key from the popover or the panel. Returns false to leave the
+  /// key to the focused control or the window (req-mac-app AC-7.1).
   func handle(_ key: PopoverKey, editingText: Bool) -> Bool {
     let action = PopoverKeys.action(
-      for: key, rows: decisions.map(\.id), selected: selectedID, expanded: expandedID,
-      editingText: editingText)
+      for: key, rows: decisions.map(\.id), selected: selectedID, shown: detail.shownID,
+      shownIsAnswerable: shownIsAnswerable, editingText: editingText)
     switch action {
     case .select(let id): selectedID = id
     case .toggle(let id): toggle(id)
     case .send(let id): send(id)
-    case .collapse: expandedID = nil
+    case .closePanel: detail.close()
     case .passThrough: return false
     }
     return true
   }
 
+  /// A key from either window: Escape that the panel does not take closes the
+  /// popover, so Escape closes the panel first and the popover next.
+  func handleWindowKey(_ key: PopoverKey, editingText: Bool) -> Bool {
+    if isSignedIn, handle(key, editingText: editingText) { return true }
+    guard key == .escape else { return false }
+    closePopover()
+    return true
+  }
+
+  private var shownIsAnswerable: Bool {
+    guard let shown = detail.decision else { return false }
+    return shown.state == .pending && !pending.hides(shown.id)
+  }
+
+  /// A listed decision, or a pending one the panel loaded through a link.
   private func decision(_ id: String) -> Decision? {
-    decisions.first { $0.id == id }
+    if let listed = decisions.first(where: { $0.id == id }) { return listed }
+    guard let shown = detail.decision, shown.id == id, shown.state == .pending, !pending.hides(id)
+    else { return nil }
+    return shown
   }
 
   private func hold(_ decision: Decision, _ submission: AnswerDraft.Submission, draft: AnswerDraft?) {
     guard pending.answer(decision, submission, draft: draft) else { return }
     drafts[decision.id] = nil
+    detail.answerHeld(decision.id)
   }
 
   /// A failed send returns the row with its draft.
   private func restore(_ attempt: PendingAnswers.Attempt) {
     if let draft = attempt.draft { drafts[attempt.decision.id] = draft }
+  }
+
+  /// Gives a pending shown decision its draft, whose note field is always
+  /// showing, and tells the controller the target.
+  private func detailChanged() {
+    if let shown = detail.decision, shown.state == .pending, drafts[shown.id] == nil,
+      !pending.hides(shown.id)
+    {
+      drafts[shown.id] = .forPanel(shown)
+    }
+    detailRevision += 1
+    presenter?.panelChanged(detail.shownID)
   }
 
   private func answersChanged() {
@@ -541,12 +624,12 @@ final class AppState {
     updateDot()
   }
 
-  /// Keeps the selection and expansion on listed rows. A selected row that
-  /// leaves passes the selection to its neighbour.
+  /// Keeps the selection on listed rows: a selected row that leaves passes it
+  /// to its neighbour. The panel's target stays, since a decision settled while
+  /// shown changes to its recorded outcome (req-mac-app AC-11.6).
   private func listChanged() {
     let ids = decisions.map(\.id)
     selectedID = PopoverKeys.reselect(selectedID, previous: listedOrder, rows: ids)
-    if let expandedID, !ids.contains(expandedID) { self.expandedID = nil }
     listedOrder = ids
   }
 
@@ -554,7 +637,7 @@ final class AppState {
     pending.reset()
     drafts = [:]
     selectedID = nil
-    expandedID = nil
+    detail.reset()
     listedOrder = []
   }
 

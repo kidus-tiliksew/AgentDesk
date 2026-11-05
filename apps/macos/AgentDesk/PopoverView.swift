@@ -21,13 +21,39 @@ struct PopoverView: View {
     // the first row.
     .frame(maxHeight: CGFloat(PopoverLayout.maxHeight), alignment: .top)
     // `PopoverController` marks the popover open and closed from its show
-    // and close events. Escape that no row takes closes the popover.
+    // and close events.
     .background(
-      KeyObserver { key, editingText in
-        if state.isSignedIn, state.handle(key, editingText: editingText) { return true }
-        guard key == .escape else { return false }
-        state.closePopover()
-        return true
+      PopoverKeyObserver { key, editingText in state.handleWindowKey(key, editingText: editingText) })
+  }
+}
+
+/// The detail panel's content from `AppState` (component-mac-app §Detail
+/// panel), with the same keys as the popover.
+struct DetailPanelRoot: View {
+  let state: AppState
+  let maxHeight: CGFloat
+
+  var body: some View {
+    Group {
+      if let presentation = state.detailPresentation {
+        DecisionDetailView(
+          presentation: presentation, maxHeight: maxHeight,
+          actions: DecisionDetailActions(
+            open: { state.showLinked($0) },
+            close: { state.closeDetail() },
+            retry: { state.retryDetail() },
+            answer: { state.answer($0, $1) },
+            send: { state.send($0) },
+            draft: { decision in
+              Binding(
+                get: { state.drafts[decision.id] ?? .forPanel(decision) },
+                set: { state.drafts[decision.id] = $0 })
+            }))
+      }
+    }
+    .background(
+      PopoverKeyObserver(controlsKeepArrows: true) { key, editingText in
+        state.handleWindowKey(key, editingText: editingText)
       })
   }
 }
@@ -48,15 +74,7 @@ struct SignedInView: View {
   }
 
   private var actions: DecisionListActions {
-    DecisionListActions(
-      toggle: { state.toggle($0) },
-      answer: { state.answer($0, $1) },
-      send: { state.send($0) },
-      draft: { item in
-        Binding(
-          get: { state.drafts[item.id] ?? AnswerDraft(decision: item.decision) },
-          set: { state.drafts[item.id] = $0 })
-      })
+    DecisionListActions(toggle: { state.toggle($0) }, answer: { state.answer($0, $1) })
   }
 
   var body: some View {
@@ -93,7 +111,7 @@ struct SignedInView: View {
         EmptyDecisions()
       } else {
         DecisionList(
-          items: items, selectedID: state.selectedID, expandedID: state.expandedID,
+          items: items, selectedID: state.selectedID, shownID: state.shownID,
           maxHeight: listMaxHeight, scrollRequest: state.listScroll, actions: actions)
       }
       Divider()
@@ -153,63 +171,5 @@ struct AccountMenu: View {
     .menuIndicator(.hidden)
     .fixedSize()
     .accessibilityLabel("More")
-  }
-}
-
-/// Passes the popover's keys to `key`, which returns false to leave a key to
-/// the focused control (component-mac-app §Keyboard and accessibility).
-private struct KeyObserver: NSViewRepresentable {
-  let key: @MainActor (PopoverKey, _ editingText: Bool) -> Bool
-
-  func makeNSView(context: Context) -> WindowView {
-    let view = WindowView()
-    view.key = key
-    return view
-  }
-
-  func updateNSView(_ view: WindowView, context: Context) {
-    view.key = key
-  }
-
-  final class WindowView: NSView {
-    var key: (@MainActor (PopoverKey, Bool) -> Bool)?
-    private var keyMonitor: Any?
-
-    override func viewDidMoveToWindow() {
-      super.viewDidMoveToWindow()
-      if let keyMonitor {
-        NSEvent.removeMonitor(keyMonitor)
-        self.keyMonitor = nil
-      }
-      guard window != nil else { return }
-      // A local monitor sees each key before the focused control, so the
-      // list's keys work whichever control has focus; text fields keep their
-      // arrows and Return.
-      keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-        guard let key = Self.popoverKey(event) else { return event }
-        let windowNumber = event.windowNumber
-        let consumed = MainActor.assumeIsolated {
-          guard let self, let window = self.window, window.windowNumber == windowNumber else {
-            return false
-          }
-          return self.key?(key, window.firstResponder is NSText) == true
-        }
-        return consumed ? nil : event
-      }
-    }
-
-    /// ↑, ↓, ↩ and Enter, ⌘↩, and Escape. Any other modifier leaves the key
-    /// alone.
-    static func popoverKey(_ event: NSEvent) -> PopoverKey? {
-      let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
-      switch (event.keyCode, modifiers) {
-      case (126, []): return .up
-      case (125, []): return .down
-      case (36, []), (76, []): return .returnKey
-      case (36, .command), (76, .command): return .commandReturn
-      case (53, []): return .escape
-      default: return nil
-      }
-    }
   }
 }

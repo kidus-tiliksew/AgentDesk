@@ -3,17 +3,18 @@ import XCTest
 
 @testable import AgentDeskKit
 
-/// The popover's keys (component-mac-app §Keyboard and accessibility;
-/// req-mac-app AC-7.1).
+/// The keys of the popover and the panel (component-mac-app §Keyboard and
+/// accessibility; req-mac-app AC-7.1, AC-11.7).
 final class PopoverKeysTests: XCTestCase {
   private let rows = ["a", "b", "c"]
 
   private func action(
-    _ key: PopoverKey, selected: String? = nil, expanded: String? = nil, editing: Bool = false,
-    rows: [String]? = nil
+    _ key: PopoverKey, selected: String? = nil, shown: String? = nil, answerable: Bool = true,
+    editing: Bool = false, rows: [String]? = nil
   ) -> PopoverKeyAction {
     PopoverKeys.action(
-      for: key, rows: rows ?? self.rows, selected: selected, expanded: expanded, editingText: editing)
+      for: key, rows: rows ?? self.rows, selected: selected, shown: shown, shownIsAnswerable: answerable,
+      editingText: editing)
   }
 
   func testArrowsMoveTheSelectionAndStopAtTheEnds() {
@@ -23,26 +24,37 @@ final class PopoverKeysTests: XCTestCase {
     XCTAssertEqual(action(.down, selected: "c"), .select("c"))
     XCTAssertEqual(action(.up, selected: "b"), .select("a"))
     XCTAssertEqual(action(.up, selected: "a"), .select("a"))
-    XCTAssertEqual(action(.down, expanded: "b"), .select("c"), "the expanded row stands in for the selection")
+    XCTAssertEqual(action(.down, shown: "b"), .select("c"), "a listed shown row stands in for the selection")
+    XCTAssertEqual(action(.down, shown: "linked"), .select("a"), "a shown decision outside the list does not")
     XCTAssertEqual(action(.down, rows: []), .passThrough)
   }
 
-  func testReturnTogglesTheSelectedRow() {
-    XCTAssertEqual(action(.returnKey, selected: "b"), .toggle("b"))
-    XCTAssertEqual(action(.returnKey, selected: "b", expanded: "b"), .toggle("b"))
+  func testReturnOpensOrClosesTheSelectedRowsPanel() {
+    XCTAssertEqual(action(.returnKey, selected: "b"), .toggle("b"), "opens")
+    XCTAssertEqual(action(.returnKey, selected: "b", shown: "b"), .toggle("b"), "closes")
+    XCTAssertEqual(action(.returnKey, selected: "c", shown: "b"), .toggle("c"), "replaces")
+    XCTAssertEqual(action(.returnKey, shown: "linked"), .toggle("linked"), "no selection closes the shown one")
     XCTAssertEqual(action(.returnKey), .passThrough)
   }
 
-  func testCommandReturnSendsTheSelectedRow() {
+  func testCommandReturnSendsTheShownDecisionThenTheSelectedRow() {
     XCTAssertEqual(action(.commandReturn, selected: "c"), .send("c"))
-    XCTAssertEqual(action(.commandReturn, expanded: "a"), .send("a"))
+    XCTAssertEqual(action(.commandReturn, selected: "c", shown: "a"), .send("a"), "shown comes first")
+    XCTAssertEqual(action(.commandReturn, shown: "linked"), .send("linked"), "shown may be outside the list")
     XCTAssertEqual(action(.commandReturn, selected: "c", editing: true), .send("c"), "⌘↩ sends from a text field")
     XCTAssertEqual(action(.commandReturn), .passThrough)
   }
 
-  func testEscapeCollapsesOrElseClosesThePopover() {
-    XCTAssertEqual(action(.escape, expanded: "a"), .collapse)
-    XCTAssertEqual(action(.escape, expanded: "a", editing: true), .collapse)
+  func testCommandReturnNeverSendsASettledTargetOrARowInstead() {
+    XCTAssertEqual(action(.commandReturn, shown: "a", answerable: false), .passThrough)
+    XCTAssertEqual(action(.commandReturn, selected: "c", shown: "a", answerable: false), .passThrough)
+  }
+
+  func testEscapeClosesThePanelAndThenThePopover() {
+    XCTAssertEqual(action(.escape, shown: "a"), .closePanel)
+    XCTAssertEqual(action(.escape, shown: "linked"), .closePanel, "also a decision outside the list")
+    XCTAssertEqual(action(.escape, shown: "a", answerable: false), .closePanel, "also a settled one")
+    XCTAssertEqual(action(.escape, shown: "a", editing: true), .closePanel)
     XCTAssertEqual(action(.escape, selected: "a"), .passThrough, "the popover window closes on Escape")
   }
 
@@ -55,7 +67,7 @@ final class PopoverKeysTests: XCTestCase {
   func testIdsNoLongerListedCountAsNone() {
     XCTAssertEqual(action(.returnKey, selected: "gone"), .passThrough)
     XCTAssertEqual(action(.down, selected: "gone"), .select("a"))
-    XCTAssertEqual(action(.escape, expanded: "gone"), .passThrough)
+    XCTAssertEqual(action(.commandReturn, selected: "gone"), .passThrough)
   }
 
   func testReselectAfterTheListChanges() {

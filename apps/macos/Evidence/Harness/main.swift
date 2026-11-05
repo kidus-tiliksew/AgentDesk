@@ -3,8 +3,9 @@ import SwiftUI
 
 // Offscreen evidence for the popover, the menu bar label, and notifications.
 // The harness compiles the shipped `DecisionRow`, `AnswerControls`,
-// `AgentsView`, `ScrollSupport`, `Ink`, `MenuBarLabel`,
-// `NotificationController`, and `NotificationPauseLine` sources and every `AgentDeskKit` source into one
+// `DecisionDetailView`, `DetailPanelWindow`, `PopoverKeyObserver`, `AgentsView`,
+// `ScrollSupport`, `Ink`, `MenuBarLabel`, `NotificationController`, and
+// `NotificationPauseLine` sources and every `AgentDeskKit` source into one
 // program, renders them from fixtures, and writes PNGs and `report.txt` to
 // the directory named by its first argument. `run.sh` builds and runs it.
 
@@ -188,22 +189,17 @@ let rows = decisions.map { DecisionRowModel(decision: $0, agents: agents, seen: 
 func items(
   _ list: [Decision], failures: [String: String] = [:], seen: Set<String> = seen
 ) -> [DecisionListItem] {
-  var calendar = Calendar(identifier: .gregorian)
-  calendar.timeZone = TimeZone(identifier: "UTC")!
-  return list.map { decision in
+  list.map { decision in
     DecisionListItem(
       row: DecisionRowModel(decision: decision, agents: agents, seen: seen, now: now),
       decision: decision,
-      agentLink: DecisionPresentation.agentLink(for: decision, agents: agents),
-      defaultSentence: DecisionPresentation.defaultSentence(
-        for: decision, now: now, calendar: calendar, locale: Locale(identifier: "en_US")),
       failure: failures[decision.id])
   }
 }
 
-// One decision per input type, each with a Markdown body, to render
-// expanded (component-mac-app §Rows).
-let expandable: [(String, Decision)] = [
+// One decision per input type, each with a Markdown body, to render in the
+// detail panel (component-mac-app §Detail panel).
+let panelDecisions: [(String, Decision)] = [
   (
     "approve-reject",
     decision([
@@ -266,7 +262,7 @@ struct PopoverFixture: View {
   var agents: [AgentSession] = agentsFixture
   @State var quietRevealed = false
   var selectedID: String? = nil
-  var expandedID: String? = nil
+  var shownID: String? = nil
   var undoText: String? = nil
   var outcome: String? = nil
   @State private var headerHeight: CGFloat = 0
@@ -291,7 +287,7 @@ struct PopoverFixture: View {
         EmptyDecisions()
       } else {
         DecisionList(
-          items: items, selectedID: selectedID, expandedID: expandedID,
+          items: items, selectedID: selectedID, shownID: shownID,
           maxHeight: CGFloat(
             PopoverLayout.listMaxHeight(chromeHeight: Double(headerHeight + stripsHeight + agentsHeight + 2))))
       }
@@ -532,15 +528,6 @@ MainActor.assumeIsolated {
         "popover-agents-overflow",
         PopoverFixture(items: items(overflowDecisions, seen: []), expanded: true, agents: manyAgents, quietRevealed: true)
       ))
-    for (type, expandedDecision) in expandable {
-      scenes.append(
-        (
-          "popover-expanded-\(type)",
-          PopoverFixture(
-            items: items([expandedDecision] + decisions), expanded: false,
-            selectedID: expandedDecision.id, expandedID: expandedDecision.id)
-        ))
-    }
     for (name, view) in scenes {
       let (window, container) = host(view, appearance: appearance, background: .vibrant)
       // The agents list holds 160 pt, so the revealed quiet sessions show once
@@ -594,25 +581,9 @@ MainActor.assumeIsolated {
   }
   line("")
 
-  // The expanded rows' drafts: the same AnswerDraft the controls bind to
-  // builds the answer Send and ⌘↩ submit.
-  line("## Expanded rows (AnswerDraft as the controls start, untouched)")
-  for (type, expandedDecision) in expandable {
-    let draft = AnswerDraft(decision: expandedDecision)
-    let item = items([expandedDecision])[0]
-    let answer = draft.submission.map { DecisionPresentation.answerText($0.answer, options: expandedDecision.options) }
-    line("- \(type): Send and ⌘↩ submit \(answer ?? "nothing")")
-    line("  default sentence: \(item.defaultSentence ?? "none")")
-    line("  agent page: \(item.agentLink?.absoluteString ?? "none")")
-    let suggested = draft.options.filter { draft.isSuggested($0.id) }.map(\.label)
-    if !suggested.isEmpty { line("  labelled Suggested: \(suggested.joined(separator: ", "))") }
-    if let text = draft.suggestedText { line("  text placeholder: \(text)") }
-    if expandedDecision.inputType == .approveReject {
-      line(
-        "  buttons, one neutral style: Reject\(draft.isSuggested(.reject) ? " (hint \"Suggested by the agent\")" : ""), Approve\(draft.isSuggested(.approve) ? " (hint \"Suggested by the agent\")" : "")")
-    }
-  }
-  line("")
+  panelEvidence(&failures)
+  pairedWindowEvidence(&failures)
+
   line("## Strips")
   line("undo: \(DecisionPresentation.undoText(.approve, decision: decisions.first { $0.id == "d2" }!)) [Undo]")
   line(
@@ -814,10 +785,10 @@ MainActor.assumeIsolated {
   notificationEvidence(&failures)
 
   line("## Not available in this harness")
-  line("The live NSPopover and its will-show and did-show events are not captured: the harness opens no window on screen. The scroll section above drives the shipped list in a retained hosting controller moved between offscreen windows, and calls the requests AppState makes on those events.")
+  line("The installed app's own menu bar item, popover, and panel are not exercised: the harness never launches a build, and it shows only fully transparent windows while its app stays inactive. The paired-window section above drives a real NSPopover with the shipped panel, lifetime, and key observer through events posted to this process, with no pointer or keyboard involved; PopoverController, AppState, and physical input are not part of it. The scroll section above drives the shipped list in a retained hosting controller moved between offscreen windows, and calls the requests AppState makes on those events.")
   line("The scroller under a live change of the Show scroll bars setting is not captured; the scroll section above posts the change notification instead.")
-  line("AXIsProcessTrusted=\(AXIsProcessTrusted()): live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject, Approve, and the expanded controls as separate elements.")
-  line("Keys are not captured: the popover's key monitor needs the live popover window as key window. PopoverKeysTests covers the key-to-action mapping; Escape with no row expanded closes the popover.")
+  line("AXIsProcessTrusted=\(AXIsProcessTrusted()): live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject and Approve as separate elements. The panel's controls above are read from its AppKit views; SwiftUI builds its accessibility tree only for a running assistive client, so the panel's VoiceOver output is not captured.")
+  line("Keys from a physical keyboard are not captured. The paired-window section above posts key events to the shipped observers, and PopoverKeysTests covers the key-to-action mapping; Escape with no panel open closes the popover.")
   line("Live notifications are not captured: UNUserNotificationCenter needs the app bundle and the user's permission. The permission prompt, a delivered banner, a click opening the popover, the Reject and Approve buttons, and removal from Notification Center are checked on a Mac before each release; the content, category, and Notifier timeline above use the shipped code with a fixture center.")
   line("")
 
