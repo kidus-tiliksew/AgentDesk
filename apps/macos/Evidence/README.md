@@ -42,6 +42,18 @@ It runs eight steps and records each command, exit status, and log in `output/ma
 
 The run fails when Git would ignore any output, so every file the manifest names is committed with it. The manifest names the Git tree hashes of `AgentDesk/`, `AgentDeskKit/`, `AgentDesk-Info.plist`, `AgentDesk.xcodeproj`, `scripts/`, `Harness/`, `IconAudit/`, and `run.sh` at the commit the run used, and the SHA-256 of every output. Compare them with `git rev-parse <commit>:apps/macos/AgentDesk` and the like to confirm the outputs belong to a later commit's sources. `sources_dirty` is true when those paths had uncommitted changes.
 
+## Live checks: not exercised
+
+Everything `run.sh` retains is non-live. Unit tests, offscreen renders, events posted to a real `NSPopover` in transparent windows, text-only Tab stops with Keyboard navigation off, and `AXUIElement` calls answered in-process do not establish live behaviour. The operator's pre-release checks on a Mac (`component-mac-app` §Verification) hold these, and none has passed, because none was exercised:
+
+- the real status item position and the panel's side at both ends of the menu bar;
+- physical clicks in the panel and the popover, and physical keys in both windows;
+- a real click on the desktop and in another app, and a real deactivation;
+- Tab and Shift-Tab through every panel control with Keyboard navigation on;
+- VoiceOver speech and focus, including focus moving on opening, replacing, and closing the panel.
+
+Two live attempts on 2026-11-05 gathered no evidence of behaviour, and neither posted a click or a key. The first ran on a locked screen. The second stopped at its first row click, for a cause not established. The operator then chose to proceed without a live test. `req-mac-app` AC-11.11 is unchanged, and this evidence does not establish its reach.
+
 ## Limits
 
 - Offscreen windows render the popover material without the desktop behind it, which is the closest available stand-in for the `NSPopover` window.

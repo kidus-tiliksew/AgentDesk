@@ -351,7 +351,7 @@ func accessEvidence() -> Int32 {
     moved
       ? "The key view loop changed under this override."
       : "The key view loop did not change: AppKit and SwiftUI decide button focus from a value this method does not supply.")
-  say("NOT EXERCISED: buttons, links, radio buttons, and checkboxes in the Tab order with the Mac's Keyboard navigation setting on. Neither override reproduces that setting, and the setting was not changed.")
+  say("NOT EXERCISED, assigned to the operator's pre-release checks: buttons, links, radio buttons, and checkboxes in the Tab order with the Mac's Keyboard navigation setting on. Neither override reproduces that setting, and the setting was not changed.")
   say("")
 
   guard AXIsProcessTrusted() else {
@@ -547,8 +547,10 @@ func accessEvidence() -> Int32 {
   }
 
   say("## What this does not establish")
-  say("NOT EXERCISED: VoiceOver speech. VoiceOver did not run; the tree above is what it would be given.")
+  say("This evidence is non-live, and it does not establish the reach req-mac-app AC-11.11 sets. These checks are assigned to the operator's pre-release checks:")
+  say("NOT EXERCISED: VoiceOver speech and focus. VoiceOver did not run; the tree above is what it would be given.")
   say("NOT EXERCISED: the Mac's Keyboard navigation setting on, and physical Tab or Shift-Tab keys.")
+  say("NOT EXERCISED: focus moving on opening, replacing, and closing the panel in the live app.")
   say("NOT EXERCISED: an assistive client in another process. These AXUIElement calls were answered inside this process.")
   say("NOT EXERCISED: moving AX focus into a control, since this app stays inactive and its windows never take key focus. Focusable above means AXFocused is settable.")
   say("")
