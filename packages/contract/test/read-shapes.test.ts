@@ -6,6 +6,8 @@ import {
   type Decision,
   decisionInputFieldsSchema,
   decisionSchema,
+  type StatusHistoryEntry,
+  statusHistoryEntrySchema,
   webhookEventSchema,
 } from "../src/index.js";
 
@@ -238,6 +240,35 @@ describe("AgentSession", () => {
   });
 });
 
+// req-public-api-and-webhooks AC-2.4
+describe("StatusHistoryEntry", () => {
+  const ENTRY: StatusHistoryEntry = {
+    state: "waiting",
+    line: "Waiting for CI",
+    link: "https://example.com/run/1",
+    at: "2026-01-01T00:00:00.000Z",
+  };
+
+  test("has the fields the design lists", () => {
+    expect(Object.keys(statusHistoryEntrySchema.shape)).toEqual(["state", "line", "link", "at"]);
+  });
+
+  test.each([ENTRY, { ...ENTRY, link: null }])("round-trips %#", (entry) => {
+    expect(statusHistoryEntrySchema.parse(entry)).toEqual(entry);
+  });
+
+  test.each([
+    ["state", "idle"],
+    ["line", ""],
+    ["link", "/relative"],
+    ["link", undefined],
+    ["at", "yesterday"],
+    ["at", 0],
+  ])("rejects %s %j", (field, value) => {
+    expect(statusHistoryEntrySchema.safeParse({ ...ENTRY, [field]: value }).success).toBe(false);
+  });
+});
+
 describe("WebhookEvent", () => {
   const event = { id: "e1", occurred_at: "2026-01-01T00:00:00.000Z", action: "push" };
 
@@ -307,6 +338,7 @@ describe("JSON Schema conversion", () => {
   test.each([
     ["Decision", decisionSchema],
     ["AgentSession", agentSessionSchema],
+    ["StatusHistoryEntry", statusHistoryEntrySchema],
     ["WebhookEvent", webhookEventSchema],
   ])("%s converts without unrepresentable types", (_name, schema) => {
     const json = z.toJSONSchema(schema, { unrepresentable: "throw" });

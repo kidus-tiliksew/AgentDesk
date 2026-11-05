@@ -296,6 +296,34 @@ describe("get", () => {
     });
   });
 
+  // req-public-api-and-webhooks AC-2.4: the app and the public API read one
+  // shared query, so they agree on order, cap, nulls, and times.
+  test("returns the same history as the public API read", async () => {
+    const { t, userId, open, status, asA } = await setup();
+    const session = await open();
+    await status(session);
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 25; i++) {
+        await ctx.db.insert("statusHistory", {
+          agentSessionId: session,
+          state: "working",
+          line: `Row ${i}`,
+          at: START + (i % 5) * MINUTE,
+          ...(i % 2 === 0 ? { link: `https://x.dev/${i}` } : {}),
+        });
+      }
+    });
+
+    const { history } = await asA.query(agents.app.get, { agentSessionId: session });
+    const { items } = await t.query(agents.api.history, {
+      userId,
+      agentSessionId: session,
+    });
+
+    expect(history).toHaveLength(20);
+    expect(items).toEqual(history);
+  });
+
   // req-agent-status AC-2.3; req-accounts-and-connections AC-1.1
   test("returns only the session's own pending decisions", async () => {
     const { open, status, ask, asA } = await setup();

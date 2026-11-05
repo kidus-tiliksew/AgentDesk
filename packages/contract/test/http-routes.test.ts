@@ -1,5 +1,6 @@
 import {
   type AgentSession,
+  agentSessionHistorySchema,
   agentSessionListQuerySchema,
   agentSessionPageSchema,
   agentSessionSchema,
@@ -68,7 +69,7 @@ const byId = (id: string): RouteDefinition => {
 };
 
 describe("route table", () => {
-  test("lists exactly the six REQ-2 operations", () => {
+  test("lists exactly the seven REQ-2 operations", () => {
     expect(ROUTES.map((r) => [r.id, r.method, r.path])).toEqual([
       ["decisions.list", "get", "/v1/decisions"],
       ["decisions.get", "get", "/v1/decisions/{decision_id}"],
@@ -76,6 +77,7 @@ describe("route table", () => {
       ["decisions.cancel", "post", "/v1/decisions/{decision_id}/cancel"],
       ["agent_sessions.list", "get", "/v1/agent-sessions"],
       ["agent_sessions.get", "get", "/v1/agent-sessions/{agent_session_id}"],
+      ["agent_sessions.history", "get", "/v1/agent-sessions/{agent_session_id}/history"],
     ]);
   });
 
@@ -109,6 +111,7 @@ describe("route table", () => {
       "decisions.cancel": decisionSchema,
       "agent_sessions.list": agentSessionPageSchema,
       "agent_sessions.get": agentSessionSchema,
+      "agent_sessions.history": agentSessionHistorySchema,
     });
   });
 
@@ -134,7 +137,31 @@ describe("route table", () => {
       ],
       "agent_sessions.list": ["invalid", "unauthenticated", "rate_limited"],
       "agent_sessions.get": ["invalid", "unauthenticated", "not_found", "rate_limited"],
+      "agent_sessions.history": ["invalid", "unauthenticated", "not_found", "rate_limited"],
     });
+  });
+});
+
+// req-public-api-and-webhooks AC-2.4
+describe("agent session history", () => {
+  const entry = {
+    state: "working",
+    line: "Reading files",
+    link: null,
+    at: "2026-01-01T00:00:00.000Z",
+  };
+
+  test("holds only items, from none up to 20", () => {
+    expect(Object.keys(agentSessionHistorySchema.shape)).toEqual(["items"]);
+    for (const length of [0, 1, 20]) {
+      const items = Array.from({ length }, () => entry);
+      expect(agentSessionHistorySchema.safeParse({ items }).success, String(length)).toBe(true);
+    }
+  });
+
+  test("refuses more than 20 entries", () => {
+    const items = Array.from({ length: 21 }, () => entry);
+    expect(agentSessionHistorySchema.safeParse({ items }).success).toBe(false);
   });
 });
 

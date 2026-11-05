@@ -1,4 +1,9 @@
-import { type AgentSession, type Decision, errorCodeSchema } from "@agentdesk/contract";
+import {
+  type AgentSession,
+  type Decision,
+  errorCodeSchema,
+  type StatusHistoryEntry,
+} from "@agentdesk/contract";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { type QueryCtx, query } from "../_generated/server";
@@ -7,6 +12,7 @@ import { pendingCountForAgent } from "../decisions/counts";
 import { requireUser } from "../lib/auth";
 import { appError } from "../lib/errors";
 import { getOwned } from "../lib/owned";
+import { statusHistoryFor } from "./history";
 import { toAgentSession } from "./sessions";
 
 // component-agent-presence §Reads: the app's functions. The app calls Convex
@@ -16,19 +22,8 @@ import { toAgentSession } from "./sessions";
 
 type ReaderCtx = Pick<QueryCtx, "db">;
 
-// The detail view reads at most this many history rows (req-agent-status
-// AC-1.2).
-const HISTORY_LIMIT = 20;
-
-// A previous status of a session. The contract has no history read shape, so
-// this module defines it in the contract's style: `link` is null when absent
-// and `at` is an ISO 8601 string.
-export type StatusHistoryEntry = {
-  state: Doc<"statusHistory">["state"];
-  line: string;
-  link: string | null;
-  at: string;
-};
+// The mobile agent screen imports the history entry from this module.
+export type { StatusHistoryEntry };
 
 // The agent screen: the session's card, its history newest first, and its
 // pending decisions in inbox order.
@@ -156,21 +151,9 @@ export const get = query({
     if (session === null || session.activatedAt === undefined) {
       notFound();
     }
-    // `by_session_at` orders equal times by creation, so descending order is
-    // newest first throughout.
-    const rows = await ctx.db
-      .query("statusHistory")
-      .withIndex("by_session_at", (q) => q.eq("agentSessionId", agentSessionId))
-      .order("desc")
-      .take(HISTORY_LIMIT);
     return {
       ...toAgentSession(session, await pendingCountForAgent(ctx, agentSessionId)),
-      history: rows.map((row) => ({
-        state: row.state,
-        line: row.line,
-        link: row.link ?? null,
-        at: new Date(row.at).toISOString(),
-      })),
+      history: await statusHistoryFor(ctx, agentSessionId),
       pending_decisions: await pendingForAgent(ctx, user._id, agentSessionId),
     };
   },

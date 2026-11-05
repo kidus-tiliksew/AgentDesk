@@ -1,4 +1,9 @@
-import { agentSessionPageSchema, agentSessionSchema, errorBodySchema } from "@agentdesk/contract";
+import {
+  agentSessionHistorySchema,
+  agentSessionPageSchema,
+  agentSessionSchema,
+  errorBodySchema,
+} from "@agentdesk/contract";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { modules } from "../lib/test.modules";
@@ -407,6 +412,183 @@ describe("public API routes", () => {
 
       expect(response.status).toBe(400);
       expect((await errorOf(response)).field).toBe("agentSessionId");
+    });
+  });
+
+  // req-public-api-and-webhooks AC-2.4
+  describe("/svc/agents/history", () => {
+    type HistoryRow = { line: string; at: number; link?: string; state?: "waiting" | "blocked" };
+
+    async function insertHistory(t: T, agentSessionId: string, history: HistoryRow[]) {
+      await t.run(async (ctx) => {
+        for (const row of history) {
+          await ctx.db.insert("statusHistory", {
+            agentSessionId: agentSessionId as never,
+            state: row.state ?? "waiting",
+            line: row.line,
+            at: row.at,
+            ...(row.link === undefined ? {} : { link: row.link }),
+          });
+        }
+      });
+    }
+
+    async function read(t: T, userId: string, agentSessionId: string | undefined) {
+      const response = await post(t, "/svc/agents/history", { userId, agentSessionId });
+      expect(response.status).toBe(200);
+      return agentSessionHistorySchema.parse(await response.json()).items;
+    }
+
+    test("returns entries newest first, whatever the insertion order", async () => {
+      const { t, userId, ids } = await seed(rows);
+      await insertHistory(t, ids["live-new"] as string, [
+        { line: "middle", at: NOW - 2 * MINUTE, link: "https://x.dev/2" },
+        { line: "newest", at: NOW - MINUTE, state: "blocked" },
+        { line: "oldest", at: NOW - 3 * MINUTE },
+      ]);
+
+      expect(await read(t, userId, ids["live-new"])).toEqual([
+        {
+          state: "blocked",
+          line: "newest",
+          link: null,
+          at: new Date(NOW - MINUTE).toISOString(),
+        },
+        {
+          state: "waiting",
+          line: "middle",
+          link: "https://x.dev/2",
+          at: new Date(NOW - 2 * MINUTE).toISOString(),
+        },
+        {
+          state: "waiting",
+          line: "oldest",
+          link: null,
+          at: new Date(NOW - 3 * MINUTE).toISOString(),
+        },
+      ]);
+    });
+
+    test("orders equal times newest created first", async () => {
+      const { t, userId, ids } = await seed(rows);
+      await insertHistory(t, ids["live-new"] as string, [
+        { line: "first", at: NOW },
+        { line: "second", at: NOW },
+        { line: "third", at: NOW },
+      ]);
+
+      const items = await read(t, userId, ids["live-new"]);
+
+      expect(items.map((entry) => entry.line)).toEqual(["third", "second", "first"]);
+    });
+
+    // `status` trims storage to 20 rows, so this fixture inserts the rows
+    // directly to show that the read caps them itself.
+    test("reads only the newest 20 of more than 20 stored rows", async () => {
+      const { t, userId, ids } = await seed(rows);
+      await insertHistory(
+        t,
+        ids["live-new"] as string,
+        Array.from({ length: 25 }, (_, i) => ({ line: `Row ${i}`, at: NOW + i * MINUTE })),
+      );
+
+      const items = await read(t, userId, ids["live-new"]);
+
+      expect(items.map((entry) => entry.line)).toEqual(
+        Array.from({ length: 20 }, (_, i) => `Row ${24 - i}`),
+      );
+    });
+
+    test("reads only the named session's rows", async () => {
+      const { t, userId, ids } = await seed(rows);
+      await insertHistory(t, ids["live-old"] as string, [{ line: "other session", at: NOW }]);
+
+      expect(await read(t, userId, ids["live-new"])).toEqual([]);
+    });
+
+    test("returns an empty history for a session with no previous status", async () => {
+      const { t, userId, ids } = await seed(rows);
+
+      expect(await read(t, userId, ids["live-new"])).toEqual([]);
+    });
+
+    test("reads a live session and an ended one outside the list's window", async () => {
+      const { t, userId, ids } = await seed(rows);
+
+      for (const name of ["live-new", "ended-old", "ended-purgeable"]) {
+        await insertHistory(t, ids[name] as string, [{ line: name, at: NOW - 3 * DAY }]);
+        const items = await read(t, userId, ids[name]);
+        expect(items.map((entry) => entry.line)).toEqual([name]);
+      }
+    });
+
+    test("adds the previous status that a status call moves to history", async () => {
+      const { t, userId, credentialId } = await setup();
+      const { agentSessionId } = await open(t, userId, credentialId);
+      const status = (line: string) =>
+        post(t, "/svc/agents/status", {
+          userId,
+          agentSessionId,
+          topic: "repo/x",
+          state: "working",
+          line,
+        });
+
+      expect((await status("first")).status).toBe(200);
+      expect(await read(t, userId, agentSessionId)).toEqual([]);
+      vi.advanceTimersByTime(MINUTE);
+      expect((await status("second")).status).toBe(200);
+
+      const items = await read(t, userId, agentSessionId);
+      expect(items).toEqual([
+        { state: "working", line: "first", link: null, at: new Date(NOW).toISOString() },
+      ]);
+    });
+
+    test("returns 404 for only-initialized, foreign, and missing sessions", async () => {
+      const { t, userId, ids } = await seed(rows);
+      const missing = ids["live-old"] as string;
+      await t.run((ctx) => ctx.db.delete("agentSessions", missing as never));
+      // Stored rows must not make a session readable.
+      for (const id of [ids.initialized, ids["foreign-live"], ids["foreign-ended"]]) {
+        await insertHistory(t, id as string, [{ line: "hidden", at: NOW }]);
+      }
+
+      for (const agentSessionId of [
+        ids.initialized,
+        ids["foreign-live"],
+        ids["foreign-ended"],
+        missing,
+      ]) {
+        const response = await post(t, "/svc/agents/history", { userId, agentSessionId });
+        expect(response.status).toBe(404);
+        expect(await errorOf(response)).toEqual({
+          code: "not_found",
+          message: "Agent session not found",
+        });
+      }
+    });
+
+    test("returns 400 naming agentSessionId for a malformed id", async () => {
+      const { t, userId } = await seed(rows);
+
+      const response = await post(t, "/svc/agents/history", { userId, agentSessionId: "nope" });
+
+      expect(response.status).toBe(400);
+      expect((await errorOf(response)).field).toBe("agentSessionId");
+    });
+
+    test("returns 401 for a wrong secret", async () => {
+      const { t, userId, ids } = await seed(rows);
+
+      const response = await post(
+        t,
+        "/svc/agents/history",
+        { userId, agentSessionId: ids["live-new"] },
+        "Bearer wrong",
+      );
+
+      expect(response.status).toBe(401);
     });
   });
 });

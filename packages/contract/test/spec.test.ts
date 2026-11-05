@@ -160,6 +160,49 @@ describe("OpenAPI document", () => {
   });
 });
 
+// req-public-api-and-webhooks AC-1.1, AC-2.4
+describe("agent session history operation", () => {
+  const operation = () =>
+    committed("openapi.json").paths["/v1/agent-sessions/{agent_session_id}/history"].get;
+
+  test("requires a bearer token and takes the session id in the path", () => {
+    expect(operation().operationId).toBe("agent_sessions.history");
+    expect(operation().security).toEqual([{ bearer: [] }]);
+    expect(operation().parameters).toEqual([
+      {
+        name: "agent_session_id",
+        in: "path",
+        required: true,
+        schema: { type: "string", minLength: 1 },
+      },
+    ]);
+  });
+
+  test("answers only items, at most 20, each with a required nullable link", () => {
+    const schema = operation().responses["200"].content["application/json"].schema;
+    expect(Object.keys(schema.properties)).toEqual(["items"]);
+    expect(schema.required).toEqual(["items"]);
+    expect(schema.additionalProperties).toBe(false);
+    expect(schema.properties.items.maxItems).toBe(20);
+    const entry = schema.properties.items.items;
+    expect(entry.required).toEqual(["state", "line", "link", "at"]);
+    expect(entry.additionalProperties).toBe(false);
+    expect(entry.properties.state.enum).toEqual(["working", "waiting", "blocked", "done"]);
+    expect(entry.properties.at.format).toBe("date-time");
+    expect(entry.properties.link.anyOf).toEqual([
+      expect.objectContaining({ format: "uri", description: LINK_DESCRIPTION }),
+      { type: "null" },
+    ]);
+  });
+
+  test("documents the same errors as agent_sessions.get", () => {
+    const get = committed("openapi.json").paths["/v1/agent-sessions/{agent_session_id}"].get;
+    const statuses = (op: Doc) => Object.keys(op.responses).sort();
+    expect(statuses(operation())).toEqual(statuses(get));
+    expect(statuses(operation())).toEqual(["200", "400", "401", "404", "429"]);
+  });
+});
+
 describe("JSON Schema views", () => {
   test("query parameters use the input view: a defaulted limit is optional", () => {
     const params = parse("openapi.json").paths["/v1/decisions"].get.parameters;
