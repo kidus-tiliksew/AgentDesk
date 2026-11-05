@@ -8,7 +8,9 @@ import SwiftUI
 /// §Popover). The app owns the presentation, so a notification click can
 /// open the popover on macOS 14, which `MenuBarExtra` offers no call for
 /// (req-mac-app AC-6.4). The popover's show and close events mark it open
-/// and closed for `AppState`.
+/// and closed for `AppState`. The hosting controller lives as long as the
+/// process, so the list keeps its scroll offset between openings until
+/// `AppState` asks for the top (component-mac-app §List scrolling).
 @MainActor
 final class PopoverController: NSObject, NSPopoverDelegate {
   private let state: AppState
@@ -74,6 +76,10 @@ final class PopoverController: NSObject, NSPopoverDelegate {
 
   func popoverWillShow(_ notification: Notification) {
     state.popoverOpened()
+  }
+
+  func popoverDidShow(_ notification: Notification) {
+    state.popoverShown()
   }
 
   func popoverDidClose(_ notification: Notification) {

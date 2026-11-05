@@ -45,7 +45,15 @@ final class DecisionPresentationTests: XCTestCase {
     XCTAssertEqual(left(2 * 86400 + 60), "2d left")
   }
 
-  func testTimeLeftIsRedOnlyUnderFiveMinutes() {
+  func testOnlyAnUrgentRowHasAnUrgentMarker() {
+    XCTAssertEqual(row(Fixtures.pending("a", priority: "urgent")).urgentMarker, "Urgent")
+    XCTAssertNil(row(Fixtures.pending("b")).urgentMarker)
+    XCTAssertEqual(
+      row(Fixtures.pending("c", priority: "urgent"), seen: ["c"]).urgentMarker, "Urgent",
+      "seeing an urgent row keeps its marker")
+  }
+
+  func testTimeLeftIsRedUnderFiveMinutesAndOnUrgentRows() {
     var soon = Fixtures.pending("a")
     soon.deadline = now.addingTimeInterval(299)
     var later = Fixtures.pending("b")
@@ -54,10 +62,13 @@ final class DecisionPresentationTests: XCTestCase {
     XCTAssertEqual(row(soon).timeLeft, "4m left")
     XCTAssertFalse(row(later).timeLeftIsRed)
     XCTAssertNil(row(Fixtures.pending("c")).timeLeft)
-    XCTAssertFalse(row(Fixtures.pending("c", priority: "urgent")).timeLeftIsRed, "urgency is not red")
+    XCTAssertTrue(
+      row(Fixtures.pending("c", priority: "urgent", deadline: "2026-10-30T12:00:00Z")).timeLeftIsRed,
+      "an urgent row's time left is red with a distant deadline")
+    XCTAssertNil(row(Fixtures.pending("d", priority: "urgent")).timeLeft, "no deadline, no time to draw")
   }
 
-  func testSuggestionResolvesOptionLabelsAndSkipsApproveReject() {
+  func testSuggestionResolvesOptionLabelsOnEveryInputType() {
     let options: [[String: Any]] = [["id": "a", "label": "Ship"], ["id": "b", "label": "Wait"]]
     let single = Fixtures.pending(
       "s", ["input_type": "single_choice", "options": options, "recommendation": ["kind": "option", "option_id": "a"]])
@@ -74,7 +85,7 @@ final class DecisionPresentationTests: XCTestCase {
     XCTAssertEqual(row(multiple).suggestion, "Suggests Ship, Wait")
     XCTAssertEqual(row(text).suggestion, "Suggests Use Postgres")
     XCTAssertEqual(row(unknown).suggestion, "Suggests zz")
-    XCTAssertNil(row(approve).suggestion, "approve-or-reject rows show no suggestion")
+    XCTAssertEqual(row(approve).suggestion, "Suggests Approve", "approve-or-reject rows show it too")
     XCTAssertNil(row(noRecommendation).suggestion)
   }
 

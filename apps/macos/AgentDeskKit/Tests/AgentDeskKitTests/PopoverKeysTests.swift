@@ -66,3 +66,49 @@ final class PopoverKeysTests: XCTestCase {
     XCTAssertNil(PopoverKeys.reselect(nil, previous: rows, rows: rows))
   }
 }
+
+/// The list's scroll target (component-mac-app §List scrolling; req-mac-app
+/// AC-4.12) and its height budget (§Popover).
+final class ListScrollRequestTests: XCTestCase {
+  func testTheLatestRequestWins() {
+    var request = ListScrollRequest()
+    XCTAssertEqual(request.target, .top)
+    request.toTop()
+    request.toRow("a")
+    XCTAssertEqual(request.target, .row("a"), "a notification's row wins over the opening's top")
+    request.toRow("b")
+    XCTAssertEqual(request.target, .row("b"), "a key press wins over an earlier row")
+    request.toTop()
+    XCTAssertEqual(request.target, .top, "a later opening wins over a retained row")
+  }
+
+  func testRepeatingKeepsTheTargetAndMovesTheGeneration() {
+    var request = ListScrollRequest()
+    request.toTop()
+    var before = request
+    request.repeatLast()
+    XCTAssertEqual(request.target, .top)
+    XCTAssertNotEqual(request, before, "the view sees a repeat as a change")
+
+    request.toRow("a")
+    before = request
+    request.repeatLast()
+    XCTAssertEqual(request.target, .row("a"), "the did-show repeat never turns a row into the top")
+    XCTAssertNotEqual(request, before)
+  }
+
+  func testARepeatedTargetStillScrolls() {
+    var request = ListScrollRequest()
+    request.toRow("a")
+    let before = request
+    request.toRow("a")
+    XCTAssertNotEqual(request, before, "the same row asked for again is a new request")
+  }
+
+  func testListHeightTakesWhatRemainsOfThePopover() {
+    XCTAssertEqual(PopoverLayout.listMaxHeight(chromeHeight: 90), 470)
+    XCTAssertEqual(PopoverLayout.listMaxHeight(chromeHeight: 90 + 23), 447, "an Undo strip shortens the list")
+    XCTAssertEqual(PopoverLayout.listMaxHeight(chromeHeight: 90 + 160), 310, "the agents list shortens the list")
+    XCTAssertEqual(PopoverLayout.listMaxHeight(chromeHeight: 500), PopoverLayout.minListHeight)
+  }
+}

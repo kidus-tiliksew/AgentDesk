@@ -13,7 +13,8 @@ enum Ink {
   static let secondary = secondaryShades.color
   /// Suggestions and agent states.
   static let tertiary = tertiaryShades.color
-  /// Time left under 5 minutes and the blocked count, the popover's only red
+  /// The Urgent marker, an urgent row's time left, time left under 5 minutes,
+  /// the blocked count, and a blocked session's dot, the popover's only red
   /// (req-mac-app AC-4.3, AC-5.1).
   static let red = redShades.color
 

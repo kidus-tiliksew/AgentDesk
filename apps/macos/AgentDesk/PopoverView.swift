@@ -17,7 +17,9 @@ struct PopoverView: View {
       }
     }
     .frame(width: 340)
-    .frame(maxHeight: 560)
+    // Content that still exceeds the limit is cut at the bottom, never above
+    // the first row.
+    .frame(maxHeight: CGFloat(PopoverLayout.maxHeight), alignment: .top)
     // `PopoverController` marks the popover open and closed from its show
     // and close events. Escape that no row takes closes the popover.
     .background(
@@ -33,11 +35,16 @@ struct PopoverView: View {
 struct SignedInView: View {
   let state: AppState
   @State private var agentsExpanded = false
+  @State private var quietRevealed = false
+  @State private var headerHeight: CGFloat = 0
+  @State private var stripsHeight: CGFloat = 0
+  @State private var agentsHeight: CGFloat = 0
 
-  /// The list's share of the 560 pt popover beside the header and the
-  /// agents line, and beside the agents list when it is expanded.
+  /// What remains of the 560 pt popover beside everything else it shows, so
+  /// a strip, the pause line, or the agents list shortens the list.
   private var listMaxHeight: CGFloat {
-    agentsExpanded ? 470 - AgentsView.maxListHeight : 470
+    // Two 1 pt hairlines separate the list from the header and the agents.
+    CGFloat(PopoverLayout.listMaxHeight(chromeHeight: Double(headerHeight + stripsHeight + agentsHeight + 2)))
   }
 
   private var actions: DecisionListActions {
@@ -77,18 +84,24 @@ struct SignedInView: View {
       }
       .padding(.horizontal, 14)
       .padding(.vertical, 10)
+      .measuredHeight($headerHeight)
 
       Divider()
       AnswerStrips(outcome: state.answerOutcome, undoText: state.undoText) { state.undo() }
+        .measuredHeight($stripsHeight)
       if items.isEmpty {
         EmptyDecisions()
       } else {
         DecisionList(
           items: items, selectedID: state.selectedID, expandedID: state.expandedID,
-          maxHeight: listMaxHeight, actions: actions)
+          maxHeight: listMaxHeight, scrollRequest: state.listScroll, actions: actions)
       }
       Divider()
-      AgentsView(agents: state.snapshot.agents, now: state.now, expanded: $agentsExpanded)
+      AgentsView(
+        agents: state.snapshot.agents, now: state.now, expanded: $agentsExpanded,
+        quietRevealed: $quietRevealed
+      )
+      .measuredHeight($agentsHeight)
     }
     .onAppear { state.refreshLoginItem() }
   }

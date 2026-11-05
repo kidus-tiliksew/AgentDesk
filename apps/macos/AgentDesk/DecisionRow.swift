@@ -64,7 +64,26 @@ struct DecisionRow: View {
         .font(.system(size: 13, weight: row.isNew ? .semibold : .medium))
         .lineLimit(2)
         .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // In the row's leading margin, so titles keep one left edge and the
+        // dot takes nothing from the two lines (req-mac-app AC-4.4).
+        .background(alignment: .topLeading) {
+          if row.isNew {
+            Circle()
+              .fill(Color.primary)
+              .frame(width: 6, height: 6)
+              .offset(x: -10, y: 5)
+          }
+        }
       HStack(alignment: .firstTextBaseline, spacing: 8) {
+        // Beside the agent, so it uses neither title line, and the agent's
+        // name truncates before it or the time left does (AC-4.3).
+        if let marker = row.urgentMarker {
+          Text(marker)
+            .fontWeight(.medium)
+            .foregroundStyle(Ink.red)
+            .layoutPriority(2)
+        }
         Text("\(row.agentName) · \(row.age)")
           .lineLimit(1)
           .truncationMode(.middle)
@@ -99,7 +118,7 @@ struct DecisionRow: View {
   }
 }
 
-/// Reject and Approve. The recommended one has accent-colored text and the
+/// Reject and Approve in one neutral style. The recommended one has the
 /// hint "Suggested by the agent" (req-mac-app AC-4.5).
 struct ApproveRejectButtons: View {
   let item: DecisionListItem
@@ -114,26 +133,27 @@ struct ApproveRejectButtons: View {
   }
 
   private func button(_ title: String, _ answer: Answer) -> some View {
-    let suggested = item.decision.recommendation == answer
-    return Button {
+    Button(title) {
       actions.answer(item.id, answer)
-    } label: {
-      Text(title)
-        .foregroundStyle(suggested ? Color.accentColor : Color.primary)
     }
     .buttonStyle(.bordered)
     .controlSize(.small)
-    .accessibilityHint(suggested ? "Suggested by the agent" : "")
+    .accessibilityHint(item.decision.recommendation == answer ? "Suggested by the agent" : "")
   }
 }
 
-/// The pending decisions, scrolling once they outgrow `maxHeight`. Hairlines
-/// hide around the hovered, selected, or expanded row.
+/// The pending decisions, scrolling once they outgrow `maxHeight`, with a
+/// scroller that stays visible (req-mac-app AC-4.13). `scrollRequest` moves
+/// the list: the top on opening, or a row the keys or a notification asked
+/// for (component-mac-app §List scrolling). Hairlines hide around the
+/// hovered, selected, or expanded row.
 struct DecisionList: View {
   let items: [DecisionListItem]
   let selectedID: String?
   let expandedID: String?
   let maxHeight: CGFloat
+  var scrollRequest = ListScrollRequest()
+  var rowScrollAnimation: Animation? = .easeOut(duration: 0.15)
   var actions = DecisionListActions()
   @State private var contentHeight: CGFloat = 0
   @State private var hoveredID: String?
@@ -171,13 +191,20 @@ struct DecisionList: View {
             .id(item.id)
           }
         }
+        .background(PersistentScroller())
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
       }
+      .scrollIndicators(.visible)
       .scrollBounceBehavior(.basedOnSize)
       .frame(height: min(max(contentHeight, 1), maxHeight))
-      .onChange(of: selectedID) { _, id in
-        guard let id else { return }
-        withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id) }
+      .onChange(of: scrollRequest) { _, request in
+        switch request.target {
+        case .top:
+          guard let first = items.first else { return }
+          proxy.scrollTo(first.id, anchor: .top)
+        case .row(let id):
+          withAnimation(rowScrollAnimation) { proxy.scrollTo(id) }
+        }
       }
     }
   }

@@ -56,7 +56,8 @@ public struct MenuBarSummary: Equatable, Sendable {
 }
 
 /// The menu bar item's two styles (req-mac-app AC-3.4), kept in user
-/// defaults.
+/// defaults. Count until the user chooses another (DEC-23(5)), so an install
+/// with no stored value moves to count and a stored dot stays dot.
 public enum MenuBarStyle: String, CaseIterable, Sendable {
   case dot
   case count
@@ -64,7 +65,7 @@ public enum MenuBarStyle: String, CaseIterable, Sendable {
   public static let key = "MenuBarStyle"
 
   public init(defaults: UserDefaults) {
-    self = defaults.string(forKey: Self.key).flatMap(MenuBarStyle.init(rawValue:)) ?? .dot
+    self = defaults.string(forKey: Self.key).flatMap(MenuBarStyle.init(rawValue:)) ?? .count
   }
 
   public func save(to defaults: UserDefaults) {
