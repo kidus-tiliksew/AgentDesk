@@ -293,9 +293,10 @@ func accessEvidence() -> Int32 {
     return failed.isEmpty ? 0 : 1
   }
 
-  NSApp.setActivationPolicy(.accessory)
-  // Registers the app for assistive clients; it does not activate the app, and
-  // `ActivationWatch` fails the run if that ever changes.
+  // The system never activates a process with this policy, so this one cannot
+  // take focus from the Mac user's work. `ActivationWatch` fails the run if it
+  // does. `finishLaunching` registers the app for assistive clients.
+  NSApp.setActivationPolicy(.prohibited)
   NSApp.finishLaunching()
   say("# Panel keyboard and assistive evidence")
   say("Compiled from the shipped DecisionDetailView, AnswerControls, and ApproveRejectButtons; only the actions and draft storage are fixtures.")

@@ -429,7 +429,8 @@ func pairedWindowEvidence(_ failures: inout [String]) {
     line("not exercised: this session has no screen")
     return
   }
-  NSApp.setActivationPolicy(.accessory)
+  // `.prohibited` stays in force from the top of the run: the system never
+  // activates such a process, so it cannot take focus from the user's work.
 
   let record = panelDecisions[1].1
   let detail = DecisionDetail(reader: FixtureReader(record: record), clock: ShortClock())
@@ -583,7 +584,6 @@ func pairedWindowEvidence(_ failures: inout [String]) {
   open(beside: anchor)
   guard let keysPopover = popoverWindow else {
     failures.append("paired windows: the popover opened no window, so the keys were not checked")
-    NSApp.setActivationPolicy(.prohibited)
     return
   }
   press(downKey, in: keysPopover)
@@ -693,7 +693,6 @@ func pairedWindowEvidence(_ failures: inout [String]) {
   anchor.orderOut(nil)
   statusWindow.orderOut(nil)
   otherWindow.orderOut(nil)
-  NSApp.setActivationPolicy(.prohibited)
   line("")
 }
 
