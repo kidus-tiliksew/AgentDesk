@@ -15,8 +15,8 @@ ok exit 1
 
 $ apps/macos/scripts/release.sh 0.1.0 --dry-run (expect exit 0)
 version:      0.1.0
-build number: 340
-commit:       4a0c9ace2afe1468c61984257b292b549929e9cd
+build number: 342
+commit:       5c1442ffebf3107e274e8e5a82564fb867fb71bd
 tag:          macos-v0.1.0
 repository:   kidus-tiliksew/AgentDesk
 disk image:   <tmp>/clone/build/macos-release/0.1.0/AgentDesk-0.1.0.dmg
