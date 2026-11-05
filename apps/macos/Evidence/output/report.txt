@@ -2,45 +2,84 @@
 fixture clock: 2026-10-27T12:00:00Z
 
 ## Popover layouts
-popover-agents-expanded-light.png: 340x419 pt
+popover-agents-expanded-light.png: 340x405 pt
 popover-agents-collapsed-light.png: 340x296 pt
 popover-empty-light.png: 340x162 pt
 popover-undo-light.png: 340x248 pt
 popover-conflict-light.png: 340x252 pt
 popover-send-failed-light.png: 340x317 pt
-popover-expanded-approve-reject-light.png: 340x469 pt
+popover-markers-light.png: 340x515 pt
+popover-overflow-light.png: 340x560 pt
+popover-overflow-undo-light.png: 340x560 pt
+popover-agents-line-light.png: 340x296 pt
+popover-agents-quiet-hidden-light.png: 340x456 pt
+popover-agents-quiet-revealed-light.png: 340x456 pt
+popover-agents-overflow-light.png: 340x560 pt
+popover-expanded-approve-reject-light.png: 340x486 pt
 popover-expanded-single-choice-light.png: 340x459 pt
 popover-expanded-multiple-choice-light.png: 340x477 pt
 popover-expanded-free-text-light.png: 340x444 pt
 popover-expanded-single-choice-or-text-light.png: 340x529 pt
-popover-agents-expanded-dark.png: 340x419 pt
+popover-agents-expanded-dark.png: 340x405 pt
 popover-agents-collapsed-dark.png: 340x296 pt
 popover-empty-dark.png: 340x162 pt
 popover-undo-dark.png: 340x248 pt
 popover-conflict-dark.png: 340x252 pt
 popover-send-failed-dark.png: 340x317 pt
-popover-expanded-approve-reject-dark.png: 340x469 pt
+popover-markers-dark.png: 340x515 pt
+popover-overflow-dark.png: 340x560 pt
+popover-overflow-undo-dark.png: 340x560 pt
+popover-agents-line-dark.png: 340x296 pt
+popover-agents-quiet-hidden-dark.png: 340x456 pt
+popover-agents-quiet-revealed-dark.png: 340x456 pt
+popover-agents-overflow-dark.png: 340x560 pt
+popover-expanded-approve-reject-dark.png: 340x486 pt
 popover-expanded-single-choice-dark.png: 340x459 pt
 popover-expanded-multiple-choice-dark.png: 340x477 pt
 popover-expanded-free-text-dark.png: 340x444 pt
 popover-expanded-single-choice-or-text-dark.png: 340x529 pt
 
 ## Rows (DecisionRowModel, as DecisionRow draws and labels them)
-- d1: title weight semibold; time left 4m left (red)
+- d1: leading 6 pt dot, title semibold; marker Urgent (red); time left 4m left (red); Suggests Ship now
   accessibility label: Ship the 2.4 release to production now that the staging soak passed?
   accessibility value: Codex · web, 4m left, new, urgent, suggests Ship now
-- d2: title weight medium; time left 2h left
+- d2: no dot, title medium; marker none; time left 2h left; no suggestion
   accessibility label: Delete the stale preview databases?
   accessibility value: Claude Code · api, 2h left
-- d3: title weight semibold; time left none
+- d3: leading 6 pt dot, title semibold; marker none; time left none; Suggests agentdesk-core
   accessibility label: Which name should the new package use?
   accessibility value: Ended agent, new, suggests agentdesk-core
+
+## Row markers (popover-markers)
+- k1: leading 6 pt dot, title semibold; marker Urgent (red); time left 3h left (red); Suggests Reject
+  accessibility label: Roll back the payments deploy now that the error rate has passed the alert threshold?
+  accessibility value: Codex · web, 3h left, new, urgent, suggests Reject
+- k2: no dot, title medium; marker Urgent (red); time left none (red); Suggests Approve
+  accessibility label: Rotate the signing key today?
+  accessibility value: Claude Code · api, urgent, suggests Approve
+- k3: leading 6 pt dot, title semibold; marker none; time left 3m left (red); Suggests Tonight
+  accessibility label: Run the vacuum on the events table during the maintenance window tonight or wait?
+  accessibility value: Claude Code · api, 3m left, new, suggests Tonight
+- k4: no dot, title medium; marker none; time left 2h left; Suggests Approve
+  accessibility label: Delete the stale preview databases?
+  accessibility value: Claude Code · api, 2h left, suggests Approve
+- k5: leading 6 pt dot, title semibold; marker none; time left none; Suggests agentdesk-core
+  accessibility label: Which name should the new package use?
+  accessibility value: Cursor · docs, new, suggests agentdesk-core
+ok new urgent row with a distant deadline has the marker and a red time
+ok reject recommendation reads as a suggestion
+ok seen urgent row keeps the marker, has no dot, and has no time to color
+ok approve recommendation reads as a suggestion
+ok due-soon row has a red time and no marker
+ok seen row due later has neither red nor a marker
+ok new row without a deadline has the dot only
+ok VoiceOver reads new, urgent, and the suggestion
 
 ## Expanded rows (AnswerDraft as the controls start, untouched)
 - approve-reject: Send and ⌘↩ submit Approve
   default sentence: If nobody answers by 2:00 PM, the agent goes with Reject.
   agent page: https://example.com/a
-  buttons: Reject, Approve (accent, hint "Suggested by the agent")
+  buttons, one neutral style: Reject, Approve (hint "Suggested by the agent")
 - single-choice: Send and ⌘↩ submit Ship now
   default sentence: none
   agent page: none
@@ -64,10 +103,66 @@ conflict: Already answered in chat: Reject
 conflict, outcome unread: Settled elsewhere. Couldn't read the outcome.
 send failed, under the row: Couldn't send. Try again.
 
-agents line: 3 agents running · 1 blocked
+## Agents line and list (popover-agents-*)
+agents line: 2 active · 3 quiet · 2 blocked
+accessibility: 2 active, 3 quiet, 2 blocked
+no sessions: 0 active
   entry: Codex · web, blocked, Needs a decision on the release
-  entry: Cursor · docs, quiet 13m, Waiting for review
-  entry: Claude Code · api, working, Running the migration tests -> opens https://example.com/a
+  entry: Claude Code · infra, blocked, Blocked on a credential
+  entry: Claude Code · api, working, Running the migration tests
+  entry: Claude Code · web, waiting, Waiting on the build
+  control: Show 3 quiet, then Hide quiet
+  revealed: Cursor · docs, quiet 44m, Waiting for review
+  revealed: OpenCode · search, quiet 3h, Reindexing
+  revealed: Codex · billing, quiet 2d, Reading the invoice tests
+18 sessions: 3 active · 15 quiet; listed first: Agent 5 · active, Agent 10 · active, Agent 15 · active
+ok line reads active, quiet, and blocked
+ok each session is in one group
+ok list shows blocked then active in API order
+ok quiet is most recent first in minutes, hours, and days
+ok a stale blocked session reads blocked
+ok a zero group is left out except active
+
+## List scrolling (a retained hosting controller moved between offscreen windows)
+system preferred scroller style: overlay
+first opening: clip offset 0 pt
+ok the first opening shows the first row
+reopened after scrolling 500 pt, no reset: clip offset 500 pt
+ok the cause: a retained hosting controller keeps its clip offset
+will-show requested the top before the content had a window: clip offset 0 pt
+did-show repeated the request: clip offset 0 pt
+ok reopening after scrolling shows the first row
+an urgent row arrived above a kept 30 pt offset, no reset: clip offset 30 pt
+ok the cause: the new first row's title is out of view
+the same arrival with the requests: clip offset 0 pt
+ok the new urgent row's title shows at the top
+ok a read that lands at the top stays at the top
+with the Undo strip: popover 560 pt, list 461 pt
+ok the Undo strip shortens the list and the popover stays within 560 pt
+ok the strip leaves the first row at the top of the list
+strip gone: list 489 pt, 461 pt with it
+ok the list grows back when the strip leaves
+agents expanded: popover 560 pt, list 329 pt
+ok the expanded agents list stays within 560 pt
+ok agents and the strip together stay within 560 pt
+opened with a notification's row: clip offset 707 pt
+ok a notification's row wins over the top reset
+the same row requested again: clip offset 707 pt
+ok a repeated row target scrolls again
+ok an ordinary opening returns to the top after a row target
+a selection change after opening: clip offset 1167 pt
+ok a selection change after opening scrolls to its row
+overflowing list: style legacy, hidden no, width 13 pt, content width 327 pt, knob pixels 2680
+ok an overflowing list keeps a visible scroller
+ok the scroller returns after the Show scroll bars setting changes
+ok a list that fits shows no scroller
+agents list: 160 pt shown of 733 pt
+ok the overflowing agents list stays at 160 pt
+ok the overflowing agents list keeps a visible scroller
+
+## Menu bar style
+unset: count; stored dot: dot
+default label with 3 waiting: AgentDesk, 3 waiting, new, urgent, width 31 pt, template=true
 
 ## Contrast, rendered (40 pt swatches; strongest text pixel against the background)
 ### light-vibrant
@@ -179,7 +274,9 @@ category decision.approve_reject: actions reject "Reject", approve "Approve"
 - click on a settled decision, after the next read: drop
 
 ## Not available in this harness
-AXIsProcessTrusted=false: live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject, Approve, and the expanded controls as separate elements.
+The live NSPopover and its will-show and did-show events are not captured: the harness opens no window on screen. The scroll section above drives the shipped list in a retained hosting controller moved between offscreen windows, and calls the requests AppState makes on those events.
+The scroller under a live change of the Show scroll bars setting is not captured; the scroll section above posts the change notification instead.
+AXIsProcessTrusted=true: live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject, Approve, and the expanded controls as separate elements.
 Keys are not captured: the popover's key monitor needs the live popover window as key window. PopoverKeysTests covers the key-to-action mapping; Escape with no row expanded closes the popover.
 Live notifications are not captured: UNUserNotificationCenter needs the app bundle and the user's permission. The permission prompt, a delivered banner, a click opening the popover, the Reject and Approve buttons, and removal from Notification Center are checked on a Mac before each release; the content, category, and Notifier timeline above use the shipped code with a fixture center.
 
