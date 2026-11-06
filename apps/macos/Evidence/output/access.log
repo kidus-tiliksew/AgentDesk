@@ -715,6 +715,41 @@ ok agent-refresh-failed: the session stays
 ok agent-refresh-failed: AXPress on Try Again retries
 ok agent-refresh-failed: AXPress on the close control closes
 
+### agent-pending-unread
+    AXGroup description="Agent detail"
+      AXStaticText value="Codex · web"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="Blocked, 10m ago"
+        AXHeading description="Needs a decision on the release before it can go on"
+        AXStaticText value="Agent, Codex · web"
+        AXStaticText value="Topic, web"
+        AXStaticText value="Pending, 1 pending decision"
+        AXHeading description="Waiting on you"
+        AXStaticText value="Pending decisions aren't available yet."
+        AXHeading description="History"
+        AXStaticText value="Waiting"
+        AXStaticText value="5m ago"
+        AXStaticText value="Waiting for the staging soak"
+        AXStaticText value="https://example.com/soak/12"
+        AXStaticText value="Working"
+        AXStaticText value="40m ago"
+        AXStaticText value="Ran the migration on a copy"
+        AXStaticText value="Working"
+        AXStaticText value="3h ago"
+        AXStaticText value="Started on the events table"
+ok agent-pending-unread: every control has a name
+ok agent-pending-unread: every control offers AXPress
+ok agent-pending-unread: the close control is named and pressable
+ok agent-pending-unread: the panel names itself
+ok agent-pending-unread: nothing reads as a web link
+ok agent-pending-unread: every element has a known role
+ok agent-pending-unread: no text field, so nothing sends a message to the agent
+ok agent-pending-unread: an unread list says so
+ok agent-pending-unread: it never reads as empty
+ok agent-pending-unread: the count still reads
+ok agent-pending-unread: AXPress on the close control closes
+
 ### agent-gone
     AXGroup description="Agent detail"
       AXButton description="Close detail" help="Escape" actions=AXPress

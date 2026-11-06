@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-11-06T07:23:25Z",
-  "source_commit": "632bb7d414c8473e3ba5d08a5e8f61054d7419d5",
+  "generated_at": "2026-11-06T07:47:17Z",
+  "source_commit": "f0b64aa4d737f8144d1a10e4ba3eac3b71676306",
   "sources_dirty": false,
   "source_trees": {
-    "apps/macos/AgentDesk": "b14adf8605abf4da6530e8ace2ec587f48099b68",
-    "apps/macos/AgentDeskKit": "3e0570838982ae50d5df8afc381314279e464d22",
+    "apps/macos/AgentDesk": "5926c551f79dcd5e1e8fd5b8bf316c2a06fbeb55",
+    "apps/macos/AgentDeskKit": "010e58eb31a220cfc6a3e1ee3c524a892c0d229e",
     "apps/macos/AgentDesk-Info.plist": "9ce07a17028645ea3c6cb4ca4af30914daaa403a",
     "apps/macos/AgentDesk.xcodeproj": "ad4f1acfa7536c5664b15a5db3948e9717cb10ae",
     "apps/macos/scripts": "0d8d292ace2c4897b29b60738e9fdbce6036d7d5",
-    "apps/macos/Evidence/Harness": "f56b6b039d87898c56b227a17e8e33997ccab951",
+    "apps/macos/Evidence/Harness": "0ddb0d8ce2ce4672ab4958cd5e326d63b3189376",
     "apps/macos/Evidence/IconAudit": "aef5b520c4d810d132c81b7e79e70fdf45683770",
     "apps/macos/Evidence/run.sh": "666489540236c0f0988c83f8e7bcd19e7fa2b2aa"
   },
@@ -60,8 +60,8 @@
     }
   ],
   "outputs": {
-    "access.log": "sha256:b540e1db18d9d9363da10ddff18c08761a95d8a81eeb94e04866b8a746054c1b",
-    "access.txt": "sha256:b540e1db18d9d9363da10ddff18c08761a95d8a81eeb94e04866b8a746054c1b",
+    "access.log": "sha256:9a109549de3ae8015633e3f276b655c243106536ff728da3f510f2c1fced3b38",
+    "access.txt": "sha256:9a109549de3ae8015633e3f276b655c243106536ff728da3f510f2c1fced3b38",
     "agent-beside-popover-dark.png": "sha256:fec3458a593b68828cbea13e06396aee0e6476dee48a6db79a2fe611fee0a3e5",
     "agent-beside-popover-light.png": "sha256:b033bd35a29cbbc2aafc2657f9a238432defc6a12dde16a0e36732788e5150e9",
     "agent-blocked-dark.png": "sha256:4d81b16b686fd8c0f1131dc6aa2a80bba449a1128529292503d129f44a09c05e",
@@ -82,6 +82,8 @@
     "agent-long-light.png": "sha256:5c28046e0aca33ff257bc156b15349ea8b33563c85d189498159694ff5556b2e",
     "agent-no-status-dark.png": "sha256:301c5ebe9d994f8ba243a74ef7629bb74caa48a45dd6dd73d0648b5a3d237900",
     "agent-no-status-light.png": "sha256:aeba5d03237842b1dcbba145ca517ab7c3036065e4e11713d554f094a511f9e1",
+    "agent-pending-unread-dark.png": "sha256:7b46528f57eac7f0ca505b0e417131b826fc3ab1013e510f7a010b123e43f308",
+    "agent-pending-unread-light.png": "sha256:2091632e593e89e50ffb31eef400c4a280d541a6a258c52367048ee6ee46ade9",
     "agent-refresh-failed-dark.png": "sha256:4a9b4756d8d4e47b802f9f46beca1909f1123c279b762a3a36f83956cf34edf5",
     "agent-refresh-failed-light.png": "sha256:e6cfdbdd8f3d755100c5f343ec8fac60ad3ba3bedebdac6fa52bb260d359fb49",
     "agent-relative-link-dark.png": "sha256:90bc77ec6c1b6d70d0fda2da53a96c5e69d8201d3f4c1e6a99033e4c45c723b2",
@@ -98,7 +100,7 @@
     "contrast-light-plain.png": "sha256:b775ec48bc208cf52deb35cea8d661ecc6d17af827c0a7aecaed42b657e15c32",
     "contrast-light-vibrant.png": "sha256:af44e1fa4f37822dc4b56f1705c77d85db27cd14c839ef1e512b53a41c33c891",
     "freshness.txt": "sha256:9c81b92a3af112b0e4b40de7a6fc14b129cf2e52a9f14ee5cce52f24d1d345b5",
-    "harness.log": "sha256:3c69a201fd03b0bd63e918a128c6c3a9b61c093dd3b6525bb2c14ce5d5df1f9c",
+    "harness.log": "sha256:ce844e3bb166032f1f9a386d084164fae70d1a01902187c5142e5006bff01ef5",
     "label-count-12-dark.png": "sha256:55a84543c1c636d35904197176f120caf3ca1e5ef79abe67368bed19944317c2",
     "label-count-12-light.png": "sha256:2ca411dedbe9a2b2df7e436c1dec6697831cfa81d850345519f884019404bfda",
     "label-count-3-dark.png": "sha256:d856eca3b8711086faa4899f08938a7e5a97707909a270753dc4d0c63e9ec9da",
@@ -186,10 +188,10 @@
     "popover-undo-dark.png": "sha256:7553e6f46e3dedb3a8a024d381a23fa29757ff82f83f5995005cb842c689e9a6",
     "popover-undo-light.png": "sha256:f350e865233935f7e8af7e41614b65d017fe347ae2503b1e55fe552da1c5501c",
     "popover-urgent-above-offset-no-reset.png": "sha256:a15404d5638957743079e15c9a58d4b720b4c172e4f8e30138ee9a60a3e8058e",
-    "release-dry-run.log": "sha256:672b60a767818299cd9707ebbb14580019b8814629b565ba9866b93eaf36dffd",
+    "release-dry-run.log": "sha256:503512282e5c2845dc992ccc7ec2caffd1c663db1823563bc8146c19dc732c7a",
     "release-tests.log": "sha256:38decf48e5197288faad6d65c093b28b3f873a60ebee86d00e3319d184ba0b6e",
-    "report.txt": "sha256:3c69a201fd03b0bd63e918a128c6c3a9b61c093dd3b6525bb2c14ce5d5df1f9c",
-    "tests.log": "sha256:790e43d5f3bd761067749d6a30652a323acee0d2606899b46f28563c4f64531c",
-    "xcodebuild.log": "sha256:6bc3d373e01616e61aef64087e4ce7fd74acb0c02e296d21c16521ea6ec05b45"
+    "report.txt": "sha256:ce844e3bb166032f1f9a386d084164fae70d1a01902187c5142e5006bff01ef5",
+    "tests.log": "sha256:977acc97d8de22e800b638c1f256d79b4730198d8ee8f2f7e7610a26442e3147",
+    "xcodebuild.log": "sha256:9b6f474e6ea1fb715bf9c8a94f10ba0b8fb62b60ee7fa50b837056c334f7eb00"
   }
 }

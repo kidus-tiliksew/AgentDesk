@@ -194,6 +194,7 @@ agent-loading-light.png: 400x71 pt
 agent-loading-seed-light.png: 400x239 pt
 agent-load-failed-light.png: 400x99 pt
 agent-load-failed-seed-light.png: 400x267 pt
+agent-pending-unread-light.png: 400x408 pt
 agent-gone-light.png: 400x71 pt
 agent-beside-popover-light.png: 748x478 pt
 ok the popover, the gap, and the agent panel sit side by side (light)
@@ -211,6 +212,7 @@ agent-loading-dark.png: 400x71 pt
 agent-loading-seed-dark.png: 400x239 pt
 agent-load-failed-dark.png: 400x99 pt
 agent-load-failed-seed-dark.png: 400x267 pt
+agent-pending-unread-dark.png: 400x408 pt
 agent-gone-dark.png: 400x71 pt
 agent-beside-popover-dark.png: 748x478 pt
 ok the popover, the gap, and the agent panel sit side by side (dark)
@@ -228,11 +230,12 @@ ok the popover, the gap, and the agent panel sit side by side (dark)
 - agent-loading-seed: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history -1 | link https://example.com/pull/412
 - agent-load-failed: no session to show
 - agent-load-failed-seed: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history -1 | link https://example.com/pull/412
+- agent-pending-unread: Blocked, 10m ago | line: Needs a decision on the release before it can go on | Codex · web | web | 1 pending decision | listed [] | history 3 | link none
 - agent-gone: no session to show
 
 ok a working session reads Working, its update age, and its link
 ok a stale session carries the text marker Stale
-ok a blocked session reads Blocked in words, and only its dot is red
+ok a blocked session reads Blocked in words
 ok a session with no status invents none
 ok Waiting on you holds only this session's pending decisions
 ok history keeps the server's order
@@ -253,19 +256,20 @@ ok a relative link offers no control
 - agent-loading-seed: button
 - agent-load-failed: button
 - agent-load-failed-seed: button
+- agent-pending-unread: button
 - agent-gone: button
 ok no agent scene holds a text field: nothing here sends a message to an agent
 Plain and default SwiftUI buttons are not NSButton views, so this list does not count them. access.txt counts every control through the Accessibility API.
 
 ## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
-screen visible frame: 2560x1410 pt; app active: false
+screen visible frame: 1728x1084 pt; app active: false
 ok left end of the screen: the panel has not taken key focus
-left end of the screen: popover x 1763...2103, panel x 2111...2511, panel 400x319 pt
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
 ok left end of the screen: the panel is 400 pt wide with the popover still showing
 ok left end of the screen: the panel sits right of the popover, 8 pt away
 ok left end of the screen: the tops meet
 ok right end of the screen: the panel has not taken key focus
-right end of the screen: popover x 3923...4263, panel x 3515...3915, panel 400x319 pt
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
 ok right end of the screen: the panel is 400 pt wide with the popover still showing
 ok right end of the screen: the panel sits left of the popover, 8 pt away
 ok right end of the screen: the tops meet

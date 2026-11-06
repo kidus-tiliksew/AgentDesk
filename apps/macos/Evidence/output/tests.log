@@ -1,11 +1,11 @@
 Building for debugging...
 [1 / 4]
-Build complete! (0.25 secs)
-Test Suite 'All tests' started at 2026-11-06 10:22:51.958.
-Test Suite 'AgentDeskKitTests.xctest' started at 2026-11-06 10:22:51.958.
-Test Suite 'APIClientTests' started at 2026-11-06 10:22:51.958.
+Build complete! (0.49 secs)
+Test Suite 'All tests' started at 2026-11-06 10:46:35.793.
+Test Suite 'AgentDeskKitTests.xctest' started at 2026-11-06 10:46:35.794.
+Test Suite 'APIClientTests' started at 2026-11-06 10:46:35.794.
 Test Case '-[AgentDeskKitTests.APIClientTests testAgentSessionReadsOneSessionWithTheBearerAndAnEscapedID]' started.
-Test Case '-[AgentDeskKitTests.APIClientTests testAgentSessionReadsOneSessionWithTheBearerAndAnEscapedID]' passed (0.006 seconds).
+Test Case '-[AgentDeskKitTests.APIClientTests testAgentSessionReadsOneSessionWithTheBearerAndAnEscapedID]' passed (0.008 seconds).
 Test Case '-[AgentDeskKitTests.APIClientTests testAnEmptyHistoryIsAnEmptyList]' started.
 Test Case '-[AgentDeskKitTests.APIClientTests testAnEmptyHistoryIsAnEmptyList]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.APIClientTests testAnswerPostsTheSubmission]' started.
@@ -15,7 +15,7 @@ Test Case '-[AgentDeskKitTests.APIClientTests testContractErrorBodyMapsToRespons
 Test Case '-[AgentDeskKitTests.APIClientTests testContractErrorKeepsItsStatusForEveryAccessor]' started.
 Test Case '-[AgentDeskKitTests.APIClientTests testContractErrorKeepsItsStatusForEveryAccessor]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.APIClientTests testDefaultOriginIsThePublicOrigin]' started.
-Test Case '-[AgentDeskKitTests.APIClientTests testDefaultOriginIsThePublicOrigin]' passed (0.000 seconds).
+Test Case '-[AgentDeskKitTests.APIClientTests testDefaultOriginIsThePublicOrigin]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.APIClientTests testDetailReads401SignOut]' started.
 Test Case '-[AgentDeskKitTests.APIClientTests testDetailReads401SignOut]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.APIClientTests testDetailReadsMapErrorsAsEveryOtherRead]' started.
@@ -39,7 +39,7 @@ Test Case '-[AgentDeskKitTests.APIClientTests testNonContractUnauthorizedStillSi
 Test Case '-[AgentDeskKitTests.APIClientTests testPendingDecisionsFollowCursorsWithTheSameFilters]' started.
 Test Case '-[AgentDeskKitTests.APIClientTests testPendingDecisionsFollowCursorsWithTheSameFilters]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.APIClientTests testRedirectToAnotherOriginIsNotFollowed]' started.
-Test Case '-[AgentDeskKitTests.APIClientTests testRedirectToAnotherOriginIsNotFollowed]' passed (0.000 seconds).
+Test Case '-[AgentDeskKitTests.APIClientTests testRedirectToAnotherOriginIsNotFollowed]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.APIClientTests testRedirectWithinTheOriginIsFollowed]' started.
 Test Case '-[AgentDeskKitTests.APIClientTests testRedirectWithinTheOriginIsFollowed]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.APIClientTests testRequestsGoToTheConfiguredOriginWithHeaders]' started.
@@ -47,7 +47,7 @@ Test Case '-[AgentDeskKitTests.APIClientTests testRequestsGoToTheConfiguredOrigi
 Test Case '-[AgentDeskKitTests.APIClientTests testServerURLOverrideKeepsOnlyItsHTTPSOrigin]' started.
 Test Case '-[AgentDeskKitTests.APIClientTests testServerURLOverrideKeepsOnlyItsHTTPSOrigin]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.APIClientTests testServerURLOverrideThatIsNotAbsoluteHTTPSIsIgnored]' started.
-Test Case '-[AgentDeskKitTests.APIClientTests testServerURLOverrideThatIsNotAbsoluteHTTPSIsIgnored]' passed (0.005 seconds).
+Test Case '-[AgentDeskKitTests.APIClientTests testServerURLOverrideThatIsNotAbsoluteHTTPSIsIgnored]' passed (0.006 seconds).
 Test Case '-[AgentDeskKitTests.APIClientTests testSignedOutClientSendsNothing]' started.
 Test Case '-[AgentDeskKitTests.APIClientTests testSignedOutClientSendsNothing]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.APIClientTests testSignOutClearsLocalStateWhenRevocationFails]' started.
@@ -66,15 +66,17 @@ Test Case '-[AgentDeskKitTests.APIClientTests testUnreadableSuccessKeepsItsStatu
 Test Case '-[AgentDeskKitTests.APIClientTests testUnreadableSuccessKeepsItsStatus]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.APIClientTests testUserAgentNamesTheBundleVersion]' started.
 Test Case '-[AgentDeskKitTests.APIClientTests testUserAgentNamesTheBundleVersion]' passed (0.000 seconds).
-Test Suite 'APIClientTests' passed at 2026-11-06 10:22:51.987.
-	 Executed 31 tests, with 0 failures (0 unexpected) in 0.028 (0.030) seconds
-Test Suite 'AgentDetailTests' started at 2026-11-06 10:22:51.987.
+Test Suite 'APIClientTests' passed at 2026-11-06 10:46:35.827.
+	 Executed 31 tests, with 0 failures (0 unexpected) in 0.032 (0.033) seconds
+Test Suite 'AgentDetailTests' started at 2026-11-06 10:46:35.827.
 Test Case '-[AgentDeskKitTests.AgentDetailTests testAFailedRefreshKeepsThePairAndWarnsUntilASuccess]' started.
 Test Case '-[AgentDeskKitTests.AgentDetailTests testAFailedRefreshKeepsThePairAndWarnsUntilASuccess]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.AgentDetailTests testAFirstFailureKeepsTheSeedAndOffersRetry]' started.
 Test Case '-[AgentDeskKitTests.AgentDetailTests testAFirstFailureKeepsTheSeedAndOffersRetry]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.AgentDetailTests testAFullStatusLineIsNotCut]' started.
 Test Case '-[AgentDeskKitTests.AgentDetailTests testAFullStatusLineIsNotCut]' passed (0.000 seconds).
+Test Case '-[AgentDeskKitTests.AgentDetailTests testAnUnreadPendingListIsNotAnEmptyOne]' started.
+Test Case '-[AgentDeskKitTests.AgentDetailTests testAnUnreadPendingListIsNotAnEmptyOne]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.AgentDetailTests testAPairReplacesTheSeedAndAnUnchangedPairPublishesNothing]' started.
 Test Case '-[AgentDeskKitTests.AgentDetailTests testAPairReplacesTheSeedAndAnUnchangedPairPublishesNothing]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.AgentDetailTests testAResultForAnotherTargetChangesNothing]' started.
@@ -95,19 +97,21 @@ Test Case '-[AgentDeskKitTests.AgentDetailTests testNoCallButOpenLinkReachesTheO
 Test Case '-[AgentDeskKitTests.AgentDetailTests testNoCallButOpenLinkReachesTheOpener]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.AgentDetailTests testOpenLinkOpensOnlyAnAbsoluteWebLink]' started.
 Test Case '-[AgentDeskKitTests.AgentDetailTests testOpenLinkOpensOnlyAnAbsoluteWebLink]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.AgentDetailTests testOpenLinkReportsNothingOpenedWithNoOpener]' started.
+Test Case '-[AgentDeskKitTests.AgentDetailTests testOpenLinkReportsNothingOpenedWithNoOpener]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.AgentDetailTests testResetClearsEverythingAndALateResultDoesNotLand]' started.
 Test Case '-[AgentDeskKitTests.AgentDetailTests testResetClearsEverythingAndALateResultDoesNotLand]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.AgentDetailTests testShowingTheShownSessionChangesNothing]' started.
 Test Case '-[AgentDeskKitTests.AgentDetailTests testShowingTheShownSessionChangesNothing]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.AgentDetailTests testTheAppOpensABrowserInOnePlace]' started.
-Test Case '-[AgentDeskKitTests.AgentDetailTests testTheAppOpensABrowserInOnePlace]' passed (0.007 seconds).
+Test Case '-[AgentDeskKitTests.AgentDetailTests testTheAppOpensABrowserInOnePlace]' passed (0.008 seconds).
 Test Case '-[AgentDeskKitTests.AgentDetailTests testTheCountComesFromTheSessionAndTheListFromTheSnapshot]' started.
 Test Case '-[AgentDeskKitTests.AgentDetailTests testTheCountComesFromTheSessionAndTheListFromTheSnapshot]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.AgentDetailTests testToggleOpensClosesAndReplaces]' started.
 Test Case '-[AgentDeskKitTests.AgentDetailTests testToggleOpensClosesAndReplaces]' passed (0.000 seconds).
-Test Suite 'AgentDetailTests' passed at 2026-11-06 10:22:52.000.
-	 Executed 18 tests, with 0 failures (0 unexpected) in 0.012 (0.012) seconds
-Test Suite 'AgentSessionOrderTests' started at 2026-11-06 10:22:52.000.
+Test Suite 'AgentDetailTests' passed at 2026-11-06 10:46:35.840.
+	 Executed 20 tests, with 0 failures (0 unexpected) in 0.013 (0.014) seconds
+Test Suite 'AgentSessionOrderTests' started at 2026-11-06 10:46:35.840.
 Test Case '-[AgentDeskKitTests.AgentSessionOrderTests testEachSessionIsInOneGroupWithBlockedBeforeStale]' started.
 Test Case '-[AgentDeskKitTests.AgentSessionOrderTests testEachSessionIsInOneGroupWithBlockedBeforeStale]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.AgentSessionOrderTests testEntryShowsStateOrQuietTime]' started.
@@ -122,9 +126,9 @@ Test Case '-[AgentDeskKitTests.AgentSessionOrderTests testQuietSessionsAreMostRe
 Test Case '-[AgentDeskKitTests.AgentSessionOrderTests testQuietSessionsAreMostRecentFirstWithApiOrderBreakingATie]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.AgentSessionOrderTests testQuietTimeIsFlooredInMinutesHoursAndDays]' started.
 Test Case '-[AgentDeskKitTests.AgentSessionOrderTests testQuietTimeIsFlooredInMinutesHoursAndDays]' passed (0.000 seconds).
-Test Suite 'AgentSessionOrderTests' passed at 2026-11-06 10:22:52.002.
+Test Suite 'AgentSessionOrderTests' passed at 2026-11-06 10:46:35.843.
 	 Executed 7 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
-Test Suite 'AnswerDraftTests' started at 2026-11-06 10:22:52.002.
+Test Suite 'AnswerDraftTests' started at 2026-11-06 10:46:35.843.
 Test Case '-[AgentDeskKitTests.AnswerDraftTests testApproveRejectSendsTheButtonAnswerAndCommandReturnSendsTheRecommendation]' started.
 Test Case '-[AgentDeskKitTests.AnswerDraftTests testApproveRejectSendsTheButtonAnswerAndCommandReturnSendsTheRecommendation]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.AnswerDraftTests testEveryInputTypeBuildsAnAnswerOfItsKind]' started.
@@ -157,9 +161,9 @@ Test Case '-[AgentDeskKitTests.AnswerDraftTests testSingleChoiceRejectsAnUnknown
 Test Case '-[AgentDeskKitTests.AnswerDraftTests testSingleChoiceRejectsAnUnknownOption]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.AnswerDraftTests testSingleChoiceWithoutRecommendationNeedsASelection]' started.
 Test Case '-[AgentDeskKitTests.AnswerDraftTests testSingleChoiceWithoutRecommendationNeedsASelection]' passed (0.000 seconds).
-Test Suite 'AnswerDraftTests' passed at 2026-11-06 10:22:52.006.
+Test Suite 'AnswerDraftTests' passed at 2026-11-06 10:46:35.847.
 	 Executed 16 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
-Test Suite 'AttentionTests' started at 2026-11-06 10:22:52.006.
+Test Suite 'AttentionTests' started at 2026-11-06 10:46:35.847.
 Test Case '-[AgentDeskKitTests.AttentionTests testANewDecisionShowsTheDot]' started.
 Test Case '-[AgentDeskKitTests.AttentionTests testANewDecisionShowsTheDot]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.AttentionTests testAnUrgentDecisionShowsTheDotEvenWhenSeen]' started.
@@ -178,19 +182,19 @@ Test Case '-[AgentDeskKitTests.AttentionTests testSummaryDescribesCountNewAndUrg
 Test Case '-[AgentDeskKitTests.AttentionTests testSummaryDescribesCountNewAndUrgent]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.AttentionTests testTheDotAppearsAsTimePassesWithoutARead]' started.
 Test Case '-[AgentDeskKitTests.AttentionTests testTheDotAppearsAsTimePassesWithoutARead]' passed (0.000 seconds).
-Test Suite 'AttentionTests' passed at 2026-11-06 10:22:52.009.
+Test Suite 'AttentionTests' passed at 2026-11-06 10:46:35.850.
 	 Executed 9 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
-Test Suite 'DecisionCoordinatorTests' started at 2026-11-06 10:22:52.009.
+Test Suite 'DecisionCoordinatorTests' started at 2026-11-06 10:46:35.850.
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAConflictOnRetryDropsTheRecordAndShowsTheOutcome]' started.
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAConflictOnRetryDropsTheRecordAndShowsTheOutcome]' passed (0.007 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testADecisionReplacesAnAgentAndEndsItsHistoryReads]' started.
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testADecisionReplacesAnAgentAndEndsItsHistoryReads]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testADirectReadFindingItGoneClearsEverything]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testADirectReadFindingItGoneClearsEverything]' passed (0.007 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testADirectReadFindingItGoneClearsEverything]' passed (0.006 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testADirectReadFindingItSettledClearsEverything]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testADirectReadFindingItSettledClearsEverything]' passed (0.006 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testADirectReadFindingItSettledClearsEverything]' passed (0.007 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAFailedDirectReadKeepsTheRecovery]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAFailedDirectReadKeepsTheRecovery]' passed (0.032 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAFailedDirectReadKeepsTheRecovery]' passed (0.031 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAFailedListReadAndARepeatedPublishKeepTheRecovery]' started.
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAFailedListReadAndARepeatedPublishKeepTheRecovery]' passed (0.004 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAFailedSendRestoresTheRowDraftAndMessageWithoutARead]' started.
@@ -198,13 +202,13 @@ Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAFailedSendRestoresT
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAHeldAnswerIsNotAnswerableAgain]' started.
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAHeldAnswerIsNotAnswerableAgain]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAHeldAnswerIsNotCheckedDirectly]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAHeldAnswerIsNotCheckedDirectly]' passed (0.024 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAHeldAnswerIsNotCheckedDirectly]' passed (0.027 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAListedAnswerAndItsFailureNeedNoRetention]' started.
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAListedAnswerAndItsFailureNeedNoRetention]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testALoadedPendingDecisionKeepsItsDraftAfterThePanelCloses]' started.
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testALoadedPendingDecisionKeepsItsDraftAfterThePanelCloses]' passed (0.028 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAnAgentReplacesADecisionAndEndsItsReads]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAnAgentReplacesADecisionAndEndsItsReads]' passed (0.024 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAnAgentReplacesADecisionAndEndsItsReads]' passed (0.023 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAnAnswerFromARowLeavesAShownAgent]' started.
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAnAnswerFromARowLeavesAShownAgent]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAnAnswerToARowLeavesAnotherShownTarget]' started.
@@ -214,42 +218,42 @@ Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testANewReadThatListsItT
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testANewReadThatOmitsItChecksTheDecisionDirectly]' started.
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testANewReadThatOmitsItChecksTheDecisionDirectly]' passed (0.031 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAReadDuringTheHoldDoesNotLoseUndo]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAReadDuringTheHoldDoesNotLoseUndo]' passed (0.004 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAReadDuringTheHoldDoesNotLoseUndo]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testASecondAnswerSendsTheHeldLinkedAnswerAndAFailureStillRecovers]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testASecondAnswerSendsTheHeldLinkedAnswerAndAFailureStillRecovers]' passed (0.005 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testASecondAnswerSendsTheHeldLinkedAnswerAndAFailureStillRecovers]' passed (0.004 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAShownDecisionFoundMissingLeavesNoRecord]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAShownDecisionFoundMissingLeavesNoRecord]' passed (0.003 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAShownDecisionFoundMissingLeavesNoRecord]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAShownDecisionThatSettlesLeavesNoRecord]' started.
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testAShownDecisionThatSettlesLeavesNoRecord]' passed (0.004 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testClosingThePanelAndResetEndEitherTarget]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testClosingThePanelAndResetEndEitherTarget]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testClosingThePanelAndResetEndEitherTarget]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testNotFoundDropsTheRecord]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testNotFoundDropsTheRecord]' passed (0.005 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testNotFoundDropsTheRecord]' passed (0.004 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testNothingButTheControlOpensALink]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testNothingButTheControlOpensALink]' passed (0.002 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testNothingButTheControlOpensALink]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testOpeningTheShownAgentClosesThePanel]' started.
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testOpeningTheShownAgentClosesThePanel]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testReplacingTheTargetKeepsEachDraft]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testReplacingTheTargetKeepsEachDraft]' passed (0.003 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testReplacingTheTargetKeepsEachDraft]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testRetrySucceedsWithoutADuplicatePost]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testRetrySucceedsWithoutADuplicatePost]' passed (0.032 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testRetrySucceedsWithoutADuplicatePost]' passed (0.031 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testSignOutClearsEverythingAndALateDirectReadChangesNothing]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testSignOutClearsEverythingAndALateDirectReadChangesNothing]' passed (0.029 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testSignOutClearsEverythingAndALateDirectReadChangesNothing]' passed (0.032 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testSignOutDuringALinkedSendDropsItsLateAnswer]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testSignOutDuringALinkedSendDropsItsLateAnswer]' passed (0.028 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testSignOutDuringALinkedSendDropsItsLateAnswer]' passed (0.027 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testTheRestoredRowOpensTheRetainedRecordInThePanel]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testTheRestoredRowOpensTheRetainedRecordInThePanel]' passed (0.006 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testTheRestoredRowOpensTheRetainedRecordInThePanel]' passed (0.005 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testTheSameIDIsADifferentTargetAcrossKinds]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testTheSameIDIsADifferentTargetAcrossKinds]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testTheSameIDIsADifferentTargetAcrossKinds]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testUndoReopensItsDecisionOverAnAgent]' started.
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testUndoReopensItsDecisionOverAnAgent]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testUndoRestoresTheRowDraftAndPanelWithoutAReadOrSend]' started.
-Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testUndoRestoresTheRowDraftAndPanelWithoutAReadOrSend]' passed (0.029 seconds).
-Test Suite 'DecisionCoordinatorTests' passed at 2026-11-06 10:22:52.371.
-	 Executed 32 tests, with 0 failures (0 unexpected) in 0.357 (0.361) seconds
-Test Suite 'DecisionDetailModelTests' started at 2026-11-06 10:22:52.371.
+Test Case '-[AgentDeskKitTests.DecisionCoordinatorTests testUndoRestoresTheRowDraftAndPanelWithoutAReadOrSend]' passed (0.028 seconds).
+Test Suite 'DecisionCoordinatorTests' passed at 2026-11-06 10:46:36.207.
+	 Executed 32 tests, with 0 failures (0 unexpected) in 0.355 (0.358) seconds
+Test Suite 'DecisionDetailModelTests' started at 2026-11-06 10:46:36.208.
 Test Case '-[AgentDeskKitTests.DecisionDetailModelTests testAnEmptyBodyIsNoBody]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailModelTests testAnEmptyBodyIsNoBody]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.DecisionDetailModelTests testAnEmptyBodyIsNoBody]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailModelTests testAnUnknownParentReadsByItsRole]' started.
 Test Case '-[AgentDeskKitTests.DecisionDetailModelTests testAnUnknownParentReadsByItsRole]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailModelTests testAPendingDecisionShowsEveryField]' started.
@@ -260,43 +264,43 @@ Test Case '-[AgentDeskKitTests.DecisionDetailModelTests testASettledDecisionShow
 Test Case '-[AgentDeskKitTests.DecisionDetailModelTests testASettledDecisionShowsItsOutcomeAndNoCountdown]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailModelTests testThePendingEmptyValuesAreSaid]' started.
 Test Case '-[AgentDeskKitTests.DecisionDetailModelTests testThePendingEmptyValuesAreSaid]' passed (0.000 seconds).
-Test Suite 'DecisionDetailModelTests' passed at 2026-11-06 10:22:52.379.
-	 Executed 6 tests, with 0 failures (0 unexpected) in 0.007 (0.008) seconds
-Test Suite 'DecisionDetailTests' started at 2026-11-06 10:22:52.379.
+Test Suite 'DecisionDetailModelTests' passed at 2026-11-06 10:46:36.217.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.008 (0.010) seconds
+Test Suite 'DecisionDetailTests' started at 2026-11-06 10:46:36.217.
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testA401ChangesNothingAndStopsReading]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailTests testA401ChangesNothingAndStopsReading]' passed (0.028 seconds).
+Test Case '-[AgentDeskKitTests.DecisionDetailTests testA401ChangesNothingAndStopsReading]' passed (0.024 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testADecisionSettledWhileShownChangesWithinTenSeconds]' started.
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testADecisionSettledWhileShownChangesWithinTenSeconds]' passed (0.005 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testAFailureKeepsTheLoadedRecordAndAReadRecovers]' started.
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testAFailureKeepsTheLoadedRecordAndAReadRecovers]' passed (0.005 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testALateResponseAfterSignOutChangesNothing]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailTests testALateResponseAfterSignOutChangesNothing]' passed (0.025 seconds).
+Test Case '-[AgentDeskKitTests.DecisionDetailTests testALateResponseAfterSignOutChangesNothing]' passed (0.024 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testALateResponseForAClosedPanelChangesNothing]' started.
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testALateResponseForAClosedPanelChangesNothing]' passed (0.028 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testALateResponseForAReplacedTargetChangesNothing]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailTests testALateResponseForAReplacedTargetChangesNothing]' passed (0.030 seconds).
+Test Case '-[AgentDeskKitTests.DecisionDetailTests testALateResponseForAReplacedTargetChangesNothing]' passed (0.027 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testAMissingTargetIsUnavailableAndReadingStops]' started.
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testAMissingTargetIsUnavailableAndReadingStops]' passed (0.024 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testAnAnswerClosesThePanelAndUndoReopensIt]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailTests testAnAnswerClosesThePanelAndUndoReopensIt]' passed (0.008 seconds).
+Test Case '-[AgentDeskKitTests.DecisionDetailTests testAnAnswerClosesThePanelAndUndoReopensIt]' passed (0.007 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testAnAnswerToAnotherRowLeavesThePanel]' started.
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testAnAnswerToAnotherRowLeavesThePanel]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testANonContract404IsTransient]' started.
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testANonContract404IsTransient]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testAnotherTargetReplacesTheShownOne]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailTests testAnotherTargetReplacesTheShownOne]' passed (0.005 seconds).
+Test Case '-[AgentDeskKitTests.DecisionDetailTests testAnotherTargetReplacesTheShownOne]' passed (0.006 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testANotificationTargetFoundMissingCloses]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailTests testANotificationTargetFoundMissingCloses]' passed (0.002 seconds).
+Test Case '-[AgentDeskKitTests.DecisionDetailTests testANotificationTargetFoundMissingCloses]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testANotificationTargetFoundSettledClosesInsteadOfShowing]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailTests testANotificationTargetFoundSettledClosesInsteadOfShowing]' passed (0.003 seconds).
+Test Case '-[AgentDeskKitTests.DecisionDetailTests testANotificationTargetFoundSettledClosesInsteadOfShowing]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testANotificationTargetThatSettlesAfterItsFirstReadStaysShown]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailTests testANotificationTargetThatSettlesAfterItsFirstReadStaysShown]' passed (0.005 seconds).
+Test Case '-[AgentDeskKitTests.DecisionDetailTests testANotificationTargetThatSettlesAfterItsFirstReadStaysShown]' passed (0.004 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testAnUnchangedReadPublishesNothing]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailTests testAnUnchangedReadPublishesNothing]' passed (0.004 seconds).
+Test Case '-[AgentDeskKitTests.DecisionDetailTests testAnUnchangedReadPublishesNothing]' passed (0.005 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testAReopenedTargetIgnoresTheEarlierOpeningsLateRead]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailTests testAReopenedTargetIgnoresTheEarlierOpeningsLateRead]' passed (0.029 seconds).
+Test Case '-[AgentDeskKitTests.DecisionDetailTests testAReopenedTargetIgnoresTheEarlierOpeningsLateRead]' passed (0.026 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testATargetOfAnotherAccountIsUnavailable]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailTests testATargetOfAnotherAccountIsUnavailable]' passed (0.002 seconds).
+Test Case '-[AgentDeskKitTests.DecisionDetailTests testATargetOfAnotherAccountIsUnavailable]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testATransientFailureOffersRetryAndNeverPretendsItSettled]' started.
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testATransientFailureOffersRetryAndNeverPretendsItSettled]' passed (0.005 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testOpeningAnUnknownTargetLoadsIt]' started.
@@ -306,14 +310,14 @@ Test Case '-[AgentDeskKitTests.DecisionDetailTests testOpeningShowsTheKnownRecor
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testOpeningTheShownTargetCloses]' started.
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testOpeningTheShownTargetCloses]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testShowingTheShownTargetDoesNotReadAgain]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailTests testShowingTheShownTargetDoesNotReadAgain]' passed (0.028 seconds).
+Test Case '-[AgentDeskKitTests.DecisionDetailTests testShowingTheShownTargetDoesNotReadAgain]' passed (0.025 seconds).
 Test Case '-[AgentDeskKitTests.DecisionDetailTests testUndoAfterAClosedPanelOpensNothing]' started.
-Test Case '-[AgentDeskKitTests.DecisionDetailTests testUndoAfterAClosedPanelOpensNothing]' passed (0.000 seconds).
-Test Suite 'DecisionDetailTests' passed at 2026-11-06 10:22:52.633.
-	 Executed 23 tests, with 0 failures (0 unexpected) in 0.249 (0.254) seconds
-Test Suite 'DecisionOrderTests' started at 2026-11-06 10:22:52.633.
+Test Case '-[AgentDeskKitTests.DecisionDetailTests testUndoAfterAClosedPanelOpensNothing]' passed (0.001 seconds).
+Test Suite 'DecisionDetailTests' passed at 2026-11-06 10:46:36.460.
+	 Executed 23 tests, with 0 failures (0 unexpected) in 0.238 (0.243) seconds
+Test Suite 'DecisionOrderTests' started at 2026-11-06 10:46:36.461.
 Test Case '-[AgentDeskKitTests.DecisionOrderTests testDeadlineOrderAppliesWithinUrgent]' started.
-Test Case '-[AgentDeskKitTests.DecisionOrderTests testDeadlineOrderAppliesWithinUrgent]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.DecisionOrderTests testDeadlineOrderAppliesWithinUrgent]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.DecisionOrderTests testEarliestDeadlineFirstAndNoDeadlineLast]' started.
 Test Case '-[AgentDeskKitTests.DecisionOrderTests testEarliestDeadlineFirstAndNoDeadlineLast]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.DecisionOrderTests testIdBreaksEverythingElseEqual]' started.
@@ -324,9 +328,9 @@ Test Case '-[AgentDeskKitTests.DecisionOrderTests testTheFullOrder]' started.
 Test Case '-[AgentDeskKitTests.DecisionOrderTests testTheFullOrder]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.DecisionOrderTests testUrgentComesBeforeNormal]' started.
 Test Case '-[AgentDeskKitTests.DecisionOrderTests testUrgentComesBeforeNormal]' passed (0.001 seconds).
-Test Suite 'DecisionOrderTests' passed at 2026-11-06 10:22:52.640.
+Test Suite 'DecisionOrderTests' passed at 2026-11-06 10:46:36.467.
 	 Executed 6 tests, with 0 failures (0 unexpected) in 0.006 (0.007) seconds
-Test Suite 'DecisionPresentationTests' started at 2026-11-06 10:22:52.640.
+Test Suite 'DecisionPresentationTests' started at 2026-11-06 10:46:36.467.
 Test Case '-[AgentDeskKitTests.DecisionPresentationTests testAccessibilityReadsEveryState]' started.
 Test Case '-[AgentDeskKitTests.DecisionPresentationTests testAccessibilityReadsEveryState]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.DecisionPresentationTests testAge]' started.
@@ -340,9 +344,9 @@ Test Case '-[AgentDeskKitTests.DecisionPresentationTests testNewAndSeenWeights]'
 Test Case '-[AgentDeskKitTests.DecisionPresentationTests testOnlyAnUrgentRowHasAnUrgentMarker]' started.
 Test Case '-[AgentDeskKitTests.DecisionPresentationTests testOnlyAnUrgentRowHasAnUrgentMarker]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.DecisionPresentationTests testRecordedOutcomeNamesWhatTheServerHolds]' started.
-Test Case '-[AgentDeskKitTests.DecisionPresentationTests testRecordedOutcomeNamesWhatTheServerHolds]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.DecisionPresentationTests testRecordedOutcomeNamesWhatTheServerHolds]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.DecisionPresentationTests testSettledOutcomeReadsTheRecordedAnswerAndItsSurface]' started.
-Test Case '-[AgentDeskKitTests.DecisionPresentationTests testSettledOutcomeReadsTheRecordedAnswerAndItsSurface]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.DecisionPresentationTests testSettledOutcomeReadsTheRecordedAnswerAndItsSurface]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.DecisionPresentationTests testSuggestionResolvesOptionLabelsOnEveryInputType]' started.
 Test Case '-[AgentDeskKitTests.DecisionPresentationTests testSuggestionResolvesOptionLabelsOnEveryInputType]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.DecisionPresentationTests testTimeLeft]' started.
@@ -351,9 +355,9 @@ Test Case '-[AgentDeskKitTests.DecisionPresentationTests testTimeLeftIsRedUnderF
 Test Case '-[AgentDeskKitTests.DecisionPresentationTests testTimeLeftIsRedUnderFiveMinutesAndOnUrgentRows]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.DecisionPresentationTests testUndoTextNamesTheAnswerAndTitle]' started.
 Test Case '-[AgentDeskKitTests.DecisionPresentationTests testUndoTextNamesTheAnswerAndTitle]' passed (0.000 seconds).
-Test Suite 'DecisionPresentationTests' passed at 2026-11-06 10:22:52.653.
-	 Executed 12 tests, with 0 failures (0 unexpected) in 0.011 (0.012) seconds
-Test Suite 'DetailPanelPlacementTests' started at 2026-11-06 10:22:52.653.
+Test Suite 'DecisionPresentationTests' passed at 2026-11-06 10:46:36.481.
+	 Executed 12 tests, with 0 failures (0 unexpected) in 0.012 (0.013) seconds
+Test Suite 'DetailPanelPlacementTests' started at 2026-11-06 10:46:36.481.
 Test Case '-[AgentDeskKitTests.DetailPanelPlacementTests testAScreenTooNarrowForEitherSideStaysOnTheScreen]' started.
 Test Case '-[AgentDeskKitTests.DetailPanelPlacementTests testAScreenTooNarrowForEitherSideStaysOnTheScreen]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.DetailPanelPlacementTests testAScreenWithANegativeOriginKeepsItsOwnBounds]' started.
@@ -366,9 +370,9 @@ Test Case '-[AgentDeskKitTests.DetailPanelPlacementTests testTheFrameIs400WideAn
 Test Case '-[AgentDeskKitTests.DetailPanelPlacementTests testTheFrameIs400WideAndMeetsThePopoversTop]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.DetailPanelPlacementTests testTheHeightStopsAtTheLimitAndAtTheScreen]' started.
 Test Case '-[AgentDeskKitTests.DetailPanelPlacementTests testTheHeightStopsAtTheLimitAndAtTheScreen]' passed (0.000 seconds).
-Test Suite 'DetailPanelPlacementTests' passed at 2026-11-06 10:22:52.654.
-	 Executed 6 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
-Test Suite 'DetailPanelStateTests' started at 2026-11-06 10:22:52.654.
+Test Suite 'DetailPanelPlacementTests' passed at 2026-11-06 10:46:36.482.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'DetailPanelStateTests' started at 2026-11-06 10:46:36.482.
 Test Case '-[AgentDeskKitTests.DetailPanelStateTests testALaterAnswerForgetsAnEarlierReopening]' started.
 Test Case '-[AgentDeskKitTests.DetailPanelStateTests testALaterAnswerForgetsAnEarlierReopening]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.DetailPanelStateTests testAnAnswerClosesOnlyAPanelShowingThatDecision]' started.
@@ -383,16 +387,16 @@ Test Case '-[AgentDeskKitTests.DetailPanelStateTests testUndoReopensOnlyWhatTheA
 Test Case '-[AgentDeskKitTests.DetailPanelStateTests testUndoReopensOnlyWhatTheAnswerClosed]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.DetailPanelStateTests testUndoReplacesATargetOpenedWhileTheAnswerWasHeld]' started.
 Test Case '-[AgentDeskKitTests.DetailPanelStateTests testUndoReplacesATargetOpenedWhileTheAnswerWasHeld]' passed (0.000 seconds).
-Test Suite 'DetailPanelStateTests' passed at 2026-11-06 10:22:52.656.
-	 Executed 7 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
-Test Suite 'DotPresenceTests' started at 2026-11-06 10:22:52.656.
+Test Suite 'DetailPanelStateTests' passed at 2026-11-06 10:46:36.484.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'DotPresenceTests' started at 2026-11-06 10:46:36.484.
 Test Case '-[AgentDeskKitTests.DotPresenceTests testFadesInOnceAndRefreshesChangeNothing]' started.
 Test Case '-[AgentDeskKitTests.DotPresenceTests testFadesInOnceAndRefreshesChangeNothing]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.DotPresenceTests testReduceMotionAppearsAtOnce]' started.
 Test Case '-[AgentDeskKitTests.DotPresenceTests testReduceMotionAppearsAtOnce]' passed (0.000 seconds).
-Test Suite 'DotPresenceTests' passed at 2026-11-06 10:22:52.656.
-	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
-Test Suite 'ListScrollRequestTests' started at 2026-11-06 10:22:52.656.
+Test Suite 'DotPresenceTests' passed at 2026-11-06 10:46:36.484.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'ListScrollRequestTests' started at 2026-11-06 10:46:36.484.
 Test Case '-[AgentDeskKitTests.ListScrollRequestTests testARepeatedTargetStillScrolls]' started.
 Test Case '-[AgentDeskKitTests.ListScrollRequestTests testARepeatedTargetStillScrolls]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.ListScrollRequestTests testListHeightTakesWhatRemainsOfThePopover]' started.
@@ -401,15 +405,15 @@ Test Case '-[AgentDeskKitTests.ListScrollRequestTests testRepeatingKeepsTheTarge
 Test Case '-[AgentDeskKitTests.ListScrollRequestTests testRepeatingKeepsTheTargetAndMovesTheGeneration]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.ListScrollRequestTests testTheLatestRequestWins]' started.
 Test Case '-[AgentDeskKitTests.ListScrollRequestTests testTheLatestRequestWins]' passed (0.000 seconds).
-Test Suite 'ListScrollRequestTests' passed at 2026-11-06 10:22:52.657.
+Test Suite 'ListScrollRequestTests' passed at 2026-11-06 10:46:36.485.
 	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
-Test Suite 'NotificationPlannerTests' started at 2026-11-06 10:22:52.657.
+Test Suite 'NotificationPlannerTests' started at 2026-11-06 10:46:36.485.
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAClickDuringARefreshWaitsForTheReadThatLandsAfterIt]' started.
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAClickDuringARefreshWaitsForTheReadThatLandsAfterIt]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAClickOnAListedDecisionOpensItAtOnce]' started.
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAClickOnAListedDecisionOpensItAtOnce]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testActionsMapToAnswersOnlyForApproveOrReject]' started.
-Test Case '-[AgentDeskKitTests.NotificationPlannerTests testActionsMapToAnswersOnlyForApproveOrReject]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.NotificationPlannerTests testActionsMapToAnswersOnlyForApproveOrReject]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testADecisionMarkedWhileOpenStaysSuppressedAfterClose]' started.
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testADecisionMarkedWhileOpenStaysSuppressedAfterClose]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAnInteractiveDecisionSettledDuringItsHoldIsNeverPosted]' started.
@@ -417,7 +421,7 @@ Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAnInteractiveDecisio
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAnInteractiveDecisionStaysEligibleOnLaterReadsUntilItsHoldEnds]' started.
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAnInteractiveDecisionStaysEligibleOnLaterReadsUntilItsHoldEnds]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAnOpenPopoverMarksListedDecisionsWithoutAPost]' started.
-Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAnOpenPopoverMarksListedDecisionsWithoutAPost]' passed (0.000 seconds).
+Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAnOpenPopoverMarksListedDecisionsWithoutAPost]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAPushedPendingDecisionIsPostedWhenEveryConditionHolds]' started.
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAPushedPendingDecisionIsPostedWhenEveryConditionHolds]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testAReadListingASettledStateRemovesItsNotification]' started.
@@ -433,7 +437,7 @@ Test Case '-[AgentDeskKitTests.NotificationPlannerTests testConditionFourTheInte
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testConditionOneOnlyPushPosts]' started.
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testConditionOneOnlyPushPosts]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testConditionThreeTheTenMinuteBoundary]' started.
-Test Case '-[AgentDeskKitTests.NotificationPlannerTests testConditionThreeTheTenMinuteBoundary]' passed (0.000 seconds).
+Test Case '-[AgentDeskKitTests.NotificationPlannerTests testConditionThreeTheTenMinuteBoundary]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testConditionTwoANotifiedOrPostingDecisionIsNotPostedAgain]' started.
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testConditionTwoANotifiedOrPostingDecisionIsNotPostedAgain]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testContentHoldsTheTitleAgentAndTimeLeft]' started.
@@ -450,11 +454,11 @@ Test Case '-[AgentDeskKitTests.NotificationPlannerTests testRepeatedReadsPostOnc
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testRepeatedReadsPostOnceOnceTheIdIsStored]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testStartAndSignInApplyTheSameAgeRule]' started.
 Test Case '-[AgentDeskKitTests.NotificationPlannerTests testStartAndSignInApplyTheSameAgeRule]' passed (0.000 seconds).
-Test Suite 'NotificationPlannerTests' passed at 2026-11-06 10:22:52.666.
-	 Executed 23 tests, with 0 failures (0 unexpected) in 0.007 (0.009) seconds
-Test Suite 'NotifiedStoreTests' started at 2026-11-06 10:22:52.666.
+Test Suite 'NotificationPlannerTests' passed at 2026-11-06 10:46:36.494.
+	 Executed 23 tests, with 0 failures (0 unexpected) in 0.008 (0.009) seconds
+Test Suite 'NotifiedStoreTests' started at 2026-11-06 10:46:36.494.
 Test Case '-[AgentDeskKitTests.NotifiedStoreTests testAnUnauthorizedAnswerClearsTheStore]' started.
-Test Case '-[AgentDeskKitTests.NotifiedStoreTests testAnUnauthorizedAnswerClearsTheStore]' passed (0.003 seconds).
+Test Case '-[AgentDeskKitTests.NotifiedStoreTests testAnUnauthorizedAnswerClearsTheStore]' passed (0.004 seconds).
 Test Case '-[AgentDeskKitTests.NotifiedStoreTests testAPauseLastsOneHourAndSurvivesARestart]' started.
 Test Case '-[AgentDeskKitTests.NotifiedStoreTests testAPauseLastsOneHourAndSurvivesARestart]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.NotifiedStoreTests testMarkedIdsSurviveARestart]' started.
@@ -471,13 +475,13 @@ Test Case '-[AgentDeskKitTests.NotifiedStoreTests testSettingsLeaveTheMenuBarIte
 Test Case '-[AgentDeskKitTests.NotifiedStoreTests testSettingsLeaveTheMenuBarItemAndListUnchanged]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.NotifiedStoreTests testSignOutClearsTheStoreAndDeliveredNotifications]' started.
 Test Case '-[AgentDeskKitTests.NotifiedStoreTests testSignOutClearsTheStoreAndDeliveredNotifications]' passed (0.002 seconds).
-Test Suite 'NotifiedStoreTests' passed at 2026-11-06 10:22:52.680.
-	 Executed 9 tests, with 0 failures (0 unexpected) in 0.013 (0.014) seconds
-Test Suite 'NotifierTests' started at 2026-11-06 10:22:52.680.
+Test Suite 'NotifiedStoreTests' passed at 2026-11-06 10:46:36.510.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.015 (0.015) seconds
+Test Suite 'NotifierTests' started at 2026-11-06 10:46:36.510.
 Test Case '-[AgentDeskKitTests.NotifierTests testADecisionSettledWhileItsPostIsInFlightIsRemoved]' started.
 Test Case '-[AgentDeskKitTests.NotifierTests testADecisionSettledWhileItsPostIsInFlightIsRemoved]' passed (0.004 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testADecisionWithoutASessionNeedsNoRead]' started.
-Test Case '-[AgentDeskKitTests.NotifierTests testADecisionWithoutASessionNeedsNoRead]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.NotifierTests testADecisionWithoutASessionNeedsNoRead]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testAFailedNameReadPostsNothingAndRetries]' started.
 Test Case '-[AgentDeskKitTests.NotifierTests testAFailedNameReadPostsNothingAndRetries]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testAFailedPostIsRetriedOnALaterRead]' started.
@@ -487,19 +491,19 @@ Test Case '-[AgentDeskKitTests.NotifierTests testAMissingNameIsReadOnceForSevera
 Test Case '-[AgentDeskKitTests.NotifierTests testAPauseExpiringAllowsTheNextRead]' started.
 Test Case '-[AgentDeskKitTests.NotifierTests testAPauseExpiringAllowsTheNextRead]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testAPopoverOpeningDuringANameReadStopsThePost]' started.
-Test Case '-[AgentDeskKitTests.NotifierTests testAPopoverOpeningDuringANameReadStopsThePost]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.NotifierTests testAPopoverOpeningDuringANameReadStopsThePost]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testAPostCarriesTheContentAndEntersTheStore]' started.
 Test Case '-[AgentDeskKitTests.NotifierTests testAPostCarriesTheContentAndEntersTheStore]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testAPostInFlightIsNotRepeatedByAReadDuringIt]' started.
-Test Case '-[AgentDeskKitTests.NotifierTests testAPostInFlightIsNotRepeatedByAReadDuringIt]' passed (0.004 seconds).
+Test Case '-[AgentDeskKitTests.NotifierTests testAPostInFlightIsNotRepeatedByAReadDuringIt]' passed (0.005 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testASessionTheLiveReadDoesNotListIsAnEndedAgent]' started.
-Test Case '-[AgentDeskKitTests.NotifierTests testASessionTheLiveReadDoesNotListIsAnEndedAgent]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.NotifierTests testASessionTheLiveReadDoesNotListIsAnEndedAgent]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testAuthorizationIsRequestedOnRequest]' started.
-Test Case '-[AgentDeskKitTests.NotifierTests testAuthorizationIsRequestedOnRequest]' passed (0.002 seconds).
+Test Case '-[AgentDeskKitTests.NotifierTests testAuthorizationIsRequestedOnRequest]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testDeniedAuthorizationPostsNothingAndLeavesTheStoreAlone]' started.
-Test Case '-[AgentDeskKitTests.NotifierTests testDeniedAuthorizationPostsNothingAndLeavesTheStoreAlone]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.NotifierTests testDeniedAuthorizationPostsNothingAndLeavesTheStoreAlone]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testEveryReadRemovesNotificationsOfDecisionsNoLongerPending]' started.
-Test Case '-[AgentDeskKitTests.NotifierTests testEveryReadRemovesNotificationsOfDecisionsNoLongerPending]' passed (0.002 seconds).
+Test Case '-[AgentDeskKitTests.NotifierTests testEveryReadRemovesNotificationsOfDecisionsNoLongerPending]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testMarkListedSuppressesAfterClose]' started.
 Test Case '-[AgentDeskKitTests.NotifierTests testMarkListedSuppressesAfterClose]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testNothingPostsWhileOpenPausedOrOff]' started.
@@ -507,22 +511,22 @@ Test Case '-[AgentDeskKitTests.NotifierTests testNothingPostsWhileOpenPausedOrOf
 Test Case '-[AgentDeskKitTests.NotifierTests testRemovalRunsWhilePausedOrOpen]' started.
 Test Case '-[AgentDeskKitTests.NotifierTests testRemovalRunsWhilePausedOrOpen]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testRepeatedReadsPostOnce]' started.
-Test Case '-[AgentDeskKitTests.NotifierTests testRepeatedReadsPostOnce]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.NotifierTests testRepeatedReadsPostOnce]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testResetDropsQueuedReads]' started.
-Test Case '-[AgentDeskKitTests.NotifierTests testResetDropsQueuedReads]' passed (0.003 seconds).
+Test Case '-[AgentDeskKitTests.NotifierTests testResetDropsQueuedReads]' passed (0.004 seconds).
 Test Case '-[AgentDeskKitTests.NotifierTests testSignOutDuringAPostRemovesItWhenItLands]' started.
-Test Case '-[AgentDeskKitTests.NotifierTests testSignOutDuringAPostRemovesItWhenItLands]' passed (0.004 seconds).
-Test Suite 'NotifierTests' passed at 2026-11-06 10:22:52.719.
-	 Executed 19 tests, with 0 failures (0 unexpected) in 0.038 (0.039) seconds
-Test Suite 'PendingAnswersTests' started at 2026-11-06 10:22:52.719.
+Test Case '-[AgentDeskKitTests.NotifierTests testSignOutDuringAPostRemovesItWhenItLands]' passed (0.003 seconds).
+Test Suite 'NotifierTests' passed at 2026-11-06 10:46:36.556.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.044 (0.046) seconds
+Test Suite 'PendingAnswersTests' started at 2026-11-06 10:46:36.556.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAFailureMessageLeavesWithItsDecision]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testAFailureMessageLeavesWithItsDecision]' passed (0.000 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testAFailureMessageLeavesWithItsDecision]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAHeldAnswerKeepsItsRowHiddenThroughAnyRead]' started.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAHeldAnswerKeepsItsRowHiddenThroughAnyRead]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnActionConflictWaitsForThePopoverToShowItsOutcome]' started.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnActionConflictWaitsForThePopoverToShowItsOutcome]' passed (0.030 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnActionLandingAfterSignOutChangesNothing]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnActionLandingAfterSignOutChangesNothing]' passed (0.025 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnActionLandingAfterSignOutChangesNothing]' passed (0.026 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnActionOnAHeldDecisionSendsNothing]' started.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnActionOnAHeldDecisionSendsNothing]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnActionOnAMissingDecisionDropsIt]' started.
@@ -530,62 +534,62 @@ Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnActionOnAMissingDecisio
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnActionThatFailsRestoresTheRowWithItsMessage]' started.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnActionThatFailsRestoresTheRowWithItsMessage]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnswerHidesTheRowAndSendsAfterExactlyFourSeconds]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnswerHidesTheRowAndSendsAfterExactlyFourSeconds]' passed (0.031 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnswerHidesTheRowAndSendsAfterExactlyFourSeconds]' passed (0.032 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnsweringAHiddenDecisionHoldsNothing]' started.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnsweringAHiddenDecisionHoldsNothing]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnUnauthorizedActionRestoresNothing]' started.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAnUnauthorizedActionRestoresNothing]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testAReadTakenBeforeTheAnswerLandedDoesNotBringTheRowBack]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testAReadTakenBeforeTheAnswerLandedDoesNotBringTheRowBack]' passed (0.000 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testAReadTakenBeforeTheAnswerLandedDoesNotBringTheRowBack]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testChangesAreReported]' started.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testChangesAreReported]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testClosingThePopoverSendsTheHeldAnswerOnce]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testClosingThePopoverSendsTheHeldAnswerOnce]' passed (0.028 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testClosingThePopoverSendsTheHeldAnswerOnce]' passed (0.026 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testConflictNamesAnExpiredOrCancelledDecision]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testConflictNamesAnExpiredOrCancelledDecision]' passed (0.006 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testConflictNamesAnExpiredOrCancelledDecision]' passed (0.005 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testConflictOnAStillPendingDecisionRestoresTheRow]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testConflictOnAStillPendingDecisionRestoresTheRow]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testConflictOnAStillPendingDecisionRestoresTheRow]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testConflictShowsTheRecordedOutcomeForFourSecondsAndDiscardsTheAttempt]' started.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testConflictShowsTheRecordedOutcomeForFourSecondsAndDiscardsTheAttempt]' passed (0.030 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testConflictWhoseDecisionIsGoneDropsTheRow]' started.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testConflictWhoseDecisionIsGoneDropsTheRow]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testConflictWhoseReadFailsShowsAnHonestStripWithoutRetrying]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testConflictWhoseReadFailsShowsAnHonestStripWithoutRetrying]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testConflictWhoseReadFailsShowsAnHonestStripWithoutRetrying]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testNonContractNotFoundAndConflictRestoreTheRow]' started.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testNonContractNotFoundAndConflictRestoreTheRow]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testNotFoundDropsTheRow]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testNotFoundDropsTheRow]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testNotFoundDropsTheRow]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testOverlappingTriggersPostOnce]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testOverlappingTriggersPostOnce]' passed (0.030 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testOverlappingTriggersPostOnce]' passed (0.028 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitAcceptsAConflictAndANotFound]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitAcceptsAConflictAndANotFound]' passed (0.002 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitAcceptsAConflictAndANotFound]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitReportsATransportFailureAndRestoresTheRow]' started.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitReportsATransportFailureAndRestoresTheRow]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitWaitsForAnActionInFlight]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitWaitsForAnActionInFlight]' passed (0.002 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitWaitsForAnActionInFlight]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitWaitsForTheHeldAnswer]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitWaitsForTheHeldAnswer]' passed (0.004 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitWaitsForTheHeldAnswer]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitWithNothingUnsentReturnsAtOnce]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitWithNothingUnsentReturnsAtOnce]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testQuitWithNothingUnsentReturnsAtOnce]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testRepeatedActionsPostOnce]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testRepeatedActionsPostOnce]' passed (0.003 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testRepeatedActionsPostOnce]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testSecondAnswerSendsTheFirstAndHoldsTheSecond]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testSecondAnswerSendsTheFirstAndHoldsTheSecond]' passed (0.005 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testSecondAnswerSendsTheFirstAndHoldsTheSecond]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testSendNowLeavesAnUnrelatedHeldAnswerHeld]' started.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testSendNowLeavesAnUnrelatedHeldAnswerHeld]' passed (0.005 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testSendNowPostsAtOnceWithoutTheHold]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testSendNowPostsAtOnceWithoutTheHold]' passed (0.002 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testSendNowPostsAtOnceWithoutTheHold]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testSignOutDropsHeldAndLateAnswers]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testSignOutDropsHeldAndLateAnswers]' passed (0.031 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testSignOutDropsHeldAndLateAnswers]' passed (0.027 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testTransportFailureRestoresTheRowWithItsDraft]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testTransportFailureRestoresTheRowWithItsDraft]' passed (0.003 seconds).
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testTransportFailureRestoresTheRowWithItsDraft]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testUnauthorizedRestoresNothing]' started.
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testUnauthorizedRestoresNothing]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.PendingAnswersTests testUndoRestoresTheRowAndDraftAndSendsNothing]' started.
-Test Case '-[AgentDeskKitTests.PendingAnswersTests testUndoRestoresTheRowAndDraftAndSendsNothing]' passed (0.026 seconds).
-Test Suite 'PendingAnswersTests' passed at 2026-11-06 10:22:53.004.
-	 Executed 34 tests, with 0 failures (0 unexpected) in 0.280 (0.285) seconds
-Test Suite 'PopoverDismissalTests' started at 2026-11-06 10:22:53.004.
+Test Case '-[AgentDeskKitTests.PendingAnswersTests testUndoRestoresTheRowAndDraftAndSendsNothing]' passed (0.023 seconds).
+Test Suite 'PendingAnswersTests' passed at 2026-11-06 10:46:36.817.
+	 Executed 34 tests, with 0 failures (0 unexpected) in 0.258 (0.262) seconds
+Test Suite 'PopoverDismissalTests' started at 2026-11-06 10:46:36.817.
 Test Case '-[AgentDeskKitTests.PopoverDismissalTests testAClickElsewhereClosesBoth]' started.
 Test Case '-[AgentDeskKitTests.PopoverDismissalTests testAClickElsewhereClosesBoth]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.PopoverDismissalTests testAClickInEitherWindowKeepsBoth]' started.
@@ -594,9 +598,9 @@ Test Case '-[AgentDeskKitTests.PopoverDismissalTests testAClickInTheOpenMenuKeep
 Test Case '-[AgentDeskKitTests.PopoverDismissalTests testAClickInTheOpenMenuKeepsBoth]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.PopoverDismissalTests testAClickOnTheMenuBarItemLeavesItToTheItemsAction]' started.
 Test Case '-[AgentDeskKitTests.PopoverDismissalTests testAClickOnTheMenuBarItemLeavesItToTheItemsAction]' passed (0.000 seconds).
-Test Suite 'PopoverDismissalTests' passed at 2026-11-06 10:22:53.006.
-	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
-Test Suite 'PopoverKeysTests' started at 2026-11-06 10:22:53.006.
+Test Suite 'PopoverDismissalTests' passed at 2026-11-06 10:46:36.819.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'PopoverKeysTests' started at 2026-11-06 10:46:36.819.
 Test Case '-[AgentDeskKitTests.PopoverKeysTests testArrowsIgnoreAnAgentWithARowsID]' started.
 Test Case '-[AgentDeskKitTests.PopoverKeysTests testArrowsIgnoreAnAgentWithARowsID]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.PopoverKeysTests testArrowsMoveTheSelectionAndStopAtTheEnds]' started.
@@ -619,11 +623,11 @@ Test Case '-[AgentDeskKitTests.PopoverKeysTests testReturnOpensOrClosesTheSelect
 Test Case '-[AgentDeskKitTests.PopoverKeysTests testReturnOpensOrClosesTheSelectedRowsPanel]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.PopoverKeysTests testTextFieldsKeepArrowsAndReturn]' started.
 Test Case '-[AgentDeskKitTests.PopoverKeysTests testTextFieldsKeepArrowsAndReturn]' passed (0.000 seconds).
-Test Suite 'PopoverKeysTests' passed at 2026-11-06 10:22:53.010.
+Test Suite 'PopoverKeysTests' passed at 2026-11-06 10:46:36.822.
 	 Executed 11 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
-Test Suite 'SchemaConformanceTests' started at 2026-11-06 10:22:53.010.
+Test Suite 'SchemaConformanceTests' started at 2026-11-06 10:46:36.822.
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testAFullHistoryEntryRoundTripsEverySchemaProperty]' started.
-Test Case '-[AgentDeskKitTests.SchemaConformanceTests testAFullHistoryEntryRoundTripsEverySchemaProperty]' passed (0.006 seconds).
+Test Case '-[AgentDeskKitTests.SchemaConformanceTests testAFullHistoryEntryRoundTripsEverySchemaProperty]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testAgentSessionCodingKeysMatchSchema]' started.
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testAgentSessionCodingKeysMatchSchema]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testAHistoryEntryWithANullLinkAndUnknownFieldsDecodes]' started.
@@ -631,11 +635,11 @@ Test Case '-[AgentDeskKitTests.SchemaConformanceTests testAHistoryEntryWithANull
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testAnswerCodingKeysMatchEveryAnswerShapedProperty]' started.
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testAnswerCodingKeysMatchEveryAnswerShapedProperty]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testDecisionCodingKeysMatchSchema]' started.
-Test Case '-[AgentDeskKitTests.SchemaConformanceTests testDecisionCodingKeysMatchSchema]' passed (0.000 seconds).
+Test Case '-[AgentDeskKitTests.SchemaConformanceTests testDecisionCodingKeysMatchSchema]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testEnumerationsMatchSchema]' started.
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testEnumerationsMatchSchema]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testEveryAnswerKindDecodes]' started.
-Test Case '-[AgentDeskKitTests.SchemaConformanceTests testEveryAnswerKindDecodes]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.SchemaConformanceTests testEveryAnswerKindDecodes]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testEveryInputTypeDecodes]' started.
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testEveryInputTypeDecodes]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testEveryNotificationActionDecodes]' started.
@@ -645,7 +649,7 @@ Test Case '-[AgentDeskKitTests.SchemaConformanceTests testFullAgentSessionRoundT
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testFullDecisionRoundTripsEverySchemaProperty]' started.
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testFullDecisionRoundTripsEverySchemaProperty]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testHistoryCodingKeysMatchTheHistoryRoute]' started.
-Test Case '-[AgentDeskKitTests.SchemaConformanceTests testHistoryCodingKeysMatchTheHistoryRoute]' passed (0.001 seconds).
+Test Case '-[AgentDeskKitTests.SchemaConformanceTests testHistoryCodingKeysMatchTheHistoryRoute]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testInstantsDecodeFractionsAndOffsets]' started.
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testInstantsDecodeFractionsAndOffsets]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testNullableFieldsDecodeAsNil]' started.
@@ -653,12 +657,12 @@ Test Case '-[AgentDeskKitTests.SchemaConformanceTests testNullableFieldsDecodeAs
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testOptionCodingKeysMatchSchema]' started.
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testOptionCodingKeysMatchSchema]' passed (0.000 seconds).
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testPageSubmissionAndErrorKeysMatchOpenAPI]' started.
-Test Case '-[AgentDeskKitTests.SchemaConformanceTests testPageSubmissionAndErrorKeysMatchOpenAPI]' passed (0.002 seconds).
+Test Case '-[AgentDeskKitTests.SchemaConformanceTests testPageSubmissionAndErrorKeysMatchOpenAPI]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.SchemaConformanceTests testUnknownKeysAreIgnored]' started.
-Test Case '-[AgentDeskKitTests.SchemaConformanceTests testUnknownKeysAreIgnored]' passed (0.001 seconds).
-Test Suite 'SchemaConformanceTests' passed at 2026-11-06 10:22:53.031.
-	 Executed 17 tests, with 0 failures (0 unexpected) in 0.020 (0.022) seconds
-Test Suite 'SeenStoreTests' started at 2026-11-06 10:22:53.031.
+Test Case '-[AgentDeskKitTests.SchemaConformanceTests testUnknownKeysAreIgnored]' passed (0.000 seconds).
+Test Suite 'SchemaConformanceTests' passed at 2026-11-06 10:46:36.840.
+	 Executed 17 tests, with 0 failures (0 unexpected) in 0.016 (0.017) seconds
+Test Suite 'SeenStoreTests' started at 2026-11-06 10:46:36.840.
 Test Case '-[AgentDeskKitTests.SeenStoreTests testADecisionArrivingAfterCloseStaysNew]' started.
 Test Case '-[AgentDeskKitTests.SeenStoreTests testADecisionArrivingAfterCloseStaysNew]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.SeenStoreTests testAnUnauthorizedAnswerClearsTheStore]' started.
@@ -668,16 +672,16 @@ Test Case '-[AgentDeskKitTests.SeenStoreTests testMarkingTheListedIdsOnClosePers
 Test Case '-[AgentDeskKitTests.SeenStoreTests testPruningKeepsOnlyPendingIds]' started.
 Test Case '-[AgentDeskKitTests.SeenStoreTests testPruningKeepsOnlyPendingIds]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.SeenStoreTests testSignOutClearsTheStore]' started.
-Test Case '-[AgentDeskKitTests.SeenStoreTests testSignOutClearsTheStore]' passed (0.002 seconds).
+Test Case '-[AgentDeskKitTests.SeenStoreTests testSignOutClearsTheStore]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.SeenStoreTests testStartsEmptyAndEveryDecisionIsNew]' started.
-Test Case '-[AgentDeskKitTests.SeenStoreTests testStartsEmptyAndEveryDecisionIsNew]' passed (0.001 seconds).
-Test Suite 'SeenStoreTests' passed at 2026-11-06 10:22:53.041.
-	 Executed 6 tests, with 0 failures (0 unexpected) in 0.009 (0.010) seconds
-Test Suite 'SignInTests' started at 2026-11-06 10:22:53.041.
+Test Case '-[AgentDeskKitTests.SeenStoreTests testStartsEmptyAndEveryDecisionIsNew]' passed (0.000 seconds).
+Test Suite 'SeenStoreTests' passed at 2026-11-06 10:46:36.847.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.007 (0.007) seconds
+Test Suite 'SignInTests' started at 2026-11-06 10:46:36.847.
 Test Case '-[AgentDeskKitTests.SignInTests testApprovalArrivingAtTheDeadlineIsDiscarded]' started.
-Test Case '-[AgentDeskKitTests.SignInTests testApprovalArrivingAtTheDeadlineIsDiscarded]' passed (0.003 seconds).
+Test Case '-[AgentDeskKitTests.SignInTests testApprovalArrivingAtTheDeadlineIsDiscarded]' passed (0.002 seconds).
 Test Case '-[AgentDeskKitTests.SignInTests testApprovalIsCollectedWithinTenSeconds]' started.
-Test Case '-[AgentDeskKitTests.SignInTests testApprovalIsCollectedWithinTenSeconds]' passed (0.007 seconds).
+Test Case '-[AgentDeskKitTests.SignInTests testApprovalIsCollectedWithinTenSeconds]' passed (0.008 seconds).
 Test Case '-[AgentDeskKitTests.SignInTests testCancelledAttemptNeverStoresALateApproval]' started.
 Test Case '-[AgentDeskKitTests.SignInTests testCancelledAttemptNeverStoresALateApproval]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.SignInTests testCodeIsShownAsTwoGroupsOfFour]' started.
@@ -689,7 +693,7 @@ Test Case '-[AgentDeskKitTests.SignInTests testExpiredAndNotFoundShowExpired]' p
 Test Case '-[AgentDeskKitTests.SignInTests testFailedPollKeepsPolling]' started.
 Test Case '-[AgentDeskKitTests.SignInTests testFailedPollKeepsPolling]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.SignInTests testFailedRegistrationIsReportedAndRetried]' started.
-Test Case '-[AgentDeskKitTests.SignInTests testFailedRegistrationIsReportedAndRetried]' passed (0.002 seconds).
+Test Case '-[AgentDeskKitTests.SignInTests testFailedRegistrationIsReportedAndRetried]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.SignInTests testFirstSignInTurnsOpenAtLoginOnOnce]' started.
 Test Case '-[AgentDeskKitTests.SignInTests testFirstSignInTurnsOpenAtLoginOnOnce]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.SignInTests testKeychainFailureFailsTheSignIn]' started.
@@ -740,92 +744,96 @@ Test Case '-[AgentDeskKitTests.SignInTests testStartWithoutAnHTTPAnswerIsUnreach
 Test Case '-[AgentDeskKitTests.SignInTests testStartWithoutAnHTTPAnswerIsUnreachable]' passed (0.001 seconds).
 Test Case '-[AgentDeskKitTests.SignInTests testTokenIsStoredUnderTheConfiguredOrigin]' started.
 Test Case '-[AgentDeskKitTests.SignInTests testTokenIsStoredUnderTheConfiguredOrigin]' passed (0.001 seconds).
-Test Suite 'SignInTests' passed at 2026-11-06 10:22:53.079.
-	 Executed 33 tests, with 0 failures (0 unexpected) in 0.036 (0.038) seconds
-Test Suite 'SyncFreshnessTests' started at 2026-11-06 10:22:53.079.
+Test Suite 'SignInTests' passed at 2026-11-06 10:46:36.888.
+	 Executed 33 tests, with 0 failures (0 unexpected) in 0.039 (0.041) seconds
+Test Suite 'SyncFreshnessTests' started at 2026-11-06 10:46:36.888.
 Test Case '-[AgentDeskKitTests.SyncFreshnessTests testClosedPopoverReflectsAChangeWithin20Seconds]' started.
 Test Case '-[AgentDeskKitTests.SyncFreshnessTests testClosedPopoverReflectsAChangeWithin20Seconds]' passed (0.004 seconds).
 Test Case '-[AgentDeskKitTests.SyncFreshnessTests testOpenPopoverReflectsAChangeWithin10Seconds]' started.
 Test Case '-[AgentDeskKitTests.SyncFreshnessTests testOpenPopoverReflectsAChangeWithin10Seconds]' passed (0.004 seconds).
 Test Case '-[AgentDeskKitTests.SyncFreshnessTests testShownAgentReflectsAChangeWithin10Seconds]' started.
 Test Case '-[AgentDeskKitTests.SyncFreshnessTests testShownAgentReflectsAChangeWithin10Seconds]' passed (0.006 seconds).
-Test Suite 'SyncFreshnessTests' passed at 2026-11-06 10:22:53.094.
-	 Executed 3 tests, with 0 failures (0 unexpected) in 0.014 (0.014) seconds
-Test Suite 'SyncTests' started at 2026-11-06 10:22:53.094.
+Test Suite 'SyncFreshnessTests' passed at 2026-11-06 10:46:36.902.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.013 (0.013) seconds
+Test Suite 'SyncTests' started at 2026-11-06 10:46:36.902.
 Test Case '-[AgentDeskKitTests.SyncTests testAChangeReachesThePanelWithin10Seconds]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testAChangeReachesThePanelWithin10Seconds]' passed (0.008 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testAChangeReachesThePanelWithin10Seconds]' passed (0.009 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testAClosedPopoverReadsNoHistory]' started.
 Test Case '-[AgentDeskKitTests.SyncTests testAClosedPopoverReadsNoHistory]' passed (0.009 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testAContractNotFoundFromEitherReadIsGoneAndStopsThatTargetsReads]' started.
 Test Case '-[AgentDeskKitTests.SyncTests testAContractNotFoundFromEitherReadIsGoneAndStopsThatTargetsReads]' passed (0.021 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testAFailedAgentReadAlsoBacksOff]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testAFailedAgentReadAlsoBacksOff]' passed (0.004 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testAFailedAgentReadAlsoBacksOff]' passed (0.005 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testAFailedReadKeepsTheLastGoodSnapshot]' started.
 Test Case '-[AgentDeskKitTests.SyncTests testAFailedReadKeepsTheLastGoodSnapshot]' passed (0.004 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testAgentsKeepTheirLastGoodListWhenDecisionsFail]' started.
 Test Case '-[AgentDeskKitTests.SyncTests testAgentsKeepTheirLastGoodListWhenDecisionsFail]' passed (0.006 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testAnUnauthenticatedDetailReadStopsTheRun]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testAnUnauthenticatedDetailReadStopsTheRun]' passed (0.006 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testAnUnauthenticatedDetailReadStopsTheRun]' passed (0.007 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testAPanelFailureKeepsTheListsIndependent]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testAPanelFailureKeepsTheListsIndependent]' passed (0.006 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testAPanelFailureKeepsTheListsIndependent]' passed (0.005 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testAResultForAnEarlierTargetChangesNothing]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testAResultForAnEarlierTargetChangesNothing]' passed (0.163 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testAResultForAnEarlierTargetChangesNothing]' passed (0.165 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testARetryNeverDropsAFullReadWaitingForAReadInFlight]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testARetryNeverDropsAFullReadWaitingForAReadInFlight]' passed (0.027 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testARetryNeverDropsAFullReadWaitingForAReadInFlight]' passed (0.028 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testAShownSessionIsReadEvery5SecondsOnTheOneTimerWithTheLists]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testAShownSessionIsReadEvery5SecondsOnTheOneTimerWithTheLists]' passed (0.014 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testAShownSessionIsReadEvery5SecondsOnTheOneTimerWithTheLists]' passed (0.012 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testATickThatFindsAReadInFlightIsSkipped]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testATickThatFindsAReadInFlightIsSkipped]' passed (0.010 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testATickThatFindsAReadInFlightIsSkipped]' passed (0.008 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testATransientFailureOfEitherReadFailsThePairAndBacksOff]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testATransientFailureOfEitherReadFailsThePairAndBacksOff]' passed (0.040 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testATransientFailureOfEitherReadFailsThePairAndBacksOff]' passed (0.039 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testATriggerDuringAReadWaitsAndReadsAgain]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testATriggerDuringAReadWaitsAndReadsAgain]' passed (0.026 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testATriggerDuringAReadWaitsAndReadsAgain]' passed (0.030 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testClosingSwitchesTo15SecondsWithoutAReadAndStopsAgentReads]' started.
 Test Case '-[AgentDeskKitTests.SyncTests testClosingSwitchesTo15SecondsWithoutAReadAndStopsAgentReads]' passed (0.007 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testClosingThePanelEndsABackoffOnlyItsTargetCaused]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testClosingThePanelEndsABackoffOnlyItsTargetCaused]' passed (0.013 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testClosingThePanelKeepsABackoffTheListsCaused]' started.
+Test Case '-[AgentDeskKitTests.SyncTests testClosingThePanelKeepsABackoffTheListsCaused]' passed (0.040 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testFailedReadsBackOffTo300SecondsAndASuccessResets]' started.
 Test Case '-[AgentDeskKitTests.SyncTests testFailedReadsBackOffTo300SecondsAndASuccessResets]' passed (0.019 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testGoneNeverRemovesAListEntry]' started.
 Test Case '-[AgentDeskKitTests.SyncTests testGoneNeverRemovesAListEntry]' passed (0.007 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testHidingStopsTheHistoryReads]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testHidingStopsTheHistoryReads]' passed (0.011 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testHidingStopsTheHistoryReads]' passed (0.009 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testNoDetailIsReadWhileNoSessionIsShown]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testNoDetailIsReadWhileNoSessionIsShown]' passed (0.007 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testNoDetailIsReadWhileNoSessionIsShown]' passed (0.006 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testNonContract404IsTransient]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testNonContract404IsTransient]' passed (0.010 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testNonContract404IsTransient]' passed (0.009 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testNonContractUnauthorizedBacksOffLikeAnyFailure]' started.
 Test Case '-[AgentDeskKitTests.SyncTests testNonContractUnauthorizedBacksOffLikeAnyFailure]' passed (0.003 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testOnlyACompleteReadOfEveryPageReplacesTheList]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testOnlyACompleteReadOfEveryPageReplacesTheList]' passed (0.010 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testOnlyACompleteReadOfEveryPageReplacesTheList]' passed (0.009 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testOpeningReadsBothAtOnceThenEvery5Seconds]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testOpeningReadsBothAtOnceThenEvery5Seconds]' passed (0.007 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testOpeningReadsBothAtOnceThenEvery5Seconds]' passed (0.006 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testPanelDataNeverMovesFetchedAt]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testPanelDataNeverMovesFetchedAt]' passed (0.010 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testPanelDataNeverMovesFetchedAt]' passed (0.008 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testRetryReadsOnlyTheTarget]' started.
 Test Case '-[AgentDeskKitTests.SyncTests testRetryReadsOnlyTheTarget]' passed (0.009 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testRetryWithNoTargetReadsNothing]' started.
 Test Case '-[AgentDeskKitTests.SyncTests testRetryWithNoTargetReadsNothing]' passed (0.006 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testShowingASessionReadsItAndItsHistoryAtOnceAndConcurrently]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testShowingASessionReadsItAndItsHistoryAtOnceAndConcurrently]' passed (0.010 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testShowingASessionReadsItAndItsHistoryAtOnceAndConcurrently]' passed (0.009 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testSignOutThroughAccountStopsSync]' started.
 Test Case '-[AgentDeskKitTests.SyncTests testSignOutThroughAccountStopsSync]' passed (0.005 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testStartReadsDecisionsAtOnceThenEvery15SecondsWhileClosed]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testStartReadsDecisionsAtOnceThenEvery15SecondsWhileClosed]' passed (0.004 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testStartReadsDecisionsAtOnceThenEvery15SecondsWhileClosed]' passed (0.005 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testStopDropsAResultStillInFlightAndARestartBeginsEmpty]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testStopDropsAResultStillInFlightAndARestartBeginsEmpty]' passed (0.028 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testStopDropsAResultStillInFlightAndARestartBeginsEmpty]' passed (0.030 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testStopRightAfterStartStartsNothing]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testStopRightAfterStartStartsNothing]' passed (0.025 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testStopRightAfterStartStartsNothing]' passed (0.022 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testTheNewTargetsResultLandsAfterASwitch]' started.
 Test Case '-[AgentDeskKitTests.SyncTests testTheNewTargetsResultLandsAfterASwitch]' passed (0.009 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testUnauthorizedStopsPolling]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testUnauthorizedStopsPolling]' passed (0.048 seconds).
+Test Case '-[AgentDeskKitTests.SyncTests testUnauthorizedStopsPolling]' passed (0.045 seconds).
 Test Case '-[AgentDeskKitTests.SyncTests testWakeAndNetworkReturnReadAtOnce]' started.
-Test Case '-[AgentDeskKitTests.SyncTests testWakeAndNetworkReturnReadAtOnce]' passed (0.010 seconds).
-Test Suite 'SyncTests' passed at 2026-11-06 10:22:53.689.
-	 Executed 34 tests, with 0 failures (0 unexpected) in 0.589 (0.596) seconds
-Test Suite 'AgentDeskKitTests.xctest' passed at 2026-11-06 10:22:53.689.
-	 Executed 372 tests, with 0 failures (0 unexpected) in 1.693 (1.732) seconds
-Test Suite 'All tests' passed at 2026-11-06 10:22:53.690.
-	 Executed 372 tests, with 0 failures (0 unexpected) in 1.693 (1.732) seconds
+Test Case '-[AgentDeskKitTests.SyncTests testWakeAndNetworkReturnReadAtOnce]' passed (0.008 seconds).
+Test Suite 'SyncTests' passed at 2026-11-06 10:46:37.541.
+	 Executed 36 tests, with 0 failures (0 unexpected) in 0.633 (0.639) seconds
+Test Suite 'AgentDeskKitTests.xctest' passed at 2026-11-06 10:46:37.541.
+	 Executed 376 tests, with 0 failures (0 unexpected) in 1.710 (1.747) seconds
+Test Suite 'All tests' passed at 2026-11-06 10:46:37.541.
+	 Executed 376 tests, with 0 failures (0 unexpected) in 1.710 (1.748) seconds
 FRESHNESS closed: timer 15.000 s + read 0.0008 s (3 pages, in-process stub) = 15.0008 s; bound 20 s
 FRESHNESS open: timer 5.000 s + read 0.0008 s (3 pages, in-process stub) = 5.0008 s; bound 10 s
 FRESHNESS agent panel: timer 5.000 s + read 0.0005 s (2 pages, in-process stub) = 5.0005 s; bound 10 s
