@@ -1497,6 +1497,9 @@ func panelHeightEvidence(_ failures: inout [String]) {
     let last = samples.last!
     line("\(name): \(samples.count) readings; settled \(last.text)")
     check("\(name): layout holds still within 2 s", converged, &failures)
+    // A former target's height cannot move the window once it reaches this one's.
+    let arrived = samples.firstIndex { abs($0.windowHeight - last.windowHeight) <= tolerance } ?? 0
+    check("\(name): no later reading moves the window from its height", samples[arrived...].allSatisfy { abs($0.windowHeight - last.windowHeight) <= tolerance }, &failures)
     let shifted = samples.filter { $0.hasBody && !headerTop.contains($0.headerTopGap) }
     for sample in shifted { line("  header away from the top: \(sample.text)") }
     check("\(name): the header stays at the window's top in every reading", shifted.isEmpty, &failures)
@@ -1612,6 +1615,18 @@ func panelHeightEvidence(_ failures: inout [String]) {
     check("\(name): the click reached the row", inAction != nil, &failures)
   }
 
+  model.agent = nil
+  model.decision = nil
+  panel.hide()
+  drain(0.3)
+  var reopened: PanelHeightSample?
+  row.action = {
+    present(agentLoadingSeed)
+    reopened = panelHeightSample(panel.window)
+  }
+  verify("a row's click reopens the panel on a short loading", &failures) { clickRow() }
+  if let reopened { line("  inside the click, before SwiftUI's update: \(reopened.text)") }
+  check("reopening: the click reached the row", reopened != nil, &failures)
   anchorWindow.ignoresMouseEvents = true
   rowHost.removeFromSuperview()
 
