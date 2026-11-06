@@ -306,6 +306,42 @@ final class SyncTests: XCTestCase {
     XCTAssertEqual(h.clock.requests.last, 30)
   }
 
+  func testClosingThePanelEndsABackoffOnlyItsTargetCaused() async {
+    let h = Harness()
+    await h.startOpen()
+    h.reader.alwaysAnswerHistory(.failure(.transport("offline")))
+    _ = h.sync.showAgent(id: "ags_1")
+    await h.settled(sleeps: 3)
+    XCTAssertEqual(h.clock.requests.last, 30)
+    h.clock.advance(by: 30)
+    await h.settled(sleeps: 4)
+    XCTAssertEqual(h.clock.requests.last, 60)
+
+    h.sync.hideAgent()
+    await h.settled(sleeps: 5)
+    XCTAssertEqual(h.clock.requests.last, 5, "the lists return to their open cadence")
+    XCTAssertEqual(h.clock.sleeping, 1, "no competing timer")
+    let decisions = h.reader.decisionCalls
+    h.clock.advance(by: 5)
+    await eventually("the next list read") { h.reader.decisionCalls == decisions + 1 }
+  }
+
+  func testClosingThePanelKeepsABackoffTheListsCaused() async {
+    let h = Harness()
+    await h.startOpen()
+    h.reader.alwaysAnswerDecisions(.failure(.transport("offline")))
+    h.reader.alwaysAnswerHistory(.failure(.transport("offline")))
+    _ = h.sync.showAgent(id: "ags_1")
+    await h.settled(sleeps: 3)
+    XCTAssertEqual(h.clock.requests.last, 30)
+    let requests = h.clock.requests.count
+
+    h.sync.hideAgent()
+    try? await Task.sleep(nanoseconds: 30_000_000)
+    XCTAssertEqual(h.clock.requests.count, requests, "the timer keeps its backoff")
+    XCTAssertEqual(h.clock.sleeping, 1)
+  }
+
   func testAContractNotFoundFromEitherReadIsGoneAndStopsThatTargetsReads() async {
     for failing in ["session", "history"] {
       let h = Harness()

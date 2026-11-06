@@ -108,7 +108,7 @@ final class SyncFreshnessTests: XCTestCase {
       case "/v1/agent-sessions/s1":
         return .json(200, Fixtures.json(Fixtures.agentSession(id: "s1", ["line": line.ids[0]])))
       case "/v1/agent-sessions/s1/history":
-        return .json(200, Fixtures.json(["items": [Fixtures.historyEntry()]]))
+        return .json(200, Fixtures.json(["items": [Fixtures.historyEntry(["line": line.ids[0]])]]))
       default:
         return .error(404, "not_found", "Unexpected \(request.path)")
       }
@@ -137,7 +137,7 @@ final class SyncFreshnessTests: XCTestCase {
       return XCTFail("expected the pair")
     }
     XCTAssertEqual(session.line, "After")
-    XCTAssertEqual(history.count, 1)
+    XCTAssertEqual(history.map(\.line), ["After"], "the history is the new read's too")
     let m = Measurement(interval: interval, read: arrival.at - started, pages: 2)
     report("agent panel", m, bound: 10)
     XCTAssertEqual(m.interval, Sync.openInterval)

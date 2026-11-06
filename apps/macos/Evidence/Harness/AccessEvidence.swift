@@ -617,6 +617,16 @@ func accessEvidence() -> Int32 {
     check("agent-refresh-failed: the session stays", reads(entries, "Running the migration tests"))
     check("agent-refresh-failed: AXPress on Try Again retries", named(entries, "AXButton", "Try Again").map(stage.press) == true && model.retries == 1)
   }
+  agentScene(
+    "agent-pending-unread",
+    AgentDetailPresentation(
+      content: .loaded(blockedAgent, agentHistoryFixture), refreshFailed: false, decisions: [], now: now,
+      decisionsAreKnown: false)
+  ) { _, _, entries in
+    check("agent-pending-unread: an unread list says so", reads(entries, "Pending decisions aren't available yet."))
+    check("agent-pending-unread: it never reads as empty", !reads(entries, "No pending decisions."))
+    check("agent-pending-unread: the count still reads", reads(entries, "1 pending decision"))
+  }
   agentScene("agent-gone", AgentDetailPresentation(content: .gone)) { _, _, entries in
     check("agent-gone: the message reads", reads(entries, "This agent session is gone."))
     check("agent-gone: close is the only control", entries.filter(\.isControl).map(\.name) == ["Close detail"])

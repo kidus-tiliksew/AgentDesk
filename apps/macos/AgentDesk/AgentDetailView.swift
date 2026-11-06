@@ -22,9 +22,14 @@ struct AgentDetailPresentation: Equatable {
     self.refreshFailed = refreshFailed
   }
 
-  init(content: AgentDetail.Content, refreshFailed: Bool, decisions: [Decision], now: Date) {
+  init(
+    content: AgentDetail.Content, refreshFailed: Bool, decisions: [Decision], now: Date,
+    decisionsAreKnown: Bool = true
+  ) {
     func model(_ session: AgentSession, _ history: [StatusHistoryEntry]?) -> AgentDetailModel {
-      AgentDetailModel(session: session, history: history, decisions: decisions, now: now)
+      AgentDetailModel(
+        session: session, history: history, decisions: decisions, now: now,
+        decisionsAreKnown: decisionsAreKnown)
     }
     switch content {
     case .loading(let seed): self.content = .loading(seed.map { model($0, nil) })
@@ -219,7 +224,7 @@ struct AgentDetailView: View {
         .fontWeight(.medium)
         .accessibilityAddTraits(.isHeader)
       if model.pending.isEmpty {
-        Text("No pending decisions.")
+        Text(model.pendingIsKnown ? "No pending decisions." : "Pending decisions aren't available yet.")
           .font(.callout)
           .foregroundStyle(Ink.secondary)
       } else {

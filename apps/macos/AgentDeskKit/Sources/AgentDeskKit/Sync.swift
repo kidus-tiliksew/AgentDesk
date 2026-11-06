@@ -81,6 +81,9 @@ public actor Sync {
   private var snapshot = Snapshot.empty
   private var isOpen = false
   private var failures = 0
+  /// The running backoff comes only from the panel's target, with the lists
+  /// answering, so it ends when the target does.
+  private var backoffIsTargets = false
   private var timer: Task<Void, Never>?
   private var read: (id: Int, task: Task<Void, Never>)?
   private var nextReadID = 0
@@ -160,11 +163,23 @@ public actor Sync {
   /// read in flight changes nothing.
   public nonisolated func hideAgent() {
     targets.clear()
+    Task { await self.targetEnded() }
   }
 
   /// Try Again: reads only the shown session and its history.
   public nonisolated func retryAgent() {
     Task { await self.trigger(.target) }
+  }
+
+  /// A backoff that only the panel's target caused ends with it, so a failing
+  /// history read does not hold the lists back after the panel closes. A
+  /// backoff the lists caused stays.
+  private func targetEnded() {
+    guard failures > 0, backoffIsTargets, targets.readable == nil else { return }
+    failures = 0
+    backoffIsTargets = false
+    guard let generation = run.current else { return }
+    schedule(generation, queued)
   }
 
   private func trigger(_ scope: ReadScope) {
@@ -300,6 +315,7 @@ public actor Sync {
       break
     }
 
+    let listsFailed = failure != nil
     var detail: AgentDetailOutcome?
     if let target, let sessionResult, let historyResult, targets.isCurrent(target) {
       switch Self.outcome(session: sessionResult, history: historyResult) {
@@ -322,6 +338,7 @@ public actor Sync {
         cancelTimer()
         return
       }
+      backoffIsTargets = readsLists ? !listsFailed : (backoffIsTargets || failures == 0)
       failures += 1
       Self.log.error("A sync read failed; next in \(self.nextDelay, privacy: .public) s")
     } else {

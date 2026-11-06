@@ -165,6 +165,12 @@ final class AgentDetailTests: XCTestCase {
     }
   }
 
+  func testOpenLinkReportsNothingOpenedWithNoOpener() {
+    let (detail, _) = makeDetail()
+    detail.show("s1", known: Fixtures.session("s1", ["link": "https://example.com/pr/1"]))
+    XCTAssertFalse(detail.openLink())
+  }
+
   func testNoCallButOpenLinkReachesTheOpener() {
     let (detail, _) = makeDetail()
     var opened = 0
@@ -273,6 +279,15 @@ final class AgentDetailTests: XCTestCase {
     XCTAssertEqual(m.pending[1].accessibilityValue, "Urgent, 2m left, 10m ago")
     XCTAssertEqual(model(["pending_decision_count": 1]).pendingCountText, "1 pending decision")
     XCTAssertEqual(model(["pending_decision_count": 0]).pending, [])
+  }
+
+  func testAnUnreadPendingListIsNotAnEmptyOne() {
+    let session = Fixtures.session("s1", ["pending_decision_count": 2])
+    let unread = AgentDetailModel(
+      session: session, history: [], decisions: [], now: now, decisionsAreKnown: false)
+    XCTAssertFalse(unread.pendingIsKnown)
+    XCTAssertEqual(unread.pendingCountText, "2 pending decisions", "the count still comes from the session")
+    XCTAssertTrue(AgentDetailModel(session: session, history: [], decisions: [], now: now).pendingIsKnown)
   }
 
   func testHistoryKeepsTheServersOrderAndItsLinksAreText() {

@@ -141,8 +141,8 @@ public final class AgentDetail {
   /// The Open link control (AC-11.4). Returns whether it opened anything.
   @discardableResult
   public func openLink() -> Bool {
-    guard let link else { return false }
-    opener?(link)
+    guard let link, let opener else { return false }
+    opener(link)
     return true
   }
 
@@ -235,6 +235,9 @@ public struct AgentDetailModel: Equatable, Sendable, Identifiable {
   public let pendingCount: Int
   public let pendingCountText: String
   public let pending: [PendingDecision]
+  /// False until a decisions read has succeeded, so an unread list never reads
+  /// as "No pending decisions" beside a positive count.
+  public let pendingIsKnown: Bool
   /// Newest first, as the server returned them. Nil before the first read
   /// answers, as distinct from a session with no earlier status.
   public let history: [HistoryEntry]?
@@ -242,10 +245,13 @@ public struct AgentDetailModel: Equatable, Sendable, Identifiable {
   public let link: URL?
 
   /// `decisions` is the complete pending snapshot; the session's own count
-  /// comes from the session (AC-11.3).
+  /// comes from the session (AC-11.3). `decisionsAreKnown` is false until the
+  /// snapshot holds a successful decisions read.
   public init(
-    session: AgentSession, history: [StatusHistoryEntry]?, decisions: [Decision], now: Date
+    session: AgentSession, history: [StatusHistoryEntry]?, decisions: [Decision], now: Date,
+    decisionsAreKnown: Bool = true
   ) {
+    pendingIsKnown = decisionsAreKnown
     id = session.id
     state = Self.stateText(session.state)
     isBlocked = session.state == .blocked

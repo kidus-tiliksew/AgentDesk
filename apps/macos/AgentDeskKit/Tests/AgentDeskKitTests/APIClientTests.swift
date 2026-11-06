@@ -161,12 +161,13 @@ final class APIClientTests: XCTestCase {
       "items": [
         Fixtures.historyEntry(["line": "newest", "at": "2026-10-27T11:59:00Z"]),
         Fixtures.historyEntry(["line": "older", "link": NSNull(), "at": "2026-10-27T11:00:00+01:00"]),
+        Fixtures.historyEntry(["line": "alpha, at the same time", "at": "2026-10-27T11:00:00+01:00"]),
       ],
       "added_later": true,
     ])
     let server = StubServer { _ in .json(200, body) }
     let history = try await server.makeClient(token: "adp_secret").agentSessionHistory(id: "s 1/x")
-    XCTAssertEqual(history.map(\.line), ["newest", "older"])
+    XCTAssertEqual(history.map(\.line), ["newest", "older", "alpha, at the same time"])
     XCTAssertNil(history[1].link)
     XCTAssertEqual(history[1].at, Fixtures.instant("2026-10-27T10:00:00Z"))
     let request = try XCTUnwrap(server.requests.first)

@@ -219,7 +219,8 @@ final class AppState {
     _ = detailRevision
     guard let content = agentDetail.content else { return nil }
     return AgentDetailPresentation(
-      content: content, refreshFailed: agentDetail.refreshFailed, decisions: decisions, now: now)
+      content: content, refreshFailed: agentDetail.refreshFailed, decisions: decisions, now: now,
+      decisionsAreKnown: snapshot.fetchedAt != nil)
   }
 
   /// What the panel shows; nil while it is closed (req-mac-app AC-11.2).
