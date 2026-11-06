@@ -139,675 +139,887 @@ ok free-text: the answer field is named
 ok free-text: the note field is named
 ok free-text: typing in the focused answer field reaches the draft
 ok free-text: AXPress on Send sends
-ok free-text: invalid input reads as a disabled Send
-ok free-text: AXPress on the close control runs it
+FAIL free-text: invalid input reads as a disabled Send
 
 ### single-choice-or-text
-    AXGroup description="Decision detail"
-      AXStaticText value="Claude Code · api · 2m ago"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXHeading description="When should the migration run?"
-        AXStaticText value="It locks the events table for about a minute."
-        AXStaticText value="Recommendation, Tonight at 02:00"
-        AXStaticText value="Deadline, 1:00 PM, 1h left"
-        AXStaticText value="Default, If nobody answers by 1:00 PM, the agent goes with Tonight at 02:00."
-        AXStaticText value="Topic, deploy"
-        AXRadioGroup description="Answer"
-          AXRadioButton description="Now" value="0" actions=AXPress focusable
-          AXRadioButton description="Tonight at 02:00  Suggested" value="1" actions=AXPress focusable
-        AXTextField description="Your answer" actions=AXConfirm focusable
-        AXTextField description="Note for the agent" actions=AXConfirm focusable
-        AXButton description="Send" help="Command-Return" actions=AXPress focusable
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok single-choice-or-text: every control has a name
 ok single-choice-or-text: every button, link, radio button, and checkbox offers AXPress
-ok single-choice-or-text: the close control is named and pressable
-ok single-choice-or-text: the panel names itself
-ok single-choice-or-text: the radio buttons are named
-ok single-choice-or-text: the alternative field is named
-ok single-choice-or-text: AXPress chooses a radio button
-ok single-choice-or-text: AXPress on Send sends
-ok single-choice-or-text: AXPress on the close control runs it
+FAIL single-choice-or-text: the close control is named and pressable
+FAIL single-choice-or-text: the panel names itself
+FAIL single-choice-or-text: the radio buttons are named
+FAIL single-choice-or-text: the alternative field is named
+FAIL single-choice-or-text: AXPress chooses a radio button
+FAIL single-choice-or-text: AXPress on Send sends
 
 ### linked, urgent, with a default
-    AXGroup description="Decision detail"
-      AXStaticText value="Urgent"
-      AXStaticText value="Codex · web · 2m ago"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXHeading description="Ship the 2.4 release now that the staging soak passed?"
-        AXStaticText value="This follows the soak decision."
-        AXStaticText value="Recommendation, Ship now"
-        AXStaticText value="Deadline, 12:04 PM, 4m left"
-        AXStaticText value="Default, If nobody answers by 12:04 PM, the agent goes with Wait."
-        AXStaticText value="Topic, release"
-        AXLink description="Follow-up to Run the staging soak first?" help="Shows this decision in the panel" actions=AXPress
-        AXHeading description="Follow-ups"
-        AXLink description="Follow-up decision 1" help="Shows this decision in the panel" actions=AXPress
-        AXLink description="Tell the team about the release?" help="Shows this decision in the panel" actions=AXPress
-        AXRadioGroup description="Answer"
-          AXRadioButton description="Ship now  Suggested" value="1" actions=AXPress focusable
-          AXRadioButton description="Wait" value="0" actions=AXPress focusable
-        AXTextField description="Note for the agent" actions=AXConfirm focusable
-        AXButton description="Send" help="Command-Return" actions=AXPress focusable
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok linked, urgent, with a default: every control has a name
 ok linked, urgent, with a default: every button, link, radio button, and checkbox offers AXPress
-ok linked, urgent, with a default: the close control is named and pressable
-ok linked, urgent, with a default: the panel names itself
-ok linked: the parent and each follow-up are links
+FAIL linked, urgent, with a default: the close control is named and pressable
+FAIL linked, urgent, with a default: the panel names itself
+FAIL linked: the parent and each follow-up are links
 ok linked: each link says what it does
-ok linked: Urgent is text, not only red
-ok linked: the title is a heading
-ok linked: the agent and age read
-ok linked: the time left is text, not only red
+FAIL linked: Urgent is text, not only red
+FAIL linked: the title is a heading
+FAIL linked: the agent and age read
+FAIL linked: the time left is text, not only red
 ok linked: the separator between deadline and time left is not read
-ok linked: Recommendation reads with its value in one element
-ok linked: Deadline reads with its value in one element
-ok linked: Default reads with its value in one element
-ok linked: Topic reads with its value in one element
-ok linked: the Markdown body reads
-ok linked: "Follow-ups" is a heading
-ok linked: AXPress on each link shows its decision
-ok linked, urgent, with a default: AXPress on the close control runs it
+FAIL linked: Recommendation reads with its value in one element
+FAIL linked: Deadline reads with its value in one element
+FAIL linked: Default reads with its value in one element
+FAIL linked: Topic reads with its value in one element
+FAIL linked: the Markdown body reads
+FAIL linked: "Follow-ups" is a heading
+FAIL linked: AXPress on each link shows its decision
 
 ### settled-answered
-    AXGroup description="Decision detail"
-      AXStaticText value="Claude Code · api · 2m ago"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXHeading description="Delete the stale preview databases?"
-        AXStaticText value="Answered in the app: Approve"
-        AXStaticText value="11:59 AM"
-        AXStaticText value="Note"
-        AXStaticText value="Keep pr-412 for the demo."
-        AXStaticText value="Seven previews have had no traffic for 30 days."
-        AXStaticText value="Recommendation, Approve"
-        AXStaticText value="Topic, deploy"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok settled-answered: every control has a name
 ok settled-answered: every button, link, radio button, and checkbox offers AXPress
-ok settled-answered: the close control is named and pressable
-ok settled-answered: the panel names itself
-ok settled-answered: the close control is the only control
-ok settled-answered: the recorded outcome reads as text
+FAIL settled-answered: the close control is named and pressable
+FAIL settled-answered: the panel names itself
+FAIL settled-answered: the close control is the only control
+FAIL settled-answered: the recorded outcome reads as text
 ok settled-answered: no element has an unknown role
-ok settled-answered: AXPress on the close control runs it
 
 ### settled-chat
-    AXGroup description="Decision detail"
-      AXStaticText value="Codex · web · 2m ago"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXHeading description="Ship the 2.4 release now?"
-        AXStaticText value="Answered in chat: Wait for Monday"
-        AXStaticText value="11:58 AM"
-        AXStaticText value="Your message in chat"
-        AXStaticText value="**wait** until monday, the team is out"
-        AXStaticText value="Topic, deploy"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok settled-chat: every control has a name
 ok settled-chat: every button, link, radio button, and checkbox offers AXPress
-ok settled-chat: the close control is named and pressable
-ok settled-chat: the panel names itself
-ok settled-chat: the close control is the only control
-ok settled-chat: the recorded outcome reads as text
+FAIL settled-chat: the close control is named and pressable
+FAIL settled-chat: the panel names itself
+FAIL settled-chat: the close control is the only control
+FAIL settled-chat: the recorded outcome reads as text
 ok settled-chat: no element has an unknown role
-ok settled-chat: AXPress on the close control runs it
 
 ### settled-default
-    AXGroup description="Decision detail"
-      AXStaticText value="Claude Code · api · 2m ago"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXHeading description="When should the migration run?"
-        AXStaticText value="Expired. The default applied: Tonight at 02:00"
-        AXStaticText value="11:30 AM"
-        AXStaticText value="Deadline, 11:30 AM"
-        AXStaticText value="Default, Tonight at 02:00"
-        AXStaticText value="Topic, deploy"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok settled-default: every control has a name
 ok settled-default: every button, link, radio button, and checkbox offers AXPress
-ok settled-default: the close control is named and pressable
-ok settled-default: the panel names itself
-ok settled-default: the close control is the only control
-ok settled-default: the recorded outcome reads as text
+FAIL settled-default: the close control is named and pressable
+FAIL settled-default: the panel names itself
+FAIL settled-default: the close control is the only control
+FAIL settled-default: the recorded outcome reads as text
 ok settled-default: no element has an unknown role
-ok settled-default: AXPress on the close control runs it
 
 ### settled-expired
-    AXGroup description="Decision detail"
-      AXStaticText value="Claude Code · api · 2m ago"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXHeading description="Rotate the signing key today?"
-        AXStaticText value="Expired without an answer"
-        AXStaticText value="Deadline, 10:00 AM"
-        AXStaticText value="Topic, deploy"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok settled-expired: every control has a name
 ok settled-expired: every button, link, radio button, and checkbox offers AXPress
-ok settled-expired: the close control is named and pressable
-ok settled-expired: the panel names itself
-ok settled-expired: the close control is the only control
-ok settled-expired: the recorded outcome reads as text
+FAIL settled-expired: the close control is named and pressable
+FAIL settled-expired: the panel names itself
+FAIL settled-expired: the close control is the only control
+FAIL settled-expired: the recorded outcome reads as text
 ok settled-expired: no element has an unknown role
-ok settled-expired: AXPress on the close control runs it
 
 ### settled-cancelled
-    AXGroup description="Decision detail"
-      AXStaticText value="Ended agent · 2m ago"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXHeading description="Which name should the new package use?"
-        AXStaticText value="Cancelled. No answer was recorded."
-        AXStaticText value="Topic, deploy"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok settled-cancelled: every control has a name
 ok settled-cancelled: every button, link, radio button, and checkbox offers AXPress
-ok settled-cancelled: the close control is named and pressable
-ok settled-cancelled: the panel names itself
-ok settled-cancelled: the close control is the only control
-ok settled-cancelled: the recorded outcome reads as text
+FAIL settled-cancelled: the close control is named and pressable
+FAIL settled-cancelled: the panel names itself
+FAIL settled-cancelled: the close control is the only control
+FAIL settled-cancelled: the recorded outcome reads as text
 ok settled-cancelled: no element has an unknown role
-ok settled-cancelled: AXPress on the close control runs it
 
 ### settled-chat message
-    AXGroup description="Decision detail"
-      AXStaticText value="Codex · web · 2m ago"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXHeading description="Ship the 2.4 release now?"
-        AXStaticText value="Answered in chat: Wait for Monday"
-        AXStaticText value="11:58 AM"
-        AXStaticText value="Your message in chat"
-        AXStaticText value="**wait** until monday, the team is out"
-        AXStaticText value="Topic, deploy"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok settled-chat message: every control has a name
 ok settled-chat message: every button, link, radio button, and checkbox offers AXPress
-ok settled-chat message: the close control is named and pressable
-ok settled-chat message: the panel names itself
-ok settled-chat: the message reads word for word
-ok settled-chat message: AXPress on the close control runs it
+FAIL settled-chat message: the close control is named and pressable
+FAIL settled-chat message: the panel names itself
+FAIL settled-chat: the message reads word for word
 
 ### load-failed
-    AXGroup description="Decision detail"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXStaticText value="Couldn't load this decision."
-        AXButton description="Try Again" actions=AXPress focusable
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok load-failed: every control has a name
 ok load-failed: every button, link, radio button, and checkbox offers AXPress
-ok load-failed: the close control is named and pressable
-ok load-failed: the panel names itself
-ok load-failed: the message reads
-ok load-failed: AXPress on Try Again retries
+FAIL load-failed: the close control is named and pressable
+FAIL load-failed: the panel names itself
+FAIL load-failed: the message reads
+FAIL load-failed: AXPress on Try Again retries
 
 ### unavailable
-    AXGroup description="Decision detail"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXStaticText value="This decision isn't available."
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok unavailable: every control has a name
 ok unavailable: every button, link, radio button, and checkbox offers AXPress
-ok unavailable: the close control is named and pressable
-ok unavailable: the panel names itself
-ok unavailable: the message reads
-ok unavailable: the close control is the only control
+FAIL unavailable: the close control is named and pressable
+FAIL unavailable: the panel names itself
+FAIL unavailable: the message reads
+FAIL unavailable: the close control is the only control
 
 ### loading
-    AXGroup description="Decision detail"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXBusyIndicator description="Loading the decision…" value="0"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok loading: every control has a name
 ok loading: every button, link, radio button, and checkbox offers AXPress
-ok loading: the close control is named and pressable
-ok loading: the panel names itself
-ok loading: the state is named
+FAIL loading: the close control is named and pressable
+FAIL loading: the panel names itself
+FAIL loading: the state is named
 
 ### send-failed
-    AXGroup description="Decision detail"
-      AXStaticText value="Codex · web · 2m ago"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXHeading description="Ship the 2.4 release now?"
-        AXStaticText value="Staging soaked for 24 hours without errors."
-        AXStaticText value="Recommendation, Ship now"
-        AXStaticText value="Deadline, No deadline"
-        AXStaticText value="Default, No default"
-        AXStaticText value="Topic, deploy"
-        AXRadioGroup description="Answer"
-          AXRadioButton description="Ship now  Suggested" value="1" actions=AXPress focusable
-          AXRadioButton description="Wait for Monday" value="0" actions=AXPress focusable
-        AXTextField description="Note for the agent" actions=AXConfirm focusable
-        AXButton description="Send" help="Command-Return" actions=AXPress focusable
-        AXStaticText value="Couldn't send. Try again."
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok send-failed: every control has a name
 ok send-failed: every button, link, radio button, and checkbox offers AXPress
-ok send-failed: the close control is named and pressable
-ok send-failed: the panel names itself
-ok send-failed: the failure reads as text
-ok send-failed: Send stays reachable to retry
+FAIL send-failed: the close control is named and pressable
+FAIL send-failed: the panel names itself
+FAIL send-failed: the failure reads as text
+FAIL send-failed: Send stays reachable to retry
 
 ### answer-held
-    AXGroup description="Decision detail"
-      AXStaticText value="Claude Code · api · 2m ago"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXHeading description="Delete the stale preview databases?"
-        AXStaticText value="Seven previews have had no traffic for 30 days.
-The newest is pr-412."
-        AXStaticText value="Recommendation, Approve"
-        AXStaticText value="Deadline, 2:00 PM, 2h left"
-        AXStaticText value="Default, If nobody answers by 2:00 PM, the agent goes with Reject."
-        AXStaticText value="Topic, deploy"
-        AXStaticText value="Your answer to this decision is on its way."
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok answer-held: every control has a name
 ok answer-held: every button, link, radio button, and checkbox offers AXPress
-ok answer-held: the close control is named and pressable
-ok answer-held: the panel names itself
-ok answer-held: the state reads as text
-ok answer-held: the close control is the only control
+FAIL answer-held: the close control is named and pressable
+FAIL answer-held: the panel names itself
+FAIL answer-held: the state reads as text
+FAIL answer-held: the close control is the only control
 
 ### refresh-failed
-    AXGroup description="Decision detail"
-      AXStaticText value="Claude Code · api · 2m ago"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXHeading description="Delete the stale preview databases?"
-        AXStaticText value="Couldn't refresh this decision. It may be out of date."
-        AXStaticText value="Seven previews have had no traffic for 30 days.
-The newest is pr-412."
-        AXStaticText value="Recommendation, Approve"
-        AXStaticText value="Deadline, 2:00 PM, 2h left"
-        AXStaticText value="Default, If nobody answers by 2:00 PM, the agent goes with Reject."
-        AXStaticText value="Topic, deploy"
-        AXTextField description="Note for the agent" actions=AXConfirm focusable
-        AXButton description="Reject" actions=AXPress focusable
-        AXButton description="Approve" help="Suggested by the agent" actions=AXPress focusable
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok refresh-failed: every control has a name
 ok refresh-failed: every button, link, radio button, and checkbox offers AXPress
-ok refresh-failed: the close control is named and pressable
-ok refresh-failed: the panel names itself
-ok refresh-failed: the state reads as text
+FAIL refresh-failed: the close control is named and pressable
+FAIL refresh-failed: the panel names itself
+FAIL refresh-failed: the state reads as text
 
 ## Agent panel
 
 ### agent-working
-    AXGroup description="Agent detail"
-      AXStaticText value="Claude Code · api"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXStaticText value="Working, 2m ago"
-        AXHeading description="Running the migration tests"
-        AXStaticText value="Agent, Claude Code · api"
-        AXStaticText value="Topic, api/migrations"
-        AXStaticText value="Pending, 1 pending decision"
-        AXButton description="Open link" help="Opens https://example.com/pull/412 in the default browser" actions=AXPress focusable
-        AXStaticText value="https://example.com/pull/412"
-        AXHeading description="Waiting on you"
-        AXButton description="Delete the stale preview databases?" value="20m ago" help="Shows this decision in the panel" actions=AXPress focusable
-        AXHeading description="History"
-        AXStaticText value="Waiting"
-        AXStaticText value="5m ago"
-        AXStaticText value="Waiting for the staging soak"
-        AXStaticText value="https://example.com/soak/12"
-        AXStaticText value="Working"
-        AXStaticText value="40m ago"
-        AXStaticText value="Ran the migration on a copy"
-        AXStaticText value="Working"
-        AXStaticText value="3h ago"
-        AXStaticText value="Started on the events table"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok agent-working: every control has a name
 ok agent-working: every control offers AXPress
-ok agent-working: the close control is named and pressable
-ok agent-working: the panel names itself
+FAIL agent-working: the close control is named and pressable
+FAIL agent-working: the panel names itself
 ok agent-working: nothing reads as a web link
 ok agent-working: every element has a known role
 ok agent-working: no text field, so nothing sends a message to the agent
-ok agent-working: state and update age reads as text
-ok agent-working: the status line reads as text
-ok agent-working: the display name reads as text
-ok agent-working: the topic reads as text
-ok agent-working: the pending count reads as text
-ok agent-working: the section reads as text
-ok agent-working: the history section reads as text
-ok agent-working: the newest history entry reads as text
-ok agent-working: an older history entry reads as text
-ok agent-working: the status line is a heading
-ok agent-working: a history entry's link is plain text
-ok agent-working: AXPress on the pending decision shows it, with no browser
-ok agent-working: AXPress on Open link is the one thing that opens a link
-ok agent-working: AXPress on the close control closes
+FAIL agent-working: state and update age reads as text
+FAIL agent-working: the status line reads as text
+FAIL agent-working: the display name reads as text
+FAIL agent-working: the topic reads as text
+FAIL agent-working: the pending count reads as text
+FAIL agent-working: the section reads as text
+FAIL agent-working: the history section reads as text
+FAIL agent-working: the newest history entry reads as text
+FAIL agent-working: an older history entry reads as text
+FAIL agent-working: the status line is a heading
+FAIL agent-working: a history entry's link is plain text
+FAIL agent-working: AXPress on the pending decision shows it, with no browser
+FAIL agent-working: AXPress on Open link is the one thing that opens a link
 
 ### agent-stale
-    AXGroup description="Agent detail"
-      AXStaticText value="Cursor · docs"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXStaticText value="Waiting, 45m ago, Stale"
-        AXHeading description="Waiting for review"
-        AXStaticText value="Agent, Cursor · docs"
-        AXStaticText value="Topic, docs"
-        AXStaticText value="Pending, 0 pending decisions"
-        AXHeading description="Waiting on you"
-        AXStaticText value="No pending decisions."
-        AXHeading description="History"
-        AXStaticText value="Waiting"
-        AXStaticText value="5m ago"
-        AXStaticText value="Waiting for the staging soak"
-        AXStaticText value="https://example.com/soak/12"
-        AXStaticText value="Working"
-        AXStaticText value="40m ago"
-        AXStaticText value="Ran the migration on a copy"
-        AXStaticText value="Working"
-        AXStaticText value="3h ago"
-        AXStaticText value="Started on the events table"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok agent-stale: every control has a name
 ok agent-stale: every control offers AXPress
-ok agent-stale: the close control is named and pressable
-ok agent-stale: the panel names itself
+FAIL agent-stale: the close control is named and pressable
+FAIL agent-stale: the panel names itself
 ok agent-stale: nothing reads as a web link
 ok agent-stale: every element has a known role
 ok agent-stale: no text field, so nothing sends a message to the agent
-ok agent-stale: the stale marker reads as text
-ok agent-stale: the empty list reads as text
-ok agent-stale: with no link, close is the only control
-ok agent-stale: AXPress on the close control closes
+FAIL agent-stale: the stale marker reads as text
+FAIL agent-stale: the empty list reads as text
+FAIL agent-stale: with no link, close is the only control
 
 ### agent-blocked
-    AXGroup description="Agent detail"
-      AXStaticText value="Codex · web"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXStaticText value="Blocked, 10m ago"
-        AXHeading description="Needs a decision on the release before it can go on"
-        AXStaticText value="Agent, Codex · web"
-        AXStaticText value="Topic, web"
-        AXStaticText value="Pending, 1 pending decision"
-        AXHeading description="Waiting on you"
-        AXButton description="Ship the 2.4 release to production now that the staging soak passed?" value="Urgent, 4m left, 30m ago" help="Shows this decision in the panel" actions=AXPress focusable
-        AXHeading description="History"
-        AXStaticText value="Waiting"
-        AXStaticText value="5m ago"
-        AXStaticText value="Waiting for the staging soak"
-        AXStaticText value="https://example.com/soak/12"
-        AXStaticText value="Working"
-        AXStaticText value="40m ago"
-        AXStaticText value="Ran the migration on a copy"
-        AXStaticText value="Working"
-        AXStaticText value="3h ago"
-        AXStaticText value="Started on the events table"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok agent-blocked: every control has a name
 ok agent-blocked: every control offers AXPress
-ok agent-blocked: the close control is named and pressable
-ok agent-blocked: the panel names itself
+FAIL agent-blocked: the close control is named and pressable
+FAIL agent-blocked: the panel names itself
 ok agent-blocked: nothing reads as a web link
 ok agent-blocked: every element has a known role
 ok agent-blocked: no text field, so nothing sends a message to the agent
-ok agent-blocked: blocked reads in words, not only red
-ok agent-blocked: the pending decision reads urgent and its time left
-ok agent-blocked: AXPress on the close control closes
+FAIL agent-blocked: blocked reads in words, not only red
+FAIL agent-blocked: the pending decision reads urgent and its time left
 
 ### agent-no-status
-    AXGroup description="Agent detail"
-      AXStaticText value="Claude Code · new"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXStaticText value="No status yet, No update yet"
-        AXStaticText value="Agent, Claude Code · new"
-        AXStaticText value="Topic, new"
-        AXStaticText value="Pending, 0 pending decisions"
-        AXHeading description="Waiting on you"
-        AXStaticText value="No pending decisions."
-        AXHeading description="History"
-        AXStaticText value="No earlier statuses."
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok agent-no-status: every control has a name
 ok agent-no-status: every control offers AXPress
-ok agent-no-status: the close control is named and pressable
-ok agent-no-status: the panel names itself
+FAIL agent-no-status: the close control is named and pressable
+FAIL agent-no-status: the panel names itself
 ok agent-no-status: nothing reads as a web link
 ok agent-no-status: every element has a known role
 ok agent-no-status: no text field, so nothing sends a message to the agent
-ok agent-no-status: reads no status and no update
-ok agent-no-status: the empty history reads as text
-ok agent-no-status: AXPress on the close control closes
+FAIL agent-no-status: reads no status and no update
+FAIL agent-no-status: the empty history reads as text
 
 ### agent-invalid-link
-    AXGroup description="Agent detail"
-      AXStaticText value="Claude Code · link"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXStaticText value="Working, 1m ago"
-        AXHeading description="Holds a link no browser should open"
-        AXStaticText value="Agent, Claude Code · link"
-        AXStaticText value="Topic, links"
-        AXStaticText value="Pending, 0 pending decisions"
-        AXHeading description="Waiting on you"
-        AXStaticText value="No pending decisions."
-        AXHeading description="History"
-        AXStaticText value="Waiting"
-        AXStaticText value="5m ago"
-        AXStaticText value="Waiting for the staging soak"
-        AXStaticText value="https://example.com/soak/12"
-        AXStaticText value="Working"
-        AXStaticText value="40m ago"
-        AXStaticText value="Ran the migration on a copy"
-        AXStaticText value="Working"
-        AXStaticText value="3h ago"
-        AXStaticText value="Started on the events table"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok agent-invalid-link: every control has a name
 ok agent-invalid-link: every control offers AXPress
-ok agent-invalid-link: the close control is named and pressable
-ok agent-invalid-link: the panel names itself
+FAIL agent-invalid-link: the close control is named and pressable
+FAIL agent-invalid-link: the panel names itself
 ok agent-invalid-link: nothing reads as a web link
 ok agent-invalid-link: every element has a known role
 ok agent-invalid-link: no text field, so nothing sends a message to the agent
 ok agent-invalid-link: offers no Open link
-ok agent-invalid-link: AXPress on the close control closes
 
 ### agent-relative-link
-    AXGroup description="Agent detail"
-      AXStaticText value="Claude Code · link"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXStaticText value="Working, 1m ago"
-        AXHeading description="Holds a relative link"
-        AXStaticText value="Agent, Claude Code · link"
-        AXStaticText value="Topic, links"
-        AXStaticText value="Pending, 0 pending decisions"
-        AXHeading description="Waiting on you"
-        AXStaticText value="No pending decisions."
-        AXHeading description="History"
-        AXStaticText value="Waiting"
-        AXStaticText value="5m ago"
-        AXStaticText value="Waiting for the staging soak"
-        AXStaticText value="https://example.com/soak/12"
-        AXStaticText value="Working"
-        AXStaticText value="40m ago"
-        AXStaticText value="Ran the migration on a copy"
-        AXStaticText value="Working"
-        AXStaticText value="3h ago"
-        AXStaticText value="Started on the events table"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok agent-relative-link: every control has a name
 ok agent-relative-link: every control offers AXPress
-ok agent-relative-link: the close control is named and pressable
-ok agent-relative-link: the panel names itself
+FAIL agent-relative-link: the close control is named and pressable
+FAIL agent-relative-link: the panel names itself
 ok agent-relative-link: nothing reads as a web link
 ok agent-relative-link: every element has a known role
 ok agent-relative-link: no text field, so nothing sends a message to the agent
 ok agent-relative-link: offers no Open link
-ok agent-relative-link: AXPress on the close control closes
 
 ### agent-loading
-    AXGroup description="Agent detail"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXBusyIndicator description="Loading this agent…" value="0"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok agent-loading: every control has a name
 ok agent-loading: every control offers AXPress
-ok agent-loading: the close control is named and pressable
-ok agent-loading: the panel names itself
+FAIL agent-loading: the close control is named and pressable
+FAIL agent-loading: the panel names itself
 ok agent-loading: nothing reads as a web link
 ok agent-loading: every element has a known role
 ok agent-loading: no text field, so nothing sends a message to the agent
-ok agent-loading: the state is named
-ok agent-loading: AXPress on the close control closes
+FAIL agent-loading: the state is named
 
 ### agent-load-failed
-    AXGroup description="Agent detail"
-      AXStaticText value="Claude Code · api"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXStaticText value="Working, 2m ago"
-        AXHeading description="Running the migration tests"
-        AXStaticText value="Agent, Claude Code · api"
-        AXStaticText value="Topic, api/migrations"
-        AXStaticText value="Pending, 1 pending decision"
-        AXButton description="Open link" help="Opens https://example.com/pull/412 in the default browser" actions=AXPress focusable
-        AXStaticText value="https://example.com/pull/412"
-        AXStaticText value="Couldn't load this agent."
-        AXButton description="Try Again" actions=AXPress focusable
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok agent-load-failed: every control has a name
 ok agent-load-failed: every control offers AXPress
-ok agent-load-failed: the close control is named and pressable
-ok agent-load-failed: the panel names itself
+FAIL agent-load-failed: the close control is named and pressable
+FAIL agent-load-failed: the panel names itself
 ok agent-load-failed: nothing reads as a web link
 ok agent-load-failed: every element has a known role
 ok agent-load-failed: no text field, so nothing sends a message to the agent
-ok agent-load-failed: the message reads
-ok agent-load-failed: the list's record stays
-ok agent-load-failed: AXPress on Try Again retries
-ok agent-load-failed: AXPress on the close control closes
+FAIL agent-load-failed: the message reads
+FAIL agent-load-failed: the list's record stays
+FAIL agent-load-failed: AXPress on Try Again retries
 
 ### agent-refresh-failed
-    AXGroup description="Agent detail"
-      AXStaticText value="Claude Code · api"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXStaticText value="Working, 2m ago"
-        AXHeading description="Running the migration tests"
-        AXStaticText value="Agent, Claude Code · api"
-        AXStaticText value="Topic, api/migrations"
-        AXStaticText value="Pending, 1 pending decision"
-        AXButton description="Open link" help="Opens https://example.com/pull/412 in the default browser" actions=AXPress focusable
-        AXStaticText value="https://example.com/pull/412"
-        AXStaticText value="Couldn't refresh this agent. It may be out of date."
-        AXButton description="Try Again" actions=AXPress focusable
-        AXHeading description="Waiting on you"
-        AXButton description="Delete the stale preview databases?" value="20m ago" help="Shows this decision in the panel" actions=AXPress focusable
-        AXHeading description="History"
-        AXStaticText value="Waiting"
-        AXStaticText value="5m ago"
-        AXStaticText value="Waiting for the staging soak"
-        AXStaticText value="https://example.com/soak/12"
-        AXStaticText value="Working"
-        AXStaticText value="40m ago"
-        AXStaticText value="Ran the migration on a copy"
-        AXStaticText value="Working"
-        AXStaticText value="3h ago"
-        AXStaticText value="Started on the events table"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok agent-refresh-failed: every control has a name
 ok agent-refresh-failed: every control offers AXPress
-ok agent-refresh-failed: the close control is named and pressable
-ok agent-refresh-failed: the panel names itself
+FAIL agent-refresh-failed: the close control is named and pressable
+FAIL agent-refresh-failed: the panel names itself
 ok agent-refresh-failed: nothing reads as a web link
 ok agent-refresh-failed: every element has a known role
 ok agent-refresh-failed: no text field, so nothing sends a message to the agent
-ok agent-refresh-failed: the warning reads
-ok agent-refresh-failed: the session stays
-ok agent-refresh-failed: AXPress on Try Again retries
-ok agent-refresh-failed: AXPress on the close control closes
+FAIL agent-refresh-failed: the warning reads
+FAIL agent-refresh-failed: the session stays
+FAIL agent-refresh-failed: AXPress on Try Again retries
 
 ### agent-pending-unread
-    AXGroup description="Agent detail"
-      AXStaticText value="Codex · web"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXStaticText value="Blocked, 10m ago"
-        AXHeading description="Needs a decision on the release before it can go on"
-        AXStaticText value="Agent, Codex · web"
-        AXStaticText value="Topic, web"
-        AXStaticText value="Pending, 1 pending decision"
-        AXHeading description="Waiting on you"
-        AXStaticText value="Pending decisions aren't available yet."
-        AXHeading description="History"
-        AXStaticText value="Waiting"
-        AXStaticText value="5m ago"
-        AXStaticText value="Waiting for the staging soak"
-        AXStaticText value="https://example.com/soak/12"
-        AXStaticText value="Working"
-        AXStaticText value="40m ago"
-        AXStaticText value="Ran the migration on a copy"
-        AXStaticText value="Working"
-        AXStaticText value="3h ago"
-        AXStaticText value="Started on the events table"
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok agent-pending-unread: every control has a name
 ok agent-pending-unread: every control offers AXPress
-ok agent-pending-unread: the close control is named and pressable
-ok agent-pending-unread: the panel names itself
+FAIL agent-pending-unread: the close control is named and pressable
+FAIL agent-pending-unread: the panel names itself
 ok agent-pending-unread: nothing reads as a web link
 ok agent-pending-unread: every element has a known role
 ok agent-pending-unread: no text field, so nothing sends a message to the agent
-ok agent-pending-unread: an unread list says so
+FAIL agent-pending-unread: an unread list says so
 ok agent-pending-unread: it never reads as empty
-ok agent-pending-unread: the count still reads
-ok agent-pending-unread: AXPress on the close control closes
+FAIL agent-pending-unread: the count still reads
 
 ### agent-gone
-    AXGroup description="Agent detail"
-      AXButton description="Close detail" help="Escape" actions=AXPress
-      AXScrollArea
-        AXStaticText value="This agent session is gone."
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
 ok agent-gone: every control has a name
 ok agent-gone: every control offers AXPress
-ok agent-gone: the close control is named and pressable
-ok agent-gone: the panel names itself
+FAIL agent-gone: the close control is named and pressable
+FAIL agent-gone: the panel names itself
 ok agent-gone: nothing reads as a web link
 ok agent-gone: every element has a known role
 ok agent-gone: no text field, so nothing sends a message to the agent
-ok agent-gone: the message reads
-ok agent-gone: close is the only control
-ok agent-gone: AXPress on the close control closes
+FAIL agent-gone: the message reads
+FAIL agent-gone: close is the only control
 
 Agent panel's key view loop with NSApp.isFullKeyboardAccessEnabled false: none
 NOT EXERCISED, assigned to the operator's pre-release checks: the agent panel's buttons in the Tab order with the Mac's Keyboard navigation setting on. This panel has no text field, so Tab has no stop with that setting off.
 
 ### agent entries
-    AXButton description="2 active, 1 quiet, 1 blocked" value="Expanded" actions=AXPress focusable
-    AXScrollArea
-      AXButton description="Codex · web, blocked, Needs a decision on the release before it can go on" help="Shows this session in the detail panel" actions=AXPress focusable
-      AXButton description="Claude Code · api, working, Running the migration tests" help="Shows this session in the detail panel" actions=AXPress focusable
-      AXButton description="Claude Code · link, working, Holds a link no browser should open" help="Shows this session in the detail panel" actions=AXPress focusable
-      AXButton description="Hide quiet" value="Expanded" actions=AXPress focusable
-      AXButton description="Cursor · docs, quiet 43m, Waiting for review" help="Shows this session in the detail panel" actions=AXPress focusable
-      AXScrollBar value="0" focusable
-        AXValueIndicator value="0"
-        AXButton actions=AXPress
-        AXButton actions=AXPress
-        AXButton actions=AXPress
-        AXButton actions=AXPress
-ok entry ags_1: a named button, with or without a link
-ok entry ags_1: AXPress opens the panel for that session
-ok entry ags_2: a named button, with or without a link
-ok entry ags_2: AXPress opens the panel for that session
-ok entry ags_3: a named button, with or without a link
-ok entry ags_3: AXPress opens the panel for that session
-ok entry ags_5: a named button, with or without a link
-ok entry ags_5: AXPress opens the panel for that session
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
+FAIL entry ags_1: a named button, with or without a link
+FAIL entry ags_1: AXPress opens the panel for that session
+FAIL entry ags_2: a named button, with or without a link
+FAIL entry ags_2: AXPress opens the panel for that session
+FAIL entry ags_3: a named button, with or without a link
+FAIL entry ags_3: AXPress opens the panel for that session
+FAIL entry ags_5: a named button, with or without a link
+FAIL entry ags_5: AXPress opens the panel for that session
+FAIL entry s_work: a named button, with or without a link
+FAIL entry s_work: AXPress opens the panel for that session
 ok entries: none reads as a web link
 
 ### popover rows
-    AXStaticText value="AgentDesk"
-    AXStaticText value="3 waiting"
-    AXImage description="More"
-    AXScrollArea
-      AXButton description="Ship the 2.4 release to production now that the staging soak passed?" value="Codex · web, 4m left, new, urgent, suggests Ship now" help="Opens the detail panel" actions=AXPress
-      AXButton description="Delete the stale preview databases?" value="Claude Code · api, 2h left" help="Opens the detail panel" actions=AXPress
-      AXButton description="Reject" actions=AXPress focusable
-      AXButton description="Approve" actions=AXPress focusable
-      AXButton description="Which name should the new package use?" value="Ended agent, new, suggests agentdesk-core" help="Opens the detail panel" actions=AXPress
-    AXButton description="1 active, 1 quiet, 1 blocked" value="Collapsed" actions=AXPress focusable
-ok row: the title is its name
-ok row: the value reads the agent, time left, new, urgent, and suggestion
-ok row: it offers AXPress
-ok row: Reject and Approve are separate named buttons
+    AXApplication title="evidence"
+      AXApplication title="evidence"
+        AXApplication title="evidence"
+          AXApplication title="evidence"
+            AXApplication title="evidence"
+              AXApplication title="evidence"
+                AXApplication title="evidence"
+                  AXApplication title="evidence"
+                    AXApplication title="evidence"
+                      AXApplication title="evidence"
+                        AXApplication title="evidence"
+                          AXApplication title="evidence"
+                            AXApplication title="evidence"
+                              AXApplication title="evidence"
+                                AXApplication title="evidence"
+                                  AXApplication title="evidence"
+                                    AXApplication title="evidence"
+                                      AXApplication title="evidence"
+                                        AXApplication title="evidence"
+                                          AXApplication title="evidence"
+                                            AXApplication title="evidence"
+                                              AXApplication title="evidence"
+FAIL row: the title is its name
+FAIL row: the value reads the agent, time left, new, urgent, and suggestion
+FAIL row: a free-text row draws no suggestion and its value reads one
+FAIL row: it offers AXPress
+FAIL row: Reject and Approve are separate named buttons
 
 ## What this does not establish
 This evidence is non-live, and it does not establish the reach req-mac-app AC-11.11 sets. These checks are assigned to the operator's pre-release checks:
@@ -820,4 +1032,138 @@ NOT EXERCISED: moving AX focus into a control, since this app stays inactive and
 ## Focus
 ok this process never became the active app
 
-RESULT: PASS
+RESULT: FAIL
+  free-text: invalid input reads as a disabled Send
+  single-choice-or-text: the close control is named and pressable
+  single-choice-or-text: the panel names itself
+  single-choice-or-text: the radio buttons are named
+  single-choice-or-text: the alternative field is named
+  single-choice-or-text: AXPress chooses a radio button
+  single-choice-or-text: AXPress on Send sends
+  linked, urgent, with a default: the close control is named and pressable
+  linked, urgent, with a default: the panel names itself
+  linked: the parent and each follow-up are links
+  linked: Urgent is text, not only red
+  linked: the title is a heading
+  linked: the agent and age read
+  linked: the time left is text, not only red
+  linked: Recommendation reads with its value in one element
+  linked: Deadline reads with its value in one element
+  linked: Default reads with its value in one element
+  linked: Topic reads with its value in one element
+  linked: the Markdown body reads
+  linked: "Follow-ups" is a heading
+  linked: AXPress on each link shows its decision
+  settled-answered: the close control is named and pressable
+  settled-answered: the panel names itself
+  settled-answered: the close control is the only control
+  settled-answered: the recorded outcome reads as text
+  settled-chat: the close control is named and pressable
+  settled-chat: the panel names itself
+  settled-chat: the close control is the only control
+  settled-chat: the recorded outcome reads as text
+  settled-default: the close control is named and pressable
+  settled-default: the panel names itself
+  settled-default: the close control is the only control
+  settled-default: the recorded outcome reads as text
+  settled-expired: the close control is named and pressable
+  settled-expired: the panel names itself
+  settled-expired: the close control is the only control
+  settled-expired: the recorded outcome reads as text
+  settled-cancelled: the close control is named and pressable
+  settled-cancelled: the panel names itself
+  settled-cancelled: the close control is the only control
+  settled-cancelled: the recorded outcome reads as text
+  settled-chat message: the close control is named and pressable
+  settled-chat message: the panel names itself
+  settled-chat: the message reads word for word
+  load-failed: the close control is named and pressable
+  load-failed: the panel names itself
+  load-failed: the message reads
+  load-failed: AXPress on Try Again retries
+  unavailable: the close control is named and pressable
+  unavailable: the panel names itself
+  unavailable: the message reads
+  unavailable: the close control is the only control
+  loading: the close control is named and pressable
+  loading: the panel names itself
+  loading: the state is named
+  send-failed: the close control is named and pressable
+  send-failed: the panel names itself
+  send-failed: the failure reads as text
+  send-failed: Send stays reachable to retry
+  answer-held: the close control is named and pressable
+  answer-held: the panel names itself
+  answer-held: the state reads as text
+  answer-held: the close control is the only control
+  refresh-failed: the close control is named and pressable
+  refresh-failed: the panel names itself
+  refresh-failed: the state reads as text
+  agent-working: the close control is named and pressable
+  agent-working: the panel names itself
+  agent-working: state and update age reads as text
+  agent-working: the status line reads as text
+  agent-working: the display name reads as text
+  agent-working: the topic reads as text
+  agent-working: the pending count reads as text
+  agent-working: the section reads as text
+  agent-working: the history section reads as text
+  agent-working: the newest history entry reads as text
+  agent-working: an older history entry reads as text
+  agent-working: the status line is a heading
+  agent-working: a history entry's link is plain text
+  agent-working: AXPress on the pending decision shows it, with no browser
+  agent-working: AXPress on Open link is the one thing that opens a link
+  agent-stale: the close control is named and pressable
+  agent-stale: the panel names itself
+  agent-stale: the stale marker reads as text
+  agent-stale: the empty list reads as text
+  agent-stale: with no link, close is the only control
+  agent-blocked: the close control is named and pressable
+  agent-blocked: the panel names itself
+  agent-blocked: blocked reads in words, not only red
+  agent-blocked: the pending decision reads urgent and its time left
+  agent-no-status: the close control is named and pressable
+  agent-no-status: the panel names itself
+  agent-no-status: reads no status and no update
+  agent-no-status: the empty history reads as text
+  agent-invalid-link: the close control is named and pressable
+  agent-invalid-link: the panel names itself
+  agent-relative-link: the close control is named and pressable
+  agent-relative-link: the panel names itself
+  agent-loading: the close control is named and pressable
+  agent-loading: the panel names itself
+  agent-loading: the state is named
+  agent-load-failed: the close control is named and pressable
+  agent-load-failed: the panel names itself
+  agent-load-failed: the message reads
+  agent-load-failed: the list's record stays
+  agent-load-failed: AXPress on Try Again retries
+  agent-refresh-failed: the close control is named and pressable
+  agent-refresh-failed: the panel names itself
+  agent-refresh-failed: the warning reads
+  agent-refresh-failed: the session stays
+  agent-refresh-failed: AXPress on Try Again retries
+  agent-pending-unread: the close control is named and pressable
+  agent-pending-unread: the panel names itself
+  agent-pending-unread: an unread list says so
+  agent-pending-unread: the count still reads
+  agent-gone: the close control is named and pressable
+  agent-gone: the panel names itself
+  agent-gone: the message reads
+  agent-gone: close is the only control
+  entry ags_1: a named button, with or without a link
+  entry ags_1: AXPress opens the panel for that session
+  entry ags_2: a named button, with or without a link
+  entry ags_2: AXPress opens the panel for that session
+  entry ags_3: a named button, with or without a link
+  entry ags_3: AXPress opens the panel for that session
+  entry ags_5: a named button, with or without a link
+  entry ags_5: AXPress opens the panel for that session
+  entry s_work: a named button, with or without a link
+  entry s_work: AXPress opens the panel for that session
+  row: the title is its name
+  row: the value reads the agent, time left, new, urgent, and suggestion
+  row: a free-text row draws no suggestion and its value reads one
+  row: it offers AXPress
+  row: Reject and Approve are separate named buttons
