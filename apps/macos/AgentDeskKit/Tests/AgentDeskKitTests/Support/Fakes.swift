@@ -234,6 +234,49 @@ final class FakeReader: SyncReader, @unchecked Sendable {
   private var agentReads = 0
   private var inFlight = 0
   private var peak = 0
+  private var sessionScript: [Result<AgentSession, APIError>] = []
+  private var historyScript: [Result<[StatusHistoryEntry], APIError>] = []
+  private var defaultSession: Result<AgentSession, APIError>?
+  private var defaultHistory: Result<[StatusHistoryEntry], APIError> = .success([])
+  private var sessionHold: Gate?
+  private var historyHold: Gate?
+  private var sessionIDs: [String] = []
+  private var historyIDs: [String] = []
+
+  /// The ids of the session and history reads, in order.
+  var sessionReads: [String] { lock.withLock { sessionIDs } }
+  var historyReads: [String] { lock.withLock { historyIDs } }
+
+  /// Answers the next session reads in order, then `alwaysAnswerSession`.
+  func answerSession(_ results: Result<AgentSession, APIError>...) {
+    lock.withLock { sessionScript += results }
+  }
+
+  func answerHistory(_ results: Result<[StatusHistoryEntry], APIError>...) {
+    lock.withLock { historyScript += results }
+  }
+
+  func alwaysAnswerSession(_ result: Result<AgentSession, APIError>) {
+    lock.withLock { defaultSession = result }
+  }
+
+  func alwaysAnswerHistory(_ result: Result<[StatusHistoryEntry], APIError>) {
+    lock.withLock { defaultHistory = result }
+  }
+
+  /// Holds the next session read until the returned gate opens.
+  func holdNextSessionRead() -> Gate {
+    let gate = Gate()
+    lock.withLock { sessionHold = gate }
+    return gate
+  }
+
+  /// Holds the next history read until the returned gate opens.
+  func holdNextHistoryRead() -> Gate {
+    let gate = Gate()
+    lock.withLock { historyHold = gate }
+    return gate
+  }
 
   var decisionCalls: Int { lock.withLock { decisionReads } }
   var agentCalls: Int { lock.withLock { agentReads } }
@@ -284,6 +327,53 @@ final class FakeReader: SyncReader, @unchecked Sendable {
     }
     return try result.get()
   }
+
+  func agentSession(id: String) async throws(APIError) -> AgentSession {
+    let (result, hold): (Result<AgentSession, APIError>, Gate?) = lock.withLock {
+      sessionIDs.append(id)
+      let hold = sessionHold
+      sessionHold = nil
+      let next = sessionScript.isEmpty ? defaultSession : sessionScript.removeFirst()
+      return (next ?? .success(Fixtures.session(id)), hold)
+    }
+    if let hold { await hold.wait() }
+    return try result.get()
+  }
+
+  func agentSessionHistory(id: String) async throws(APIError) -> [StatusHistoryEntry] {
+    let (result, hold): (Result<[StatusHistoryEntry], APIError>, Gate?) = lock.withLock {
+      historyIDs.append(id)
+      let hold = historyHold
+      historyHold = nil
+      return (historyScript.isEmpty ? defaultHistory : historyScript.removeFirst(), hold)
+    }
+    if let hold { await hold.wait() }
+    return try result.get()
+  }
+}
+
+/// The panel's agent reads with `Sync` taken out, recording each call.
+final class FakeAgentDetailReads: AgentDetailReads, @unchecked Sendable {
+  private let lock = NSLock()
+  private var nextGeneration = 0
+  private var shownIDs: [String] = []
+  private var hides = 0
+  private var retries = 0
+
+  var shows: [String] { lock.withLock { shownIDs } }
+  var hideCalls: Int { lock.withLock { hides } }
+  var retryCalls: Int { lock.withLock { retries } }
+
+  func showAgent(id: String) -> AgentDetailTarget {
+    lock.withLock {
+      nextGeneration += 1
+      shownIDs.append(id)
+      return AgentDetailTarget(id: id, generation: nextGeneration)
+    }
+  }
+
+  func hideAgent() { lock.withLock { hides += 1 } }
+  func retryAgent() { lock.withLock { retries += 1 } }
 }
 
 /// Waits up to two seconds of real time for `condition`, polling every

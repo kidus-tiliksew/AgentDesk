@@ -17,6 +17,8 @@ final class SyncTests: XCTestCase {
     let reader: FakeReader
     let clock: ManualClock
     let published: Published
+    /// What `publishAgentDetail` delivered.
+    let details: AgentDetails
 
     init(reader: FakeReader = FakeReader()) {
       let clock = ManualClock()
@@ -24,9 +26,20 @@ final class SyncTests: XCTestCase {
       self.reader = reader
       self.clock = clock
       self.published = published
+      let details = AgentDetails()
+      self.details = details
       sync = Sync(
         reader: reader, clock: clock, now: { Date(timeIntervalSince1970: clock.now) },
-        publish: { published.snapshots.append($0) })
+        publish: { published.snapshots.append($0) },
+        publishAgentDetail: { details.updates.append($0) })
+    }
+
+    /// Starts a run with the popover open and its first reads finished.
+    func startOpen() async {
+      sync.start()
+      await settled(sleeps: 1)
+      await sync.setOpen(true)
+      await settled(sleeps: 2)
     }
 
     /// Waits until the timer sleeps, which follows every completed tick.
@@ -41,6 +54,12 @@ final class SyncTests: XCTestCase {
   private final class Published {
     var snapshots: [Sync.Snapshot] = []
     var last: Sync.Snapshot? { snapshots.last }
+  }
+
+  @MainActor
+  private final class AgentDetails {
+    var updates: [AgentDetailUpdate] = []
+    var last: AgentDetailOutcome? { updates.last?.outcome }
   }
 
   // MARK: Cadence
@@ -117,6 +136,366 @@ final class SyncTests: XCTestCase {
     await h.settled(sleeps: 4)
     XCTAssertEqual(h.reader.decisionCalls, 4)
     XCTAssertEqual(h.reader.agentCalls, 2)
+  }
+
+  // MARK: The panel's agent session
+
+  private let history = [
+    StatusHistoryEntry(state: .waiting, line: "newest", at: Fixtures.instant("2026-10-27T11:59:00Z")),
+    StatusHistoryEntry(state: .working, line: "older", at: Fixtures.instant("2026-10-27T11:00:00Z")),
+  ]
+  private let notFound = APIError.response(status: 404, code: "not_found", message: "Missing", field: nil)
+  private let unauthenticated = APIError.response(
+    status: 401, code: "unauthenticated", message: "No", field: nil)
+
+  func testNoDetailIsReadWhileNoSessionIsShown() async {
+    let h = Harness()
+    await h.startOpen()
+    h.clock.advance(by: 5)
+    await h.settled(sleeps: 3)
+    XCTAssertEqual(h.reader.sessionReads, [])
+    XCTAssertEqual(h.reader.historyReads, [])
+    XCTAssertEqual(h.details.updates, [])
+  }
+
+  func testShowingASessionReadsItAndItsHistoryAtOnceAndConcurrently() async {
+    let h = Harness()
+    await h.startOpen()
+    h.reader.alwaysAnswerSession(.success(agent))
+    h.reader.alwaysAnswerHistory(.success(history))
+    let sessionGate = h.reader.holdNextSessionRead()
+    let historyGate = h.reader.holdNextHistoryRead()
+    let target = h.sync.showAgent(id: "ags_1")
+
+    // Neither answers until the other has started.
+    await eventually("both reads in flight") {
+      h.reader.sessionReads == ["ags_1"] && h.reader.historyReads == ["ags_1"]
+    }
+    XCTAssertEqual(h.details.updates, [], "a pair is published whole")
+    await sessionGate.open()
+    await historyGate.open()
+    await h.settled(sleeps: 3)
+    XCTAssertEqual(h.details.updates, [AgentDetailUpdate(target: target, outcome: .loaded(agent, history))])
+    XCTAssertEqual(h.clock.requests.last, 5)
+    XCTAssertEqual(h.clock.sleeping, 1, "no competing timer")
+  }
+
+  func testAShownSessionIsReadEvery5SecondsOnTheOneTimerWithTheLists() async {
+    let h = Harness()
+    await h.startOpen()
+    let decisionsBefore = h.reader.decisionCalls
+    _ = h.sync.showAgent(id: "ags_1")
+    await h.settled(sleeps: 3)
+    XCTAssertEqual(h.reader.sessionReads.count, 1)
+    XCTAssertEqual(h.reader.decisionCalls, decisionsBefore + 1, "a selection reads the lists too")
+
+    for tick in 1...3 {
+      h.clock.advance(by: 5)
+      await h.settled(sleeps: 3 + tick)
+      XCTAssertEqual(h.reader.sessionReads.count, 1 + tick)
+      XCTAssertEqual(h.reader.historyReads.count, 1 + tick)
+      XCTAssertEqual(h.clock.sleeping, 1)
+    }
+    XCTAssertEqual(h.clock.requests.suffix(4), [5, 5, 5, 5])
+  }
+
+  func testAChangeReachesThePanelWithin10Seconds() async {
+    let h = Harness()
+    await h.startOpen()
+    let changed = Fixtures.session("ags_1", ["line": "Changed", "pending_decision_count": 3])
+    h.reader.alwaysAnswerSession(.success(agent))
+    _ = h.sync.showAgent(id: "ags_1")
+    await h.settled(sleeps: 3)
+    h.reader.alwaysAnswerSession(.success(changed))
+    let interval = h.clock.requests.last ?? 0
+    XCTAssertLessThan(interval, 10)
+    h.clock.advance(by: interval)
+    await h.settled(sleeps: 4)
+    XCTAssertEqual(h.details.last, .loaded(changed, []))
+  }
+
+  func testHidingStopsTheHistoryReads() async {
+    let h = Harness()
+    await h.startOpen()
+    _ = h.sync.showAgent(id: "ags_1")
+    await h.settled(sleeps: 3)
+    h.sync.hideAgent()
+    h.clock.advance(by: 5)
+    await h.settled(sleeps: 4)
+    XCTAssertEqual(h.reader.historyReads.count, 1, "no history once no session is shown")
+    XCTAssertEqual(h.reader.sessionReads.count, 1)
+    XCTAssertEqual(h.reader.decisionCalls, 4, "the lists go on")
+  }
+
+  func testAClosedPopoverReadsNoHistory() async {
+    let h = Harness()
+    await h.startOpen()
+    _ = h.sync.showAgent(id: "ags_1")
+    await h.settled(sleeps: 3)
+    await h.sync.setOpen(false)
+    await h.settled(sleeps: 4)
+    h.clock.advance(by: 15)
+    await h.settled(sleeps: 5)
+    XCTAssertEqual(h.reader.historyReads.count, 1)
+  }
+
+  func testPanelDataNeverMovesFetchedAt() async {
+    let h = Harness()
+    await h.startOpen()
+    h.clock.advance(by: 1)
+    let fetchedAt = h.published.last?.fetchedAt
+    let publishes = h.published.snapshots.count
+    _ = h.sync.showAgent(id: "ags_1")
+    await h.settled(sleeps: 3)
+    XCTAssertEqual(h.published.snapshots.count, publishes + 1, "the selection's list read publishes once")
+    let afterSelection = h.published.last?.fetchedAt
+    XCTAssertNotEqual(afterSelection, fetchedAt, "from that list read")
+
+    h.reader.alwaysAnswerSession(.success(Fixtures.session("ags_1", ["line": "New"])))
+    h.sync.retryAgent()
+    await h.settled(sleeps: 4)
+    XCTAssertEqual(h.published.snapshots.count, publishes + 1, "a panel-only read publishes no snapshot")
+    XCTAssertEqual(h.published.last?.fetchedAt, afterSelection)
+  }
+
+  func testATransientFailureOfEitherReadFailsThePairAndBacksOff() async {
+    for failing in ["session", "history"] {
+      let h = Harness()
+      await h.startOpen()
+      h.reader.alwaysAnswerSession(.success(agent))
+      h.reader.alwaysAnswerHistory(.success(history))
+      _ = h.sync.showAgent(id: "ags_1")
+      await h.settled(sleeps: 3)
+      XCTAssertEqual(h.details.last, .loaded(agent, history), failing)
+
+      let offline = APIError.transport("offline")
+      if failing == "session" {
+        h.reader.alwaysAnswerSession(.failure(offline))
+      } else {
+        h.reader.alwaysAnswerHistory(.failure(offline))
+      }
+      var sleeps = 3
+      var wait = 5.0
+      for backoff in [30.0, 60, 120, 300, 300] {
+        h.clock.advance(by: wait)
+        sleeps += 1
+        await h.settled(sleeps: sleeps)
+        XCTAssertEqual(h.details.last, .failed, failing)
+        XCTAssertEqual(h.clock.requests.last, backoff, failing)
+        wait = backoff
+      }
+
+      h.reader.alwaysAnswerSession(.success(agent))
+      h.reader.alwaysAnswerHistory(.success(history))
+      h.clock.advance(by: wait)
+      await h.settled(sleeps: sleeps + 1)
+      XCTAssertEqual(h.details.last, .loaded(agent, history), failing)
+      XCTAssertEqual(h.clock.requests.last, 5, "a success resets the cadence")
+    }
+  }
+
+  func testAPanelFailureKeepsTheListsIndependent() async {
+    let h = Harness()
+    await h.startOpen()
+    h.reader.alwaysAnswerDecisions(.success([first]))
+    h.reader.alwaysAnswerSession(.failure(.transport("offline")))
+    _ = h.sync.showAgent(id: "ags_1")
+    await h.settled(sleeps: 3)
+    XCTAssertEqual(h.published.last?.decisions, [first], "a successful list read still publishes")
+    XCTAssertEqual(h.details.last, .failed)
+    XCTAssertEqual(h.clock.requests.last, 30)
+  }
+
+  func testClosingThePanelEndsABackoffOnlyItsTargetCaused() async {
+    let h = Harness()
+    await h.startOpen()
+    h.reader.alwaysAnswerHistory(.failure(.transport("offline")))
+    _ = h.sync.showAgent(id: "ags_1")
+    await h.settled(sleeps: 3)
+    XCTAssertEqual(h.clock.requests.last, 30)
+    h.clock.advance(by: 30)
+    await h.settled(sleeps: 4)
+    XCTAssertEqual(h.clock.requests.last, 60)
+
+    h.sync.hideAgent()
+    await h.settled(sleeps: 5)
+    XCTAssertEqual(h.clock.requests.last, 5, "the lists return to their open cadence")
+    XCTAssertEqual(h.clock.sleeping, 1, "no competing timer")
+    let decisions = h.reader.decisionCalls
+    h.clock.advance(by: 5)
+    await eventually("the next list read") { h.reader.decisionCalls == decisions + 1 }
+  }
+
+  func testClosingThePanelKeepsABackoffTheListsCaused() async {
+    let h = Harness()
+    await h.startOpen()
+    h.reader.alwaysAnswerDecisions(.failure(.transport("offline")))
+    h.reader.alwaysAnswerHistory(.failure(.transport("offline")))
+    _ = h.sync.showAgent(id: "ags_1")
+    await h.settled(sleeps: 3)
+    XCTAssertEqual(h.clock.requests.last, 30)
+    let requests = h.clock.requests.count
+
+    h.sync.hideAgent()
+    try? await Task.sleep(nanoseconds: 30_000_000)
+    XCTAssertEqual(h.clock.requests.count, requests, "the timer keeps its backoff")
+    XCTAssertEqual(h.clock.sleeping, 1)
+  }
+
+  func testAContractNotFoundFromEitherReadIsGoneAndStopsThatTargetsReads() async {
+    for failing in ["session", "history"] {
+      let h = Harness()
+      await h.startOpen()
+      if failing == "session" {
+        h.reader.alwaysAnswerSession(.failure(notFound))
+      } else {
+        h.reader.alwaysAnswerHistory(.failure(notFound))
+      }
+      let target = h.sync.showAgent(id: "ags_1")
+      await h.settled(sleeps: 3)
+      XCTAssertEqual(h.details.updates, [AgentDetailUpdate(target: target, outcome: .gone)], failing)
+      XCTAssertEqual(h.clock.requests.last, 5, "a missing session is no failed read")
+      let reads = h.reader.sessionReads.count
+
+      h.clock.advance(by: 5)
+      await h.settled(sleeps: 4)
+      XCTAssertEqual(h.reader.sessionReads.count, reads, "reading stops")
+      XCTAssertEqual(h.reader.decisionCalls, 4, "the lists go on")
+      XCTAssertEqual(h.details.updates.count, 1)
+
+      // Reopening is a new target, read again.
+      h.reader.alwaysAnswerSession(.success(agent))
+      h.reader.alwaysAnswerHistory(.success(history))
+      _ = h.sync.showAgent(id: "ags_1")
+      await h.settled(sleeps: 5)
+      XCTAssertEqual(h.details.last, .loaded(agent, history))
+    }
+  }
+
+  func testGoneNeverRemovesAListEntry() async {
+    let h = Harness()
+    h.reader.alwaysAnswerAgents(.success([agent]))
+    await h.startOpen()
+    h.reader.alwaysAnswerSession(.failure(notFound))
+    _ = h.sync.showAgent(id: "ags_1")
+    await h.settled(sleeps: 3)
+    XCTAssertEqual(h.details.last, .gone)
+    XCTAssertEqual(h.published.last?.agents, [agent])
+  }
+
+  func testNonContract404IsTransient() async {
+    let h = Harness()
+    await h.startOpen()
+    h.reader.alwaysAnswerSession(.failure(.http(status: 404)))
+    _ = h.sync.showAgent(id: "ags_1")
+    await h.settled(sleeps: 3)
+    XCTAssertEqual(h.details.last, .failed)
+    XCTAssertEqual(h.clock.requests.last, 30)
+    h.clock.advance(by: 30)
+    await h.settled(sleeps: 4)
+    XCTAssertEqual(h.reader.sessionReads.count, 2, "reading continues")
+  }
+
+  func testAnUnauthenticatedDetailReadStopsTheRun() async {
+    let h = Harness()
+    await h.startOpen()
+    h.reader.alwaysAnswerHistory(.failure(unauthenticated))
+    _ = h.sync.showAgent(id: "ags_1")
+    await eventually("the run ends") { await !h.sync.isRunning }
+    XCTAssertEqual(h.details.updates, [])
+  }
+
+  func testRetryReadsOnlyTheTarget() async {
+    let h = Harness()
+    await h.startOpen()
+    h.reader.answerSession(.failure(.transport("offline")))
+    _ = h.sync.showAgent(id: "ags_1")
+    await h.settled(sleeps: 3)
+    XCTAssertEqual(h.details.last, .failed)
+    let decisions = h.reader.decisionCalls
+    let agents = h.reader.agentCalls
+
+    h.reader.alwaysAnswerSession(.success(agent))
+    h.sync.retryAgent()
+    await h.settled(sleeps: 4)
+    XCTAssertEqual(h.reader.decisionCalls, decisions)
+    XCTAssertEqual(h.reader.agentCalls, agents)
+    XCTAssertEqual(h.reader.sessionReads.count, 2)
+    XCTAssertEqual(h.reader.historyReads.count, 2)
+    XCTAssertEqual(h.details.last, .loaded(agent, []))
+    XCTAssertEqual(h.clock.requests.last, 5, "any success resets the cadence")
+  }
+
+  func testRetryWithNoTargetReadsNothing() async {
+    let h = Harness()
+    await h.startOpen()
+    let decisions = h.reader.decisionCalls
+    h.sync.retryAgent()
+    await h.settled(sleeps: 3)
+    XCTAssertEqual(h.reader.decisionCalls, decisions)
+    XCTAssertEqual(h.reader.sessionReads, [])
+  }
+
+  func testARetryNeverDropsAFullReadWaitingForAReadInFlight() async {
+    let h = Harness()
+    h.sync.start()
+    await h.settled(sleeps: 1)
+    let gate = h.reader.holdNextRead()
+    await h.sync.setOpen(true)
+    await eventually("a read in flight") { h.reader.decisionCalls == 2 }
+    await h.sync.readNow()
+    h.sync.retryAgent()
+    try? await Task.sleep(nanoseconds: 20_000_000)
+    let agents = h.reader.agentCalls
+    await gate.open()
+    await eventually("the queued full read") { h.reader.decisionCalls == 3 }
+    await h.settled(sleeps: 2)
+    XCTAssertEqual(h.reader.agentCalls, agents + 1, "the queued read still reads the agents")
+    XCTAssertEqual(h.reader.peakConcurrency, 1, "reads never overlap")
+  }
+
+  func testAResultForAnEarlierTargetChangesNothing() async {
+    // Each way a target ends, with the read held in flight until after it.
+    let endings: [(String, @MainActor (Harness) -> Void)] = [
+      ("closed", { $0.sync.hideAgent() }),
+      ("another session", { _ = $0.sync.showAgent(id: "ags_2") }),
+      ("reopened", { _ = $0.sync.showAgent(id: "ags_1") }),
+      ("signed out", { $0.sync.stop() }),
+    ]
+    for (name, end) in endings {
+      let h = Harness()
+      await h.startOpen()
+      h.reader.answerSession(.failure(.transport("late failure")))
+      let gate = h.reader.holdNextSessionRead()
+      let first = h.sync.showAgent(id: "ags_1")
+      await eventually("the first read in flight") { h.reader.sessionReads.count == 1 }
+      end(h)
+      await gate.open()
+      try? await Task.sleep(nanoseconds: 30_000_000)
+      XCTAssertFalse(
+        h.details.updates.contains { $0.target == first }, "\(name): the earlier target's result is dropped")
+      if name != "signed out" {
+        await eventually("\(name): the timer settles") { h.clock.sleeping == 1 }
+        XCTAssertNotEqual(
+          h.clock.requests.last, 30, "\(name): a dropped failure does not back off")
+      }
+    }
+  }
+
+  func testTheNewTargetsResultLandsAfterASwitch() async {
+    let h = Harness()
+    await h.startOpen()
+    let gate = h.reader.holdNextSessionRead()
+    let first = h.sync.showAgent(id: "ags_1")
+    await eventually("the first read in flight") { h.reader.sessionReads.count == 1 }
+    let second = Fixtures.session("ags_2")
+    h.reader.alwaysAnswerSession(.success(second))
+    let target = h.sync.showAgent(id: "ags_2")
+    XCTAssertNotEqual(first, target)
+    await gate.open()
+    await eventually("the second target's result") { h.details.updates.contains { $0.target == target } }
+    XCTAssertEqual(h.details.updates.map(\.target), [target])
+    XCTAssertEqual(h.reader.sessionReads, ["ags_1", "ags_2"])
   }
 
   // MARK: Backoff

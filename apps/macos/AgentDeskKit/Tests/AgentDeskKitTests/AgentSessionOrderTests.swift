@@ -107,15 +107,16 @@ final class AgentSessionOrderTests: XCTestCase {
     XCTAssertTrue(staleBlocked.isBlocked)
   }
 
-  func testOnlyWebLinksOpen() {
-    func link(_ value: Any) -> URL? {
-      AgentEntryModel(session: Fixtures.session("a", ["link": value]), now: now).link
-    }
+  func testOnlyWebLinksCountAsLinks() {
+    func link(_ value: String) -> URL? { AgentEntryModel.webURL(value) }
     XCTAssertEqual(link("https://example.com/s/1"), URL(string: "https://example.com/s/1"))
     XCTAssertNotNil(link("http://localhost:8080/x"))
-    XCTAssertNil(link(NSNull()))
+    XCTAssertNotNil(link("HTTPS://example.com"), "the scheme compares without case")
     XCTAssertNil(link("file:///etc/passwd"))
     XCTAssertNil(link("javascript:alert(1)"))
     XCTAssertNil(link("not a url"))
+    XCTAssertNil(link("/relative/path"))
+    XCTAssertNil(link("example.com/no-scheme"))
+    XCTAssertNil(link("https://"), "no host")
   }
 }

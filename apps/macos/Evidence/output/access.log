@@ -1,5 +1,5 @@
 # Panel keyboard and assistive evidence
-Compiled from the shipped DecisionDetailView, AnswerControls, and ApproveRejectButtons; only the actions and draft storage are fixtures.
+Compiled from the shipped DecisionDetailView, AgentDetailView, AgentsView, AnswerControls, and ApproveRejectButtons; only the actions and draft storage are fixtures.
 An Accessibility API read shows what an assistive client is given, not what VoiceOver speaks.
 
 ## Full keyboard access for this process
@@ -426,6 +426,372 @@ ok refresh-failed: every button, link, radio button, and checkbox offers AXPress
 ok refresh-failed: the close control is named and pressable
 ok refresh-failed: the panel names itself
 ok refresh-failed: the state reads as text
+
+## Agent panel
+
+### agent-working
+    AXGroup description="Agent detail"
+      AXStaticText value="Claude Code · api"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="Working, 2m ago"
+        AXHeading description="Running the migration tests"
+        AXStaticText value="Agent, Claude Code · api"
+        AXStaticText value="Topic, api/migrations"
+        AXStaticText value="Pending, 1 pending decision"
+        AXButton description="Open link" help="Opens https://example.com/pull/412 in the default browser" actions=AXPress focusable
+        AXStaticText value="https://example.com/pull/412"
+        AXHeading description="Waiting on you"
+        AXButton description="Delete the stale preview databases?" value="20m ago" help="Shows this decision in the panel" actions=AXPress focusable
+        AXHeading description="History"
+        AXStaticText value="Waiting"
+        AXStaticText value="5m ago"
+        AXStaticText value="Waiting for the staging soak"
+        AXStaticText value="https://example.com/soak/12"
+        AXStaticText value="Working"
+        AXStaticText value="40m ago"
+        AXStaticText value="Ran the migration on a copy"
+        AXStaticText value="Working"
+        AXStaticText value="3h ago"
+        AXStaticText value="Started on the events table"
+ok agent-working: every control has a name
+ok agent-working: every control offers AXPress
+ok agent-working: the close control is named and pressable
+ok agent-working: the panel names itself
+ok agent-working: nothing reads as a web link
+ok agent-working: every element has a known role
+ok agent-working: no text field, so nothing sends a message to the agent
+ok agent-working: state and update age reads as text
+ok agent-working: the status line reads as text
+ok agent-working: the display name reads as text
+ok agent-working: the topic reads as text
+ok agent-working: the pending count reads as text
+ok agent-working: the section reads as text
+ok agent-working: the history section reads as text
+ok agent-working: the newest history entry reads as text
+ok agent-working: an older history entry reads as text
+ok agent-working: the status line is a heading
+ok agent-working: a history entry's link is plain text
+ok agent-working: AXPress on the pending decision shows it, with no browser
+ok agent-working: AXPress on Open link is the one thing that opens a link
+ok agent-working: AXPress on the close control closes
+
+### agent-stale
+    AXGroup description="Agent detail"
+      AXStaticText value="Cursor · docs"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="Waiting, 45m ago, Stale"
+        AXHeading description="Waiting for review"
+        AXStaticText value="Agent, Cursor · docs"
+        AXStaticText value="Topic, docs"
+        AXStaticText value="Pending, 0 pending decisions"
+        AXHeading description="Waiting on you"
+        AXStaticText value="No pending decisions."
+        AXHeading description="History"
+        AXStaticText value="Waiting"
+        AXStaticText value="5m ago"
+        AXStaticText value="Waiting for the staging soak"
+        AXStaticText value="https://example.com/soak/12"
+        AXStaticText value="Working"
+        AXStaticText value="40m ago"
+        AXStaticText value="Ran the migration on a copy"
+        AXStaticText value="Working"
+        AXStaticText value="3h ago"
+        AXStaticText value="Started on the events table"
+ok agent-stale: every control has a name
+ok agent-stale: every control offers AXPress
+ok agent-stale: the close control is named and pressable
+ok agent-stale: the panel names itself
+ok agent-stale: nothing reads as a web link
+ok agent-stale: every element has a known role
+ok agent-stale: no text field, so nothing sends a message to the agent
+ok agent-stale: the stale marker reads as text
+ok agent-stale: the empty list reads as text
+ok agent-stale: with no link, close is the only control
+ok agent-stale: AXPress on the close control closes
+
+### agent-blocked
+    AXGroup description="Agent detail"
+      AXStaticText value="Codex · web"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="Blocked, 10m ago"
+        AXHeading description="Needs a decision on the release before it can go on"
+        AXStaticText value="Agent, Codex · web"
+        AXStaticText value="Topic, web"
+        AXStaticText value="Pending, 1 pending decision"
+        AXHeading description="Waiting on you"
+        AXButton description="Ship the 2.4 release to production now that the staging soak passed?" value="Urgent, 4m left, 30m ago" help="Shows this decision in the panel" actions=AXPress focusable
+        AXHeading description="History"
+        AXStaticText value="Waiting"
+        AXStaticText value="5m ago"
+        AXStaticText value="Waiting for the staging soak"
+        AXStaticText value="https://example.com/soak/12"
+        AXStaticText value="Working"
+        AXStaticText value="40m ago"
+        AXStaticText value="Ran the migration on a copy"
+        AXStaticText value="Working"
+        AXStaticText value="3h ago"
+        AXStaticText value="Started on the events table"
+ok agent-blocked: every control has a name
+ok agent-blocked: every control offers AXPress
+ok agent-blocked: the close control is named and pressable
+ok agent-blocked: the panel names itself
+ok agent-blocked: nothing reads as a web link
+ok agent-blocked: every element has a known role
+ok agent-blocked: no text field, so nothing sends a message to the agent
+ok agent-blocked: blocked reads in words, not only red
+ok agent-blocked: the pending decision reads urgent and its time left
+ok agent-blocked: AXPress on the close control closes
+
+### agent-no-status
+    AXGroup description="Agent detail"
+      AXStaticText value="Claude Code · new"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="No status yet, No update yet"
+        AXStaticText value="Agent, Claude Code · new"
+        AXStaticText value="Topic, new"
+        AXStaticText value="Pending, 0 pending decisions"
+        AXHeading description="Waiting on you"
+        AXStaticText value="No pending decisions."
+        AXHeading description="History"
+        AXStaticText value="No earlier statuses."
+ok agent-no-status: every control has a name
+ok agent-no-status: every control offers AXPress
+ok agent-no-status: the close control is named and pressable
+ok agent-no-status: the panel names itself
+ok agent-no-status: nothing reads as a web link
+ok agent-no-status: every element has a known role
+ok agent-no-status: no text field, so nothing sends a message to the agent
+ok agent-no-status: reads no status and no update
+ok agent-no-status: the empty history reads as text
+ok agent-no-status: AXPress on the close control closes
+
+### agent-invalid-link
+    AXGroup description="Agent detail"
+      AXStaticText value="Claude Code · link"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="Working, 1m ago"
+        AXHeading description="Holds a link no browser should open"
+        AXStaticText value="Agent, Claude Code · link"
+        AXStaticText value="Topic, links"
+        AXStaticText value="Pending, 0 pending decisions"
+        AXHeading description="Waiting on you"
+        AXStaticText value="No pending decisions."
+        AXHeading description="History"
+        AXStaticText value="Waiting"
+        AXStaticText value="5m ago"
+        AXStaticText value="Waiting for the staging soak"
+        AXStaticText value="https://example.com/soak/12"
+        AXStaticText value="Working"
+        AXStaticText value="40m ago"
+        AXStaticText value="Ran the migration on a copy"
+        AXStaticText value="Working"
+        AXStaticText value="3h ago"
+        AXStaticText value="Started on the events table"
+ok agent-invalid-link: every control has a name
+ok agent-invalid-link: every control offers AXPress
+ok agent-invalid-link: the close control is named and pressable
+ok agent-invalid-link: the panel names itself
+ok agent-invalid-link: nothing reads as a web link
+ok agent-invalid-link: every element has a known role
+ok agent-invalid-link: no text field, so nothing sends a message to the agent
+ok agent-invalid-link: offers no Open link
+ok agent-invalid-link: AXPress on the close control closes
+
+### agent-relative-link
+    AXGroup description="Agent detail"
+      AXStaticText value="Claude Code · link"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="Working, 1m ago"
+        AXHeading description="Holds a relative link"
+        AXStaticText value="Agent, Claude Code · link"
+        AXStaticText value="Topic, links"
+        AXStaticText value="Pending, 0 pending decisions"
+        AXHeading description="Waiting on you"
+        AXStaticText value="No pending decisions."
+        AXHeading description="History"
+        AXStaticText value="Waiting"
+        AXStaticText value="5m ago"
+        AXStaticText value="Waiting for the staging soak"
+        AXStaticText value="https://example.com/soak/12"
+        AXStaticText value="Working"
+        AXStaticText value="40m ago"
+        AXStaticText value="Ran the migration on a copy"
+        AXStaticText value="Working"
+        AXStaticText value="3h ago"
+        AXStaticText value="Started on the events table"
+ok agent-relative-link: every control has a name
+ok agent-relative-link: every control offers AXPress
+ok agent-relative-link: the close control is named and pressable
+ok agent-relative-link: the panel names itself
+ok agent-relative-link: nothing reads as a web link
+ok agent-relative-link: every element has a known role
+ok agent-relative-link: no text field, so nothing sends a message to the agent
+ok agent-relative-link: offers no Open link
+ok agent-relative-link: AXPress on the close control closes
+
+### agent-loading
+    AXGroup description="Agent detail"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXBusyIndicator description="Loading this agent…" value="0"
+ok agent-loading: every control has a name
+ok agent-loading: every control offers AXPress
+ok agent-loading: the close control is named and pressable
+ok agent-loading: the panel names itself
+ok agent-loading: nothing reads as a web link
+ok agent-loading: every element has a known role
+ok agent-loading: no text field, so nothing sends a message to the agent
+ok agent-loading: the state is named
+ok agent-loading: AXPress on the close control closes
+
+### agent-load-failed
+    AXGroup description="Agent detail"
+      AXStaticText value="Claude Code · api"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="Working, 2m ago"
+        AXHeading description="Running the migration tests"
+        AXStaticText value="Agent, Claude Code · api"
+        AXStaticText value="Topic, api/migrations"
+        AXStaticText value="Pending, 1 pending decision"
+        AXButton description="Open link" help="Opens https://example.com/pull/412 in the default browser" actions=AXPress focusable
+        AXStaticText value="https://example.com/pull/412"
+        AXStaticText value="Couldn't load this agent."
+        AXButton description="Try Again" actions=AXPress focusable
+ok agent-load-failed: every control has a name
+ok agent-load-failed: every control offers AXPress
+ok agent-load-failed: the close control is named and pressable
+ok agent-load-failed: the panel names itself
+ok agent-load-failed: nothing reads as a web link
+ok agent-load-failed: every element has a known role
+ok agent-load-failed: no text field, so nothing sends a message to the agent
+ok agent-load-failed: the message reads
+ok agent-load-failed: the list's record stays
+ok agent-load-failed: AXPress on Try Again retries
+ok agent-load-failed: AXPress on the close control closes
+
+### agent-refresh-failed
+    AXGroup description="Agent detail"
+      AXStaticText value="Claude Code · api"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="Working, 2m ago"
+        AXHeading description="Running the migration tests"
+        AXStaticText value="Agent, Claude Code · api"
+        AXStaticText value="Topic, api/migrations"
+        AXStaticText value="Pending, 1 pending decision"
+        AXButton description="Open link" help="Opens https://example.com/pull/412 in the default browser" actions=AXPress focusable
+        AXStaticText value="https://example.com/pull/412"
+        AXStaticText value="Couldn't refresh this agent. It may be out of date."
+        AXButton description="Try Again" actions=AXPress focusable
+        AXHeading description="Waiting on you"
+        AXButton description="Delete the stale preview databases?" value="20m ago" help="Shows this decision in the panel" actions=AXPress focusable
+        AXHeading description="History"
+        AXStaticText value="Waiting"
+        AXStaticText value="5m ago"
+        AXStaticText value="Waiting for the staging soak"
+        AXStaticText value="https://example.com/soak/12"
+        AXStaticText value="Working"
+        AXStaticText value="40m ago"
+        AXStaticText value="Ran the migration on a copy"
+        AXStaticText value="Working"
+        AXStaticText value="3h ago"
+        AXStaticText value="Started on the events table"
+ok agent-refresh-failed: every control has a name
+ok agent-refresh-failed: every control offers AXPress
+ok agent-refresh-failed: the close control is named and pressable
+ok agent-refresh-failed: the panel names itself
+ok agent-refresh-failed: nothing reads as a web link
+ok agent-refresh-failed: every element has a known role
+ok agent-refresh-failed: no text field, so nothing sends a message to the agent
+ok agent-refresh-failed: the warning reads
+ok agent-refresh-failed: the session stays
+ok agent-refresh-failed: AXPress on Try Again retries
+ok agent-refresh-failed: AXPress on the close control closes
+
+### agent-pending-unread
+    AXGroup description="Agent detail"
+      AXStaticText value="Codex · web"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="Blocked, 10m ago"
+        AXHeading description="Needs a decision on the release before it can go on"
+        AXStaticText value="Agent, Codex · web"
+        AXStaticText value="Topic, web"
+        AXStaticText value="Pending, 1 pending decision"
+        AXHeading description="Waiting on you"
+        AXStaticText value="Pending decisions aren't available yet."
+        AXHeading description="History"
+        AXStaticText value="Waiting"
+        AXStaticText value="5m ago"
+        AXStaticText value="Waiting for the staging soak"
+        AXStaticText value="https://example.com/soak/12"
+        AXStaticText value="Working"
+        AXStaticText value="40m ago"
+        AXStaticText value="Ran the migration on a copy"
+        AXStaticText value="Working"
+        AXStaticText value="3h ago"
+        AXStaticText value="Started on the events table"
+ok agent-pending-unread: every control has a name
+ok agent-pending-unread: every control offers AXPress
+ok agent-pending-unread: the close control is named and pressable
+ok agent-pending-unread: the panel names itself
+ok agent-pending-unread: nothing reads as a web link
+ok agent-pending-unread: every element has a known role
+ok agent-pending-unread: no text field, so nothing sends a message to the agent
+ok agent-pending-unread: an unread list says so
+ok agent-pending-unread: it never reads as empty
+ok agent-pending-unread: the count still reads
+ok agent-pending-unread: AXPress on the close control closes
+
+### agent-gone
+    AXGroup description="Agent detail"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="This agent session is gone."
+ok agent-gone: every control has a name
+ok agent-gone: every control offers AXPress
+ok agent-gone: the close control is named and pressable
+ok agent-gone: the panel names itself
+ok agent-gone: nothing reads as a web link
+ok agent-gone: every element has a known role
+ok agent-gone: no text field, so nothing sends a message to the agent
+ok agent-gone: the message reads
+ok agent-gone: close is the only control
+ok agent-gone: AXPress on the close control closes
+
+Agent panel's key view loop with NSApp.isFullKeyboardAccessEnabled false: none
+NOT EXERCISED, assigned to the operator's pre-release checks: the agent panel's buttons in the Tab order with the Mac's Keyboard navigation setting on. This panel has no text field, so Tab has no stop with that setting off.
+
+### agent entries
+    AXButton description="2 active, 1 quiet, 1 blocked" value="Expanded" actions=AXPress focusable
+    AXScrollArea
+      AXButton description="Codex · web, blocked, Needs a decision on the release before it can go on" help="Shows this session in the detail panel" actions=AXPress focusable
+      AXButton description="Claude Code · api, working, Running the migration tests" help="Shows this session in the detail panel" actions=AXPress focusable
+      AXButton description="Claude Code · link, working, Holds a link no browser should open" help="Shows this session in the detail panel" actions=AXPress focusable
+      AXButton description="Hide quiet" value="Expanded" actions=AXPress focusable
+      AXButton description="Cursor · docs, quiet 43m, Waiting for review" help="Shows this session in the detail panel" actions=AXPress focusable
+      AXScrollBar value="0" focusable
+        AXValueIndicator value="0"
+        AXButton actions=AXPress
+        AXButton actions=AXPress
+        AXButton actions=AXPress
+        AXButton actions=AXPress
+ok entry ags_1: a named button, with or without a link
+ok entry ags_1: AXPress opens the panel for that session
+ok entry ags_2: a named button, with or without a link
+ok entry ags_2: AXPress opens the panel for that session
+ok entry ags_3: a named button, with or without a link
+ok entry ags_3: AXPress opens the panel for that session
+ok entry ags_5: a named button, with or without a link
+ok entry ags_5: AXPress opens the panel for that session
+ok entries: none reads as a web link
 
 ### popover rows
     AXStaticText value="AgentDesk"

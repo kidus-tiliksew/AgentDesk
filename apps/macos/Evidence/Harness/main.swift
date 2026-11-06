@@ -3,7 +3,8 @@ import SwiftUI
 
 // Offscreen evidence for the popover, the menu bar label, and notifications.
 // The harness compiles the shipped `DecisionRow`, `AnswerControls`,
-// `DecisionDetailView`, `DetailPanelWindow`, `PopoverKeyObserver`, `AgentsView`,
+// `DecisionDetailView`, `AgentDetailView`, `DetailPanelWindow`,
+// `PopoverKeyObserver`, `AgentsView`,
 // `ScrollSupport`, `Ink`, `MenuBarLabel`, `NotificationController`, and
 // `NotificationPauseLine` sources and every `AgentDeskKit` source into one
 // program, renders them from fixtures, and writes PNGs and `report.txt` to
@@ -265,6 +266,7 @@ struct PopoverFixture: View {
   var shownID: String? = nil
   var undoText: String? = nil
   var outcome: String? = nil
+  var shownAgentID: String? = nil
   @State private var headerHeight: CGFloat = 0
   @State private var stripsHeight: CGFloat = 0
   @State private var agentsHeight: CGFloat = 0
@@ -292,8 +294,10 @@ struct PopoverFixture: View {
             PopoverLayout.listMaxHeight(chromeHeight: Double(headerHeight + stripsHeight + agentsHeight + 2))))
       }
       Divider()
-      AgentsView(agents: agents, now: now, expanded: $expanded, quietRevealed: $quietRevealed)
-        .measuredHeight($agentsHeight)
+      AgentsView(
+        agents: agents, now: now, expanded: $expanded, quietRevealed: $quietRevealed, shownID: shownAgentID
+      )
+      .measuredHeight($agentsHeight)
     }
     .frame(width: 340)
     .frame(maxHeight: CGFloat(PopoverLayout.maxHeight), alignment: .top)
@@ -588,7 +592,9 @@ MainActor.assumeIsolated {
   line("")
 
   panelEvidence(&failures)
+  agentPanelEvidence(&failures)
   pairedWindowEvidence(&failures)
+  agentPairedWindowEvidence(&failures)
   linkedRecoveryEvidence(&failures)
 
   line("## Strips")

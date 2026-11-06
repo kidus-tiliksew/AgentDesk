@@ -4,12 +4,12 @@ import Observation
 import OSLog
 
 /// The app's observable state: the account, its sign-in, Open at Login, the
-/// synced decisions and agents with their attention state, the decision the
-/// detail panel shows, the answers the user gives from the popover, the panel,
-/// or a notification, and the notifications it posts. It sends no request
-/// besides sign-in, sign-out, the sync reads, the panel's decision read, the
-/// agent read that names a notification's agent, and answers (req-mac-app
-/// REQ-10).
+/// synced decisions and agents with their attention state, the decision or
+/// agent session the detail panel shows, the answers the user gives from the
+/// popover, the panel, or a notification, and the notifications it posts. It
+/// sends no request besides sign-in, sign-out, the sync reads including the
+/// shown agent session and its history, the panel's decision read, the agent
+/// read that names a notification's agent, and answers (req-mac-app REQ-10).
 @MainActor
 @Observable
 final class AppState {
@@ -90,23 +90,28 @@ final class AppState {
   @ObservationIgnored private var listedOrder: [String] = []
   /// The list, the panel, the drafts, and the held answers together, so an
   /// answer to a decision the list does not hold can recover (req-mac-app
-  /// AC-4.7, AC-4.8, AC-11.5, AC-11.6).
+  /// AC-4.7, AC-4.8, AC-11.5, AC-11.6). The panel's agent session reads through
+  /// `Sync`, on its one timer.
   @ObservationIgnored private lazy var coordinator: DecisionCoordinator = {
     let api = account.api
-    let coordinator = DecisionCoordinator(sender: api, reader: api)
+    let coordinator = DecisionCoordinator(sender: api, reader: api, agentReads: sync)
     // The popover starts closed; a conflict's outcome waits for it.
     coordinator.pending.isPresented = isPopoverOpen
     coordinator.onAnswersChange = { [weak self] in self?.answersChanged() }
     coordinator.onDetailChange = { [weak self] in self?.detailChanged() }
+    // The one place the agent panel reaches a browser (req-mac-app AC-11.4).
+    coordinator.agent.opener = { NSWorkspace.shared.open($0) }
     return coordinator
   }()
   private var pending: PendingAnswers { coordinator.pending }
   private var detail: DecisionDetail { coordinator.detail }
+  private var agentDetail: AgentDetail { coordinator.agent }
   private static let log = Logger(
     subsystem: "sh.kidus.agentdesk.mac", category: "popover")
-  @ObservationIgnored private lazy var sync = Sync(reader: account.api) { [weak self] snapshot in
-    self?.apply(snapshot)
-  }
+  @ObservationIgnored private lazy var sync = Sync(
+    reader: account.api,
+    publish: { [weak self] snapshot in self?.apply(snapshot) },
+    publishAgentDetail: { [weak self] update in self?.agentDetail.apply(update) })
 
   init(defaults: UserDefaults = .standard) {
     let account = Account(
@@ -201,6 +206,23 @@ final class AppState {
     return detail.shownID
   }
 
+  /// The agent session the panel shows, by id.
+  var shownAgentID: String? {
+    _ = detailRevision
+    return agentDetail.shownID
+  }
+
+  /// What the panel shows for an agent session; nil while it shows none
+  /// (req-mac-app AC-11.3). Its pending decisions come from the list, without
+  /// the ones this Mac's answer has taken off it.
+  var agentPresentation: AgentDetailPresentation? {
+    _ = detailRevision
+    guard let content = agentDetail.content else { return nil }
+    return AgentDetailPresentation(
+      content: content, refreshFailed: agentDetail.refreshFailed, decisions: decisions, now: now,
+      decisionsAreKnown: snapshot.fetchedAt != nil)
+  }
+
   /// What the panel shows; nil while it is closed (req-mac-app AC-11.2).
   var detailPresentation: DetailPanelPresentation? {
     _ = detailRevision
@@ -281,7 +303,7 @@ final class AppState {
   func popoverClosed() {
     guard isPopoverOpen else { return }
     isPopoverOpen = false
-    detail.close()
+    coordinator.closePanel()
     pending.flush()
     pending.isPresented = false
     Self.log.debug("Popover closed; \(self.listedIDs.count, privacy: .public) listed")
@@ -525,12 +547,29 @@ final class AppState {
     coordinator.show(id)
   }
 
-  func closeDetail() {
-    detail.close()
+  /// Clicking an agent entry: shows the session in the panel, or closes the
+  /// panel when it shows that session (req-mac-app AC-5.3, AC-11.7).
+  func toggleAgent(_ id: String) {
+    coordinator.toggleAgent(id, known: snapshot.agents.first { $0.id == id })
   }
 
+  /// The panel's Open link control, the only way the agent panel reaches a
+  /// browser (req-mac-app AC-11.4).
+  func openAgentLink() {
+    agentDetail.openLink()
+  }
+
+  func closeDetail() {
+    coordinator.closePanel()
+  }
+
+  /// Try Again: reads the panel's current target only.
   func retryDetail() {
-    detail.retry()
+    switch coordinator.panelTarget {
+    case .decision?: detail.retry()
+    case .agent?: agentDetail.retry()
+    case nil: break
+    }
   }
 
   func select(_ id: String) {
@@ -557,13 +596,13 @@ final class AppState {
   /// key to the focused control or the window (req-mac-app AC-7.1).
   func handle(_ key: PopoverKey, editingText: Bool) -> Bool {
     let action = PopoverKeys.action(
-      for: key, rows: decisions.map(\.id), selected: selectedID, shown: detail.shownID,
+      for: key, rows: decisions.map(\.id), selected: selectedID, shown: coordinator.panelTarget,
       shownIsAnswerable: coordinator.shownIsAnswerable, editingText: editingText)
     switch action {
     case .select(let id): selectedID = id
     case .toggle(let id): toggle(id)
     case .send(let id): send(id)
-    case .closePanel: detail.close()
+    case .closePanel: coordinator.closePanel()
     case .passThrough: return false
     }
     return true
@@ -581,7 +620,7 @@ final class AppState {
   /// Tells the controller the panel's target.
   private func detailChanged() {
     detailRevision += 1
-    presenter?.panelChanged(detail.shownID)
+    presenter?.panelChanged(coordinator.panelTarget)
   }
 
   private func answersChanged() {

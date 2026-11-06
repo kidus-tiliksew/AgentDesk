@@ -1,4 +1,5 @@
 import AppKit
+import Observation
 import SwiftUI
 
 /// Counts every time this process becomes the active app, so a harness run that
@@ -337,7 +338,8 @@ private final class KeyModel {
 
   func handle(_ key: PopoverKey, editingText: Bool) -> Bool {
     let action = PopoverKeys.action(
-      for: key, rows: rows, selected: selected, shown: detail.shownID, shownIsAnswerable: answerable,
+      for: key, rows: rows, selected: selected, shown: detail.shownID.map(DetailPanelTarget.decision),
+      shownIsAnswerable: answerable,
       editingText: editingText)
     switch action {
     case .select(let id): selected = id
@@ -689,6 +691,459 @@ func pairedWindowEvidence(_ failures: inout [String]) {
   check("the panel is excluded from the Windows menu", panel.window.isExcludedFromWindowsMenu, &failures)
   check("the panel ignores window cycling", panel.window.collectionBehavior.contains(.ignoresCycle), &failures)
   check("the panel can take key focus", panel.window.canBecomeKey, &failures)
+  check("this process never became the active app, so the user's focus never moved", ActivationWatch.shared.count == 0 && !NSApp.isActive, &failures)
+  anchor.orderOut(nil)
+  statusWindow.orderOut(nil)
+  otherWindow.orderOut(nil)
+  line("")
+}
+
+// MARK: The agent panel
+
+let agentHistoryFixture = [
+  StatusHistoryEntry(
+    state: .waiting, line: "Waiting for the staging soak", link: "https://example.com/soak/12",
+    at: Instant.parse("2026-10-27T11:55:00Z")!),
+  StatusHistoryEntry(state: .working, line: "Ran the migration on a copy", at: Instant.parse("2026-10-27T11:20:00Z")!),
+  StatusHistoryEntry(state: .working, line: "Started on the events table", at: Instant.parse("2026-10-27T08:40:00Z")!),
+]
+
+let workingAgent = session([
+  "id": "ags_1", "display_name": "Claude Code · api", "topic": "api/migrations", "state": "working",
+  "line": "Running the migration tests", "link": "https://example.com/pull/412", "pending_decision_count": 1,
+  "status_at": "2026-10-27T11:58:00Z",
+])
+let blockedAgent = session([
+  "id": "ags_2", "display_name": "Codex · web", "topic": "web", "state": "blocked",
+  "line": "Needs a decision on the release before it can go on", "pending_decision_count": 1,
+  "status_at": "2026-10-27T11:50:00Z",
+])
+let staleAgent = session([
+  "id": "ags_3", "display_name": "Cursor · docs", "topic": "docs", "state": "waiting", "stale": true,
+  "line": "Waiting for review", "last_activity_at": "2026-10-27T11:17:00Z", "status_at": "2026-10-27T11:15:00Z",
+])
+let noStatusAgent = session([
+  "id": "ags_4", "display_name": "Claude Code · new", "topic": "new", "state": NSNull(), "line": NSNull(),
+  "status_at": NSNull(),
+])
+let invalidLinkAgent = session([
+  "id": "ags_5", "display_name": "Claude Code · link", "topic": "links", "line": "Holds a link no browser should open",
+  "link": "javascript:alert(1)",
+])
+let relativeLinkAgent = session([
+  "id": "ags_6", "display_name": "Claude Code · link", "topic": "links", "line": "Holds a relative link",
+  "link": "/pull/412",
+])
+let longAgent = session([
+  "id": "ags_7", "display_name": "Claude Code · a session whose display name runs well past the panel's header",
+  "topic": "api/migrations/events/a-topic-that-is-long-enough-to-wrap-inside-the-fact-column",
+  "line": String(repeating: "The migration rewrites every row of the events table. ", count: 4).prefix(200).description,
+  "link": "https://example.com/pull/412", "pending_decision_count": 2,
+])
+let longHistory = (1...20).map {
+  StatusHistoryEntry(
+    state: $0.isMultiple(of: 3) ? .blocked : .working,
+    line: "Status \($0): the migration rewrote another batch of rows, so the soak still has to finish before it starts.",
+    link: $0.isMultiple(of: 4) ? "https://example.com/run/\($0)" : nil,
+    at: Instant.parse("2026-10-27T11:00:00Z")!.addingTimeInterval(TimeInterval(-600 * $0)))
+}
+let agentPendingFixture = [
+  decision([
+    "id": "ap_1", "title": "Delete the stale preview databases?", "agent_session_id": "ags_1",
+    "created_at": "2026-10-27T11:40:00Z",
+  ]),
+  decision([
+    "id": "ap_2", "title": "Ship the 2.4 release to production now that the staging soak passed?",
+    "agent_session_id": "ags_2", "priority": "urgent", "deadline": "2026-10-27T12:04:00Z",
+    "created_at": "2026-10-27T11:30:00Z",
+  ]),
+  decision([
+    "id": "ap_3", "title": "Which migration window should it use?", "agent_session_id": "ags_7",
+    "created_at": "2026-10-27T11:45:00Z",
+  ]),
+  decision([
+    "id": "ap_4", "title": "Rebuild the index afterwards?", "agent_session_id": "ags_7",
+    "deadline": "2026-10-27T14:00:00Z", "created_at": "2026-10-27T11:46:00Z",
+  ]),
+]
+
+func agentPresentation(
+  _ session: AgentSession, history: [StatusHistoryEntry] = agentHistoryFixture, refreshFailed: Bool = false
+) -> AgentDetailPresentation {
+  AgentDetailPresentation(
+    content: .loaded(session, history), refreshFailed: refreshFailed, decisions: agentPendingFixture, now: now)
+}
+
+func agentScenes() -> [(String, AgentDetailPresentation)] {
+  [
+    ("agent-working", agentPresentation(workingAgent)),
+    ("agent-stale", agentPresentation(staleAgent)),
+    ("agent-blocked", agentPresentation(blockedAgent)),
+    ("agent-no-status", agentPresentation(noStatusAgent, history: [])),
+    ("agent-invalid-link", agentPresentation(invalidLinkAgent)),
+    ("agent-relative-link", agentPresentation(relativeLinkAgent)),
+    ("agent-long", agentPresentation(longAgent, history: longHistory)),
+    ("agent-refresh-failed", agentPresentation(workingAgent, refreshFailed: true)),
+    (
+      "agent-loading",
+      AgentDetailPresentation(content: .loading(nil), refreshFailed: false, decisions: [], now: now)
+    ),
+    (
+      "agent-loading-seed",
+      AgentDetailPresentation(content: .loading(workingAgent), refreshFailed: false, decisions: agentPendingFixture, now: now)
+    ),
+    (
+      "agent-load-failed",
+      AgentDetailPresentation(content: .failed(nil), refreshFailed: false, decisions: [], now: now)
+    ),
+    (
+      "agent-load-failed-seed",
+      AgentDetailPresentation(content: .failed(workingAgent), refreshFailed: false, decisions: agentPendingFixture, now: now)
+    ),
+    (
+      "agent-pending-unread",
+      AgentDetailPresentation(
+        content: .loaded(blockedAgent, agentHistoryFixture), refreshFailed: false, decisions: [], now: now,
+        decisionsAreKnown: false)
+    ),
+    ("agent-gone", AgentDetailPresentation(content: .gone)),
+  ]
+}
+
+/// The popover with its agents list open and the panel showing a session.
+private struct AgentPairFixture: View {
+  let presentation: AgentDetailPresentation
+
+  var body: some View {
+    HStack(alignment: .top, spacing: CGFloat(DetailPanelPlacement.gap)) {
+      PopoverFixture(items: items(decisions), expanded: true, shownAgentID: "ags_1")
+      AgentDetailView(presentation: presentation)
+    }
+  }
+}
+
+/// Renders the shipped `AgentDetailView` and states what each scene holds
+/// (req-mac-app AC-11.3, AC-11.4, AC-11.9).
+@MainActor
+func agentPanelEvidence(_ failures: inout [String]) {
+  line("## Agent panel (the shipped AgentDetailView, offscreen)")
+  func check(_ name: String, _ passed: Bool, _ failures: inout [String]) {
+    line("\(passed ? "ok" : "FAIL") \(name)")
+    if !passed { failures.append("agent panel: \(name)") }
+  }
+  let scenes = agentScenes()
+  var trees: [String: [String]] = [:]
+  for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
+    for (name, scene) in scenes {
+      let (window, container, hosting) = settled(AgentDetailView(presentation: scene), appearance: appearance)
+      save(snapshot(container), "\(name)-\(mode).png")
+      line("\(name)-\(mode).png: \(Int(container.bounds.width))x\(Int(container.bounds.height)) pt")
+      if container.bounds.width != 400 { failures.append("\(name)-\(mode) is not 400 pt wide") }
+      if container.bounds.height > 560 { failures.append("\(name)-\(mode) exceeds 560 pt") }
+      if trees[name] == nil { trees[name] = controlTitles(in: hosting) }
+      if name == "agent-long" {
+        let scroll = scrollViews(in: container).first
+        let clip = scroll?.documentVisibleRect.height ?? 0
+        let document = scroll?.documentView?.bounds.height ?? 0
+        check(
+          "the long agent panel (\(mode)) scrolls: \(Int(document)) pt of content in \(Int(clip)) pt", document > clip,
+          &failures)
+        check(
+          "the long agent panel (\(mode)) keeps a visible scroller",
+          scroll?.verticalScroller?.isHidden == false && scroll?.verticalScroller is ListScroller, &failures)
+      }
+      _ = window
+    }
+    let (window, container, _) = settled(AgentPairFixture(presentation: agentPresentation(workingAgent)), appearance: appearance)
+    save(snapshot(container), "agent-beside-popover-\(mode).png")
+    line("agent-beside-popover-\(mode).png: \(Int(container.bounds.width))x\(Int(container.bounds.height)) pt")
+    check("the popover, the gap, and the agent panel sit side by side (\(mode))", container.bounds.width == 748, &failures)
+    _ = window
+  }
+  line("")
+
+  line("### What each session's panel holds (AgentDetailModel)")
+  for (name, scene) in scenes {
+    guard let model = scene.model else {
+      line("- \(name): no session to show")
+      continue
+    }
+    line("- \(name): \(model.statusAccessibilityLabel) | line: \(model.line ?? "none") | \(model.displayName) | \(model.topic) | \(model.pendingCountText) | listed \(model.pending.map(\.id)) | history \(model.history?.count ?? -1) | link \(model.link?.absoluteString ?? "none")")
+  }
+  line("")
+  let working = agentPresentation(workingAgent).model
+  let stale = agentPresentation(staleAgent).model
+  let blocked = agentPresentation(blockedAgent).model
+  let none = agentPresentation(noStatusAgent, history: []).model
+  check("a working session reads Working, its update age, and its link", working?.state == "Working" && working?.updateAge == "2m ago" && working?.link != nil, &failures)
+  check("a stale session carries the text marker Stale", stale?.staleMarker == "Stale" && (stale?.statusAccessibilityLabel.contains("Stale") == true), &failures)
+  check("a blocked session reads Blocked in words", blocked?.state == "Blocked" && blocked?.isBlocked == true, &failures)
+  check("a session with no status invents none", none?.state == "No status yet" && none?.updateAge == "No update yet" && none?.line == nil, &failures)
+  check("Waiting on you holds only this session's pending decisions", working?.pending.map(\.id) == ["ap_1"], &failures)
+  check("history keeps the server's order", working?.history?.map(\.line) == agentHistoryFixture.map(\.line), &failures)
+  check("a 200-character status line is not cut", agentPresentation(longAgent).model?.line?.count == 200, &failures)
+  check("the long history keeps every entry", agentPresentation(longAgent, history: longHistory).model?.history?.count == 20, &failures)
+  check("a javascript link offers no control", agentPresentation(invalidLinkAgent).model?.link == nil, &failures)
+  check("a relative link offers no control", agentPresentation(relativeLinkAgent).model?.link == nil, &failures)
+  line("")
+
+  line("### AppKit controls of each agent scene")
+  for (name, _) in scenes where name != "agent-long" {
+    line("- \(name): \((trees[name] ?? []).joined(separator: "; "))")
+  }
+  check("no agent scene holds a text field: nothing here sends a message to an agent", trees.values.allSatisfy { $0.allSatisfy { $0 == "button" } }, &failures)
+  line("Plain and default SwiftUI buttons are not NSButton views, so this list does not count them. access.txt counts every control through the Accessibility API.")
+  line("")
+}
+
+/// Reads nothing, and records each target the panel asked for.
+private final class FixtureAgentReads: AgentDetailReads, @unchecked Sendable {
+  private let lock = NSLock()
+  private var generation = 0
+  private var recorded: AgentDetailTarget?
+
+  var last: AgentDetailTarget? { lock.withLock { recorded } }
+
+  func showAgent(id: String) -> AgentDetailTarget {
+    lock.withLock {
+      generation += 1
+      let target = AgentDetailTarget(id: id, generation: generation)
+      recorded = target
+      return target
+    }
+  }
+  func hideAgent() {}
+  func retryAgent() {}
+}
+
+private struct UnusedSender: AnswerSender {
+  func answer(id: String, answer: Answer, note: String?) async throws(APIError) -> Decision { throw .transport("unused") }
+  func decision(id: String) async throws(APIError) -> Decision { throw .transport("unused") }
+}
+
+/// The panel's two targets through the shipped `DecisionCoordinator`, with the
+/// same key policy calls as `AppState.handle`.
+@MainActor
+@Observable
+private final class AgentPairModel {
+  @ObservationIgnored let coordinator: DecisionCoordinator
+  @ObservationIgnored let reads = FixtureAgentReads()
+  var revision = 0
+  @ObservationIgnored var selected: String?
+  @ObservationIgnored var sent: [String] = []
+  @ObservationIgnored var opened: [URL] = []
+  @ObservationIgnored var closePopover: () -> Void = {}
+  @ObservationIgnored let rows = ["a", "b", "c"]
+
+  init(record: Decision) {
+    coordinator = DecisionCoordinator(
+      sender: UnusedSender(), reader: FixtureReader(record: record), clock: ShortClock(), agentReads: reads)
+    coordinator.agent.opener = { [weak self] in self?.opened.append($0) }
+  }
+
+  func handle(_ key: PopoverKey, editingText: Bool) -> Bool {
+    let action = PopoverKeys.action(
+      for: key, rows: rows, selected: selected, shown: coordinator.panelTarget,
+      shownIsAnswerable: coordinator.shownIsAnswerable, editingText: editingText)
+    switch action {
+    case .select(let id): selected = id
+    case .toggle(let id): coordinator.toggle(id)
+    case .send(let id): sent.append(id)
+    case .closePanel: coordinator.closePanel()
+    case .passThrough:
+      guard key == .escape else { return false }
+      closePopover()
+    }
+    return true
+  }
+}
+
+/// `DetailPanelRoot`'s choice between the two shipped views.
+private struct AgentPairPanel: View {
+  let model: AgentPairModel
+  let record: Decision
+  let maxHeight: CGFloat
+
+  var body: some View {
+    let _ = model.revision
+    Group {
+      if let content = model.coordinator.agent.content {
+        AgentDetailView(
+          presentation: AgentDetailPresentation(
+            content: content, refreshFailed: model.coordinator.agent.refreshFailed, decisions: agentPendingFixture, now: now),
+          maxHeight: maxHeight,
+          actions: AgentDetailActions(
+            openDecision: { model.coordinator.show($0) }, close: { model.coordinator.closePanel() },
+            openLink: { model.coordinator.agent.openLink() }))
+      } else if model.coordinator.detail.shownID != nil {
+        DecisionDetailView(presentation: presentation(record), maxHeight: maxHeight)
+      }
+    }
+    .background(PopoverKeyObserver(controlsKeepArrows: true) { model.handle($0, editingText: $1) })
+  }
+}
+
+/// The agent session in the real paired windows (req-mac-app AC-5.3, AC-11.1,
+/// AC-11.5, AC-11.7, AC-11.8): transparent, inactive, and driven by events
+/// posted to this process.
+@MainActor
+func agentPairedWindowEvidence(_ failures: inout [String]) {
+  line("## Agent panel in the paired windows (a real NSPopover, the shipped panel, coordinator, lifetime, and key observer; posted events)")
+  func check(_ name: String, _ passed: Bool, _ failures: inout [String]) {
+    line("\(passed ? "ok" : "FAIL") \(name)")
+    if !passed { failures.append("agent paired windows: \(name)") }
+  }
+  guard let screen = NSScreen.main else {
+    line("not exercised: this session has no screen")
+    return
+  }
+  let record = panelDecisions[1].1
+  let model = AgentPairModel(record: record)
+  let coordinator = model.coordinator
+  let panel = DetailPanelController { AgentPairPanel(model: model, record: record, maxHeight: $0) }
+  panel.window.alphaValue = 0
+
+  let popover = NSPopover()
+  let events = PopoverEvents()
+  popover.behavior = .applicationDefined
+  popover.animates = false
+  popover.delegate = events
+  let host = NSHostingController(
+    rootView: PopoverFixture(items: items(decisions), expanded: false)
+      .background(PopoverKeyObserver { model.handle($0, editingText: $1) }))
+  host.sizingOptions = [.preferredContentSize]
+  popover.contentViewController = host
+  var popoverWindow: NSWindow? { host.view.window }
+
+  func anchorWindow(atX x: CGFloat) -> NSWindow {
+    let window = NSWindow(
+      contentRect: NSRect(x: x, y: screen.visibleFrame.maxY - 20, width: 10, height: 10), styleMask: [.borderless],
+      backing: .buffered, defer: false)
+    window.alphaValue = 0
+    window.ignoresMouseEvents = true
+    window.orderFrontRegardless()
+    return window
+  }
+  let statusWindow = anchorWindow(atX: screen.visibleFrame.minX + 40)
+  let otherWindow = anchorWindow(atX: screen.visibleFrame.minX + 60)
+  let anchor = anchorWindow(atX: screen.visibleFrame.minX + 200)
+  let lifetime = PairedWindowLifetime(
+    isOwned: { window in window === popoverWindow || window === panel.window },
+    isStatusItem: { $0 === statusWindow },
+    watchesOtherApps: false,
+    close: { if popover.isShown { popover.performClose(nil) } })
+  model.closePopover = { if popover.isShown { popover.performClose(nil) } }
+  events.onWillShow = { lifetime.start() }
+  events.onWillClose = { coordinator.closePanel() }
+  events.onDidClose = { lifetime.stop() }
+
+  var shownTarget: DetailPanelTarget?
+  var hides = 0
+  var targetChanges = 0
+  coordinator.onDetailChange = {
+    model.revision += 1
+    let next = coordinator.panelTarget
+    guard next != shownTarget else { return }
+    shownTarget = next
+    targetChanges += 1
+    if next == nil {
+      hides += 1
+      panel.hide()
+      panel.window.alphaValue = 0
+    } else if popover.isShown {
+      panel.present(beside: host.view, takesKeyFocus: false)
+    }
+  }
+  func pair() -> Bool { popover.isShown && panel.isVisible }
+  func open() {
+    popover.show(relativeTo: anchor.contentView!.bounds, of: anchor.contentView!, preferredEdge: .minY)
+    popoverWindow?.alphaValue = 0
+    drain()
+  }
+  func load(_ session: AgentSession) {
+    guard let target = model.reads.last else { return }
+    coordinator.agent.apply(AgentDetailUpdate(target: target, outcome: .loaded(session, agentHistoryFixture)))
+    drain(0.2)
+  }
+
+  open()
+  coordinator.toggleAgent("ags_1", known: workingAgent)
+  drain(0.3)
+  check("clicking an entry opens the panel beside the popover", pair() && coordinator.panelTarget == .agent("ags_1"), &failures)
+  let popoverFrame = popoverWindow?.convertToScreen(host.view.convert(host.view.bounds, to: nil)) ?? .zero
+  check("the agent panel is 400 pt wide, 8 pt from the popover", panel.window.frame.width == 400 && panel.window.frame.minX == popoverFrame.maxX + 8, &failures)
+  check("the tops meet", abs(panel.window.frame.maxY - popoverFrame.maxY) < 1, &failures)
+  check("the panel has not taken key focus", !panel.window.isKeyWindow, &failures)
+  load(workingAgent)
+  check("the read's pair shows", coordinator.agent.session == workingAgent, &failures)
+  check("no browser opened from an entry", model.opened.isEmpty, &failures)
+
+  click(panel.window)
+  check("a click in the agent panel keeps both", pair(), &failures)
+  check("a click in the agent panel opens nothing", model.opened.isEmpty, &failures)
+  if let window = popoverWindow { click(window) }
+  check("a click in the popover keeps both", pair(), &failures)
+
+  hides = 0
+  coordinator.toggleAgent("ags_2", known: blockedAgent)
+  drain(0.2)
+  check("another entry replaces the session in the same panel", pair() && coordinator.panelTarget == .agent("ags_2") && hides == 0, &failures)
+  coordinator.show("ap_2")
+  drain(0.3)
+  check("a pending decision replaces the session, and the panel never hides", pair() && coordinator.panelTarget == .decision("ap_2") && hides == 0, &failures)
+  check("showing a decision ends the session's target", coordinator.agent.shownID == nil, &failures)
+  coordinator.toggleAgent("ags_1", known: workingAgent)
+  drain(0.2)
+  check("a session replaces the decision, and the panel never hides", pair() && coordinator.panelTarget == .agent("ags_1") && hides == 0, &failures)
+  check("showing a session ends the decision's target", coordinator.detail.shownID == nil, &failures)
+  coordinator.toggleAgent("ags_1", known: workingAgent)
+  drain(0.2)
+  check("opening the shown session closes the panel and the popover stays", popover.isShown && !panel.isVisible && coordinator.panelTarget == nil, &failures)
+
+  guard let keysPopover = popoverWindow else {
+    failures.append("agent paired windows: the popover opened no window, so the keys were not checked")
+    return
+  }
+  coordinator.toggleAgent("ags_1", known: workingAgent)
+  drain(0.2)
+  model.selected = "c"
+  press(returnKey, .command, in: panel.window)
+  check("⌘↩ from the panel sends nothing on a session, and no row in its place", model.sent.isEmpty, &failures)
+  press(returnKey, .command, in: keysPopover)
+  check("⌘↩ from the popover sends nothing on a session, and no row in its place", model.sent.isEmpty, &failures)
+  check("⌘↩ leaves the session shown", coordinator.panelTarget == .agent("ags_1"), &failures)
+  press(downKey, in: panel.window)
+  check("↓ from the agent panel leaves the selection at its end and the panel open", model.selected == "c" && pair(), &failures)
+  press(returnKey, in: panel.window)
+  check("↩ on a selected row replaces the session with that row", coordinator.panelTarget == .decision("c") && pair(), &failures)
+  model.selected = nil
+  coordinator.toggleAgent("ags_1", known: workingAgent)
+  drain(0.2)
+  press(returnKey, in: keysPopover)
+  check("↩ with no row selected closes the session's panel and the popover stays", coordinator.panelTarget == nil && popover.isShown, &failures)
+  coordinator.toggleAgent("ags_1", known: workingAgent)
+  drain(0.2)
+  press(escapeKey, in: panel.window)
+  check("Escape closes the agent panel first and the popover stays", coordinator.panelTarget == nil && popover.isShown, &failures)
+  press(escapeKey, in: keysPopover)
+  drain()
+  check("Escape again closes the popover", !popover.isShown, &failures)
+
+  open()
+  coordinator.toggleAgent("ags_1", known: workingAgent)
+  drain(0.2)
+  click(otherWindow)
+  check("a click in another window closes both", !popover.isShown && !panel.isVisible, &failures)
+  check("closing the popover ends the session's target", coordinator.agent.shownID == nil, &failures)
+
+  open()
+  coordinator.toggleAgent("ags_1", known: workingAgent)
+  drain(0.2)
+  NotificationCenter.default.post(name: NSApplication.didResignActiveNotification, object: nil)
+  drain()
+  check("the app's deactivation (posted) closes both", !popover.isShown && !panel.isVisible, &failures)
+
+  check("the panel opened no browser in this section", model.opened.isEmpty, &failures)
   check("this process never became the active app, so the user's focus never moved", ActivationWatch.shared.count == 0 && !NSApp.isActive, &failures)
   anchor.orderOut(nil)
   statusWindow.orderOut(nil)

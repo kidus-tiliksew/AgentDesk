@@ -27,15 +27,23 @@ struct PopoverView: View {
   }
 }
 
-/// The detail panel's content from `AppState` (component-mac-app §Detail
-/// panel), with the same keys as the popover.
+/// The detail panel's content from `AppState`, a decision or an agent session
+/// (component-mac-app §Detail panel), with the same keys as the popover.
 struct DetailPanelRoot: View {
   let state: AppState
   let maxHeight: CGFloat
 
   var body: some View {
     Group {
-      if let presentation = state.detailPresentation {
+      if let presentation = state.agentPresentation {
+        AgentDetailView(
+          presentation: presentation, maxHeight: maxHeight,
+          actions: AgentDetailActions(
+            openDecision: { state.showLinked($0) },
+            close: { state.closeDetail() },
+            retry: { state.retryDetail() },
+            openLink: { state.openAgentLink() }))
+      } else if let presentation = state.detailPresentation {
         DecisionDetailView(
           presentation: presentation, maxHeight: maxHeight,
           actions: DecisionDetailActions(
@@ -117,7 +125,8 @@ struct SignedInView: View {
       Divider()
       AgentsView(
         agents: state.snapshot.agents, now: state.now, expanded: $agentsExpanded,
-        quietRevealed: $quietRevealed
+        quietRevealed: $quietRevealed, shownID: state.shownAgentID,
+        open: { state.toggleAgent($0) }
       )
       .measuredHeight($agentsHeight)
     }

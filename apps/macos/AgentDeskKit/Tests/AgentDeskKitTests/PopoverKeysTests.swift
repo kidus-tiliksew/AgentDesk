@@ -9,12 +9,35 @@ final class PopoverKeysTests: XCTestCase {
   private let rows = ["a", "b", "c"]
 
   private func action(
-    _ key: PopoverKey, selected: String? = nil, shown: String? = nil, answerable: Bool = true,
-    editing: Bool = false, rows: [String]? = nil
+    _ key: PopoverKey, selected: String? = nil, shown: String? = nil, agent: String? = nil,
+    answerable: Bool = true, editing: Bool = false, rows: [String]? = nil
   ) -> PopoverKeyAction {
-    PopoverKeys.action(
-      for: key, rows: rows ?? self.rows, selected: selected, shown: shown, shownIsAnswerable: answerable,
+    let target = agent.map(DetailPanelTarget.agent) ?? shown.map(DetailPanelTarget.decision)
+    return PopoverKeys.action(
+      for: key, rows: rows ?? self.rows, selected: selected, shown: target, shownIsAnswerable: answerable,
       editingText: editing)
+  }
+
+  func testCommandReturnOnAnAgentSendsNothingAndNeverARowInstead() {
+    XCTAssertEqual(action(.commandReturn, agent: "s1"), .passThrough)
+    XCTAssertEqual(action(.commandReturn, selected: "c", agent: "s1"), .passThrough)
+    XCTAssertEqual(action(.commandReturn, selected: "c", agent: "s1", editing: true), .passThrough)
+    XCTAssertEqual(
+      action(.commandReturn, selected: "c", agent: "c"), .passThrough,
+      "an agent with a listed decision's id is still an agent")
+  }
+
+  func testEscapeClosesAnAgentPanelAndReturnFollowsTheList() {
+    XCTAssertEqual(action(.escape, agent: "s1"), .closePanel)
+    XCTAssertEqual(action(.escape, agent: "s1", editing: true), .closePanel)
+    XCTAssertEqual(action(.returnKey, agent: "s1"), .closePanel, "with no row, Return closes the shown session")
+    XCTAssertEqual(action(.returnKey, selected: "b", agent: "s1"), .toggle("b"), "a selected row replaces it")
+    XCTAssertEqual(action(.returnKey, agent: "s1", editing: true), .passThrough)
+  }
+
+  func testArrowsIgnoreAnAgentWithARowsID() {
+    XCTAssertEqual(action(.down, agent: "b"), .select("a"), "an agent never stands in for the selection")
+    XCTAssertEqual(action(.down, selected: "a", agent: "s1"), .select("b"))
   }
 
   func testArrowsMoveTheSelectionAndStopAtTheEnds() {

@@ -88,6 +88,17 @@ enum Fixtures {
     return fields
   }
 
+  static func historyEntry(_ overrides: [String: Any] = [:]) -> [String: Any] {
+    var fields: [String: Any] = [
+      "state": "working",
+      "line": "Ran the tests",
+      "link": "https://example.com/run/1",
+      "at": "2026-10-27T11:50:00.25Z",
+    ]
+    fields.merge(overrides) { $1 }
+    return fields
+  }
+
   static func page(_ items: [[String: Any]], next: String?) -> String {
     json(["items": items, "next_cursor": next.map { $0 as Any } ?? NSNull()])
   }

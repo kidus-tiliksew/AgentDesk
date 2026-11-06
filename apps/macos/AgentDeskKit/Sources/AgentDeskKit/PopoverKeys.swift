@@ -28,14 +28,16 @@ public enum PopoverKeyAction: Equatable, Sendable {
 public enum PopoverKeys {
   /// Maps a key to its action. `selected` is a row id, and one no longer in
   /// `rows` counts as none. `shown` is the panel's target, which may be a
-  /// decision the list does not hold, and `shownIsAnswerable` says whether it
-  /// can take an answer. While a text field is being edited, ↑, ↓, and ↩ stay
-  /// with the field, and ⌘↩ and Escape still act.
+  /// decision the list does not hold or an agent session, and
+  /// `shownIsAnswerable` says whether a shown decision can take an answer.
+  /// While a text field is being edited, ↑, ↓, and ↩ stay with the field, and
+  /// ⌘↩ and Escape still act.
   public static func action(
-    for key: PopoverKey, rows: [String], selected: String?, shown: String?,
+    for key: PopoverKey, rows: [String], selected: String?, shown target: DetailPanelTarget?,
     shownIsAnswerable: Bool = true, editingText: Bool
   ) -> PopoverKeyAction {
     let selected = selected.flatMap { rows.contains($0) ? $0 : nil }
+    let shown = target?.decisionID
     switch key {
     case .up, .down:
       guard !editingText, !rows.isEmpty else { return .passThrough }
@@ -46,15 +48,18 @@ public enum PopoverKeys {
       let next = key == .down ? min(index + 1, rows.count - 1) : max(index - 1, 0)
       return .select(rows[next])
     case .returnKey:
-      guard !editingText, let target = selected ?? shown else { return .passThrough }
-      return .toggle(target)
+      guard !editingText else { return .passThrough }
+      if let row = selected ?? shown { return .toggle(row) }
+      return target == nil ? .passThrough : .closePanel
     case .commandReturn:
-      // The shown decision comes first. A settled one sends nothing, and
-      // never falls through to a row the user is not reading.
+      // The shown decision comes first. A settled one or an agent session
+      // sends nothing, and never falls through to a row the user is not
+      // reading.
+      if target != nil, shown == nil { return .passThrough }
       if let shown { return shownIsAnswerable ? .send(shown) : .passThrough }
       return selected.map(PopoverKeyAction.send) ?? .passThrough
     case .escape:
-      return shown == nil ? .passThrough : .closePanel
+      return target == nil ? .passThrough : .closePanel
     }
   }
 
