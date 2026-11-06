@@ -32,3 +32,7 @@ The oversized readings show the operator's report: the content sits in the middl
 Every settled height check passed on this source. No transparent run left the window taller than its content once layout held still, so this run does not reproduce a window that stays too tall.
 
 An earlier run at `04d1771`, before the check gained its stale-resize and reopening assertions, gave the same five harness failures and the same `--access` result. It is not retained.
+
+## The check as delivered
+
+After `report.txt` was captured, two review findings changed the check: a run with no screen now fails, and the overflow limit comes from the space below the anchor's top. `panel-height-final-harness.txt` is that check on unfixed source: the `Evidence/Harness` tree `1e0a4de481b9c3f67d7737ceae327881c0058fe6`, built by `run.sh`'s build command with `AgentDesk/DetailPanelWindow.swift` from base `8633bbd`, then run as `<tmp>/evidence <directory> --panel-height`. It exited 1 with 382 ok and the same 5 FAIL, sha256 `f763e4411c1fb065969dbf3fa9cdd45f1326426fafa39a837065e267e5466645`. The same tree with the correction exited 0 with 387 ok and 0 FAIL, and the same section of `output/report.txt` is its retained run.

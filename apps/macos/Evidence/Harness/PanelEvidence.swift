@@ -1438,7 +1438,9 @@ private func settlePanel(
 func panelHeightEvidence(_ failures: inout [String]) {
   line("## The panel's height (one retained shipped DetailPanelController, its window and views read from AppKit frames)")
   guard let screen = NSScreen.main else {
-    line("not exercised: this session has no screen")
+    // A skipped check must not read as a pass.
+    line("FAIL not exercised: this session has no screen")
+    failures.append("panel height: this session has no screen")
     return
   }
   // The header pads its close control 8 pt from its top, and the control sits
@@ -1489,11 +1491,12 @@ func panelHeightEvidence(_ failures: inout [String]) {
   /// Every reading on the way keeps the header at the window's top, the layout
   /// holds still in time, and the last reading fits what the panel shows.
   func verify(
-    _ name: String, overflows: Bool = false, cap: CGFloat = CGFloat(DetailPanelPlacement.maxHeight),
-    _ failures: inout [String], _ change: () -> Void
+    _ name: String, overflows: Bool = false, _ failures: inout [String], _ change: () -> Void
   ) {
     change()
     let (samples, converged) = settlePanel(panel.window)
+    // The 560 pt limit, or the space below the anchor's top on a smaller screen.
+    let cap = min(CGFloat(DetailPanelPlacement.maxHeight), min(anchorWindow.frame.maxY, visible.maxY) - visible.minY)
     let last = samples.last!
     line("\(name): \(samples.count) readings; settled \(last.text)")
     check("\(name): layout holds still within 2 s", converged, &failures)
@@ -1676,7 +1679,7 @@ func panelHeightEvidence(_ failures: inout [String]) {
   verify("overflowing target at the right of the screen", overflows: true, &failures) { apply(decisionTall) }
   placementChecks("right end, overflowing", side: .left, &failures)
   let reduced: CGFloat = 300
-  verify("overflowing target with \(Int(reduced)) pt below its top", overflows: true, cap: reduced, &failures) {
+  verify("overflowing target with \(Int(reduced)) pt below its top", overflows: true, &failures) {
     anchorWindow.setFrameOrigin(NSPoint(x: visible.minX + 40, y: visible.minY + reduced - anchorSize.height))
   }
   placementChecks("reduced height", side: .right, &failures)
