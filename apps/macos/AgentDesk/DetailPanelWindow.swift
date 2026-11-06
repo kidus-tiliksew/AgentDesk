@@ -24,6 +24,28 @@ final class DetailPanelWindow: NSPanel {
   }
 }
 
+/// Tells the controller the height SwiftUI laid the panel's content out at.
+@MainActor
+private final class DetailPanelHeightRelay {
+  var changed: (CGFloat) -> Void = { _ in }
+}
+
+/// The panel's content, at the top of the hosting view whatever the hosting
+/// view's height: SwiftUI centers a root of any other height, which puts empty
+/// space above the header (component-mac-app §Detail panel). `minHeight: 0` keeps
+/// the frame at the hosting view's height when the content is taller. The height
+/// is read inside the frame, so it is the content's own and never the window's.
+private struct DetailPanelContent<Root: View>: View {
+  let root: Root
+  let relay: DetailPanelHeightRelay
+
+  var body: some View {
+    root
+      .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { relay.changed($0) }
+      .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+  }
+}
+
 /// Owns the panel and its SwiftUI content and keeps it placed beside the
 /// popover's content view (component-mac-app §Detail panel).
 @MainActor
@@ -31,18 +53,29 @@ final class DetailPanelController<Root: View> {
   let window = DetailPanelWindow()
   private static var cornerRadius: CGFloat { 10 }
 
-  private let host: NSHostingController<Root>
+  private let host: NSHostingController<DetailPanelContent<Root>>
   private let root: (CGFloat) -> Root
+  private let relay = DetailPanelHeightRelay()
   private var maxHeight = CGFloat(DetailPanelPlacement.maxHeight)
+  /// The height SwiftUI last laid the content out at, and the only input to the
+  /// window's height. A `.preferredContentSize` sizing option would add AppKit's
+  /// own height constraint on the hosting view at priority 501, which resizes
+  /// the window from a second source, one that lags the content inside a click.
+  private var contentHeight: CGFloat = 1
   private var anchor: NSView?
   private var observers: [NSObjectProtocol] = []
-  private var heightObservation: NSKeyValueObservation?
 
   /// `root` builds the content for the height the screen leaves.
   init(root: @escaping (CGFloat) -> Root) {
     self.root = root
-    host = NSHostingController(rootView: root(maxHeight))
-    host.sizingOptions = [.preferredContentSize]
+    host = NSHostingController(rootView: DetailPanelContent(root: root(maxHeight), relay: relay))
+    host.sizingOptions = []
+    relay.changed = { [weak self] height in
+      guard let self else { return }
+      self.contentHeight = height
+      // After the layout pass that changed it, not inside it.
+      Task { @MainActor [weak self] in self?.place() }
+    }
     let material = NSVisualEffectView()
     material.material = .popover
     material.blendingMode = .behindWindow
@@ -92,11 +125,11 @@ final class DetailPanelController<Root: View> {
     let available = CGFloat(DetailPanelPlacement.availableHeight(popover: popover, screen: screen))
     if available != maxHeight {
       maxHeight = available
-      host.rootView = root(available)
+      host.rootView = DetailPanelContent(root: root(available), relay: relay)
     }
     host.view.layoutSubtreeIfNeeded()
     let frame = DetailPanelPlacement.frame(
-      popover: popover, screen: screen, contentHeight: Double(host.preferredContentSize.height))
+      popover: popover, screen: screen, contentHeight: Double(contentHeight))
     window.setFrame(
       NSRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height), display: true)
     window.invalidateShadow()
@@ -115,16 +148,11 @@ final class DetailPanelController<Root: View> {
         MainActor.assumeIsolated { self?.place() }
       }
     }
-    heightObservation = host.observe(\.preferredContentSize) { [weak self] _, _ in
-      // After the layout pass that changed it, not inside it.
-      Task { @MainActor in self?.place() }
-    }
   }
 
   private func stopObserving() {
     for observer in observers { NotificationCenter.default.removeObserver(observer) }
     observers = []
-    heightObservation = nil
   }
 
   private static func rect(_ rect: NSRect) -> PanelRect {
