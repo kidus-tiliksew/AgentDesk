@@ -357,6 +357,13 @@ struct PopoverFixture: View {
   }
 }
 
+/// The contrast floor each ink is gated at: 3:1 for the non-text dot inks, whose
+/// state also reads as text, and 4.5:1 for text (component-mac-app §Keyboard
+/// and accessibility).
+let dotInkFloor = 3.0
+let textInkFloor = 4.5
+let dotInkSwatches: Set<String> = ["Ink.green", "Ink.amber", "Ink.indigo"]
+
 let swatchNames = [
   "title (.primary)", "Ink.secondary", "Ink.tertiary", "Ink.red", "Ink.green", "Ink.amber", "Ink.indigo",
   "system .secondary", "system .tertiary", "system red",
@@ -936,12 +943,15 @@ MainActor.assumeIsolated {
       save(rep, "contrast-\(label).png")
       line("### \(label)")
       for (name, measured) in zip(swatchNames, measure(rep)) {
+        let gated = name.hasPrefix("Ink") || name.hasPrefix("title")
+        let floor = dotInkSwatches.contains(name) ? dotInkFloor : textInkFloor
         line(
           String(
-            format: "%-18@ %5.2f:1  text %@ on %@", name as NSString, measured.ratio,
-            hex(measured.text) as NSString, hex(measured.background) as NSString))
-        if name.hasPrefix("Ink") || name.hasPrefix("title"), measured.ratio < 4.5 {
-          failures.append("\(name) \(label) is \(measured.ratio):1")
+            format: "%-18@ %5.2f:1  text %@ on %@%@", name as NSString, measured.ratio,
+            hex(measured.text) as NSString, hex(measured.background) as NSString,
+            (gated ? String(format: "  (floor %.1f:1)", floor) : "  (not gated)") as NSString))
+        if gated, measured.ratio < floor {
+          failures.append("\(name) \(label) is \(measured.ratio):1, below \(floor):1")
         }
       }
       _ = window
@@ -952,12 +962,13 @@ MainActor.assumeIsolated {
   // Contrast, computed for every shipped Ink value, including Increase
   // Contrast, against the rendered popover backgrounds and pure white and
   // black.
-  line("## Contrast, computed from the shipped Ink values")
+  line("## Contrast, computed from the shipped Ink values (floor 4.5:1 for text inks, 3.0:1 for dot inks)")
   let light = [NSColor(white: 0xF3 / 255.0, alpha: 1), .white]
   let dark = [NSColor(white: 0x2E / 255.0, alpha: 1), NSColor(white: 0x3C / 255.0, alpha: 1), .black]
-  for (name, shades) in [
-    ("secondary", Ink.secondaryShades), ("tertiary", Ink.tertiaryShades), ("red", Ink.redShades),
-    ("green", Ink.greenShades), ("amber", Ink.amberShades), ("indigo", Ink.indigoShades),
+  for (name, shades, floor) in [
+    ("secondary", Ink.secondaryShades, textInkFloor), ("tertiary", Ink.tertiaryShades, textInkFloor),
+    ("red", Ink.redShades, textInkFloor), ("green", Ink.greenShades, dotInkFloor),
+    ("amber", Ink.amberShades, dotInkFloor), ("indigo", Ink.indigoShades, dotInkFloor),
   ] {
     for (variant, color, backgrounds) in [
       ("light", shades.light, light), ("dark", shades.dark, dark),
@@ -967,12 +978,33 @@ MainActor.assumeIsolated {
       let worst = backgrounds.map { contrast(color, $0) }.min()!
       let each = backgrounds.map { String(format: "%@ %.2f", hex($0), contrast(color, $0)) }.joined(separator: ", ")
       line(String(format: "Ink.%@ %@ %@: worst %.2f:1 (%@)", name, variant, hex(color), worst, each))
-      if worst < 4.5 { failures.append("Ink.\(name) \(variant) is \(worst):1") }
+      if worst < floor { failures.append("Ink.\(name) \(variant) is \(worst):1, below \(floor):1") }
     }
   }
   let highContrast = NSAppearance(named: .accessibilityHighContrastAqua)
   line(
     "NSAppearance(named: .accessibilityHighContrastAqua) offscreen: \(highContrast?.name.rawValue ?? "nil"); Increase Contrast is not rendered offscreen, so its values are computed only")
+  line("")
+
+  // Known solid fills read back through the same calls as the rendered
+  // contrast. This gates nothing: it records how far the measured figures sit
+  // from the colors drawn, a known limit whose cause is not established.
+  line("## Known fills read back through the harness's bitmap path (reported, not gated)")
+  for (name, color) in [
+    ("#F3F3F3", NSColor(srgbRed: 0xF3 / 255.0, green: 0xF3 / 255.0, blue: 0xF3 / 255.0, alpha: 1)),
+    ("#2E2E2E", NSColor(srgbRed: 0x2E / 255.0, green: 0x2E / 255.0, blue: 0x2E / 255.0, alpha: 1)),
+    (hex(Ink.greenShades.light), Ink.greenShades.light), (hex(Ink.amberShades.light), Ink.amberShades.light),
+    (hex(Ink.indigoShades.light), Ink.indigoShades.light), (hex(Ink.greenShades.dark), Ink.greenShades.dark),
+    (hex(Ink.amberShades.dark), Ink.amberShades.dark), (hex(Ink.indigoShades.dark), Ink.indigoShades.dark),
+  ] {
+    let fill = NSView(frame: NSRect(x: 0, y: 0, width: 20, height: 20))
+    fill.wantsLayer = true
+    fill.layer?.backgroundColor = color.cgColor
+    let window = NSWindow(contentRect: fill.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+    window.contentView = fill
+    line("fill \(name) reads back as \(hex(snapshot(fill).colorAt(x: 5, y: 5)!))")
+    _ = window
+  }
   line("")
 
   // Menu bar label: every image is a template; AppKit tints it.

@@ -1,13 +1,15 @@
 import AppKit
 import SwiftUI
 
-/// Text and dot colors for the popover, each with a contrast ratio of at least
-/// 4.5:1 on the popover background in light, dark, and Increase Contrast
-/// (req-mac-app AC-7.3; component-mac-app §Popover). The system's secondary and
-/// tertiary label colors and system red fall below 4.5:1 on the light popover,
-/// so the popover draws metadata, suggestions, and red with these instead. Each
-/// follows the appearance, and Increase Contrast moves each toward the label
-/// color.
+/// Text and dot colors for the popover. Each text ink has a contrast ratio of
+/// at least 4.5:1 on the popover background in light, dark, and Increase
+/// Contrast (req-mac-app AC-7.3). The system's secondary and tertiary label
+/// colors and system red fall below 4.5:1 on the light popover, so the popover
+/// draws metadata, suggestions, and red with these instead. The green, amber,
+/// and indigo dot inks are non-text, and each dot's state also reads as text,
+/// so each has at least 3:1 (component-mac-app §Keyboard and accessibility).
+/// Each ink follows the appearance, and Increase Contrast moves each toward the
+/// label color.
 @MainActor
 enum Ink {
   /// Metadata and the waiting count.
