@@ -179,6 +179,84 @@ ok the linked panel adds three links to the close control and two radio buttons
 ok an unavailable decision has only the close control
 ok a held answer has only the close control
 
+## Agent panel (the shipped AgentDetailView, offscreen)
+agent-working-light.png: 400x478 pt
+agent-stale-light.png: 400x408 pt
+agent-blocked-light.png: 400x447 pt
+agent-no-status-light.png: 400x271 pt
+agent-invalid-link-light.png: 400x408 pt
+agent-relative-link-light.png: 400x408 pt
+agent-long-light.png: 400x560 pt
+ok the long agent panel (light) scrolls: 1623 pt of content in 528 pt
+ok the long agent panel (light) keeps a visible scroller
+agent-refresh-failed-light.png: 400x512 pt
+agent-loading-light.png: 400x71 pt
+agent-loading-seed-light.png: 400x239 pt
+agent-load-failed-light.png: 400x99 pt
+agent-load-failed-seed-light.png: 400x267 pt
+agent-gone-light.png: 400x71 pt
+agent-beside-popover-light.png: 748x478 pt
+ok the popover, the gap, and the agent panel sit side by side (light)
+agent-working-dark.png: 400x478 pt
+agent-stale-dark.png: 400x408 pt
+agent-blocked-dark.png: 400x447 pt
+agent-no-status-dark.png: 400x271 pt
+agent-invalid-link-dark.png: 400x408 pt
+agent-relative-link-dark.png: 400x408 pt
+agent-long-dark.png: 400x560 pt
+ok the long agent panel (dark) scrolls: 1623 pt of content in 528 pt
+ok the long agent panel (dark) keeps a visible scroller
+agent-refresh-failed-dark.png: 400x512 pt
+agent-loading-dark.png: 400x71 pt
+agent-loading-seed-dark.png: 400x239 pt
+agent-load-failed-dark.png: 400x99 pt
+agent-load-failed-seed-dark.png: 400x267 pt
+agent-gone-dark.png: 400x71 pt
+agent-beside-popover-dark.png: 748x478 pt
+ok the popover, the gap, and the agent panel sit side by side (dark)
+
+### What each session's panel holds (AgentDetailModel)
+- agent-working: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history 3 | link https://example.com/pull/412
+- agent-stale: Waiting, 45m ago, Stale | line: Waiting for review | Cursor · docs | docs | 0 pending decisions | listed [] | history 3 | link none
+- agent-blocked: Blocked, 10m ago | line: Needs a decision on the release before it can go on | Codex · web | web | 1 pending decision | listed ["ap_2"] | history 3 | link none
+- agent-no-status: No status yet, No update yet | line: none | Claude Code · new | new | 0 pending decisions | listed [] | history 0 | link none
+- agent-invalid-link: Working, 1m ago | line: Holds a link no browser should open | Claude Code · link | links | 0 pending decisions | listed [] | history 3 | link none
+- agent-relative-link: Working, 1m ago | line: Holds a relative link | Claude Code · link | links | 0 pending decisions | listed [] | history 3 | link none
+- agent-long: Working, 1m ago | line: The migration rewrites every row of the events table. The migration rewrites every row of the events table. The migration rewrites every row of the events table. The migration rewrites every row of th | Claude Code · a session whose display name runs well past the panel's header | api/migrations/events/a-topic-that-is-long-enough-to-wrap-inside-the-fact-column | 2 pending decisions | listed ["ap_3", "ap_4"] | history 20 | link https://example.com/pull/412
+- agent-refresh-failed: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history 3 | link https://example.com/pull/412
+- agent-loading: no session to show
+- agent-loading-seed: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history -1 | link https://example.com/pull/412
+- agent-load-failed: no session to show
+- agent-load-failed-seed: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history -1 | link https://example.com/pull/412
+- agent-gone: no session to show
+
+ok a working session reads Working, its update age, and its link
+ok a stale session carries the text marker Stale
+ok a blocked session reads Blocked in words as well as red
+ok a session with no status invents none
+ok Waiting on you holds only this session's pending decisions
+ok history keeps the server's order
+ok a 200-character status line is not cut
+ok the long history keeps every entry
+ok a javascript link offers no control
+ok a relative link offers no control
+
+### AppKit controls of each agent scene
+- agent-working: button
+- agent-stale: button
+- agent-blocked: button
+- agent-no-status: button
+- agent-invalid-link: button
+- agent-relative-link: button
+- agent-refresh-failed: button
+- agent-loading: button
+- agent-loading-seed: button
+- agent-load-failed: button
+- agent-load-failed-seed: button
+- agent-gone: button
+ok no agent scene holds a text field: nothing here sends a message to an agent
+Plain and default SwiftUI buttons are not NSButton views, so this list does not count them. access.txt counts every control through the Accessibility API.
+
 ## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
 screen visible frame: 1728x1084 pt; app active: false
 ok left end of the screen: the panel has not taken key focus
@@ -229,6 +307,36 @@ ok Tab reaches the panel's note field
 ok the panel is excluded from the Windows menu
 ok the panel ignores window cycling
 ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+## Agent panel in the paired windows (a real NSPopover, the shipped panel, coordinator, lifetime, and key observer; posted events)
+ok clicking an entry opens the panel beside the popover
+ok the agent panel is 400 pt wide, 8 pt from the popover
+ok the tops meet
+ok the panel has not taken key focus
+ok the read's pair shows
+ok no browser opened from an entry
+ok a click in the agent panel keeps both
+ok a click in the agent panel opens nothing
+ok a click in the popover keeps both
+ok another entry replaces the session in the same panel
+ok a pending decision replaces the session, and the panel never hides
+ok showing a decision ends the session's target
+ok a session replaces the decision, and the panel never hides
+ok showing a session ends the decision's target
+ok opening the shown session closes the panel and the popover stays
+ok ⌘↩ from the panel sends nothing on a session, and no row in its place
+ok ⌘↩ from the popover sends nothing on a session, and no row in its place
+ok ⌘↩ leaves the session shown
+ok ↓ from the agent panel leaves the selection at its end and the panel open
+ok ↩ on a selected row replaces the session with that row
+ok ↩ with no row selected closes the session's panel and the popover stays
+ok Escape closes the agent panel first and the popover stays
+ok Escape again closes the popover
+ok a click in another window closes both
+ok closing the popover ends the session's target
+ok the app's deactivation (posted) closes both
+ok the panel opened no browser in this section
 ok this process never became the active app, so the user's focus never moved
 
 ## Linked recovery (the shipped DecisionCoordinator with a fixture sender, reader, and clock)
