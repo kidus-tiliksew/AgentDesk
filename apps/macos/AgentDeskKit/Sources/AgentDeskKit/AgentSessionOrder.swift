@@ -57,12 +57,47 @@ public enum AgentGroup: Equatable, Sendable {
   case active
 }
 
+/// The color of an agents list entry's dot (req-mac-app AC-5.5). The app maps
+/// each case to an `Ink` color.
+public enum AgentDot: Equatable, Sendable {
+  case green
+  case amber
+  case red
+  case neutral
+}
+
 public enum AgentSessionOrder {
   /// Blocked when its state is blocked, even when stale; otherwise quiet
   /// when the server marks it stale; otherwise active.
   public static func group(_ agent: AgentSession) -> AgentGroup {
     if agent.state == .blocked { return .blocked }
     return agent.stale ? .quiet : .active
+  }
+
+  /// The name a decision row and the agents list draw (req-mac-app AC-5.4):
+  /// when the display name ends with " · <topic>" for the session's non-empty
+  /// topic, which is the form the backend gives a session with no name of its
+  /// own, the text after the topic's last "/"; otherwise, or when that text is
+  /// empty, the full display name.
+  public static func shortName(_ agent: AgentSession) -> String {
+    guard !agent.topic.isEmpty, agent.displayName.hasSuffix(" · \(agent.topic)") else {
+      return agent.displayName
+    }
+    let lastSegment = agent.topic.split(separator: "/", omittingEmptySubsequences: false).last ?? ""
+    return lastSegment.isEmpty ? agent.displayName : String(lastSegment)
+  }
+
+  /// Red when blocked, even when stale; otherwise green when working and
+  /// amber when waiting, each only while not stale; otherwise neutral
+  /// (req-mac-app AC-5.5).
+  public static func dot(_ agent: AgentSession) -> AgentDot {
+    if agent.state == .blocked { return .red }
+    if agent.stale { return .neutral }
+    switch agent.state {
+    case .working: return .green
+    case .waiting: return .amber
+    default: return .neutral
+    }
   }
 
   /// What the expanded list shows before any reveal: blocked, then active,
@@ -93,11 +128,15 @@ public enum AgentSessionOrder {
 }
 
 /// One entry of the expanded agents list (AC-5.2, AC-5.3). An entry opens the
-/// detail panel and holds no link, so it can open no browser.
+/// detail panel and holds no link, so it can open no browser. The entry draws
+/// `shortName`, `dot`, and `stateText`; VoiceOver reads `accessibilityLabel`,
+/// with the full display name and the status line the entry does not draw
+/// (AC-5.4; component-mac-app §Keyboard and accessibility).
 public struct AgentEntryModel: Equatable, Sendable, Identifiable {
   public var id: String
   public var displayName: String
-  public var isBlocked: Bool
+  public var shortName: String
+  public var dot: AgentDot
   /// The state, or the time since its last activity for a quiet session. A
   /// stale blocked session reads "blocked".
   public var stateText: String
@@ -106,7 +145,8 @@ public struct AgentEntryModel: Equatable, Sendable, Identifiable {
   public init(session: AgentSession, now: Date) {
     id = session.id
     displayName = session.displayName
-    isBlocked = session.state == .blocked
+    shortName = AgentSessionOrder.shortName(session)
+    dot = AgentSessionOrder.dot(session)
     if AgentSessionOrder.group(session) == .quiet {
       stateText = AgentSessionOrder.quietText(since: session.lastActivityAt, now: now)
     } else {

@@ -104,7 +104,54 @@ final class AgentSessionOrderTests: XCTestCase {
       session: Fixtures.session(
         "d", ["state": "blocked", "stale": true, "last_activity_at": "2026-10-27T09:05:00Z"]), now: now)
     XCTAssertEqual(staleBlocked.stateText, "blocked", "a stale blocked session reads blocked")
-    XCTAssertTrue(staleBlocked.isBlocked)
+    XCTAssertEqual(staleBlocked.dot, .red)
+  }
+
+  func testShortNameIsTheTopicsLastSegmentOnlyForTheDefaultForm() {
+    func short(_ name: String, topic: String) -> String {
+      AgentSessionOrder.shortName(Fixtures.session("a", ["display_name": name, "topic": topic]))
+    }
+    XCTAssertEqual(short("Claude Code · web", topic: "web"), "web", "an unnested topic")
+    XCTAssertEqual(short("Claude Code · api/migrations", topic: "api/migrations"), "migrations", "a nested topic")
+    XCTAssertEqual(short("Codex · a/b/c", topic: "a/b/c"), "c", "the text after the last slash")
+    XCTAssertEqual(short("Release captain", topic: "web"), "Release captain", "a custom name")
+    XCTAssertEqual(short("Claude Code · web", topic: ""), "Claude Code · web", "an empty topic")
+    XCTAssertEqual(short("Claude Code · web/", topic: "web/"), "Claude Code · web/", "a trailing slash leaves nothing")
+    XCTAssertEqual(short("web", topic: "web"), "web", "the name without the separator")
+    XCTAssertEqual(short("Fixing web", topic: "web"), "Fixing web", "a name that only ends with the topic")
+    XCTAssertEqual(short("Claude Code · web", topic: "api"), "Claude Code · web", "a different topic")
+  }
+
+  func testEntryDrawsTheShortNameAndReadsTheFullNameAndStatusLine() {
+    let entry = AgentEntryModel(
+      session: Fixtures.session(
+        "a", ["display_name": "Codex · api/migrations", "topic": "api/migrations", "line": "Running tests"]),
+      now: now)
+    XCTAssertEqual(entry.shortName, "migrations")
+    XCTAssertEqual(entry.displayName, "Codex · api/migrations")
+    XCTAssertEqual(entry.accessibilityLabel, "Codex · api/migrations, working, Running tests")
+    let silent = AgentEntryModel(
+      session: Fixtures.session("b", ["state": NSNull(), "line": NSNull()]), now: now)
+    XCTAssertEqual(silent.stateText, "no status")
+    XCTAssertEqual(silent.accessibilityLabel, "Claude Code · web, no status")
+  }
+
+  func testDotColorForEveryStateWithAndWithoutStale() {
+    func dot(_ state: Any, stale: Bool) -> AgentDot {
+      let session = Fixtures.session("a", ["state": state, "stale": stale])
+      XCTAssertEqual(AgentEntryModel(session: session, now: now).dot, AgentSessionOrder.dot(session))
+      return AgentSessionOrder.dot(session)
+    }
+    XCTAssertEqual(dot("working", stale: false), .green)
+    XCTAssertEqual(dot("working", stale: true), .neutral)
+    XCTAssertEqual(dot("waiting", stale: false), .amber)
+    XCTAssertEqual(dot("waiting", stale: true), .neutral)
+    XCTAssertEqual(dot("blocked", stale: false), .red)
+    XCTAssertEqual(dot("blocked", stale: true), .red, "blocked wins over stale")
+    XCTAssertEqual(dot("done", stale: false), .neutral)
+    XCTAssertEqual(dot("done", stale: true), .neutral)
+    XCTAssertEqual(dot(NSNull(), stale: false), .neutral, "a session with no state")
+    XCTAssertEqual(dot(NSNull(), stale: true), .neutral)
   }
 
   func testOnlyWebLinksCountAsLinks() {

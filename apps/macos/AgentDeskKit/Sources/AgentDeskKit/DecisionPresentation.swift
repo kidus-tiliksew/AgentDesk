@@ -10,14 +10,21 @@ public struct DecisionRowModel: Equatable, Sendable, Identifiable {
   public var isUrgent: Bool
   /// "Urgent", drawn red, when the decision is urgent (AC-4.3).
   public var urgentMarker: String?
+  /// The short name the row draws (AC-5.4), or "Ended agent".
   public var agentName: String
+  /// The full display name VoiceOver reads (AC-5.4), or "Ended agent".
+  public var agentFullName: String
   public var age: String
   public var timeLeft: String?
   /// Red on an urgent decision and on a deadline under 5 minutes away. The
   /// Urgent marker and this time are a row's only red elements (AC-4.3).
   public var timeLeftIsRed: Bool
-  /// "Suggests <answer>" whenever the decision has a recommendation (AC-4.2).
+  /// "Suggests <answer>", drawn only on an approve-or-reject row with a
+  /// recommendation (AC-4.2).
   public var suggestion: String?
+  /// "suggests <answer>" for every recommendation, which VoiceOver reads on
+  /// every input type (AC-7.2).
+  public var spokenSuggestion: String?
 
   public init(decision: Decision, agents: [AgentSession], seen: Set<String>, now: Date) {
     id = decision.id
@@ -25,24 +32,27 @@ public struct DecisionRowModel: Equatable, Sendable, Identifiable {
     isNew = Attention.isNew(decision, seen: seen)
     isUrgent = Attention.isUrgent(decision)
     urgentMarker = isUrgent ? "Urgent" : nil
-    agentName = DecisionPresentation.agentName(for: decision, agents: agents)
+    agentName = DecisionPresentation.shortAgentName(for: decision, agents: agents)
+    agentFullName = DecisionPresentation.agentName(for: decision, agents: agents)
     age = DecisionPresentation.age(since: decision.createdAt, now: now)
     timeLeft = decision.deadline.map { DecisionPresentation.timeLeft(until: $0, now: now) }
     timeLeftIsRed = isUrgent || Attention.isDueSoon(decision, now: now)
-    suggestion = DecisionPresentation.suggestion(for: decision).map { "Suggests \($0)" }
+    let recommended = DecisionPresentation.suggestion(for: decision)
+    suggestion = decision.inputType == .approveReject ? recommended.map { "Suggests \($0)" } : nil
+    spokenSuggestion = recommended.map { "suggests \($0)" }
   }
 
   /// The row's one accessibility element is labelled with the title.
   public var accessibilityLabel: String { title }
 
-  /// The agent, the time left, "new" and "urgent", and the suggestion, so no
-  /// state is carried by color or weight alone (AC-7.2).
+  /// The agent's full display name, the time left, "new" and "urgent", and the
+  /// suggestion, so no state is carried by color or weight alone (AC-7.2).
   public var accessibilityValue: String {
-    var parts = [agentName]
+    var parts = [agentFullName]
     if let timeLeft { parts.append(timeLeft) }
     if isNew { parts.append("new") }
     if isUrgent { parts.append("urgent") }
-    if let suggestion { parts.append(suggestion.lowercasedFirst) }
+    if let spokenSuggestion { parts.append(spokenSuggestion) }
     return parts.joined(separator: ", ")
   }
 }
@@ -58,6 +68,14 @@ public enum DecisionPresentation {
     guard let id = decision.agentSessionID, let session = agents.first(where: { $0.id == id })
     else { return endedAgent }
     return session.displayName
+  }
+
+  /// The asking session's short name, for a row to draw (AC-5.4), or "Ended
+  /// agent" when that session is not live.
+  public static func shortAgentName(for decision: Decision, agents: [AgentSession]) -> String {
+    guard let id = decision.agentSessionID, let session = agents.first(where: { $0.id == id })
+    else { return endedAgent }
+    return AgentSessionOrder.shortName(session)
   }
 
   /// The time since creation: "just now", "12m ago", "3h ago", "2d ago".
@@ -192,12 +210,5 @@ public enum DecisionPresentation {
       time: decision.answeredAt.map { time($0, now: now, calendar: calendar, locale: locale) },
       chatMessage: decision.answeredVia == .chat ? decision.chatMessage : nil,
       note: decision.note)
-  }
-}
-
-extension String {
-  fileprivate var lowercasedFirst: String {
-    guard let first else { return self }
-    return first.lowercased() + dropFirst()
   }
 }

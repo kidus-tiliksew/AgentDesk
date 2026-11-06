@@ -52,15 +52,15 @@ func session(_ fields: [String: Any]) -> AgentSession {
 
 let agentsFixture = [
   session([
-    "id": "ags_1", "display_name": "Claude Code · api", "state": "working",
+    "id": "ags_1", "display_name": "Claude Code · api", "topic": "api", "state": "working",
     "line": "Running the migration tests", "link": "https://example.com/a",
   ]),
   session([
-    "id": "ags_2", "display_name": "Codex · web", "state": "blocked",
+    "id": "ags_2", "display_name": "Codex · web", "topic": "web", "state": "blocked",
     "line": "Needs a decision on the release",
   ]),
   session([
-    "id": "ags_3", "display_name": "Cursor · docs", "state": "waiting", "stale": true,
+    "id": "ags_3", "display_name": "Cursor · docs", "topic": "docs", "state": "waiting", "stale": true,
     "last_activity_at": "2026-10-27T11:47:00Z", "line": "Waiting for review",
   ]),
 ]
@@ -88,35 +88,88 @@ let decisions = DecisionOrder.sorted([
 let seen: Set<String> = ["d2"]
 
 // Live sessions in every group: blocked (one of them stale), active, and
-// quiet for minutes, hours, and days.
+// quiet for minutes, hours, and days, with default, nested, and custom names.
 let groupedAgents = [
   session([
-    "id": "g_a1", "display_name": "Claude Code · api", "state": "working",
+    "id": "g_a1", "display_name": "Claude Code · api/migrations", "topic": "api/migrations", "state": "working",
     "line": "Running the migration tests", "last_activity_at": "2026-10-27T11:59:30Z",
   ]),
   session([
-    "id": "g_q1", "display_name": "Codex · billing", "state": "working", "stale": true,
+    "id": "g_q1", "display_name": "Codex · billing", "topic": "billing", "state": "working", "stale": true,
     "line": "Reading the invoice tests", "last_activity_at": "2026-10-25T09:00:00Z",
   ]),
   session([
-    "id": "g_b1", "display_name": "Codex · web", "state": "blocked",
+    "id": "g_b1", "display_name": "Codex · web", "topic": "web", "state": "blocked",
     "line": "Needs a decision on the release", "last_activity_at": "2026-10-27T11:58:00Z",
   ]),
   session([
-    "id": "g_q2", "display_name": "Cursor · docs", "state": "waiting", "stale": true,
+    "id": "g_q2", "display_name": "Cursor · docs", "topic": "docs", "state": "waiting", "stale": true,
     "line": "Waiting for review", "last_activity_at": "2026-10-27T11:16:00Z",
   ]),
   session([
-    "id": "g_a2", "display_name": "Claude Code · web", "state": "waiting",
+    "id": "g_a2", "display_name": "Release captain", "topic": "web", "state": "waiting",
     "line": "Waiting on the build", "last_activity_at": "2026-10-27T11:59:00Z",
   ]),
   session([
-    "id": "g_b2", "display_name": "Claude Code · infra", "state": "blocked", "stale": true,
+    "id": "g_b2", "display_name": "Claude Code · infra", "topic": "infra", "state": "blocked", "stale": true,
     "line": "Blocked on a credential", "last_activity_at": "2026-10-27T10:00:00Z",
   ]),
   session([
-    "id": "g_q3", "display_name": "OpenCode · search", "state": "working", "stale": true,
+    "id": "g_q3", "display_name": "OpenCode · search", "topic": "search", "state": "working", "stale": true,
     "line": "Reindexing", "last_activity_at": "2026-10-27T08:30:00Z",
+  ]),
+]
+
+// Every state an entry draws, with default, nested, custom, and long names,
+// more than the agents list's 160 pt holds (component-mac-app §Agents line).
+let stateAgents = [
+  session([
+    "id": "s_work", "display_name": "Claude Code · api/migrations", "topic": "api/migrations",
+    "state": "working", "line": "Running the migration tests",
+  ]),
+  session([
+    "id": "s_wait", "display_name": "Release captain", "topic": "web", "state": "waiting",
+    "line": "Waiting on the build",
+  ]),
+  session([
+    "id": "s_block", "display_name": "Codex · web", "topic": "web", "state": "blocked",
+    "line": "Needs a decision on the release",
+  ]),
+  session([
+    "id": "s_blockstale", "display_name": "Claude Code · infra/secrets", "topic": "infra/secrets",
+    "state": "blocked", "stale": true, "line": "Blocked on a credential",
+    "last_activity_at": "2026-10-27T10:00:00Z",
+  ]),
+  session([
+    "id": "s_done", "display_name": "Cursor · docs", "topic": "docs", "state": "done",
+    "line": "Published the guide",
+  ]),
+  session([
+    "id": "s_none", "display_name": "OpenCode · search", "topic": "search", "state": NSNull(),
+    "line": NSNull(),
+  ]),
+  session([
+    "id": "s_longcustom",
+    "display_name": "Nightly dependency upgrade and regression triage across every service",
+    "topic": "web", "state": "working", "line": "Reading the changelogs",
+  ]),
+  session([
+    "id": "s_longtopic",
+    "display_name": "Claude Code · platform/a-final-topic-segment-long-enough-to-truncate-at-its-tail",
+    "topic": "platform/a-final-topic-segment-long-enough-to-truncate-at-its-tail",
+    "state": "waiting", "line": "Waiting on the review",
+  ]),
+  session([
+    "id": "s_quiet1", "display_name": "Codex · billing", "topic": "billing", "state": "working",
+    "stale": true, "line": "Reading the invoice tests", "last_activity_at": "2026-10-27T11:16:00Z",
+  ]),
+  session([
+    "id": "s_quiet2", "display_name": "Cursor · reviews", "topic": "reviews", "state": "waiting",
+    "stale": true, "line": "Waiting for review", "last_activity_at": "2026-10-27T08:30:00Z",
+  ]),
+  session([
+    "id": "s_quiet3", "display_name": "Claude Code · release", "topic": "release", "state": "done",
+    "stale": true, "line": "Tagged the build", "last_activity_at": "2026-10-25T09:00:00Z",
   ]),
 ]
 
@@ -305,8 +358,8 @@ struct PopoverFixture: View {
 }
 
 let swatchNames = [
-  "title (.primary)", "Ink.secondary", "Ink.tertiary", "Ink.red", "system .secondary",
-  "system .tertiary", "system red",
+  "title (.primary)", "Ink.secondary", "Ink.tertiary", "Ink.red", "Ink.green", "Ink.amber", "Ink.indigo",
+  "system .secondary", "system .tertiary", "system red",
 ]
 
 /// 40 pt swatches, so stroke cores reach the drawn color and antialiasing
@@ -318,6 +371,11 @@ struct Swatches: View {
       Text("Ink.secondary WWWW").font(.system(size: 40, weight: .heavy)).foregroundStyle(Ink.secondary)
       Text("Ink.tertiary WWWW").font(.system(size: 40, weight: .heavy)).foregroundStyle(Ink.tertiary)
       Text("Ink.red WWWW").font(.system(size: 40, weight: .heavy)).foregroundStyle(Ink.red)
+      // The app fills only 6 pt dots with these. Text here only reaches a
+      // stroke core wide enough to measure the drawn color.
+      Text("Ink.green WWWW").font(.system(size: 40, weight: .heavy)).foregroundStyle(Ink.green)
+      Text("Ink.amber WWWW").font(.system(size: 40, weight: .heavy)).foregroundStyle(Ink.amber)
+      Text("Ink.indigo WWWW").font(.system(size: 40, weight: .heavy)).foregroundStyle(Ink.indigo)
       Text("system secondary WWWW").font(.system(size: 40, weight: .heavy)).foregroundStyle(.secondary)
       Text("system tertiary WWWW").font(.system(size: 40, weight: .heavy)).foregroundStyle(.tertiary)
       Text("system red WWWW").font(.system(size: 40, weight: .heavy)).foregroundStyle(.red)
@@ -455,6 +513,172 @@ func measure(_ rep: NSBitmapImageRep) -> [(ratio: Double, text: NSColor, backgro
   }
 }
 
+// MARK: Row and entry layout
+
+/// Hosts one view on the flat background and returns its size and pixels.
+@MainActor
+func flatRender<V: View>(_ view: V, _ appearance: NSAppearance.Name) -> (size: CGSize, rep: NSBitmapImageRep) {
+  let (window, container) = host(view, appearance: appearance, background: .plain)
+  let rep = snapshot(container)
+  _ = window
+  return (container.bounds.size, rep)
+}
+
+/// The bounding box, in points, of the saturated pixels, which are the only
+/// pixels a dot color draws: gray text and gray backgrounds have none. Also
+/// the strongest such pixel, for its hue.
+@MainActor
+func coloredBox(_ rendered: (size: CGSize, rep: NSBitmapImageRep)) -> (box: CGRect, color: NSColor)? {
+  let rep = rendered.rep
+  let scale = CGFloat(rep.pixelsWide) / rendered.size.width
+  var (minX, minY, maxX, maxY) = (Int.max, Int.max, -1, -1)
+  var strongest: (spread: CGFloat, color: NSColor)?
+  for y in 0..<rep.pixelsHigh {
+    for x in 0..<rep.pixelsWide {
+      guard let color = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { continue }
+      let parts = [color.redComponent, color.greenComponent, color.blueComponent]
+      let spread = parts.max()! - parts.min()!
+      guard spread > 0.15 else { continue }
+      (minX, minY, maxX, maxY) = (min(minX, x), min(minY, y), max(maxX, x), max(maxY, y))
+      if spread > (strongest?.spread ?? 0) { strongest = (spread, color) }
+    }
+  }
+  guard let strongest else { return nil }
+  return (
+    CGRect(
+      x: CGFloat(minX) / scale, y: CGFloat(minY) / scale, width: CGFloat(maxX - minX + 1) / scale,
+      height: CGFloat(maxY - minY + 1) / scale), strongest.color
+  )
+}
+
+/// The leftmost column at or after `from` points holding text ink, in points.
+@MainActor
+func firstInk(_ rendered: (size: CGSize, rep: NSBitmapImageRep), from: CGFloat) -> CGFloat? {
+  let rep = rendered.rep
+  let scale = CGFloat(rep.pixelsWide) / rendered.size.width
+  let background = rep.colorAt(x: 0, y: 0)!
+  for x in Int(from * scale)..<rep.pixelsWide {
+    for y in 0..<rep.pixelsHigh where contrast(rep.colorAt(x: x, y: y)!, background) > 1.5 {
+      return CGFloat(x) / scale
+    }
+  }
+  return nil
+}
+
+/// Whether two renders of one size have the same pixels from `from` points to
+/// the right edge, and whether that region holds ink.
+@MainActor
+func sameRightRegion(
+  _ a: (size: CGSize, rep: NSBitmapImageRep), _ b: (size: CGSize, rep: NSBitmapImageRep), from: CGFloat
+) -> (same: Bool, ink: Bool) {
+  let scale = CGFloat(a.rep.pixelsWide) / a.size.width
+  let background = a.rep.colorAt(x: 0, y: 0)!
+  var ink = false
+  for y in 0..<min(a.rep.pixelsHigh, b.rep.pixelsHigh) {
+    for x in Int(from * scale)..<a.rep.pixelsWide {
+      let (p, q) = (a.rep.colorAt(x: x, y: y)!, b.rep.colorAt(x: x, y: y)!)
+      if hex(p) != hex(q) { return (false, ink) }
+      if contrast(p, background) > 1.5 { ink = true }
+    }
+  }
+  return (true, ink)
+}
+
+/// Measures the shipped row and entry against component-mac-app §Rows and
+/// §Agents line: padding, spacing, dots, one line, and what color touches.
+@MainActor
+func layoutEvidence(_ failures: inout [String]) {
+  line("## Row and entry layout (rendered from the shipped DecisionRow and AgentEntry on a flat fill)")
+  func expect(_ name: String, _ passed: Bool) {
+    line("\(passed ? "ok" : "FAIL") \(name)")
+    if !passed { failures.append("layout: \(name)") }
+  }
+  func near(_ a: CGFloat, _ b: CGFloat, _ tolerance: CGFloat = 1) -> Bool { abs(a - b) <= tolerance }
+
+  let rowDecision = decision([
+    "id": "l1", "title": "Which name should the new package use?", "input_type": "free_text",
+    "agent_session_id": "ags_1",
+  ])
+  func rowView(seen: Set<String>) -> some View {
+    DecisionRow(
+      item: items([rowDecision], seen: seen)[0], isSelected: false, isShown: false,
+      actions: DecisionListActions()
+    )
+    .frame(width: 340)
+  }
+  func textHeight(_ font: Font) -> CGFloat {
+    NSHostingView(rootView: Text("Agy").font(font).lineLimit(1)).fittingSize.height
+  }
+  let titleHeight = textHeight(.system(size: 13, weight: .medium))
+  let calloutHeight = textHeight(.callout)
+  let nameHeight = textHeight(.system(size: 13))
+
+  for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
+    let new = flatRender(rowView(seen: []), appearance)
+    let old = flatRender(rowView(seen: ["l1"]), appearance)
+    line(String(format: "%@ row: %.1f pt tall; title line %.1f pt, secondary line %.1f pt", mode, new.size.height, titleHeight, calloutHeight))
+    expect("\(mode) row: 13 pt above and below and 4 pt between the lines", near(new.size.height, titleHeight + calloutHeight + 30))
+    expect("\(mode) row: the seen row has the same height", new.size.height == old.size.height)
+    expect("\(mode) row: a seen row draws no color", coloredBox(old) == nil)
+    if let dot = coloredBox(new) {
+      line(String(format: "%@ new row dot: x %.1f, y %.1f, %.1f x %.1f pt, color %@", mode, dot.box.minX, dot.box.minY, dot.box.width, dot.box.height, hex(dot.color)))
+      expect("\(mode) row: the only color is a 6 pt dot", near(dot.box.width, 6) && near(dot.box.height, 6))
+      expect("\(mode) row: the dot sits in the leading margin", dot.box.maxX < 14)
+      expect("\(mode) row: the dot is level with the title's first line", dot.box.minY >= 13 && dot.box.maxY <= 13 + titleHeight)
+      expect("\(mode) row: the dot is indigo", dot.color.blueComponent > dot.color.redComponent && dot.color.blueComponent > dot.color.greenComponent)
+    } else {
+      expect("\(mode) row: a new row draws its dot", false)
+    }
+    if let newLeft = firstInk(new, from: 12), let oldLeft = firstInk(old, from: 12) {
+      line(String(format: "%@ title left edge: new %.1f pt, seen %.1f pt", mode, newLeft, oldLeft))
+      expect("\(mode) row: new and seen titles keep one left edge at 14 pt", near(newLeft, oldLeft) && near(oldLeft, 14, 1.5))
+    } else {
+      expect("\(mode) row: the title draws", false)
+    }
+
+    // One entry per dot color, then the neutral ones.
+    for (id, expected) in [
+      ("s_work", "green"), ("s_wait", "amber"), ("s_block", "red"), ("s_blockstale", "red"),
+      ("s_done", "neutral"), ("s_none", "neutral"), ("s_quiet1", "neutral"), ("s_quiet2", "neutral"),
+      ("s_quiet3", "neutral"),
+    ] {
+      let session = stateAgents.first { $0.id == id }!
+      let entry = AgentEntryModel(session: session, now: now)
+      let rendered = flatRender(AgentEntry(entry: entry).frame(width: 340), appearance)
+      let colored = coloredBox(rendered)
+      var hue = "neutral"
+      if let color = colored?.color {
+        let (r, g, b) = (color.redComponent, color.greenComponent, color.blueComponent)
+        if g > r && g > b { hue = "green" } else if r > b && g - b > 0.2 { hue = "amber" } else if r > g && r > b { hue = "red" } else { hue = "other" }
+      }
+      line(String(format: "%@ %@: %@ | %@ | dot %@ | %.1f pt tall | colored box %@", mode, id, entry.shortName, entry.stateText, hue, rendered.size.height, colored.map { String(format: "x %.1f, %.1f x %.1f pt", $0.box.minX, $0.box.width, $0.box.height) } ?? "none"))
+      expect("\(mode) \(id): the dot is \(expected)", hue == expected)
+      expect("\(mode) \(id): 7 pt above and below one line", near(rendered.size.height, nameHeight + 14))
+      if let box = colored?.box {
+        expect("\(mode) \(id): color reaches only the 6 pt dot at the leading padding", near(box.width, 6) && near(box.height, 6) && near(box.minX, 14))
+      }
+    }
+
+    // A long name beside the same state as a short one.
+    let short = AgentEntryModel(session: stateAgents.first { $0.id == "s_wait" }!, now: now)
+    let long = AgentEntryModel(session: stateAgents.first { $0.id == "s_longtopic" }!, now: now)
+    let shortRender = flatRender(AgentEntry(entry: short).frame(width: 340), appearance)
+    let longRender = flatRender(AgentEntry(entry: long).frame(width: 340), appearance)
+    let stateWidth = NSHostingView(rootView: Text(short.stateText).font(.callout).lineLimit(1)).fittingSize.width
+    let region = sameRightRegion(shortRender, longRender, from: 340 - 14 - stateWidth - 1)
+    expect("\(mode) entry: a long name keeps one line", shortRender.size.height == longRender.size.height)
+    expect("\(mode) entry: a long name leaves the right-aligned state whole", region.same && region.ink)
+
+    let lineHeight = flatRender(
+      AgentsView(agents: stateAgents, now: now, expanded: .constant(false), quietRevealed: .constant(false))
+        .frame(width: 340), appearance
+    ).size.height
+    line(String(format: "%@ agents line: %.1f pt tall; text %.1f pt", mode, lineHeight, calloutHeight))
+    expect("\(mode) agents line: 12 pt above and 7 pt below", near(lineHeight, calloutHeight + 19))
+  }
+  line("")
+}
+
 // MARK: Run
 
 MainActor.assumeIsolated {
@@ -533,6 +757,18 @@ MainActor.assumeIsolated {
         "popover-agents-quiet-revealed",
         PopoverFixture(items: items(decisions), expanded: true, agents: groupedAgents, quietRevealed: true)
       ))
+    // Every state, with default, nested, custom, and long names, from the
+    // list's top and from its end.
+    scenes.append(
+      (
+        "popover-agents-states",
+        PopoverFixture(items: items(decisions), expanded: true, agents: stateAgents, quietRevealed: true)
+      ))
+    scenes.append(
+      (
+        "popover-agents-states-end",
+        PopoverFixture(items: items(decisions), expanded: true, agents: stateAgents, quietRevealed: true)
+      ))
     scenes.append(
       (
         "popover-agents-overflow",
@@ -542,7 +778,9 @@ MainActor.assumeIsolated {
       let (window, container) = host(view, appearance: appearance, background: .vibrant)
       // The agents list holds 160 pt, so the revealed quiet sessions show once
       // it is scrolled to its end.
-      if name == "popover-agents-quiet-revealed", let list = scrollViews(in: container).last {
+      if name == "popover-agents-quiet-revealed" || name == "popover-agents-states-end",
+        let list = scrollViews(in: container).last
+      {
         list.documentView?.scroll(NSPoint(x: 0, y: list.documentView?.bounds.height ?? 0))
         list.reflectScrolledClipView(list.contentView)
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
@@ -555,14 +793,28 @@ MainActor.assumeIsolated {
       }
       _ = window
     }
+    // Every entry at once, without the list's 160 pt limit.
+    let (entriesWindow, entriesContainer) = host(
+      VStack(spacing: 0) {
+        ForEach(AgentSessionOrder.listed(stateAgents) + AgentSessionOrder.quiet(stateAgents)) {
+          AgentEntry(entry: AgentEntryModel(session: $0, now: now))
+        }
+      }
+      .frame(width: 340),
+      appearance: appearance, background: .vibrant)
+    save(snapshot(entriesContainer), "agents-entries-\(mode).png")
+    line("agents-entries-\(mode).png: \(Int(entriesContainer.bounds.width))x\(Int(entriesContainer.bounds.height)) pt")
+    _ = entriesWindow
   }
   line("")
+
+  layoutEvidence(&failures)
 
   // Row text and the accessibility value each row exposes.
   line("## Rows (DecisionRowModel, as DecisionRow draws and labels them)")
   @MainActor func describe(_ row: DecisionRowModel) {
     line(
-      "- \(row.id): \(row.isNew ? "leading 6 pt dot, title semibold" : "no dot, title medium"); marker \(row.urgentMarker.map { "\($0) (red)" } ?? "none"); time left \(row.timeLeft ?? "none")\(row.timeLeftIsRed ? " (red)" : ""); \(row.suggestion ?? "no suggestion")")
+      "- \(row.id): \(row.isNew ? "leading 6 pt Ink.indigo dot, title semibold" : "no dot, title medium"); agent \(row.agentName); marker \(row.urgentMarker.map { "\($0) (red)" } ?? "none"); time left \(row.timeLeft ?? "none")\(row.timeLeftIsRed ? " (red)" : ""); \(row.suggestion ?? "no drawn suggestion")")
     line("  accessibility label: \(row.accessibilityLabel)")
     line("  accessibility value: \(row.accessibilityValue)")
   }
@@ -584,6 +836,9 @@ MainActor.assumeIsolated {
     ("seen row due later has neither red nor a marker", !markerRow("k4").timeLeftIsRed && markerRow("k4").urgentMarker == nil && !markerRow("k4").isNew),
     ("new row without a deadline has the dot only", markerRow("k5").isNew && markerRow("k5").urgentMarker == nil && !markerRow("k5").timeLeftIsRed),
     ("VoiceOver reads new, urgent, and the suggestion", markerRow("k1").accessibilityValue.contains("new, urgent, suggests Reject")),
+    ("a single-choice row draws no suggestion, and VoiceOver reads it", markerRow("k3").suggestion == nil && markerRow("k3").accessibilityValue.contains("suggests Tonight")),
+    ("a free-text row draws no suggestion, and VoiceOver reads it", markerRow("k5").suggestion == nil && markerRow("k5").accessibilityValue.contains("suggests agentdesk-core")),
+    ("a row draws the short name, and VoiceOver reads the full one", markerRow("k4").agentName == "api" && markerRow("k4").accessibilityValue.hasPrefix("Claude Code · api")),
   ]
   for (name, passed) in markerChecks {
     line("\(passed ? "ok" : "FAIL") \(name)")
@@ -611,19 +866,34 @@ MainActor.assumeIsolated {
   line("no sessions: \(AgentsSummary(agents: []).text)")
   for session in AgentSessionOrder.listed(groupedAgents) {
     let entry = AgentEntryModel(session: session, now: now)
-    line("  entry: \(entry.accessibilityLabel)")
+    line("  entry: draws \(entry.dot) dot, \(entry.shortName), \(entry.stateText); reads \(entry.accessibilityLabel)")
   }
   line("  control: \(summary.showQuietText), then \(AgentsSummary.hideQuietText)")
   for session in AgentSessionOrder.quiet(groupedAgents) {
     let entry = AgentEntryModel(session: session, now: now)
-    line("  revealed: \(entry.accessibilityLabel)")
+    line("  revealed: draws \(entry.dot) dot, \(entry.shortName), \(entry.stateText); reads \(entry.accessibilityLabel)")
+  }
+  line("every state (popover-agents-states, agents-entries):")
+  for session in AgentSessionOrder.listed(stateAgents) + AgentSessionOrder.quiet(stateAgents) {
+    let entry = AgentEntryModel(session: session, now: now)
+    line("  \(session.id): draws \(entry.dot) dot, \(entry.shortName), \(entry.stateText); reads \(entry.accessibilityLabel)")
   }
   let manySummary = AgentsSummary(agents: manyAgents)
   line("18 sessions: \(manySummary.text); listed first: \(AgentSessionOrder.listed(manyAgents).prefix(3).map(\.displayName).joined(separator: ", "))")
   func quietTexts(_ sessions: [AgentSession]) -> [String] {
     AgentSessionOrder.quiet(sessions).map { AgentEntryModel(session: $0, now: now).stateText }
   }
+  func stateEntry(_ id: String) -> AgentEntryModel {
+    AgentEntryModel(session: stateAgents.first { $0.id == id }!, now: now)
+  }
   let agentChecks: [(String, Bool)] = [
+    ("working and not stale is green", stateEntry("s_work").dot == .green),
+    ("waiting and not stale is amber", stateEntry("s_wait").dot == .amber),
+    ("blocked is red, stale or not", stateEntry("s_block").dot == .red && stateEntry("s_blockstale").dot == .red),
+    ("done, no state, and quiet are neutral", ["s_done", "s_none", "s_quiet1", "s_quiet2", "s_quiet3"].allSatisfy { stateEntry($0).dot == .neutral }),
+    ("a default name draws the topic's last segment", stateEntry("s_work").shortName == "migrations" && stateEntry("s_block").shortName == "web"),
+    ("a custom name draws in full", stateEntry("s_wait").shortName == "Release captain"),
+    ("VoiceOver reads the full name and the status line", stateEntry("s_work").accessibilityLabel == "Claude Code · api/migrations, working, Running the migration tests"),
     ("line reads active, quiet, and blocked", summary.text == "2 active · 3 quiet · 2 blocked"),
     ("each session is in one group", summary.total == groupedAgents.count),
     ("list shows blocked then active in API order", AgentSessionOrder.listed(groupedAgents).map(\.id) == ["g_b1", "g_b2", "g_a1", "g_a2"]),
@@ -687,6 +957,7 @@ MainActor.assumeIsolated {
   let dark = [NSColor(white: 0x2E / 255.0, alpha: 1), NSColor(white: 0x3C / 255.0, alpha: 1), .black]
   for (name, shades) in [
     ("secondary", Ink.secondaryShades), ("tertiary", Ink.tertiaryShades), ("red", Ink.redShades),
+    ("green", Ink.greenShades), ("amber", Ink.amberShades), ("indigo", Ink.indigoShades),
   ] {
     for (variant, color, backgrounds) in [
       ("light", shades.light, light), ("dark", shades.dark, dark),
@@ -694,7 +965,8 @@ MainActor.assumeIsolated {
       ("dark Increase Contrast", shades.darkHigh, dark),
     ] {
       let worst = backgrounds.map { contrast(color, $0) }.min()!
-      line(String(format: "Ink.%@ %@ %@: worst %.2f:1", name, variant, hex(color), worst))
+      let each = backgrounds.map { String(format: "%@ %.2f", hex($0), contrast(color, $0)) }.joined(separator: ", ")
+      line(String(format: "Ink.%@ %@ %@: worst %.2f:1 (%@)", name, variant, hex(color), worst, each))
       if worst < 4.5 { failures.append("Ink.\(name) \(variant) is \(worst):1") }
     }
   }

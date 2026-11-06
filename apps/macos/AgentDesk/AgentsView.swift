@@ -50,7 +50,8 @@ struct AgentsView: View {
       .buttonStyle(.plain)
       .disabled(!canExpand)
       .padding(.horizontal, 14)
-      .padding(.vertical, 9)
+      .padding(.top, 12)
+      .padding(.bottom, 7)
       .accessibilityLabel(summary.accessibilityLabel)
       .accessibilityValue(canExpand ? (expanded ? "Expanded" : "Collapsed") : "")
 
@@ -118,9 +119,10 @@ struct AgentsView: View {
   }
 }
 
-/// One live session: its dot, name, state, and status line. Clicking it shows
-/// the session in the detail panel, with or without a link, and opens no browser
-/// (req-mac-app AC-5.2, AC-5.3).
+/// One live session on one line: its dot, short name, and state. The status
+/// line is not drawn; the label keeps it, with the full display name, for
+/// VoiceOver. Clicking the entry shows the session in the detail panel, with or
+/// without a link, and opens no browser (req-mac-app AC-5.2, AC-5.3, AC-5.4).
 struct AgentEntry: View {
   let entry: AgentEntryModel
   var isHighlighted = false
@@ -145,28 +147,34 @@ struct AgentEntry: View {
   private var content: some View {
     HStack(alignment: .firstTextBaseline, spacing: 8) {
       Circle()
-        .fill(entry.isBlocked ? Ink.red : Ink.tertiary)
+        .fill(dotColor)
         .frame(width: 6, height: 6)
         .alignmentGuide(.firstTextBaseline) { $0[.bottom] }
-      VStack(alignment: .leading, spacing: 1) {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-          Text(entry.displayName)
-            .lineLimit(1)
-          Text(entry.stateText)
-            .foregroundStyle(Ink.tertiary)
-            .lineLimit(1)
-        }
-        if let line = entry.line {
-          Text(line)
-            .lineLimit(1)
-            .foregroundStyle(Ink.secondary)
-        }
-      }
-      Spacer(minLength: 0)
+      Text(entry.shortName)
+        .font(.system(size: 13))
+        .foregroundStyle(.primary)
+        .lineLimit(1)
+        .truncationMode(.tail)
+      Spacer(minLength: 8)
+      // The name gives way first; the state never truncates.
+      Text(entry.stateText)
+        .font(.callout)
+        .foregroundStyle(Ink.tertiary)
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
     }
-    .font(.callout)
     .padding(.horizontal, 14)
-    .padding(.vertical, 4)
+    .padding(.vertical, 7)
     .contentShape(Rectangle())
+  }
+
+  /// AC-5.5: a dot's color; the name and the state take none of them.
+  private var dotColor: Color {
+    switch entry.dot {
+    case .green: Ink.green
+    case .amber: Ink.amber
+    case .red: Ink.red
+    case .neutral: Ink.tertiary
+    }
   }
 }
