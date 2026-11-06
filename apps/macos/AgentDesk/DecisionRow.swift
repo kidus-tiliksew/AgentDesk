@@ -51,12 +51,12 @@ struct DecisionRow: View {
       }
     }
     .padding(.horizontal, 14)
-    .padding(.vertical, 8)
+    .padding(.vertical, 13)
     .frame(maxWidth: .infinity, alignment: .leading)
   }
 
   private var summary: some View {
-    VStack(alignment: .leading, spacing: 2) {
+    VStack(alignment: .leading, spacing: 4) {
       Text(row.title)
         .font(.system(size: 13, weight: row.isNew ? .semibold : .medium))
         .lineLimit(2)
@@ -67,7 +67,7 @@ struct DecisionRow: View {
         .background(alignment: .topLeading) {
           if row.isNew {
             Circle()
-              .fill(Color.primary)
+              .fill(Ink.indigo)
               .frame(width: 6, height: 6)
               .offset(x: -10, y: 5)
           }
@@ -93,6 +93,7 @@ struct DecisionRow: View {
         }
       }
       .font(.callout)
+      // Only an approve-or-reject row has one to draw (AC-4.2).
       if let suggestion = row.suggestion {
         Text(suggestion)
           .font(.callout)

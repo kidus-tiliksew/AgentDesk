@@ -647,7 +647,7 @@ func accessEvidence() -> Int32 {
       var ids: [String] = []
     }
     let opened = Opened()
-    let linked = [workingAgent, blockedAgent, staleAgent, invalidLinkAgent]
+    let linked = [workingAgent, blockedAgent, staleAgent, invalidLinkAgent, stateAgents[0]]
     let stage = AccessStage(
       AgentsView(
         agents: linked, now: now, expanded: .constant(true), quietRevealed: .constant(true),
@@ -659,6 +659,8 @@ func accessEvidence() -> Int32 {
       (blockedAgent, "Codex · web, blocked, Needs a decision"),
       (staleAgent, "Cursor · docs, quiet 43m, Waiting for review"),
       (invalidLinkAgent, "Claude Code · link, working, Holds a link"),
+      // Draws "migrations" and no status line, and reads both in full (AC-5.4, AC-5.2).
+      (stateAgents[0], "Claude Code · api/migrations, working, Running the migration tests"),
     ] {
       let entry = named(entries, "AXButton", text)
       check("entry \(session.id): a named button, with or without a link", entry?.actions.contains("AXPress") == true)
@@ -679,6 +681,8 @@ func accessEvidence() -> Int32 {
     let row = entries.first { ($0.description ?? "").contains("Ship the 2.4 release") }
     check("row: the title is its name", row != nil)
     check("row: the value reads the agent, time left, new, urgent, and suggestion", ["Codex · web", "4m left", "new", "urgent", "suggests Ship now"].allSatisfy { (row?.value ?? "").contains($0) })
+    let freeText = entries.first { ($0.description ?? "").contains("Which name should") }
+    check("row: a free-text row draws no suggestion and its value reads one", freeText?.value?.contains("suggests agentdesk-core") == true)
     check("row: it offers AXPress", row?.actions.contains("AXPress") == true)
     check("row: Reject and Approve are separate named buttons", named(entries, "AXButton", "Reject") != nil && named(entries, "AXButton", "Approve") != nil)
     stage.close()

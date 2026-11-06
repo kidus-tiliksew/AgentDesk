@@ -770,11 +770,12 @@ Agent panel's key view loop with NSApp.isFullKeyboardAccessEnabled false: none
 NOT EXERCISED, assigned to the operator's pre-release checks: the agent panel's buttons in the Tab order with the Mac's Keyboard navigation setting on. This panel has no text field, so Tab has no stop with that setting off.
 
 ### agent entries
-    AXButton description="2 active, 1 quiet, 1 blocked" value="Expanded" actions=AXPress focusable
+    AXButton description="3 active, 1 quiet, 1 blocked" value="Expanded" actions=AXPress focusable
     AXScrollArea
       AXButton description="Codex · web, blocked, Needs a decision on the release before it can go on" help="Shows this session in the detail panel" actions=AXPress focusable
       AXButton description="Claude Code · api, working, Running the migration tests" help="Shows this session in the detail panel" actions=AXPress focusable
       AXButton description="Claude Code · link, working, Holds a link no browser should open" help="Shows this session in the detail panel" actions=AXPress focusable
+      AXButton description="Claude Code · api/migrations, working, Running the migration tests" help="Shows this session in the detail panel" actions=AXPress focusable
       AXButton description="Hide quiet" value="Expanded" actions=AXPress focusable
       AXButton description="Cursor · docs, quiet 43m, Waiting for review" help="Shows this session in the detail panel" actions=AXPress focusable
       AXScrollBar value="0" focusable
@@ -791,6 +792,8 @@ ok entry ags_3: a named button, with or without a link
 ok entry ags_3: AXPress opens the panel for that session
 ok entry ags_5: a named button, with or without a link
 ok entry ags_5: AXPress opens the panel for that session
+ok entry s_work: a named button, with or without a link
+ok entry s_work: AXPress opens the panel for that session
 ok entries: none reads as a web link
 
 ### popover rows
@@ -806,6 +809,7 @@ ok entries: none reads as a web link
     AXButton description="1 active, 1 quiet, 1 blocked" value="Collapsed" actions=AXPress focusable
 ok row: the title is its name
 ok row: the value reads the agent, time left, new, urgent, and suggestion
+ok row: a free-text row draws no suggestion and its value reads one
 ok row: it offers AXPress
 ok row: Reject and Approve are separate named buttons
 

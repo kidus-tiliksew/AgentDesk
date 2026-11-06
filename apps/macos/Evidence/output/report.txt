@@ -2,58 +2,158 @@
 fixture clock: 2026-10-27T12:00:00Z
 
 ## Popover layouts
-popover-agents-expanded-light.png: 340x405 pt
-popover-agents-collapsed-light.png: 340x296 pt
-popover-empty-light.png: 340x162 pt
-popover-undo-light.png: 340x248 pt
-popover-conflict-light.png: 340x252 pt
-popover-send-failed-light.png: 340x317 pt
-popover-markers-light.png: 340x515 pt
+popover-agents-expanded-light.png: 340x390 pt
+popover-agents-collapsed-light.png: 340x299 pt
+popover-empty-light.png: 340x163 pt
+popover-undo-light.png: 340x239 pt
+popover-conflict-light.png: 340x243 pt
+popover-send-failed-light.png: 340x320 pt
+popover-markers-light.png: 340x548 pt
 popover-overflow-light.png: 340x560 pt
 popover-overflow-undo-light.png: 340x560 pt
-popover-agents-line-light.png: 340x296 pt
-popover-agents-quiet-hidden-light.png: 340x456 pt
-popover-agents-quiet-revealed-light.png: 340x456 pt
+popover-agents-line-light.png: 340x299 pt
+popover-agents-quiet-hidden-light.png: 340x450 pt
+popover-agents-quiet-revealed-light.png: 340x459 pt
+popover-agents-states-light.png: 340x459 pt
+popover-agents-states-end-light.png: 340x459 pt
 popover-agents-overflow-light.png: 340x560 pt
-popover-agents-expanded-dark.png: 340x405 pt
-popover-agents-collapsed-dark.png: 340x296 pt
-popover-empty-dark.png: 340x162 pt
-popover-undo-dark.png: 340x248 pt
-popover-conflict-dark.png: 340x252 pt
-popover-send-failed-dark.png: 340x317 pt
-popover-markers-dark.png: 340x515 pt
+agents-entries-light.png: 340x330 pt
+popover-agents-expanded-dark.png: 340x390 pt
+popover-agents-collapsed-dark.png: 340x299 pt
+popover-empty-dark.png: 340x163 pt
+popover-undo-dark.png: 340x239 pt
+popover-conflict-dark.png: 340x243 pt
+popover-send-failed-dark.png: 340x320 pt
+popover-markers-dark.png: 340x548 pt
 popover-overflow-dark.png: 340x560 pt
 popover-overflow-undo-dark.png: 340x560 pt
-popover-agents-line-dark.png: 340x296 pt
-popover-agents-quiet-hidden-dark.png: 340x456 pt
-popover-agents-quiet-revealed-dark.png: 340x456 pt
+popover-agents-line-dark.png: 340x299 pt
+popover-agents-quiet-hidden-dark.png: 340x450 pt
+popover-agents-quiet-revealed-dark.png: 340x459 pt
+popover-agents-states-dark.png: 340x459 pt
+popover-agents-states-end-dark.png: 340x459 pt
 popover-agents-overflow-dark.png: 340x560 pt
+agents-entries-dark.png: 340x330 pt
+
+## Row and entry layout (rendered from the shipped DecisionRow and AgentEntry on a flat fill)
+light row: 61.0 pt tall; title line 16.0 pt, secondary line 15.0 pt
+ok light row: 13 pt above and below and 4 pt between the lines
+ok light row: the seen row has the same height
+ok light row: a seen row draws no color
+light new row dot: x 4.0, y 18.0, 6.0 x 6.0 pt, color #6061E3
+ok light row: the only color is a 6 pt dot
+ok light row: the dot sits in the leading margin
+ok light row: the dot is level with the title's first line
+ok light row: the dot is indigo
+light title left edge: new 14.5 pt, seen 14.5 pt
+ok light row: new and seen titles keep one left edge at 14 pt
+light s_work: migrations | working | dot green | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok light s_work: the dot is green
+ok light s_work: 7 pt above and below one line
+ok light s_work: color reaches only the 6 pt dot at the leading padding
+light s_wait: Release captain | waiting | dot amber | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok light s_wait: the dot is amber
+ok light s_wait: 7 pt above and below one line
+ok light s_wait: color reaches only the 6 pt dot at the leading padding
+light s_block: web | blocked | dot red | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok light s_block: the dot is red
+ok light s_block: 7 pt above and below one line
+ok light s_block: color reaches only the 6 pt dot at the leading padding
+light s_blockstale: secrets | blocked | dot red | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok light s_blockstale: the dot is red
+ok light s_blockstale: 7 pt above and below one line
+ok light s_blockstale: color reaches only the 6 pt dot at the leading padding
+light s_done: docs | done | dot neutral | 30.0 pt tall | colored box none
+ok light s_done: the dot is neutral
+ok light s_done: 7 pt above and below one line
+light s_none: search | no status | dot neutral | 30.0 pt tall | colored box none
+ok light s_none: the dot is neutral
+ok light s_none: 7 pt above and below one line
+light s_quiet1: billing | quiet 44m | dot neutral | 30.0 pt tall | colored box none
+ok light s_quiet1: the dot is neutral
+ok light s_quiet1: 7 pt above and below one line
+light s_quiet2: reviews | quiet 3h | dot neutral | 30.0 pt tall | colored box none
+ok light s_quiet2: the dot is neutral
+ok light s_quiet2: 7 pt above and below one line
+light s_quiet3: release | quiet 2d | dot neutral | 30.0 pt tall | colored box none
+ok light s_quiet3: the dot is neutral
+ok light s_quiet3: 7 pt above and below one line
+ok light entry: a long name keeps one line
+ok light entry: a long name leaves the right-aligned state whole
+light agents line: 34.0 pt tall; text 15.0 pt
+ok light agents line: 12 pt above and 7 pt below
+dark row: 61.0 pt tall; title line 16.0 pt, secondary line 15.0 pt
+ok dark row: 13 pt above and below and 4 pt between the lines
+ok dark row: the seen row has the same height
+ok dark row: a seen row draws no color
+dark new row dot: x 4.0, y 18.0, 6.0 x 6.0 pt, color #A9A8FA
+ok dark row: the only color is a 6 pt dot
+ok dark row: the dot sits in the leading margin
+ok dark row: the dot is level with the title's first line
+ok dark row: the dot is indigo
+dark title left edge: new 14.5 pt, seen 14.5 pt
+ok dark row: new and seen titles keep one left edge at 14 pt
+dark s_work: migrations | working | dot green | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok dark s_work: the dot is green
+ok dark s_work: 7 pt above and below one line
+ok dark s_work: color reaches only the 6 pt dot at the leading padding
+dark s_wait: Release captain | waiting | dot amber | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok dark s_wait: the dot is amber
+ok dark s_wait: 7 pt above and below one line
+ok dark s_wait: color reaches only the 6 pt dot at the leading padding
+dark s_block: web | blocked | dot red | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok dark s_block: the dot is red
+ok dark s_block: 7 pt above and below one line
+ok dark s_block: color reaches only the 6 pt dot at the leading padding
+dark s_blockstale: secrets | blocked | dot red | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok dark s_blockstale: the dot is red
+ok dark s_blockstale: 7 pt above and below one line
+ok dark s_blockstale: color reaches only the 6 pt dot at the leading padding
+dark s_done: docs | done | dot neutral | 30.0 pt tall | colored box none
+ok dark s_done: the dot is neutral
+ok dark s_done: 7 pt above and below one line
+dark s_none: search | no status | dot neutral | 30.0 pt tall | colored box none
+ok dark s_none: the dot is neutral
+ok dark s_none: 7 pt above and below one line
+dark s_quiet1: billing | quiet 44m | dot neutral | 30.0 pt tall | colored box none
+ok dark s_quiet1: the dot is neutral
+ok dark s_quiet1: 7 pt above and below one line
+dark s_quiet2: reviews | quiet 3h | dot neutral | 30.0 pt tall | colored box none
+ok dark s_quiet2: the dot is neutral
+ok dark s_quiet2: 7 pt above and below one line
+dark s_quiet3: release | quiet 2d | dot neutral | 30.0 pt tall | colored box none
+ok dark s_quiet3: the dot is neutral
+ok dark s_quiet3: 7 pt above and below one line
+ok dark entry: a long name keeps one line
+ok dark entry: a long name leaves the right-aligned state whole
+dark agents line: 34.0 pt tall; text 15.0 pt
+ok dark agents line: 12 pt above and 7 pt below
 
 ## Rows (DecisionRowModel, as DecisionRow draws and labels them)
-- d1: leading 6 pt dot, title semibold; marker Urgent (red); time left 4m left (red); Suggests Ship now
+- d1: leading 6 pt Ink.indigo dot, title semibold; agent web; marker Urgent (red); time left 4m left (red); no drawn suggestion
   accessibility label: Ship the 2.4 release to production now that the staging soak passed?
   accessibility value: Codex · web, 4m left, new, urgent, suggests Ship now
-- d2: no dot, title medium; marker none; time left 2h left; no suggestion
+- d2: no dot, title medium; agent api; marker none; time left 2h left; no drawn suggestion
   accessibility label: Delete the stale preview databases?
   accessibility value: Claude Code · api, 2h left
-- d3: leading 6 pt dot, title semibold; marker none; time left none; Suggests agentdesk-core
+- d3: leading 6 pt Ink.indigo dot, title semibold; agent Ended agent; marker none; time left none; no drawn suggestion
   accessibility label: Which name should the new package use?
   accessibility value: Ended agent, new, suggests agentdesk-core
 
 ## Row markers (popover-markers)
-- k1: leading 6 pt dot, title semibold; marker Urgent (red); time left 3h left (red); Suggests Reject
+- k1: leading 6 pt Ink.indigo dot, title semibold; agent web; marker Urgent (red); time left 3h left (red); Suggests Reject
   accessibility label: Roll back the payments deploy now that the error rate has passed the alert threshold?
   accessibility value: Codex · web, 3h left, new, urgent, suggests Reject
-- k2: no dot, title medium; marker Urgent (red); time left none (red); Suggests Approve
+- k2: no dot, title medium; agent api; marker Urgent (red); time left none (red); Suggests Approve
   accessibility label: Rotate the signing key today?
   accessibility value: Claude Code · api, urgent, suggests Approve
-- k3: leading 6 pt dot, title semibold; marker none; time left 3m left (red); Suggests Tonight
+- k3: leading 6 pt Ink.indigo dot, title semibold; agent api; marker none; time left 3m left (red); no drawn suggestion
   accessibility label: Run the vacuum on the events table during the maintenance window tonight or wait?
   accessibility value: Claude Code · api, 3m left, new, suggests Tonight
-- k4: no dot, title medium; marker none; time left 2h left; Suggests Approve
+- k4: no dot, title medium; agent api; marker none; time left 2h left; Suggests Approve
   accessibility label: Delete the stale preview databases?
   accessibility value: Claude Code · api, 2h left, suggests Approve
-- k5: leading 6 pt dot, title semibold; marker none; time left none; Suggests agentdesk-core
+- k5: leading 6 pt Ink.indigo dot, title semibold; agent docs; marker none; time left none; no drawn suggestion
   accessibility label: Which name should the new package use?
   accessibility value: Cursor · docs, new, suggests agentdesk-core
 ok new urgent row with a distant deadline has the marker and a red time
@@ -64,6 +164,9 @@ ok due-soon row has a red time and no marker
 ok seen row due later has neither red nor a marker
 ok new row without a deadline has the dot only
 ok VoiceOver reads new, urgent, and the suggestion
+ok a single-choice row draws no suggestion, and VoiceOver reads it
+ok a free-text row draws no suggestion, and VoiceOver reads it
+ok a row draws the short name, and VoiceOver reads the full one
 
 ## Detail panel (the shipped DecisionDetailView, offscreen)
 panel-approve-reject-light.png: 400x301 pt
@@ -346,8 +449,8 @@ ok this process never became the active app, so the user's focus never moved
 ## Linked recovery (the shipped DecisionCoordinator with a fixture sender, reader, and clock)
 ok a pending decision absent from the list loads in the panel
 ok answering closes the panel and hides the row
-popover-linked-held-light.png: 340x174 pt
-popover-linked-held-dark.png: 340x174 pt
+popover-linked-held-light.png: 340x187 pt
+popover-linked-held-dark.png: 340x187 pt
 ok Undo restores the row
 ok Undo reopens the panel from the held record
 ok Undo keeps the draft and note
@@ -357,8 +460,8 @@ ok a failed send keeps the failure message
 ok a failed send keeps the draft and note
 ok a retained-snapshot publish prunes nothing
 ok a new read with a failed direct read prunes nothing
-popover-linked-send-failed-light.png: 340x234 pt
-popover-linked-send-failed-dark.png: 340x234 pt
+popover-linked-send-failed-light.png: 340x242 pt
+popover-linked-send-failed-dark.png: 340x242 pt
 ok the restored row opens the retained record
 panel-linked-send-failed-light.png: 400x327 pt
 panel-linked-send-failed-dark.png: 400x327 pt
@@ -377,15 +480,34 @@ send failed, under the row: Couldn't send. Try again.
 agents line: 2 active · 3 quiet · 2 blocked
 accessibility: 2 active, 3 quiet, 2 blocked
 no sessions: 0 active
-  entry: Codex · web, blocked, Needs a decision on the release
-  entry: Claude Code · infra, blocked, Blocked on a credential
-  entry: Claude Code · api, working, Running the migration tests
-  entry: Claude Code · web, waiting, Waiting on the build
+  entry: draws red dot, web, blocked; reads Codex · web, blocked, Needs a decision on the release
+  entry: draws red dot, infra, blocked; reads Claude Code · infra, blocked, Blocked on a credential
+  entry: draws green dot, migrations, working; reads Claude Code · api/migrations, working, Running the migration tests
+  entry: draws amber dot, Release captain, waiting; reads Release captain, waiting, Waiting on the build
   control: Show 3 quiet, then Hide quiet
-  revealed: Cursor · docs, quiet 44m, Waiting for review
-  revealed: OpenCode · search, quiet 3h, Reindexing
-  revealed: Codex · billing, quiet 2d, Reading the invoice tests
+  revealed: draws neutral dot, docs, quiet 44m; reads Cursor · docs, quiet 44m, Waiting for review
+  revealed: draws neutral dot, search, quiet 3h; reads OpenCode · search, quiet 3h, Reindexing
+  revealed: draws neutral dot, billing, quiet 2d; reads Codex · billing, quiet 2d, Reading the invoice tests
+every state (popover-agents-states, agents-entries):
+  s_block: draws red dot, web, blocked; reads Codex · web, blocked, Needs a decision on the release
+  s_blockstale: draws red dot, secrets, blocked; reads Claude Code · infra/secrets, blocked, Blocked on a credential
+  s_work: draws green dot, migrations, working; reads Claude Code · api/migrations, working, Running the migration tests
+  s_wait: draws amber dot, Release captain, waiting; reads Release captain, waiting, Waiting on the build
+  s_done: draws neutral dot, docs, done; reads Cursor · docs, done, Published the guide
+  s_none: draws neutral dot, search, no status; reads OpenCode · search, no status
+  s_longcustom: draws green dot, Nightly dependency upgrade and regression triage across every service, working; reads Nightly dependency upgrade and regression triage across every service, working, Reading the changelogs
+  s_longtopic: draws amber dot, a-final-topic-segment-long-enough-to-truncate-at-its-tail, waiting; reads Claude Code · platform/a-final-topic-segment-long-enough-to-truncate-at-its-tail, waiting, Waiting on the review
+  s_quiet1: draws neutral dot, billing, quiet 44m; reads Codex · billing, quiet 44m, Reading the invoice tests
+  s_quiet2: draws neutral dot, reviews, quiet 3h; reads Cursor · reviews, quiet 3h, Waiting for review
+  s_quiet3: draws neutral dot, release, quiet 2d; reads Claude Code · release, quiet 2d, Tagged the build
 18 sessions: 3 active · 15 quiet; listed first: Agent 5 · active, Agent 10 · active, Agent 15 · active
+ok working and not stale is green
+ok waiting and not stale is amber
+ok blocked is red, stale or not
+ok done, no state, and quiet are neutral
+ok a default name draws the topic's last segment
+ok a custom name draws in full
+ok VoiceOver reads the full name and the status line
 ok line reads active, quiet, and blocked
 ok each session is in one group
 ok list shows blocked then active in API order
@@ -407,26 +529,26 @@ ok the cause: the new first row's title is out of view
 the same arrival with the requests: clip offset 0 pt
 ok the new urgent row's title shows at the top
 ok a read that lands at the top stays at the top
-with the Undo strip: popover 560 pt, list 461 pt
+with the Undo strip: popover 560 pt, list 460 pt
 ok the Undo strip shortens the list and the popover stays within 560 pt
 ok the strip leaves the first row at the top of the list
-strip gone: list 489 pt, 461 pt with it
+strip gone: list 488 pt, 460 pt with it
 ok the list grows back when the strip leaves
-agents expanded: popover 560 pt, list 329 pt
+agents expanded: popover 560 pt, list 328 pt
 ok the expanded agents list stays within 560 pt
 ok agents and the strip together stay within 560 pt
-opened with a notification's row: clip offset 707 pt
+opened with a notification's row: clip offset 864 pt
 ok a notification's row wins over the top reset
-the same row requested again: clip offset 707 pt
+the same row requested again: clip offset 864 pt
 ok a repeated row target scrolls again
 ok an ordinary opening returns to the top after a row target
-a selection change after opening: clip offset 1167 pt
+a selection change after opening: clip offset 1384 pt
 ok a selection change after opening scrolls to its row
-overflowing list: style legacy, hidden no, width 13 pt, content width 327 pt, knob pixels 2680
+overflowing list: style legacy, hidden no, width 13 pt, content width 327 pt, knob pixels 2360
 ok an overflowing list keeps a visible scroller
 ok the scroller returns after the Show scroll bars setting changes
 ok a list that fits shows no scroller
-agents list: 160 pt shown of 733 pt
+agents list: 160 pt shown of 571 pt
 ok the overflowing agents list stays at 160 pt
 ok the overflowing agents list keeps a visible scroller
 
@@ -436,52 +558,86 @@ default label with 3 waiting: AgentDesk, 3 waiting, new, urgent, width 31 pt, te
 
 ## Contrast, rendered (40 pt swatches; strongest text pixel against the background)
 ### light-vibrant
-title (.primary)  6.14:1  text #5B5B5B on #F4F4F4
-Ink.secondary  6.35:1  text #595959 on #F4F4F4
-Ink.tertiary  4.69:1  text #6D6D6D on #F4F4F4
-Ink.red  5.43:1  text #AC3F2D on #F4F4F4
-system .secondary  3.35:1  text #858585 on #F4F4F4
-system .tertiary  1.68:1  text #BFBFBF on #F4F4F4
-system red  3.13:1  text #E95B4D on #F4F4F4
+title (.primary)  6.14:1  text #5B5B5B on #F4F4F4  (floor 4.5:1)
+Ink.secondary  6.35:1  text #595959 on #F4F4F4  (floor 4.5:1)
+Ink.tertiary  4.69:1  text #6D6D6D on #F4F4F4  (floor 4.5:1)
+Ink.red  5.43:1  text #AC3F2D on #F4F4F4  (floor 4.5:1)
+Ink.green  4.36:1  text #407F50 on #F4F4F4  (floor 3.0:1)
+Ink.amber  4.29:1  text #9A6A23 on #F4F4F4  (floor 3.0:1)
+Ink.indigo  4.40:1  text #6161E3 on #F4F4F4  (floor 3.0:1)
+system .secondary  3.35:1  text #858585 on #F4F4F4  (not gated)
+system .tertiary  1.68:1  text #BFBFBF on #F4F4F4  (not gated)
+system red  3.13:1  text #E95B4D on #F4F4F4  (not gated)
 ### light-plain
-title (.primary) 11.94:1  text #313131 on #F5F5F5
-Ink.secondary  6.44:1  text #595959 on #F5F5F5
-Ink.tertiary  4.75:1  text #6D6D6D on #F5F5F5
-Ink.red  5.50:1  text #AC3F2D on #F5F5F5
-system .secondary  3.07:1  text #8D8D8D on #F5F5F5
-system .tertiary  1.66:1  text #C1C1C1 on #F5F5F5
-system red  2.88:1  text #F16457 on #F5F5F5
+title (.primary) 11.94:1  text #313131 on #F5F5F5  (floor 4.5:1)
+Ink.secondary  6.44:1  text #595959 on #F5F5F5  (floor 4.5:1)
+Ink.tertiary  4.75:1  text #6D6D6D on #F5F5F5  (floor 4.5:1)
+Ink.red  5.50:1  text #AC3F2D on #F5F5F5  (floor 4.5:1)
+Ink.green  4.42:1  text #407F50 on #F5F5F5  (floor 3.0:1)
+Ink.amber  4.35:1  text #9A6A23 on #F5F5F5  (floor 3.0:1)
+Ink.indigo  4.46:1  text #6161E3 on #F5F5F5  (floor 3.0:1)
+system .secondary  3.07:1  text #8D8D8D on #F5F5F5  (not gated)
+system .tertiary  1.66:1  text #C1C1C1 on #F5F5F5  (not gated)
+system red  2.88:1  text #F16457 on #F5F5F5  (not gated)
 ### dark-vibrant
-title (.primary) 11.54:1  text #EDEDED on #2F2F2F
-Ink.secondary  8.62:1  text #CFCFCF on #2F2F2F
-Ink.tertiary  7.02:1  text #BBBBBB on #2F2F2F
-Ink.red  6.85:1  text #F5A599 on #2F2F2F
-system .secondary  6.12:1  text #AFAFAF on #2F2F2F
-system .tertiary  3.02:1  text #777777 on #2F2F2F
-system red  4.57:1  text #F16E61 on #2F2F2F
+title (.primary) 11.54:1  text #EDEDED on #2F2F2F  (floor 4.5:1)
+Ink.secondary  8.62:1  text #CFCFCF on #2F2F2F  (floor 4.5:1)
+Ink.tertiary  7.02:1  text #BBBBBB on #2F2F2F  (floor 4.5:1)
+Ink.red  6.85:1  text #F5A599 on #2F2F2F  (floor 4.5:1)
+Ink.green  6.70:1  text #74C986 on #2F2F2F  (floor 3.0:1)
+Ink.amber  8.26:1  text #F7C269 on #2F2F2F  (floor 3.0:1)
+Ink.indigo  6.18:1  text #A9A8FA on #2F2F2F  (floor 3.0:1)
+system .secondary  6.12:1  text #AFAFAF on #2F2F2F  (not gated)
+system .tertiary  3.02:1  text #777777 on #2F2F2F  (not gated)
+system red  4.57:1  text #F16E61 on #2F2F2F  (not gated)
 ### dark-plain
-title (.primary)  8.72:1  text #E5E5E5 on #3C3C3C
-Ink.secondary  7.02:1  text #CFCFCF on #3C3C3C
-Ink.tertiary  5.71:1  text #BBBBBB on #3C3C3C
-Ink.red  5.58:1  text #F5A599 on #3C3C3C
-system .secondary  5.08:1  text #B1B1B1 on #3C3C3C
-system .tertiary  2.39:1  text #757575 on #3C3C3C
-system red  3.66:1  text #F16B60 on #3C3C3C
+title (.primary)  8.72:1  text #E5E5E5 on #3C3C3C  (floor 4.5:1)
+Ink.secondary  7.02:1  text #CFCFCF on #3C3C3C  (floor 4.5:1)
+Ink.tertiary  5.71:1  text #BBBBBB on #3C3C3C  (floor 4.5:1)
+Ink.red  5.58:1  text #F5A599 on #3C3C3C  (floor 4.5:1)
+Ink.green  5.46:1  text #74C986 on #3C3C3C  (floor 3.0:1)
+Ink.amber  6.72:1  text #F7C269 on #3C3C3C  (floor 3.0:1)
+Ink.indigo  5.03:1  text #A9A8FA on #3C3C3C  (floor 3.0:1)
+system .secondary  5.08:1  text #B1B1B1 on #3C3C3C  (not gated)
+system .tertiary  2.39:1  text #757575 on #3C3C3C  (not gated)
+system red  3.66:1  text #F16B60 on #3C3C3C  (not gated)
 
-## Contrast, computed from the shipped Ink values
-Ink.secondary light #474747: worst 8.37:1
-Ink.secondary dark #C4C4C4: worst 6.32:1
-Ink.secondary light Increase Contrast #2B2B2B: worst 12.76:1
-Ink.secondary dark Increase Contrast #E0E0E0: worst 8.36:1
-Ink.tertiary light #5A5A5A: worst 6.22:1
-Ink.tertiary dark #ADADAD: worst 4.92:1
-Ink.tertiary light Increase Contrast #3A3A3A: worst 10.25:1
-Ink.tertiary dark Increase Contrast #D0D0D0: worst 7.15:1
-Ink.red light #A81F18: worst 6.58:1
-Ink.red dark #FF8C83: worst 4.90:1
-Ink.red light Increase Contrast #96140E: worst 7.88:1
-Ink.red dark Increase Contrast #FF9A92: worst 5.40:1
+## Contrast, computed from the shipped Ink values (floor 4.5:1 for text inks, 3.0:1 for dot inks)
+Ink.secondary light #474747: worst 8.37:1 (#F3F3F3 8.37, #FFFFFF 9.29)
+Ink.secondary dark #C4C4C4: worst 6.32:1 (#2E2E2E 7.79, #3C3C3C 6.32, #000000 12.04)
+Ink.secondary light Increase Contrast #2B2B2B: worst 12.76:1 (#F3F3F3 12.76, #FFFFFF 14.16)
+Ink.secondary dark Increase Contrast #E0E0E0: worst 8.36:1 (#2E2E2E 10.29, #3C3C3C 8.36, #000000 15.91)
+Ink.tertiary light #5A5A5A: worst 6.22:1 (#F3F3F3 6.22, #FFFFFF 6.90)
+Ink.tertiary dark #ADADAD: worst 4.92:1 (#2E2E2E 6.05, #3C3C3C 4.92, #000000 9.36)
+Ink.tertiary light Increase Contrast #3A3A3A: worst 10.25:1 (#F3F3F3 10.25, #FFFFFF 11.37)
+Ink.tertiary dark Increase Contrast #D0D0D0: worst 7.15:1 (#2E2E2E 8.80, #3C3C3C 7.15, #000000 13.62)
+Ink.red light #A81F18: worst 6.58:1 (#F3F3F3 6.58, #FFFFFF 7.31)
+Ink.red dark #FF8C83: worst 4.90:1 (#2E2E2E 6.03, #3C3C3C 4.90, #000000 9.33)
+Ink.red light Increase Contrast #96140E: worst 7.88:1 (#F3F3F3 7.88, #FFFFFF 8.74)
+Ink.red dark Increase Contrast #FF9A92: worst 5.40:1 (#2E2E2E 6.65, #3C3C3C 5.40, #000000 10.29)
+Ink.green light #12703A: worst 5.56:1 (#F3F3F3 5.56, #FFFFFF 6.17)
+Ink.green dark #34C46A: worst 4.86:1 (#2E2E2E 5.98, #3C3C3C 4.86, #000000 9.25)
+Ink.green light Increase Contrast #0C5A2C: worst 7.53:1 (#F3F3F3 7.53, #FFFFFF 8.35)
+Ink.green dark Increase Contrast #4CD982: worst 6.07:1 (#2E2E2E 7.47, #3C3C3C 6.07, #000000 11.55)
+Ink.amber light #8F5400: worst 5.51:1 (#F3F3F3 5.51, #FFFFFF 6.11)
+Ink.amber dark #FFB340: worst 6.18:1 (#2E2E2E 7.61, #3C3C3C 6.18, #000000 11.77)
+Ink.amber light Increase Contrast #6E4100: worst 7.82:1 (#F3F3F3 7.82, #FFFFFF 8.68)
+Ink.amber dark Increase Contrast #FFC566: worst 7.05:1 (#2E2E2E 8.68, #3C3C3C 7.05, #000000 13.43)
+Ink.indigo light #4F46E5: worst 5.67:1 (#F3F3F3 5.67, #FFFFFF 6.29)
+Ink.indigo dark #9993FF: worst 4.19:1 (#2E2E2E 5.16, #3C3C3C 4.19, #000000 7.97)
+Ink.indigo light Increase Contrast #3730A3: worst 8.95:1 (#F3F3F3 8.95, #FFFFFF 9.93)
+Ink.indigo dark Increase Contrast #B3AFFF: worst 5.51:1 (#2E2E2E 6.79, #3C3C3C 5.51, #000000 10.49)
 NSAppearance(named: .accessibilityHighContrastAqua) offscreen: NSAppearanceNameAqua; Increase Contrast is not rendered offscreen, so its values are computed only
+
+## Known fills read back through the harness's bitmap path (reported, not gated)
+fill #F3F3F3 reads back as #F5F5F5
+fill #2E2E2E reads back as #3C3C3C
+fill #12703A reads back as #417F50
+fill #8F5400 reads back as #9A6A23
+fill #4F46E5 reads back as #6061E3
+fill #34C46A reads back as #74C986
+fill #FFB340 reads back as #F7C269
+fill #9993FF reads back as #A9A8FA
 
 ## Menu bar label images
 glyph: template=true size=18x18 pt description="AgentDesk, 0 waiting"

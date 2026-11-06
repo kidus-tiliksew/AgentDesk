@@ -17,9 +17,31 @@ final class DecisionPresentationTests: XCTestCase {
     let live = Fixtures.pending("a", ["agent_session_id": "ags_1"])
     let ended = Fixtures.pending("b", ["agent_session_id": "ags_gone"])
     let none = Fixtures.pending("c")
-    XCTAssertEqual(row(live).agentName, "Claude Code · web")
+    XCTAssertEqual(row(live).agentName, "web", "the row draws the short name")
+    XCTAssertEqual(row(live).agentFullName, "Claude Code · web")
     XCTAssertEqual(row(ended).agentName, "Ended agent")
+    XCTAssertEqual(row(ended).agentFullName, "Ended agent")
     XCTAssertEqual(row(none).agentName, "Ended agent")
+    XCTAssertEqual(row(none).agentFullName, "Ended agent")
+  }
+
+  func testRowsDrawTheShortNameAndEveryOtherSurfaceKeepsTheFullName() {
+    let nested = Fixtures.session(
+      "ags_n", ["display_name": "Codex · api/migrations", "topic": "api/migrations"])
+    let custom = Fixtures.session("ags_c", ["display_name": "Release captain", "topic": "web"])
+    let agents = [nested, custom]
+    let asksNested = Fixtures.pending("a", ["agent_session_id": "ags_n"])
+    let asksCustom = Fixtures.pending("b", ["agent_session_id": "ags_c"])
+    func model(_ decision: Decision) -> DecisionRowModel {
+      DecisionRowModel(decision: decision, agents: agents, seen: [], now: now)
+    }
+    XCTAssertEqual(model(asksNested).agentName, "migrations")
+    XCTAssertTrue(model(asksNested).accessibilityValue.hasPrefix("Codex · api/migrations"))
+    XCTAssertEqual(model(asksCustom).agentName, "Release captain")
+    XCTAssertEqual(
+      DecisionPresentation.agentName(for: asksNested, agents: agents), "Codex · api/migrations",
+      "the detail panel and notifications read this, with the full name (AC-5.4)")
+    XCTAssertEqual(DecisionPresentation.shortAgentName(for: asksNested, agents: agents), "migrations")
   }
 
   func testAge() {
@@ -68,25 +90,52 @@ final class DecisionPresentationTests: XCTestCase {
     XCTAssertNil(row(Fixtures.pending("d", priority: "urgent")).timeLeft, "no deadline, no time to draw")
   }
 
-  func testSuggestionResolvesOptionLabelsOnEveryInputType() {
+  func testOnlyAnApproveOrRejectRowDrawsItsSuggestion() {
     let options: [[String: Any]] = [["id": "a", "label": "Ship"], ["id": "b", "label": "Wait"]]
+    let approve = Fixtures.pending("ar", ["recommendation": ["kind": "approve"]])
+    let reject = Fixtures.pending("rr", ["recommendation": ["kind": "reject"]])
     let single = Fixtures.pending(
       "s", ["input_type": "single_choice", "options": options, "recommendation": ["kind": "option", "option_id": "a"]])
     let multiple = Fixtures.pending(
       "m",
       ["input_type": "multiple_choice", "options": options, "recommendation": ["kind": "options", "option_ids": ["a", "b"]]])
     let text = Fixtures.pending("t", ["input_type": "free_text", "recommendation": ["kind": "text", "text": "Use Postgres"]])
-    let unknown = Fixtures.pending(
+    let either = Fixtures.pending(
       "u", ["input_type": "single_choice_or_text", "options": options, "recommendation": ["kind": "option", "option_id": "zz"]])
-    let approve = Fixtures.pending("ar", ["recommendation": ["kind": "approve"]])
-    let noRecommendation = Fixtures.pending("n", ["input_type": "free_text"])
 
-    XCTAssertEqual(row(single).suggestion, "Suggests Ship")
-    XCTAssertEqual(row(multiple).suggestion, "Suggests Ship, Wait")
-    XCTAssertEqual(row(text).suggestion, "Suggests Use Postgres")
-    XCTAssertEqual(row(unknown).suggestion, "Suggests zz")
-    XCTAssertEqual(row(approve).suggestion, "Suggests Approve", "approve-or-reject rows show it too")
-    XCTAssertNil(row(noRecommendation).suggestion)
+    XCTAssertEqual(row(approve).suggestion, "Suggests Approve")
+    XCTAssertEqual(row(reject).suggestion, "Suggests Reject")
+    for decision in [single, multiple, text, either] {
+      XCTAssertNil(row(decision).suggestion, "\(decision.inputType) draws no suggestion (AC-4.2)")
+    }
+    for inputType in ["approve_reject", "single_choice", "multiple_choice", "free_text", "single_choice_or_text"] {
+      let none = Fixtures.pending("n", ["input_type": inputType, "options": options])
+      XCTAssertNil(row(none).suggestion, "\(inputType) without a recommendation")
+      XCTAssertNil(row(none).spokenSuggestion, "\(inputType) without a recommendation")
+    }
+  }
+
+  func testAccessibilityReadsTheSuggestionOnEveryInputTypeWithOptionLabels() {
+    let options: [[String: Any]] = [["id": "a", "label": "Ship"], ["id": "b", "label": "Wait"]]
+    func value(_ fields: [String: Any]) -> String { row(Fixtures.pending("a", fields), seen: ["a"]).accessibilityValue }
+    XCTAssertEqual(value(["recommendation": ["kind": "approve"]]), "Ended agent, suggests Approve")
+    XCTAssertEqual(value(["recommendation": ["kind": "reject"]]), "Ended agent, suggests Reject")
+    XCTAssertEqual(
+      value(["input_type": "single_choice", "options": options, "recommendation": ["kind": "option", "option_id": "a"]]),
+      "Ended agent, suggests Ship")
+    XCTAssertEqual(
+      value([
+        "input_type": "multiple_choice", "options": options,
+        "recommendation": ["kind": "options", "option_ids": ["a", "b"]],
+      ]), "Ended agent, suggests Ship, Wait")
+    XCTAssertEqual(
+      value(["input_type": "free_text", "recommendation": ["kind": "text", "text": "Use Postgres"]]),
+      "Ended agent, suggests Use Postgres")
+    XCTAssertEqual(
+      value([
+        "input_type": "single_choice_or_text", "options": options,
+        "recommendation": ["kind": "option", "option_id": "zz"],
+      ]), "Ended agent, suggests zz", "an unknown option id reads as itself")
   }
 
   func testNewAndSeenWeights() {
