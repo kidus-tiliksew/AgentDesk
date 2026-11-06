@@ -871,7 +871,7 @@ func agentPanelEvidence(_ failures: inout [String]) {
   let none = agentPresentation(noStatusAgent, history: []).model
   check("a working session reads Working, its update age, and its link", working?.state == "Working" && working?.updateAge == "2m ago" && working?.link != nil, &failures)
   check("a stale session carries the text marker Stale", stale?.staleMarker == "Stale" && (stale?.statusAccessibilityLabel.contains("Stale") == true), &failures)
-  check("a blocked session reads Blocked in words as well as red", blocked?.state == "Blocked" && blocked?.isBlocked == true, &failures)
+  check("a blocked session reads Blocked in words, and only its dot is red", blocked?.state == "Blocked" && blocked?.isBlocked == true, &failures)
   check("a session with no status invents none", none?.state == "No status yet" && none?.updateAge == "No update yet" && none?.line == nil, &failures)
   check("Waiting on you holds only this session's pending decisions", working?.pending.map(\.id) == ["ap_1"], &failures)
   check("history keeps the server's order", working?.history?.map(\.line) == agentHistoryFixture.map(\.line), &failures)

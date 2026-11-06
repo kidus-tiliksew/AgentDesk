@@ -170,7 +170,6 @@ struct AgentDetailView: View {
           .accessibilityHidden(true)
         Text(verbatim: model.state)
           .fontWeight(.medium)
-          .foregroundStyle(model.isBlocked ? Ink.red : Color.primary)
         if let stale = model.staleMarker {
           Text(verbatim: stale)
             .fontWeight(.medium)
