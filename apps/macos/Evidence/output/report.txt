@@ -232,7 +232,7 @@ ok the popover, the gap, and the agent panel sit side by side (dark)
 
 ok a working session reads Working, its update age, and its link
 ok a stale session carries the text marker Stale
-ok a blocked session reads Blocked in words as well as red
+ok a blocked session reads Blocked in words, and only its dot is red
 ok a session with no status invents none
 ok Waiting on you holds only this session's pending decisions
 ok history keeps the server's order
@@ -258,14 +258,14 @@ ok no agent scene holds a text field: nothing here sends a message to an agent
 Plain and default SwiftUI buttons are not NSButton views, so this list does not count them. access.txt counts every control through the Accessibility API.
 
 ## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
-screen visible frame: 1728x1084 pt; app active: false
+screen visible frame: 2560x1410 pt; app active: false
 ok left end of the screen: the panel has not taken key focus
-left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+left end of the screen: popover x 1763...2103, panel x 2111...2511, panel 400x319 pt
 ok left end of the screen: the panel is 400 pt wide with the popover still showing
 ok left end of the screen: the panel sits right of the popover, 8 pt away
 ok left end of the screen: the tops meet
 ok right end of the screen: the panel has not taken key focus
-right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+right end of the screen: popover x 3923...4263, panel x 3515...3915, panel 400x319 pt
 ok right end of the screen: the panel is 400 pt wide with the popover still showing
 ok right end of the screen: the panel sits left of the popover, 8 pt away
 ok right end of the screen: the tops meet
