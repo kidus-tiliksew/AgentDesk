@@ -698,6 +698,13 @@ MainActor.assumeIsolated {
   }
   NSApp.setActivationPolicy(.prohibited)
   var failures: [String] = []
+  // The panel's height check alone, for a run on source without the fix.
+  if CommandLine.arguments.contains("--panel-height") {
+    panelHeightEvidence(&failures)
+    print(failures.isEmpty ? "RESULT: PASS" : "RESULT: FAIL")
+    for failure in failures { print("  \(failure)") }
+    exit(failures.isEmpty ? 0 : 1)
+  }
 
   line("# AgentDesk Mac evidence harness")
   line("fixture clock: 2026-10-27T12:00:00Z")
@@ -857,6 +864,7 @@ MainActor.assumeIsolated {
   agentPanelEvidence(&failures)
   pairedWindowEvidence(&failures)
   agentPairedWindowEvidence(&failures)
+  panelHeightEvidence(&failures)
   linkedRecoveryEvidence(&failures)
 
   line("## Strips")
