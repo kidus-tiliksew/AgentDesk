@@ -287,6 +287,7 @@ agent-working-light.png: 400x478 pt
 agent-stale-light.png: 400x408 pt
 agent-blocked-light.png: 400x447 pt
 agent-no-status-light.png: 400x271 pt
+agent-history-unavailable-light.png: 400x368 pt
 agent-invalid-link-light.png: 400x408 pt
 agent-relative-link-light.png: 400x408 pt
 agent-long-light.png: 400x560 pt
@@ -305,6 +306,7 @@ agent-working-dark.png: 400x478 pt
 agent-stale-dark.png: 400x408 pt
 agent-blocked-dark.png: 400x447 pt
 agent-no-status-dark.png: 400x271 pt
+agent-history-unavailable-dark.png: 400x368 pt
 agent-invalid-link-dark.png: 400x408 pt
 agent-relative-link-dark.png: 400x408 pt
 agent-long-dark.png: 400x560 pt
@@ -325,14 +327,15 @@ ok the popover, the gap, and the agent panel sit side by side (dark)
 - agent-stale: Waiting, 45m ago, Stale | line: Waiting for review | Cursor · docs | docs | 0 pending decisions | listed [] | history 3 | link none
 - agent-blocked: Blocked, 10m ago | line: Needs a decision on the release before it can go on | Codex · web | web | 1 pending decision | listed ["ap_2"] | history 3 | link none
 - agent-no-status: No status yet, No update yet | line: none | Claude Code · new | new | 0 pending decisions | listed [] | history 0 | link none
+- agent-history-unavailable: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history unavailable | link https://example.com/pull/412
 - agent-invalid-link: Working, 1m ago | line: Holds a link no browser should open | Claude Code · link | links | 0 pending decisions | listed [] | history 3 | link none
 - agent-relative-link: Working, 1m ago | line: Holds a relative link | Claude Code · link | links | 0 pending decisions | listed [] | history 3 | link none
 - agent-long: Working, 1m ago | line: The migration rewrites every row of the events table. The migration rewrites every row of the events table. The migration rewrites every row of the events table. The migration rewrites every row of th | Claude Code · a session whose display name runs well past the panel's header | api/migrations/events/a-topic-that-is-long-enough-to-wrap-inside-the-fact-column | 2 pending decisions | listed ["ap_3", "ap_4"] | history 20 | link https://example.com/pull/412
 - agent-refresh-failed: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history 3 | link https://example.com/pull/412
 - agent-loading: no session to show
-- agent-loading-seed: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history -1 | link https://example.com/pull/412
+- agent-loading-seed: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history not read | link https://example.com/pull/412
 - agent-load-failed: no session to show
-- agent-load-failed-seed: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history -1 | link https://example.com/pull/412
+- agent-load-failed-seed: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history not read | link https://example.com/pull/412
 - agent-pending-unread: Blocked, 10m ago | line: Needs a decision on the release before it can go on | Codex · web | web | 1 pending decision | listed [] | history 3 | link none
 - agent-gone: no session to show
 
@@ -346,12 +349,17 @@ ok a 200-character status line is not cut
 ok the long history keeps every entry
 ok a javascript link offers no control
 ok a relative link offers no control
+ok unavailable history is its own state and holds no rows
+ok an empty history stays apart from unavailable history
+ok a session not read yet stays apart from both
+ok unavailable history keeps the session's facts
 
 ### AppKit controls of each agent scene
 - agent-working: button
 - agent-stale: button
 - agent-blocked: button
 - agent-no-status: button
+- agent-history-unavailable: button
 - agent-invalid-link: button
 - agent-relative-link: button
 - agent-refresh-failed: button
@@ -688,7 +696,7 @@ category decision.approve_reject: actions reject "Reject", approve "Approve"
 - t+300s sign-out while dec_late's post is in flight: add dec_late in flight; remove all delivered; add dec_late: "Approve?" / "Claude Code · api"; remove delivered ["dec_late"]; delivered now []
 
 ### Notification answers (PendingAnswers.sendNow)
-- Approve on dec_ship: accepted true; a repeated action accepted false; posts ["dec_ship approve", "dec_pick option(id: \"eu\")"]
+- Approve on dec_ship: accepted true; a repeated action accepted false; posts ["dec_pick option(id: \"eu\")", "dec_ship approve"]
   the popover's held answer for dec_pick was sent only by the quit flush that ends this step, never by the notification action
 - Approve on dec_taken answers 409 while the popover is closed: outcome kept for the next opening: "Already answered in the app: Reject"
 

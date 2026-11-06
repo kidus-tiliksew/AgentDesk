@@ -133,8 +133,8 @@ final class SyncFreshnessTests: XCTestCase {
     clock.advance(by: interval)
     await eventually { arrivals.updates.count == 2 }
     let arrival = try XCTUnwrap(arrivals.updates.last)
-    guard case .loaded(let session, let history) = arrival.update.outcome else {
-      return XCTFail("expected the pair")
+    guard case .loaded(let session, .available(let history)) = arrival.update.outcome else {
+      return XCTFail("expected the session and its history")
     }
     XCTAssertEqual(session.line, "After")
     XCTAssertEqual(history.map(\.line), ["After"], "the history is the new read's too")

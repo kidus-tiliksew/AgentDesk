@@ -567,7 +567,48 @@ ok agent-no-status: every element has a known role
 ok agent-no-status: no text field, so nothing sends a message to the agent
 ok agent-no-status: reads no status and no update
 ok agent-no-status: the empty history reads as text
+ok agent-no-status: an empty history never reads as unavailable
 ok agent-no-status: AXPress on the close control closes
+
+### agent-history-unavailable
+    AXGroup description="Agent detail"
+      AXStaticText value="Claude Code · api"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="Working, 2m ago"
+        AXHeading description="Running the migration tests"
+        AXStaticText value="Agent, Claude Code · api"
+        AXStaticText value="Topic, api/migrations"
+        AXStaticText value="Pending, 1 pending decision"
+        AXButton description="Open link" help="Opens https://example.com/pull/412 in the default browser" actions=AXPress focusable
+        AXStaticText value="https://example.com/pull/412"
+        AXHeading description="Waiting on you"
+        AXButton description="Delete the stale preview databases?" value="20m ago" help="Shows this decision in the panel" actions=AXPress focusable
+        AXHeading description="History"
+        AXStaticText value="History isn't available on this server."
+ok agent-history-unavailable: every control has a name
+ok agent-history-unavailable: every control offers AXPress
+ok agent-history-unavailable: the close control is named and pressable
+ok agent-history-unavailable: the panel names itself
+ok agent-history-unavailable: nothing reads as a web link
+ok agent-history-unavailable: every element has a known role
+ok agent-history-unavailable: no text field, so nothing sends a message to the agent
+ok agent-history-unavailable: the message is static text
+ok agent-history-unavailable: state and update age reads as text
+ok agent-history-unavailable: the status line reads as text
+ok agent-history-unavailable: the display name reads as text
+ok agent-history-unavailable: the topic reads as text
+ok agent-history-unavailable: the pending count reads as text
+ok agent-history-unavailable: the section reads as text
+ok agent-history-unavailable: the history section reads as text
+ok agent-history-unavailable: it never reads as gone
+ok agent-history-unavailable: it never reads as an empty history
+ok agent-history-unavailable: it carries no refresh warning
+ok agent-history-unavailable: it shows no history entry
+ok agent-history-unavailable: the session's controls stay, with no Try Again
+ok agent-history-unavailable: AXPress on the pending decision shows it, with no browser
+ok agent-history-unavailable: AXPress on Open link opens the link
+ok agent-history-unavailable: AXPress on the close control closes
 
 ### agent-invalid-link
     AXGroup description="Agent detail"
