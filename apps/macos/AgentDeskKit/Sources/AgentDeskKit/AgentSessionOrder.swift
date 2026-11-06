@@ -92,7 +92,8 @@ public enum AgentSessionOrder {
   }
 }
 
-/// One entry of the expanded agents list (AC-5.2, AC-5.3).
+/// One entry of the expanded agents list (AC-5.2, AC-5.3). An entry opens the
+/// detail panel and holds no link, so it can open no browser.
 public struct AgentEntryModel: Equatable, Sendable, Identifiable {
   public var id: String
   public var displayName: String
@@ -101,8 +102,6 @@ public struct AgentEntryModel: Equatable, Sendable, Identifiable {
   /// stale blocked session reads "blocked".
   public var stateText: String
   public var line: String?
-  /// The session's link when it is an absolute http or https URL.
-  public var link: URL?
 
   public init(session: AgentSession, now: Date) {
     id = session.id
@@ -114,13 +113,14 @@ public struct AgentEntryModel: Equatable, Sendable, Identifiable {
       stateText = session.state?.rawValue ?? "no status"
     }
     line = session.line
-    link = session.link.flatMap(Self.webURL)
   }
 
   public var accessibilityLabel: String {
     [displayName, stateText, line].compactMap { $0 }.joined(separator: ", ")
   }
 
+  /// The link when it is an absolute http or https URL. The panel's Open link
+  /// control is the only thing that reads it (req-mac-app AC-11.4).
   static func webURL(_ text: String) -> URL? {
     guard let url = URL(string: text), let scheme = url.scheme?.lowercased(),
       scheme == "http" || scheme == "https", url.host?.isEmpty == false

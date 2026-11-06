@@ -22,6 +22,10 @@ import Foundation
 public final class DecisionCoordinator {
   public let pending: PendingAnswers
   public let detail: DecisionDetail
+  /// The agent session the panel shows. The panel shows one target, so showing
+  /// a session ends the decision's reads, and showing a decision ends the
+  /// session's.
+  public let agent: AgentDetail
   /// Each decision's answer in progress, kept while it is pending.
   public var drafts: [String: AnswerDraft] = [:]
   /// Runs on the main actor after the list, the answers, or the drafts change.
@@ -37,17 +41,22 @@ public final class DecisionCoordinator {
   private var verifying: Set<String> = []
   /// Moves on sign-out, so a late direct read changes nothing.
   private var generation = 0
+  /// True while one target replaces another, so the window sees one change.
+  private var isReplacingTarget = false
 
   public init(
-    sender: any AnswerSender, reader: any DecisionReader, clock: any SyncClock = SystemSignInClock()
+    sender: any AnswerSender, reader: any DecisionReader, clock: any SyncClock = SystemSignInClock(),
+    agentReads: any AgentDetailReads = NoAgentDetailReads()
   ) {
     self.reader = reader
     pending = PendingAnswers(sender: sender, clock: clock)
     detail = DecisionDetail(reader: reader, clock: clock)
+    agent = AgentDetail(reads: agentReads)
     pending.onChange = { [weak self] in self?.onAnswersChange?() }
     pending.onRestore = { [weak self] in self?.restore($0) }
     pending.onComplete = { [weak self] in self?.complete($0, $1) }
     detail.onChange = { [weak self] in self?.detailChanged() }
+    agent.onChange = { [weak self] in self?.panelChanged() }
   }
 
   // MARK: Reads
@@ -144,14 +153,56 @@ public final class DecisionCoordinator {
 
   // MARK: The panel
 
+  /// What the panel shows, or nil while it is closed.
+  public var panelTarget: DetailPanelTarget? {
+    if let id = detail.shownID { return .decision(id) }
+    if let id = agent.shownID { return .agent(id) }
+    return nil
+  }
+
   /// Opens the row in the panel, or closes the panel when it shows that row.
   public func toggle(_ id: String) {
-    detail.toggle(id, known: record(id))
+    replacingTarget {
+      agent.close()
+      detail.toggle(id, known: record(id))
+    }
   }
 
   /// Shows a linked decision or a notification's target in the panel.
   public func show(_ id: String, closesIfStale: Bool = false) {
-    detail.show(id, known: record(id), closesIfStale: closesIfStale)
+    replacingTarget {
+      agent.close()
+      detail.show(id, known: record(id), closesIfStale: closesIfStale)
+    }
+  }
+
+  /// Opens the agent session in the panel, or closes the panel when it shows
+  /// that session (req-mac-app AC-5.3, AC-11.7). `known` is the list's record,
+  /// shown until the first reads answer.
+  public func toggleAgent(_ id: String, known: AgentSession?) {
+    replacingTarget {
+      detail.close()
+      agent.toggle(id, known: known)
+    }
+  }
+
+  /// Closes the panel whichever target it shows.
+  public func closePanel() {
+    replacingTarget {
+      detail.close()
+      agent.close()
+    }
+  }
+
+  /// Runs a change of target as one change for the window, so replacing a
+  /// target never hides and shows the panel.
+  private func replacingTarget(_ change: () -> Void) {
+    let outer = !isReplacingTarget
+    isReplacingTarget = true
+    change()
+    guard outer else { return }
+    isReplacingTarget = false
+    onDetailChange?()
   }
 
   private func detailChanged() {
@@ -166,6 +217,11 @@ public final class DecisionCoordinator {
     } else if detail.content == .unavailable, let id = detail.shownID {
       forget(id)
     }
+    panelChanged()
+  }
+
+  private func panelChanged() {
+    guard !isReplacingTarget else { return }
     onDetailChange?()
   }
 
@@ -205,7 +261,11 @@ public final class DecisionCoordinator {
     guard let attempt = pending.undo() else { return nil }
     let id = attempt.decision.id
     if let draft = attempt.draft { drafts[id] = draft }
-    detail.answerUndone(id, known: attempt.decision)
+    replacingTarget {
+      // Reopening the decision replaces an agent session the panel shows.
+      if detail.panel.reopenOnUndo == id { agent.close() }
+      detail.answerUndone(id, known: attempt.decision)
+    }
     onAnswersChange?()
     return id
   }
@@ -238,6 +298,9 @@ public final class DecisionCoordinator {
     snapshot = []
     drafts = [:]
     pending.reset()
-    detail.reset()
+    replacingTarget {
+      detail.reset()
+      agent.reset()
+    }
   }
 }

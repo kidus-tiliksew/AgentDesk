@@ -220,7 +220,7 @@ struct DecisionDetailView: View {
 }
 
 /// One labelled fact, read by VoiceOver as one element (req-mac-app AC-11.11).
-private struct Fact<Value: View>: View {
+struct Fact<Value: View>: View {
   let label: String
   @ViewBuilder let value: () -> Value
 

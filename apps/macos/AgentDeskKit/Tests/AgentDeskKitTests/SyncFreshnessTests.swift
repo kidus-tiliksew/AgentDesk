@@ -95,4 +95,57 @@ final class SyncFreshnessTests: XCTestCase {
     XCTAssertEqual(m.interval, Sync.openInterval)
     XCTAssertLessThan(m.total, 10)
   }
+
+  /// The panel's agent session: a status change must reach the panel within
+  /// 10 s (AC-11.10), with the tick on virtual time and both detail requests
+  /// run through `APIClient` and the stub.
+  func testShownAgentReflectsAChangeWithin10Seconds() async throws {
+    let line = ServerState()
+    let server = StubServer { request in
+      switch request.path {
+      case "/v1/decisions": return .json(200, Fixtures.page([], next: nil))
+      case "/v1/agent-sessions": return .json(200, Fixtures.page([Fixtures.agentSession(id: "s1")], next: nil))
+      case "/v1/agent-sessions/s1":
+        return .json(200, Fixtures.json(Fixtures.agentSession(id: "s1", ["line": line.ids[0]])))
+      case "/v1/agent-sessions/s1/history":
+        return .json(200, Fixtures.json(["items": [Fixtures.historyEntry()]]))
+      default:
+        return .error(404, "not_found", "Unexpected \(request.path)")
+      }
+    }
+    line.set(["Before"])
+    let clock = ManualClock()
+    let arrivals = Arrivals()
+    let sync = Sync(
+      reader: server.makeClient(), clock: clock, publish: { _ in },
+      publishAgentDetail: { arrivals.updates.append(($0, ContinuousClock.now)) })
+    defer { sync.stop() }
+    await sync.setOpen(true)
+    sync.start()
+    await eventually { clock.sleeping == 1 }
+    _ = sync.showAgent(id: "s1")
+    await eventually { arrivals.updates.count == 1 && clock.sleeping == 1 }
+    let interval = try XCTUnwrap(clock.requests.last)
+
+    // The status changes just after the read.
+    line.set(["After"])
+    let started = ContinuousClock.now
+    clock.advance(by: interval)
+    await eventually { arrivals.updates.count == 2 }
+    let arrival = try XCTUnwrap(arrivals.updates.last)
+    guard case .loaded(let session, let history) = arrival.update.outcome else {
+      return XCTFail("expected the pair")
+    }
+    XCTAssertEqual(session.line, "After")
+    XCTAssertEqual(history.count, 1)
+    let m = Measurement(interval: interval, read: arrival.at - started, pages: 2)
+    report("agent panel", m, bound: 10)
+    XCTAssertEqual(m.interval, Sync.openInterval)
+    XCTAssertLessThan(m.total, 10)
+  }
+
+  @MainActor
+  private final class Arrivals {
+    var updates: [(update: AgentDetailUpdate, at: ContinuousClock.Instant)] = []
+  }
 }

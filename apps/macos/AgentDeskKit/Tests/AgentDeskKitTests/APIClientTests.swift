@@ -140,6 +140,107 @@ final class APIClientTests: XCTestCase {
     }
   }
 
+  // MARK: One agent session and its history
+
+  func testAgentSessionReadsOneSessionWithTheBearerAndAnEscapedID() async throws {
+    let server = StubServer { _ in .json(200, Fixtures.json(Fixtures.agentSession(id: "s 1/x"))) }
+    let session = try await server.makeClient(token: "adp_secret").agentSession(id: "s 1/x")
+    XCTAssertEqual(session.id, "s 1/x")
+    let request = try XCTUnwrap(server.requests.first)
+    XCTAssertEqual(server.requests.count, 1)
+    XCTAssertEqual(request.method, "GET")
+    XCTAssertEqual(
+      request.url.absoluteString, "\(server.origin.absoluteString)/v1/agent-sessions/s%201%2Fx")
+    XCTAssertEqual(request.headers["Authorization"], "Bearer adp_secret")
+    XCTAssertEqual(request.headers["Accept"], "application/json")
+    XCTAssertEqual(request.timeout, 15)
+  }
+
+  func testHistoryReadsTheRouteWithNoCursorAndKeepsTheServersOrder() async throws {
+    let body = Fixtures.json([
+      "items": [
+        Fixtures.historyEntry(["line": "newest", "at": "2026-10-27T11:59:00Z"]),
+        Fixtures.historyEntry(["line": "older", "link": NSNull(), "at": "2026-10-27T11:00:00+01:00"]),
+      ],
+      "added_later": true,
+    ])
+    let server = StubServer { _ in .json(200, body) }
+    let history = try await server.makeClient(token: "adp_secret").agentSessionHistory(id: "s 1/x")
+    XCTAssertEqual(history.map(\.line), ["newest", "older"])
+    XCTAssertNil(history[1].link)
+    XCTAssertEqual(history[1].at, Fixtures.instant("2026-10-27T10:00:00Z"))
+    let request = try XCTUnwrap(server.requests.first)
+    XCTAssertEqual(server.requests.count, 1)
+    XCTAssertEqual(
+      request.url.absoluteString, "\(server.origin.absoluteString)/v1/agent-sessions/s%201%2Fx/history",
+      "the route has no cursor")
+    XCTAssertEqual(request.headers["Authorization"], "Bearer adp_secret")
+  }
+
+  func testAnEmptyHistoryIsAnEmptyList() async throws {
+    let server = StubServer { _ in .json(200, Fixtures.json(["items": [Any]()])) }
+    let history = try await server.makeClient().agentSessionHistory(id: "s1")
+    XCTAssertEqual(history, [])
+  }
+
+  func testDetailReadsMapErrorsAsEveryOtherRead() async throws {
+    let notFound = APIError.response(status: 404, code: "not_found", message: "Missing", field: nil)
+    let contract = StubServer { _ in .error(404, "not_found", "Missing") }
+    await assertThrows(notFound) { _ = try await contract.makeClient().agentSession(id: "s1") }
+    await assertThrows(notFound) { _ = try await contract.makeClient().agentSessionHistory(id: "s1") }
+
+    let html = StubServer { _ in StubResponse(status: 404, body: Data("<html>".utf8)) }
+    await assertThrows(.http(status: 404)) { _ = try await html.makeClient().agentSessionHistory(id: "s1") }
+
+    let unreadable = StubServer { _ in .json(200, "{\"items\": 1}") }
+    await assertThrows(.unreadable(status: 200)) {
+      _ = try await unreadable.makeClient().agentSessionHistory(id: "s1")
+    }
+  }
+
+  @MainActor
+  func testDetailReads401SignOut() async throws {
+    for read in ["session", "history"] {
+      let server = StubServer { _ in .error(401, "unauthenticated", "Missing or invalid credential") }
+      let store = MemoryCredentialStore([server.configuration.account: "adp_old"])
+      let account = Account(
+        configuration: server.configuration, credentials: store, session: server.makeSession(),
+        userAgent: "AgentDeskMac/9.9.9")
+      XCTAssertEqual(account.state, .signedIn, read)
+      do {
+        if read == "session" {
+          _ = try await account.api.agentSession(id: "s1")
+        } else {
+          _ = try await account.api.agentSessionHistory(id: "s1")
+        }
+        XCTFail("expected a 401 from the \(read) read")
+      } catch {
+        XCTAssertEqual(error.status, 401, read)
+      }
+      await eventually("\(read): signed out") { account.state == .signedOut }
+    }
+  }
+
+  func testDetailReadsWithoutATokenSendNothing() async throws {
+    let server = StubServer { _ in .json(200, "{}") }
+    let client = server.makeClient(token: nil)
+    await assertThrows(.signedOut) { _ = try await client.agentSession(id: "s1") }
+    await assertThrows(.signedOut) { _ = try await client.agentSessionHistory(id: "s1") }
+    XCTAssertTrue(server.requests.isEmpty)
+  }
+
+  private func assertThrows(
+    _ expected: APIError, file: StaticString = #filePath, line: UInt = #line,
+    _ body: () async throws -> Void
+  ) async {
+    do {
+      try await body()
+      XCTFail("expected \(expected)", file: file, line: line)
+    } catch {
+      XCTAssertEqual(error as? APIError, expected, file: file, line: line)
+    }
+  }
+
   func testLiveAgentsFollowCursorsUntilNull() async throws {
     let server = StubServer { request in
       request.query["cursor"] == nil

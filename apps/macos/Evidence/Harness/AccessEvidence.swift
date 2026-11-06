@@ -3,8 +3,8 @@ import ApplicationServices
 import Observation
 import SwiftUI
 
-// Keyboard and assistive evidence for the shipped `DecisionDetailView`
-// (req-mac-app AC-11.11, AC-7.2). `run.sh` runs this as its own process, with
+// Keyboard and assistive evidence for the shipped `DecisionDetailView`,
+// `AgentDetailView`, and `AgentEntry` (req-mac-app AC-11.11, AC-7.2). `run.sh` runs this as its own process, with
 // `-AppleKeyboardUIMode 2` on its command line and nothing else overridden.
 //
 // An Accessibility API read shows what an assistive client such as VoiceOver is
@@ -299,7 +299,7 @@ func accessEvidence() -> Int32 {
   NSApp.setActivationPolicy(.prohibited)
   NSApp.finishLaunching()
   say("# Panel keyboard and assistive evidence")
-  say("Compiled from the shipped DecisionDetailView, AnswerControls, and ApproveRejectButtons; only the actions and draft storage are fixtures.")
+  say("Compiled from the shipped DecisionDetailView, AgentDetailView, AgentsView, AnswerControls, and ApproveRejectButtons; only the actions and draft storage are fixtures.")
   say("An Accessibility API read shows what an assistive client is given, not what VoiceOver speaks.")
   say("")
 
@@ -529,6 +529,135 @@ func accessEvidence() -> Int32 {
   }
   stateScene("refresh-failed", presentation(panelDecisions[0].1, refreshFailed: true)) { _, _, entries in
     check("refresh-failed: the state reads as text", entries.contains { ($0.value ?? "").contains("Couldn't refresh this decision.") })
+  }
+
+  // The agent panel (AC-11.3, AC-11.4, AC-11.5, AC-11.11).
+  say("## Agent panel")
+  say("")
+  final class AgentActions {
+    var closes = 0
+    var retries = 0
+    var openedLinks = 0
+    var decisions: [String] = []
+    var actions: AgentDetailActions {
+      AgentDetailActions(
+        openDecision: { self.decisions.append($0) }, close: { self.closes += 1 }, retry: { self.retries += 1 },
+        openLink: { self.openedLinks += 1 })
+    }
+  }
+  func agentScene(
+    _ name: String, _ shown: AgentDetailPresentation, _ body: (AgentActions, AccessStage, [AXEntry]) -> Void
+  ) {
+    let model = AgentActions()
+    let stage = AccessStage(
+      AgentDetailView(presentation: shown, actions: model.actions), width: CGFloat(DetailPanelPlacement.width))
+    let entries = stage.read()
+    tree(name, entries)
+    let controls = entries.filter(\.isControl)
+    check("\(name): every control has a name", controls.allSatisfy { !$0.name.isEmpty })
+    check("\(name): every control offers AXPress", controls.allSatisfy { $0.actions.contains("AXPress") })
+    check("\(name): the close control is named and pressable", named(entries, "AXButton", "Close detail")?.actions.contains("AXPress") == true)
+    check("\(name): the panel names itself", entries.contains { $0.description == "Agent detail" })
+    check("\(name): nothing reads as a web link", !entries.contains { $0.role == "AXLink" })
+    check("\(name): every element has a known role", !entries.contains { $0.role == "AXUnknown" })
+    check("\(name): no text field, so nothing sends a message to the agent", !entries.contains { $0.role == "AXTextField" || $0.role == "AXTextArea" })
+    body(model, stage, entries)
+    if let close = named(stage.read(), "AXButton", "Close detail") {
+      check("\(name): AXPress on the close control closes", stage.press(close) && model.closes == 1)
+    }
+    stage.close()
+    say("")
+  }
+  func reads(_ entries: [AXEntry], _ text: String) -> Bool {
+    entries.contains { ($0.value ?? "").contains(text) || ($0.description ?? "").contains(text) || ($0.title ?? "").contains(text) }
+  }
+  agentScene("agent-working", agentPresentation(workingAgent)) { model, stage, entries in
+    for (fact, text) in [
+      ("state and update age", "Working, 2m ago"), ("the status line", "Running the migration tests"),
+      ("the display name", "Claude Code · api"), ("the topic", "api/migrations"),
+      ("the pending count", "1 pending decision"), ("the section", "Waiting on you"), ("the history section", "History"),
+      ("the newest history entry", "Waiting for the staging soak"), ("an older history entry", "Started on the events table"),
+    ] {
+      check("agent-working: \(fact) reads as text", reads(entries, text))
+    }
+    check("agent-working: the status line is a heading", entries.contains { $0.role == "AXHeading" && $0.name.contains("Running the migration tests") })
+    check("agent-working: a history entry's link is plain text", entries.contains { $0.role == "AXStaticText" && ($0.value ?? "").contains("https://example.com/soak/12") })
+    check("agent-working: AXPress on the pending decision shows it, with no browser", named(entries, "AXButton", "Delete the stale preview databases?").map(stage.press) == true && model.decisions == ["ap_1"] && model.openedLinks == 0)
+    check("agent-working: AXPress on Open link is the one thing that opens a link", named(entries, "AXButton", "Open link").map(stage.press) == true && model.openedLinks == 1)
+  }
+  agentScene("agent-stale", agentPresentation(staleAgent)) { model, _, entries in
+    check("agent-stale: the stale marker reads as text", reads(entries, "Waiting, 45m ago, Stale"))
+    check("agent-stale: the empty list reads as text", reads(entries, "No pending decisions."))
+    check("agent-stale: with no link, close is the only control", entries.filter(\.isControl).map(\.name) == ["Close detail"])
+  }
+  agentScene("agent-blocked", agentPresentation(blockedAgent)) { _, _, entries in
+    check("agent-blocked: blocked reads in words, not only red", reads(entries, "Blocked, 10m ago"))
+    let row = named(entries, "AXButton", "Ship the 2.4 release")
+    check("agent-blocked: the pending decision reads urgent and its time left", (row?.value ?? "").contains("Urgent") && (row?.value ?? "").contains("4m left"))
+  }
+  agentScene("agent-no-status", agentPresentation(noStatusAgent, history: [])) { _, _, entries in
+    check("agent-no-status: reads no status and no update", reads(entries, "No status yet, No update yet"))
+    check("agent-no-status: the empty history reads as text", reads(entries, "No earlier statuses."))
+  }
+  for (name, session) in [("agent-invalid-link", invalidLinkAgent), ("agent-relative-link", relativeLinkAgent)] {
+    agentScene(name, agentPresentation(session)) { _, _, entries in
+      check("\(name): offers no Open link", named(entries, "AXButton", "Open link") == nil)
+    }
+  }
+  agentScene("agent-loading", AgentDetailPresentation(content: .loading(nil), refreshFailed: false, decisions: [], now: now)) { _, _, entries in
+    check("agent-loading: the state is named", reads(entries, "Loading this agent"))
+  }
+  agentScene("agent-load-failed", AgentDetailPresentation(content: .failed(workingAgent), refreshFailed: false, decisions: [], now: now)) { model, stage, entries in
+    check("agent-load-failed: the message reads", reads(entries, "Couldn't load this agent."))
+    check("agent-load-failed: the list's record stays", reads(entries, "Running the migration tests"))
+    check("agent-load-failed: AXPress on Try Again retries", named(entries, "AXButton", "Try Again").map(stage.press) == true && model.retries == 1)
+  }
+  agentScene("agent-refresh-failed", agentPresentation(workingAgent, refreshFailed: true)) { model, stage, entries in
+    check("agent-refresh-failed: the warning reads", reads(entries, "Couldn't refresh this agent."))
+    check("agent-refresh-failed: the session stays", reads(entries, "Running the migration tests"))
+    check("agent-refresh-failed: AXPress on Try Again retries", named(entries, "AXButton", "Try Again").map(stage.press) == true && model.retries == 1)
+  }
+  agentScene("agent-gone", AgentDetailPresentation(content: .gone)) { _, _, entries in
+    check("agent-gone: the message reads", reads(entries, "This agent session is gone."))
+    check("agent-gone: close is the only control", entries.filter(\.isControl).map(\.name) == ["Close detail"])
+  }
+  do {
+    let stage = AccessStage(
+      AgentDetailView(presentation: agentPresentation(workingAgent)), width: CGFloat(DetailPanelPlacement.width))
+    let stops = stage.forwardStops()
+    say("Agent panel's key view loop with NSApp.isFullKeyboardAccessEnabled \(NSApp.isFullKeyboardAccessEnabled): \(stops.joined(separator: " > "))")
+    say("NOT EXERCISED, assigned to the operator's pre-release checks: the agent panel's buttons in the Tab order with the Mac's Keyboard navigation setting on. This panel has no text field, so Tab has no stop with that setting off.")
+    stage.close()
+    say("")
+  }
+
+  // The entries, which open the panel and no browser (AC-5.3).
+  do {
+    final class Opened {
+      var ids: [String] = []
+    }
+    let opened = Opened()
+    let linked = [workingAgent, blockedAgent, staleAgent, invalidLinkAgent]
+    let stage = AccessStage(
+      AgentsView(
+        agents: linked, now: now, expanded: .constant(true), quietRevealed: .constant(true),
+        open: { opened.ids.append($0) }), width: 340)
+    let entries = stage.read()
+    tree("agent entries", entries)
+    for (session, text) in [
+      (workingAgent, "Claude Code · api, working, Running the migration tests"),
+      (blockedAgent, "Codex · web, blocked, Needs a decision"),
+      (staleAgent, "Cursor · docs, quiet 43m, Waiting for review"),
+      (invalidLinkAgent, "Claude Code · link, working, Holds a link"),
+    ] {
+      let entry = named(entries, "AXButton", text)
+      check("entry \(session.id): a named button, with or without a link", entry?.actions.contains("AXPress") == true)
+      opened.ids = []
+      check("entry \(session.id): AXPress opens the panel for that session", entry.map(stage.press) == true && opened.ids == [session.id])
+    }
+    check("entries: none reads as a web link", !entries.contains { $0.role == "AXLink" })
+    stage.close()
+    say("")
   }
 
   // A row, for the list's half of the same requirement (AC-7.2).

@@ -129,6 +129,60 @@ final class SchemaConformanceTests: XCTestCase {
     XCTAssertEqual(keys(ErrorBody.Detail.CodingKeys.self), Set(detail.keys))
   }
 
+  /// The published history route's 200 body, read from the specification.
+  private func historyResponseSchema() throws -> [String: Any] {
+    let spec = try Self.load("spec/openapi.json")
+    let paths = try XCTUnwrap(spec["paths"] as? [String: Any])
+    let route = try XCTUnwrap(paths["/v1/agent-sessions/{agent_session_id}/history"] as? [String: Any])
+    let get = try XCTUnwrap(route["get"] as? [String: Any])
+    let responses = try XCTUnwrap(get["responses"] as? [String: Any])
+    let ok = try XCTUnwrap(responses["200"] as? [String: Any])
+    let content = try XCTUnwrap(ok["content"] as? [String: Any])
+    let json = try XCTUnwrap(content["application/json"] as? [String: Any])
+    return try XCTUnwrap(json["schema"] as? [String: Any])
+  }
+
+  func testHistoryCodingKeysMatchTheHistoryRoute() throws {
+    let response = try historyResponseSchema()
+    XCTAssertEqual(keys(AgentSessionHistory.CodingKeys.self), Set(try properties(response).keys))
+    XCTAssertEqual(response["required"] as? [String], ["items"])
+    let items = try XCTUnwrap(try properties(response)["items"])
+    XCTAssertEqual(items["maxItems"] as? Int, 20)
+    let entry = try XCTUnwrap(items["items"] as? [String: Any])
+    let fields = try properties(entry)
+    XCTAssertEqual(keys(StatusHistoryEntry.CodingKeys.self), Set(fields.keys))
+    XCTAssertEqual(Set(entry["required"] as? [String] ?? []), Set(fields.keys))
+    XCTAssertEqual(
+      enumValues(try XCTUnwrap(fields["state"])), Set(AgentSession.State.allCases.map(\.rawValue)))
+  }
+
+  func testAFullHistoryEntryRoundTripsEverySchemaProperty() throws {
+    let data = Fixtures.data(["items": [Fixtures.historyEntry()]])
+    let history = try JSONDecoder.agentDesk().decode(AgentSessionHistory.self, from: data)
+    XCTAssertEqual(history.items.count, 1)
+    let entry = try XCTUnwrap(history.items.first)
+    XCTAssertEqual(entry.state, .working)
+    XCTAssertEqual(entry.line, "Ran the tests")
+    XCTAssertEqual(entry.link, "https://example.com/run/1")
+    XCTAssertEqual(entry.at, Fixtures.instant("2026-10-27T11:50:00.25Z"))
+    let encoded = try JSONEncoder.agentDesk().encode(entry)
+    let object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    let fields = try properties(
+      try XCTUnwrap(try properties(try historyResponseSchema())["items"]?["items"] as? [String: Any]))
+    XCTAssertEqual(Set(object.keys), Set(fields.keys))
+  }
+
+  func testAHistoryEntryWithANullLinkAndUnknownFieldsDecodes() throws {
+    let data = Fixtures.data([
+      "items": [Fixtures.historyEntry(["link": NSNull(), "added_later": 1])], "also_added": true,
+    ])
+    let history = try JSONDecoder.agentDesk().decode(AgentSessionHistory.self, from: data)
+    XCTAssertNil(history.items.first?.link)
+    let empty = try JSONDecoder.agentDesk().decode(
+      AgentSessionHistory.self, from: Fixtures.data(["items": [Any]()]))
+    XCTAssertEqual(empty.items, [])
+  }
+
   // MARK: Decoding through the declared keys
 
   /// A fully populated fixture decodes and re-encodes to exactly the schema's

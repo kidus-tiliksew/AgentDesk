@@ -98,6 +98,19 @@ public final class APIClient: Sendable {
     return sessions
   }
 
+  /// One agent session, which the detail panel shows (req-mac-app AC-11.3).
+  public func agentSession(id: String) async throws(APIError) -> AgentSession {
+    try await get("/v1/agent-sessions/\(Self.segment(id))")
+  }
+
+  /// A session's previous statuses, newest first, in the server's order
+  /// (req-mac-app AC-11.3; DEC-23(4)).
+  public func agentSessionHistory(id: String) async throws(APIError) -> [StatusHistoryEntry] {
+    let history: AgentSessionHistory = try await get(
+      "/v1/agent-sessions/\(Self.segment(id))/history")
+    return history.items
+  }
+
   // MARK: Sign-in
 
   /// `POST /device/start` for this Mac (req-mac-app AC-2.1).

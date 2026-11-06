@@ -1,5 +1,4 @@
 import AgentDeskKit
-import AppKit
 import SwiftUI
 
 /// "N active · M quiet · K blocked", which expands to the live sessions:
@@ -10,7 +9,13 @@ struct AgentsView: View {
   let now: Date
   @Binding var expanded: Bool
   @Binding var quietRevealed: Bool
+  /// The session the detail panel shows.
+  var shownID: String?
+  /// Shows the session in the panel, or closes the panel when it shows it
+  /// (req-mac-app AC-5.3, AC-11.7).
+  var open: (String) -> Void = { _ in }
   @State private var listHeight: CGFloat = 0
+  @State private var hoveredID: String?
 
   static let maxListHeight: CGFloat = 160
 
@@ -53,13 +58,13 @@ struct AgentsView: View {
         ScrollView {
           VStack(alignment: .leading, spacing: 0) {
             ForEach(AgentSessionOrder.listed(agents)) { session in
-              AgentEntry(entry: AgentEntryModel(session: session, now: now))
+              entry(session)
             }
             if summary.quiet > 0 {
               quietControl(summary)
               if quietRevealed {
                 ForEach(AgentSessionOrder.quiet(agents)) { session in
-                  AgentEntry(entry: AgentEntryModel(session: session, now: now))
+                  entry(session)
                 }
               }
             }
@@ -71,6 +76,22 @@ struct AgentsView: View {
         .scrollIndicators(.visible)
         .scrollBounceBehavior(.basedOnSize)
         .frame(height: min(max(listHeight, 1), Self.maxListHeight))
+      }
+    }
+  }
+
+  private func entry(_ session: AgentSession) -> some View {
+    AgentEntry(
+      entry: AgentEntryModel(session: session, now: now),
+      isHighlighted: session.id == hoveredID || session.id == shownID,
+      isShown: session.id == shownID,
+      open: { open(session.id) }
+    )
+    .onHover { inside in
+      if inside {
+        hoveredID = session.id
+      } else if hoveredID == session.id {
+        hoveredID = nil
       }
     }
   }
@@ -97,29 +118,28 @@ struct AgentsView: View {
   }
 }
 
-/// One live session: its dot, name, state, and status line. A session with a
-/// link opens it in the default browser until the agent panel replaces this
-/// (req-mac-app AC-5.2).
+/// One live session: its dot, name, state, and status line. Clicking it shows
+/// the session in the detail panel, with or without a link, and opens no browser
+/// (req-mac-app AC-5.2, AC-5.3).
 struct AgentEntry: View {
   let entry: AgentEntryModel
+  var isHighlighted = false
+  var isShown = false
+  var open: () -> Void = {}
 
   var body: some View {
-    if let link = entry.link {
-      Button {
-        NSWorkspace.shared.open(link)
-      } label: {
-        content
-      }
-      .buttonStyle(.plain)
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel(entry.accessibilityLabel)
-      .accessibilityHint("Opens the agent's page")
-      .accessibilityAddTraits(.isLink)
-    } else {
+    Button(action: open) {
       content
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(entry.accessibilityLabel)
     }
+    .buttonStyle(.plain)
+    .background(
+      RoundedRectangle(cornerRadius: 6)
+        .fill(Color.primary.opacity(isHighlighted ? 0.06 : 0))
+        .padding(.horizontal, 6)
+    )
+    .accessibilityLabel(entry.accessibilityLabel)
+    .accessibilityHint(isShown ? "Closes the detail panel" : "Shows this session in the detail panel")
+    .accessibilityAddTraits(isShown ? .isSelected : [])
   }
 
   private var content: some View {

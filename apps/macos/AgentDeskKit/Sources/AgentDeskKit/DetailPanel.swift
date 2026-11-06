@@ -57,6 +57,26 @@ public enum DetailPanelPlacement {
   }
 }
 
+/// What the one panel shows (req-mac-app REQ-11; DEC-23(1)). The two id spaces
+/// never meet, so a decision and an agent session with the same id stay
+/// different targets.
+public enum DetailPanelTarget: Equatable, Hashable, Sendable {
+  case decision(String)
+  case agent(String)
+
+  /// The shown decision's id, and nil for an agent session.
+  public var decisionID: String? {
+    if case .decision(let id) = self { return id }
+    return nil
+  }
+
+  /// The shown agent session's id, and nil for a decision.
+  public var agentID: String? {
+    if case .agent(let id) = self { return id }
+    return nil
+  }
+}
+
 /// Which decision the panel shows, kept apart from the list's selection, so
 /// a parent or follow-up link and a decision settled while shown survive
 /// leaving the pending list (req-mac-app AC-4.6, AC-11.5, AC-11.7). The

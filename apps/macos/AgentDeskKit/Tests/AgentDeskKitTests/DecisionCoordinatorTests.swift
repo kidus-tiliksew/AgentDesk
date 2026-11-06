@@ -364,4 +364,127 @@ final class DecisionCoordinatorTests: XCTestCase {
     XCTAssertFalse(coordinator.shownIsAnswerable)
     XCTAssertNil(coordinator.record("linked"))
   }
+
+  // MARK: The panel's two targets
+
+  private final class Opened {
+    var urls: [URL] = []
+  }
+
+  private func withAgentReads() -> (FakeAgentDetailReads, Opened) {
+    let reads = FakeAgentDetailReads()
+    coordinator = DecisionCoordinator(sender: sender, reader: reader, clock: clock, agentReads: reads)
+    let opened = Opened()
+    coordinator.agent.opener = { opened.urls.append($0) }
+    return (reads, opened)
+  }
+
+  func testAnAgentReplacesADecisionAndEndsItsReads() async {
+    let (reads, _) = withAgentReads()
+    coordinator.applySnapshot([listedOne], isNewRead: true)
+    reader.answer("listed", .success(listedOne))
+    coordinator.toggle("listed")
+    await eventually("the decision's read") { self.reader.reads == ["listed"] }
+    XCTAssertEqual(coordinator.panelTarget, .decision("listed"))
+
+    var changes = 0
+    coordinator.onDetailChange = { changes += 1 }
+    coordinator.toggleAgent("s1", known: Fixtures.session("s1"))
+    XCTAssertEqual(changes, 1, "the window sees one change, so the panel never hides between targets")
+    XCTAssertEqual(coordinator.panelTarget, .agent("s1"))
+    XCTAssertNil(coordinator.detail.shownID)
+    XCTAssertEqual(reads.shows, ["s1"])
+
+    clock.advance(by: 5)
+    await settle()
+    XCTAssertEqual(reader.reads, ["listed"], "the decision is not read again")
+  }
+
+  func testADecisionReplacesAnAgentAndEndsItsHistoryReads() {
+    let (reads, _) = withAgentReads()
+    coordinator.applySnapshot([listedOne], isNewRead: true)
+    coordinator.toggleAgent("s1", known: nil)
+    var changes = 0
+    coordinator.onDetailChange = { changes += 1 }
+    coordinator.show("listed")
+    XCTAssertEqual(changes, 1)
+    XCTAssertEqual(coordinator.panelTarget, .decision("listed"))
+    XCTAssertEqual(reads.hideCalls, 1)
+    XCTAssertNil(coordinator.agent.shownID)
+  }
+
+  func testTheSameIDIsADifferentTargetAcrossKinds() {
+    let (reads, _) = withAgentReads()
+    coordinator.applySnapshot([listedOne], isNewRead: true)
+    coordinator.toggle("listed")
+    coordinator.toggleAgent("listed", known: nil)
+    XCTAssertEqual(coordinator.panelTarget, .agent("listed"), "replaces, and does not close")
+    XCTAssertEqual(reads.shows, ["listed"])
+    coordinator.toggle("listed")
+    XCTAssertEqual(coordinator.panelTarget, .decision("listed"), "replaces, and does not close")
+  }
+
+  func testOpeningTheShownAgentClosesThePanel() {
+    let (reads, _) = withAgentReads()
+    coordinator.toggleAgent("s1", known: nil)
+    coordinator.toggleAgent("s1", known: nil)
+    XCTAssertNil(coordinator.panelTarget)
+    XCTAssertEqual(reads.hideCalls, 1)
+    coordinator.toggleAgent("s1", known: nil)
+    XCTAssertEqual(reads.shows, ["s1", "s1"], "reopening reads again")
+  }
+
+  func testAnAnswerFromARowLeavesAShownAgent() async {
+    let (_, _) = withAgentReads()
+    coordinator.applySnapshot([listedOne], isNewRead: true)
+    coordinator.toggleAgent("s1", known: nil)
+    coordinator.answer("listed", .approve)
+    XCTAssertEqual(coordinator.panelTarget, .agent("s1"))
+    coordinator.undo()
+    XCTAssertEqual(coordinator.panelTarget, .agent("s1"), "the answer closed no panel, so Undo reopens none")
+  }
+
+  func testUndoReopensItsDecisionOverAnAgent() async {
+    let (reads, _) = withAgentReads()
+    await holdLinked()
+    coordinator.toggleAgent("s1", known: nil)
+    XCTAssertEqual(coordinator.panelTarget, .agent("s1"))
+    coordinator.undo()
+    XCTAssertEqual(coordinator.panelTarget, .decision("linked"))
+    XCTAssertNil(coordinator.agent.shownID)
+    XCTAssertEqual(reads.hideCalls, 1)
+    XCTAssertEqual(sender.posts, [], "Undo sends nothing")
+  }
+
+  func testClosingThePanelAndResetEndEitherTarget() {
+    let (reads, _) = withAgentReads()
+    coordinator.toggleAgent("s1", known: nil)
+    coordinator.closePanel()
+    XCTAssertNil(coordinator.panelTarget)
+    XCTAssertEqual(reads.hideCalls, 1)
+
+    coordinator.toggleAgent("s1", known: nil)
+    coordinator.reset()
+    XCTAssertNil(coordinator.panelTarget)
+    XCTAssertNil(coordinator.agent.content)
+  }
+
+  func testNothingButTheControlOpensALink() {
+    let (_, opened) = withAgentReads()
+    let session = Fixtures.session("s1", ["link": "https://example.com/pr/1"])
+    coordinator.applySnapshot(
+      [Fixtures.pending("mine", ["agent_session_id": "s1"])], isNewRead: true)
+    coordinator.toggleAgent("s1", known: session)
+    coordinator.toggleAgent("s2", known: session)
+    coordinator.toggleAgent("s1", known: session)
+    coordinator.show("mine")
+    coordinator.toggleAgent("s1", known: session)
+    coordinator.agent.retry()
+    coordinator.closePanel()
+    coordinator.toggleAgent("s1", known: session)
+    XCTAssertEqual(opened.urls, [], "entries, replacing, a pending decision, and closing open nothing")
+
+    XCTAssertTrue(coordinator.agent.openLink())
+    XCTAssertEqual(opened.urls, [URL(string: "https://example.com/pr/1")])
+  }
 }

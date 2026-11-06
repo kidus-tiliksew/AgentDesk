@@ -21,8 +21,8 @@ final class PopoverController: NSObject, NSPopoverDelegate {
   private let popover = NSPopover()
   private let detail: DetailPanelController<DetailPanelRoot>
   private var lifetime: PairedWindowLifetime?
-  /// The decision the panel shows, as `AppState` last reported it.
-  private var panelTarget: String?
+  /// What the panel shows, as `AppState` last reported it.
+  private var panelTarget: DetailPanelTarget?
 
   init(state: AppState) {
     self.state = state
@@ -94,14 +94,15 @@ final class PopoverController: NSObject, NSPopoverDelegate {
 
   /// Follows `AppState`'s target: opening, replacing, or closing the one
   /// panel. Closing gives key focus back to the popover (AC-11.11).
-  private func panelChanged(_ id: String?) {
-    guard id != panelTarget else { return }
-    panelTarget = id
-    guard id != nil else {
+  private func panelChanged(_ target: DetailPanelTarget?) {
+    guard target != panelTarget else { return }
+    panelTarget = target
+    guard let target else {
       detail.hide()
       if popover.isShown { popoverWindow?.makeKey() }
       return
     }
+    detail.window.setAccessibilityTitle(target.agentID == nil ? "Decision detail" : "Agent detail")
     guard popover.isShown, let anchor = popover.contentViewController?.view else { return }
     detail.present(beside: anchor)
   }
@@ -134,5 +135,5 @@ struct PopoverPresenter {
   let show: @MainActor () -> Void
   let close: @MainActor () -> Void
   /// The panel's target changed; nil closes it.
-  let panelChanged: @MainActor (String?) -> Void
+  let panelChanged: @MainActor (DetailPanelTarget?) -> Void
 }

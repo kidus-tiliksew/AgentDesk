@@ -1,10 +1,12 @@
 import Foundation
 import OSLog
 
-/// The two reads `Sync` makes. `APIClient` provides them.
+/// The reads `Sync` makes. `APIClient` provides them.
 public protocol SyncReader: Sendable {
   func pendingDecisions() async throws(APIError) -> [Decision]
   func liveAgentSessions() async throws(APIError) -> [AgentSession]
+  func agentSession(id: String) async throws(APIError) -> AgentSession
+  func agentSessionHistory(id: String) async throws(APIError) -> [StatusHistoryEntry]
 }
 
 extension APIClient: SyncReader {}
@@ -31,6 +33,13 @@ extension SystemSignInClock: SyncClock {}
 /// Each run has a generation. `stop()` ends it synchronously, so a read
 /// still in flight when the account signs out publishes nothing, and a later
 /// sign-in starts from an empty snapshot.
+///
+/// While the detail panel shows an agent session and the popover is open, each
+/// read also fetches that session and its history, on the same timer and under
+/// the same backoff, and no history is read otherwise (req-mac-app AC-11.3,
+/// AC-11.10; DEC-23(4)). The target has its own generation, so a result for a
+/// closed, replaced, or reopened target changes nothing. Panel data never moves
+/// `fetchedAt`.
 public actor Sync {
   public static let openInterval: TimeInterval = 5
   public static let closedInterval: TimeInterval = 15
@@ -53,12 +62,21 @@ public actor Sync {
   }
 
   public typealias Publish = @MainActor @Sendable (Snapshot) -> Void
+  public typealias AgentDetailPublish = @MainActor @Sendable (AgentDetailUpdate) -> Void
+
+  /// How much one read fetches. A retry reads only the panel's target.
+  private enum ReadScope {
+    case target
+    case full
+  }
 
   private let reader: any SyncReader
   private let clock: any SyncClock
   private let now: @Sendable () -> Date
   private let publish: Publish
+  private let publishAgentDetail: AgentDetailPublish
   private let run = RunState()
+  private let targets = AgentTargetState()
 
   private var snapshot = Snapshot.empty
   private var isOpen = false
@@ -66,6 +84,9 @@ public actor Sync {
   private var timer: Task<Void, Never>?
   private var read: (id: Int, task: Task<Void, Never>)?
   private var nextReadID = 0
+  /// The immediate read a trigger asked for, until it starts. A later trigger
+  /// widens it and never narrows it, so a retry cannot drop an opening's read.
+  private var queued: ReadScope?
   /// The generation the timer and read belong to.
   private var tasksGeneration = 0
 
@@ -75,12 +96,14 @@ public actor Sync {
     reader: any SyncReader,
     clock: any SyncClock = SystemSignInClock(),
     now: @escaping @Sendable () -> Date = { Date() },
-    publish: @escaping Publish
+    publish: @escaping Publish,
+    publishAgentDetail: @escaping AgentDetailPublish = { _ in }
   ) {
     self.reader = reader
     self.clock = clock
     self.now = now
     self.publish = publish
+    self.publishAgentDetail = publishAgentDetail
   }
 
   // MARK: Lifecycle
@@ -95,6 +118,7 @@ public actor Sync {
   /// returns. Sign-out and a 401 call it (req-mac-app AC-2.6).
   public nonisolated func stop() {
     run.end()
+    targets.clear()
     Task { await self.cancelStaleTasks() }
   }
 
@@ -104,13 +128,13 @@ public actor Sync {
     guard open != isOpen else { return }
     isOpen = open
     guard let generation = run.current else { return }
-    schedule(generation, immediate: open)
+    schedule(generation, open ? .full : nil)
   }
 
   /// The Mac woke or the network path became satisfied: read at once.
   public func readNow() {
     guard let generation = run.current else { return }
-    schedule(generation, immediate: true)
+    schedule(generation, .full)
   }
 
   /// The wait before the next timer tick.
@@ -121,6 +145,33 @@ public actor Sync {
 
   public var isRunning: Bool { run.current != nil }
 
+  // MARK: The panel's agent session
+
+  /// The panel shows this session: from now on results for any earlier target
+  /// change nothing, and a read of the lists, the session, and its history
+  /// starts at once.
+  public nonisolated func showAgent(id: String) -> AgentDetailTarget {
+    let target = targets.show(id: id)
+    Task { await self.trigger(.full) }
+    return target
+  }
+
+  /// The panel no longer shows a session: its history is not read again, and a
+  /// read in flight changes nothing.
+  public nonisolated func hideAgent() {
+    targets.clear()
+  }
+
+  /// Try Again: reads only the shown session and its history.
+  public nonisolated func retryAgent() {
+    Task { await self.trigger(.target) }
+  }
+
+  private func trigger(_ scope: ReadScope) {
+    guard let generation = run.current else { return }
+    schedule(generation, scope)
+  }
+
   // MARK: Scheduling
 
   private func launch(_ generation: Int) {
@@ -128,7 +179,7 @@ public actor Sync {
     cancelTasks()
     snapshot = .empty
     failures = 0
-    schedule(generation, immediate: true)
+    schedule(generation, .full)
   }
 
   private func cancelStaleTasks() {
@@ -141,25 +192,33 @@ public actor Sync {
     timer = nil
     read?.task.cancel()
     read = nil
+    queued = nil
   }
 
-  /// Replaces the timer, so a trigger never leaves two timers running.
-  private func schedule(_ generation: Int, immediate: Bool) {
+  /// Replaces the timer, so a trigger never leaves two timers running. `nil`
+  /// asks for no immediate read and drops one that has not started.
+  private func schedule(_ generation: Int, _ trigger: ReadScope?) {
     timer?.cancel()
     tasksGeneration = generation
-    timer = Task { await self.loop(generation, immediate: immediate) }
+    switch trigger {
+    case nil: queued = nil
+    case .full: queued = .full
+    case .target: queued = queued ?? .target
+    }
+    timer = Task { await self.loop(generation) }
   }
 
-  private func loop(_ generation: Int, immediate: Bool) async {
-    if immediate {
+  private func loop(_ generation: Int) async {
+    if queued != nil {
       // A trigger that finds a read in flight waits for it and reads again,
       // so opening the popover always reads the agents.
       while let current = read {
         await current.task.value
         finish(current.id)
       }
-      guard !Task.isCancelled, run.isCurrent(generation) else { return }
-      await tick(generation)
+      guard !Task.isCancelled, run.isCurrent(generation), let scope = queued else { return }
+      queued = nil
+      await tick(generation, scope)
     }
     while !Task.isCancelled, run.isCurrent(generation) {
       do {
@@ -170,16 +229,16 @@ public actor Sync {
       guard !Task.isCancelled, run.isCurrent(generation) else { return }
       // Reads never overlap: a tick that finds a read in flight is skipped.
       guard read == nil else { continue }
-      await tick(generation)
+      await tick(generation, .full)
     }
   }
 
   /// Runs one read in its own task, so replacing the timer never cancels a
   /// request in flight.
-  private func tick(_ generation: Int) async {
+  private func tick(_ generation: Int, _ scope: ReadScope) async {
     nextReadID += 1
     let id = nextReadID
-    let task = Task { await self.performRead(generation) }
+    let task = Task { await self.performRead(generation, scope) }
     read = (id, task)
     await task.value
     finish(id)
@@ -191,27 +250,45 @@ public actor Sync {
 
   // MARK: Reads
 
-  private func performRead(_ generation: Int) async {
-    let includeAgents = isOpen
+  private func performRead(_ generation: Int, _ scope: ReadScope) async {
+    let readsLists = scope == .full
+    let includeAgents = readsLists && isOpen
+    let target = isOpen ? targets.readable : nil
+    guard readsLists || target != nil else { return }
     let reader = self.reader
-    async let decisions = Self.capture { () async throws(APIError) in try await reader.pendingDecisions() }
+    let targetID = target?.id ?? ""
+    let readsTarget = target != nil
+    async let decisions: Result<[Decision], APIError>? =
+      readsLists
+      ? Self.capture { () async throws(APIError) in try await reader.pendingDecisions() } : nil
     async let agents: Result<[AgentSession], APIError>? =
       includeAgents
       ? Self.capture { () async throws(APIError) in try await reader.liveAgentSessions() } : nil
-    let (decisionsResult, agentsResult) = await (decisions, agents)
+    async let session: Result<AgentSession, APIError>? =
+      readsTarget
+      ? Self.capture { () async throws(APIError) in try await reader.agentSession(id: targetID) } : nil
+    async let history: Result<[StatusHistoryEntry], APIError>? =
+      readsTarget
+      ? Self.capture { () async throws(APIError) in try await reader.agentSessionHistory(id: targetID) }
+      : nil
+    let (decisionsResult, agentsResult, sessionResult, historyResult) = await (
+      decisions, agents, session, history
+    )
 
     guard run.isCurrent(generation), !Task.isCancelled else { return }
 
     var failure: APIError?
     var changed = false
     switch decisionsResult {
-    case .success(let items):
+    case .success(let items)?:
       // Only a complete read of every page replaces the list.
       snapshot.decisions = items
       snapshot.fetchedAt = now()
       changed = true
-    case .failure(let error):
+    case .failure(let error)?:
       failure = error
+    case nil:
+      break
     }
     switch agentsResult {
     case .success(let items)?:
@@ -221,6 +298,20 @@ public actor Sync {
       failure = failure ?? error
     case nil:
       break
+    }
+
+    var detail: AgentDetailOutcome?
+    if let target, let sessionResult, let historyResult, targets.isCurrent(target) {
+      switch Self.outcome(session: sessionResult, history: historyResult) {
+      case .detail(let outcome):
+        detail = outcome
+        if outcome == .gone { targets.stopReading(target) }
+      case .transient(let error):
+        detail = .failed
+        failure = failure ?? error
+      case .signedOut(let error):
+        failure = error
+      }
     }
 
     if let failure {
@@ -237,16 +328,53 @@ public actor Sync {
       failures = 0
     }
 
-    guard changed else { return }
+    guard changed || detail != nil else { return }
     let published = snapshot
     let run = self.run
+    let targets = self.targets
     let publish = self.publish
+    let publishAgentDetail = self.publishAgentDetail
     await MainActor.run {
-      // Checked on the main actor, where sign-out runs, so a result that
-      // lands after sign-out is dropped.
+      // Checked on the main actor, where sign-out and the panel's target
+      // changes run, so a result that lands after either is dropped.
       guard run.isCurrent(generation) else { return }
-      publish(published)
+      if changed { publish(published) }
+      if let detail, let target, targets.isCurrent(target) {
+        publishAgentDetail(AgentDetailUpdate(target: target, outcome: detail))
+      }
     }
+  }
+
+  private enum TargetRead {
+    case detail(AgentDetailOutcome)
+    case transient(APIError)
+    case signedOut(APIError)
+  }
+
+  /// The pair is the panel's data, so a failure of either request fails the
+  /// pair. A contract `not_found` from either says the session is gone; every
+  /// other failure but a sign-out is transient (component-mac-app §API client).
+  private static func outcome(
+    session: Result<AgentSession, APIError>, history: Result<[StatusHistoryEntry], APIError>
+  ) -> TargetRead {
+    switch (session, history) {
+    case (.success(let session), .success(let history)):
+      return .detail(.loaded(session, history))
+    case (.failure(let error), .success), (.success, .failure(let error)):
+      return classify([error])
+    case (.failure(let first), .failure(let second)):
+      return classify([first, second])
+    }
+  }
+
+  private static func classify(_ errors: [APIError]) -> TargetRead {
+    if let signedOut = errors.first(where: { $0.isUnauthenticated || $0 == .signedOut }) {
+      return .signedOut(signedOut)
+    }
+    if errors.contains(where: { $0.status == 404 && $0.code == "not_found" }) {
+      return .detail(.gone)
+    }
+    return .transient(errors[0])
   }
 
   private func cancelTimer() {
@@ -301,5 +429,48 @@ private final class RunState: @unchecked Sendable {
 
   var current: Int? {
     lock.withLock { running ? generation : nil }
+  }
+}
+
+/// The panel's agent session, readable from any thread so a change takes effect
+/// before the main actor moves on. A session found gone stays the target, so
+/// its result still lands, and is no longer read.
+private final class AgentTargetState: @unchecked Sendable {
+  private let lock = NSLock()
+  private var generation = 0
+  private var target: AgentDetailTarget?
+  private var isStopped = false
+
+  func show(id: String) -> AgentDetailTarget {
+    lock.withLock {
+      generation += 1
+      let shown = AgentDetailTarget(id: id, generation: generation)
+      target = shown
+      isStopped = false
+      return shown
+    }
+  }
+
+  func clear() {
+    lock.withLock {
+      generation += 1
+      target = nil
+      isStopped = false
+    }
+  }
+
+  func stopReading(_ expected: AgentDetailTarget) {
+    lock.withLock {
+      if target == expected { isStopped = true }
+    }
+  }
+
+  func isCurrent(_ expected: AgentDetailTarget) -> Bool {
+    lock.withLock { target == expected }
+  }
+
+  /// The target while its reads continue.
+  var readable: AgentDetailTarget? {
+    lock.withLock { isStopped ? nil : target }
   }
 }
