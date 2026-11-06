@@ -44,9 +44,9 @@ final class AgentDetailTests: XCTestCase {
   func testShowingTheShownSessionChangesNothing() {
     let (detail, reads) = makeDetail()
     detail.show("s1", known: seed)
-    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, history)))
+    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, .available(history))))
     detail.show("s1", known: seed)
-    XCTAssertEqual(detail.content, .loaded(session, history))
+    XCTAssertEqual(detail.content, .loaded(session, .available(history)))
     XCTAssertEqual(reads.shows, ["s1"])
   }
 
@@ -57,10 +57,10 @@ final class AgentDetailTests: XCTestCase {
     var changes = 0
     detail.show("s1", known: seed)
     detail.onChange = { changes += 1 }
-    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, history)))
-    XCTAssertEqual(detail.content, .loaded(session, history))
+    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, .available(history))))
+    XCTAssertEqual(detail.content, .loaded(session, .available(history)))
     XCTAssertEqual(changes, 1)
-    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, history)))
+    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, .available(history))))
     XCTAssertEqual(changes, 1)
   }
 
@@ -75,31 +75,31 @@ final class AgentDetailTests: XCTestCase {
     detail.retry()
     XCTAssertEqual(detail.content, .loading(seed))
     XCTAssertEqual(reads.retryCalls, 1)
-    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, history)))
-    XCTAssertEqual(detail.content, .loaded(session, history))
+    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, .available(history))))
+    XCTAssertEqual(detail.content, .loaded(session, .available(history)))
   }
 
   func testAFailedRefreshKeepsThePairAndWarnsUntilASuccess() {
     let (detail, reads) = makeDetail()
     detail.show("s1", known: seed)
-    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, history)))
+    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, .available(history))))
     detail.apply(AgentDetailUpdate(target: target(), outcome: .failed))
-    XCTAssertEqual(detail.content, .loaded(session, history))
+    XCTAssertEqual(detail.content, .loaded(session, .available(history)))
     XCTAssertTrue(detail.refreshFailed)
 
     detail.retry()
-    XCTAssertEqual(detail.content, .loaded(session, history), "Try Again keeps the pair on screen")
+    XCTAssertEqual(detail.content, .loaded(session, .available(history)), "Try Again keeps the pair on screen")
     XCTAssertTrue(detail.refreshFailed)
     XCTAssertEqual(reads.retryCalls, 1)
 
-    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, history)))
+    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, .available(history))))
     XCTAssertFalse(detail.refreshFailed, "an unchanged pair still clears the warning")
   }
 
   func testGoneReplacesAnyContent() {
     let (detail, _) = makeDetail()
     detail.show("s1", known: seed)
-    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, history)))
+    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, .available(history))))
     detail.apply(AgentDetailUpdate(target: target(), outcome: .failed))
     detail.apply(AgentDetailUpdate(target: target(), outcome: .gone))
     XCTAssertEqual(detail.content, .gone)
@@ -114,7 +114,7 @@ final class AgentDetailTests: XCTestCase {
     detail.show("s1", known: seed)
     let first = target("s1", 1)
     detail.close()
-    detail.apply(AgentDetailUpdate(target: first, outcome: .loaded(session, history)))
+    detail.apply(AgentDetailUpdate(target: first, outcome: .loaded(session, .available(history))))
     XCTAssertNil(detail.content, "closed")
 
     detail.show("s1", known: seed)
@@ -125,7 +125,7 @@ final class AgentDetailTests: XCTestCase {
     XCTAssertFalse(detail.refreshFailed)
 
     detail.show("s2", known: nil)
-    detail.apply(AgentDetailUpdate(target: target("s1", 2), outcome: .loaded(session, history)))
+    detail.apply(AgentDetailUpdate(target: target("s1", 2), outcome: .loaded(session, .available(history))))
     XCTAssertEqual(detail.content, .loading(nil), "replaced")
   }
 
@@ -136,7 +136,7 @@ final class AgentDetailTests: XCTestCase {
     XCTAssertNil(detail.shownID)
     XCTAssertNil(detail.content)
     XCTAssertEqual(reads.hideCalls, 1)
-    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, history)))
+    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, .available(history))))
     XCTAssertNil(detail.content)
   }
 
@@ -161,7 +161,7 @@ final class AgentDetailTests: XCTestCase {
       XCTAssertEqual(detail.openLink(), expected != nil, "\(value)")
       XCTAssertEqual(opened, expected.map { [$0] } ?? [], "\(value)")
       XCTAssertEqual(
-        AgentDetailModel(session: linked, history: [], decisions: [], now: now).link, expected, "\(value)")
+        AgentDetailModel(session: linked, history: .available([]), decisions: [], now: now).link, expected, "\(value)")
     }
   }
 
@@ -176,7 +176,7 @@ final class AgentDetailTests: XCTestCase {
     var opened = 0
     detail.opener = { _ in opened += 1 }
     detail.show("s1", known: Fixtures.session("s1"))
-    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, history)))
+    detail.apply(AgentDetailUpdate(target: target(), outcome: .loaded(session, .available(history))))
     detail.apply(AgentDetailUpdate(target: target(), outcome: .failed))
     detail.retry()
     detail.toggle("s2", known: nil)
@@ -203,13 +203,131 @@ final class AgentDetailTests: XCTestCase {
     XCTAssertEqual(openers, ["AppState.swift: coordinator.agent.opener = { NSWorkspace.shared.open($0) }"])
   }
 
+  // MARK: Unavailable history (AC-11.12)
+
+  private func apply(_ detail: AgentDetail, _ outcome: AgentDetailOutcome) {
+    detail.apply(AgentDetailUpdate(target: target(), outcome: outcome))
+  }
+
+  func testAFirstReadWithUnavailableHistoryReplacesTheSeedWithNoWarning() {
+    let (detail, _) = makeDetail()
+    detail.show("s1", known: seed)
+    apply(detail, .loaded(session, .unavailable))
+    XCTAssertEqual(detail.content, .loaded(session, .unavailable))
+    XCTAssertFalse(detail.refreshFailed)
+    XCTAssertEqual(detail.session, session)
+  }
+
+  func testAnUnchangedUnavailableReadPublishesNothing() {
+    let (detail, _) = makeDetail()
+    var changes = 0
+    detail.show("s1", known: seed)
+    detail.onChange = { changes += 1 }
+    apply(detail, .loaded(session, .unavailable))
+    XCTAssertEqual(changes, 1)
+    apply(detail, .loaded(session, .unavailable))
+    XCTAssertEqual(changes, 1)
+  }
+
+  func testAChangedSessionReachesThePanelWhileHistoryIsUnavailable() {
+    let (detail, _) = makeDetail()
+    detail.show("s1", known: seed)
+    apply(detail, .loaded(session, .unavailable))
+    let changed = Fixtures.session("s1", ["line": "Changed", "pending_decision_count": 3])
+    apply(detail, .loaded(changed, .unavailable))
+    XCTAssertEqual(detail.content, .loaded(changed, .unavailable))
+  }
+
+  func testUnavailableHistoryGivesWayToHistoryOnceTheRouteAnswers() {
+    let (detail, _) = makeDetail()
+    var changes = 0
+    detail.show("s1", known: seed)
+    apply(detail, .loaded(session, .unavailable))
+    detail.onChange = { changes += 1 }
+    apply(detail, .loaded(session, .available(history)))
+    XCTAssertEqual(detail.content, .loaded(session, .available(history)))
+    XCTAssertEqual(changes, 1)
+  }
+
+  func testUnavailableHistoryGivesWayToAnEmptyHistory() {
+    let (detail, _) = makeDetail()
+    detail.show("s1", known: seed)
+    apply(detail, .loaded(session, .unavailable))
+    apply(detail, .loaded(session, .available([])))
+    XCTAssertEqual(detail.content, .loaded(session, .available([])))
+  }
+
+  func testLoadedHistoryIsNotKeptOnceItIsUnavailable() {
+    let (detail, _) = makeDetail()
+    detail.show("s1", known: seed)
+    apply(detail, .loaded(session, .available(history)))
+    apply(detail, .loaded(session, .unavailable))
+    XCTAssertEqual(detail.content, .loaded(session, .unavailable), "old rows never read as still available")
+    XCTAssertFalse(detail.refreshFailed)
+  }
+
+  func testATransientFailureRetainsUnavailableHistoryWithTheWarning() {
+    let (detail, reads) = makeDetail()
+    detail.show("s1", known: seed)
+    apply(detail, .loaded(session, .unavailable))
+    apply(detail, .failed)
+    XCTAssertEqual(detail.content, .loaded(session, .unavailable), "the session stays on screen")
+    XCTAssertTrue(detail.refreshFailed)
+
+    detail.retry()
+    XCTAssertEqual(detail.content, .loaded(session, .unavailable))
+    XCTAssertTrue(detail.refreshFailed)
+    XCTAssertEqual(reads.retryCalls, 1)
+  }
+
+  func testASuccessfulUnavailableReadClearsAnEarlierWarning() {
+    for earlier in [AgentHistory.unavailable, .available(history)] {
+      let (detail, _) = makeDetail()
+      detail.show("s1", known: seed)
+      apply(detail, .loaded(session, earlier))
+      apply(detail, .failed)
+      XCTAssertTrue(detail.refreshFailed)
+      apply(detail, .loaded(session, .unavailable))
+      XCTAssertEqual(detail.content, .loaded(session, .unavailable))
+      XCTAssertFalse(detail.refreshFailed, "a read that found the session is no failed read")
+    }
+  }
+
+  func testAFirstFailureThenUnavailableHistoryLoadsTheSession() {
+    let (detail, _) = makeDetail()
+    detail.show("s1", known: seed)
+    apply(detail, .failed)
+    XCTAssertEqual(detail.content, .failed(seed))
+    apply(detail, .loaded(session, .unavailable))
+    XCTAssertEqual(detail.content, .loaded(session, .unavailable))
+    XCTAssertFalse(detail.refreshFailed)
+  }
+
+  func testGoneReplacesUnavailableHistory() {
+    let (detail, _) = makeDetail()
+    detail.show("s1", known: seed)
+    apply(detail, .loaded(session, .unavailable))
+    apply(detail, .gone)
+    XCTAssertEqual(detail.content, .gone)
+    XCTAssertNil(detail.session)
+  }
+
+  func testAnUnavailableResultForAnEarlierTargetChangesNothing() {
+    let (detail, _) = makeDetail()
+    detail.show("s1", known: seed)
+    detail.close()
+    detail.show("s1", known: seed)
+    detail.apply(AgentDetailUpdate(target: target("s1", 1), outcome: .loaded(session, .unavailable)))
+    XCTAssertEqual(detail.content, .loading(seed), "the reopened target has a new generation")
+  }
+
   // MARK: The model
 
   private func model(
-    _ overrides: [String: Any] = [:], history: [StatusHistoryEntry]? = [], decisions: [Decision] = []
+    _ overrides: [String: Any] = [:], history: [StatusHistoryEntry] = [], decisions: [Decision] = []
   ) -> AgentDetailModel {
     AgentDetailModel(
-      session: Fixtures.session("s1", overrides), history: history, decisions: decisions, now: now)
+      session: Fixtures.session("s1", overrides), history: .available(history), decisions: decisions, now: now)
   }
 
   func testEveryFieldOfAWorkingSession() {
@@ -252,7 +370,7 @@ final class AgentDetailTests: XCTestCase {
     XCTAssertEqual(m.updateAge, "No update yet")
     XCTAssertNil(m.line)
     XCTAssertNil(m.link)
-    XCTAssertEqual(m.history, [], "the current status is never appended")
+    XCTAssertEqual(m.history, .available([]), "the current status is never appended")
   }
 
   func testTheCountComesFromTheSessionAndTheListFromTheSnapshot() {
@@ -284,10 +402,10 @@ final class AgentDetailTests: XCTestCase {
   func testAnUnreadPendingListIsNotAnEmptyOne() {
     let session = Fixtures.session("s1", ["pending_decision_count": 2])
     let unread = AgentDetailModel(
-      session: session, history: [], decisions: [], now: now, decisionsAreKnown: false)
+      session: session, history: .available([]), decisions: [], now: now, decisionsAreKnown: false)
     XCTAssertFalse(unread.pendingIsKnown)
     XCTAssertEqual(unread.pendingCountText, "2 pending decisions", "the count still comes from the session")
-    XCTAssertTrue(AgentDetailModel(session: session, history: [], decisions: [], now: now).pendingIsKnown)
+    XCTAssertTrue(AgentDetailModel(session: session, history: .available([]), decisions: [], now: now).pendingIsKnown)
   }
 
   func testHistoryKeepsTheServersOrderAndItsLinksAreText() {
@@ -299,15 +417,49 @@ final class AgentDetailTests: XCTestCase {
       StatusHistoryEntry(state: .done, line: "out of order", at: Fixtures.instant("2026-10-27T12:09:00Z")),
     ]
     let m = model(history: entries)
-    XCTAssertEqual(m.history?.map(\.line), ["see https://example.com/a", "older", "out of order"])
-    XCTAssertEqual(m.history?.map(\.state), ["Blocked", "Working", "Done"])
-    XCTAssertEqual(m.history?.map(\.age), ["2m ago", "3h ago", "1m ago"])
-    XCTAssertEqual(m.history?.map(\.id), [0, 1, 2], "two equal rows keep distinct ids")
-    XCTAssertEqual(m.history?[0].link, "https://example.com/a", "a String: nothing can open it")
+    XCTAssertEqual(m.history.entries?.map(\.line), ["see https://example.com/a", "older", "out of order"])
+    XCTAssertEqual(m.history.entries?.map(\.state), ["Blocked", "Working", "Done"])
+    XCTAssertEqual(m.history.entries?.map(\.age), ["2m ago", "3h ago", "1m ago"])
+    XCTAssertEqual(m.history.entries?.map(\.id), [0, 1, 2], "two equal rows keep distinct ids")
+    XCTAssertEqual(m.history.entries?[0].link, "https://example.com/a", "a String: nothing can open it")
   }
 
-  func testHistoryIsNilBeforeTheFirstReadAndEmptyAfterAnEmptyOne() {
-    XCTAssertNil(model(history: nil).history)
-    XCTAssertEqual(model(history: []).history, [])
+  func testHistoryKeepsUnreadUnavailableEmptyAndPopulatedApart() {
+    func state(_ history: AgentHistory?) -> AgentDetailModel.History {
+      AgentDetailModel(session: session, history: history, decisions: [], now: now).history
+    }
+    XCTAssertEqual(state(nil), .unread)
+    XCTAssertEqual(state(.unavailable), .unavailable)
+    XCTAssertEqual(state(.available([])), .available([]))
+    XCTAssertEqual(state(.available(history)).entries?.map(\.line), ["newest", "older"])
+    XCTAssertNil(state(nil).entries)
+    XCTAssertNil(state(.unavailable).entries, "unavailable history has no rows to draw")
+    XCTAssertEqual(state(.available([])).entries, [])
+    let states = [state(nil), state(.unavailable), state(.available([])), state(.available(history))]
+    for (index, one) in states.enumerated() {
+      for other in states[(index + 1)...] {
+        XCTAssertNotEqual(one, other)
+      }
+    }
+  }
+
+  func testUnavailableHistoryKeepsEverySessionFact() {
+    let pending = Fixtures.pending("dec_1", ["agent_session_id": "s1"])
+    let shown = Fixtures.session(
+      "s1",
+      [
+        "line": "Running tests", "display_name": "Claude Code · web", "topic": "web",
+        "status_at": "2026-10-27T12:00:00Z", "pending_decision_count": 1, "link": "https://example.com/a",
+      ])
+    let m = AgentDetailModel(session: shown, history: .unavailable, decisions: [pending], now: now)
+    XCTAssertEqual(m.state, "Working")
+    XCTAssertEqual(m.updateAge, "10m ago")
+    XCTAssertEqual(m.line, "Running tests")
+    XCTAssertEqual(m.displayName, "Claude Code · web")
+    XCTAssertEqual(m.topic, "web")
+    XCTAssertEqual(m.pendingCountText, "1 pending decision")
+    XCTAssertEqual(m.pending.map(\.id), ["dec_1"])
+    XCTAssertEqual(m.link?.absoluteString, "https://example.com/a")
+    XCTAssertEqual(m.history, .unavailable)
   }
 }

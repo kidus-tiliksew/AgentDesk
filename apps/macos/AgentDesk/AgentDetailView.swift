@@ -26,7 +26,7 @@ struct AgentDetailPresentation: Equatable {
     content: AgentDetail.Content, refreshFailed: Bool, decisions: [Decision], now: Date,
     decisionsAreKnown: Bool = true
   ) {
-    func model(_ session: AgentSession, _ history: [StatusHistoryEntry]?) -> AgentDetailModel {
+    func model(_ session: AgentSession, _ history: AgentHistory?) -> AgentDetailModel {
       AgentDetailModel(
         session: session, history: history, decisions: decisions, now: now,
         decisionsAreKnown: decisionsAreKnown)
@@ -288,8 +288,18 @@ struct AgentDetailView: View {
       Text("History")
         .fontWeight(.medium)
         .accessibilityAddTraits(.isHeader)
-      if let history = model.history, !history.isEmpty {
-        ForEach(history) { entry in
+      switch model.history {
+      case .unavailable:
+        Text("History isn't available on this server.")
+          .font(.callout)
+          .foregroundStyle(Ink.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+      case .available(let entries) where entries.isEmpty:
+        Text("No earlier statuses.")
+          .font(.callout)
+          .foregroundStyle(Ink.secondary)
+      case .available(let entries):
+        ForEach(entries) { entry in
           VStack(alignment: .leading, spacing: 1) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
               Text(verbatim: entry.state)
@@ -313,10 +323,10 @@ struct AgentDetailView: View {
             }
           }
         }
-      } else {
-        Text("No earlier statuses.")
-          .font(.callout)
-          .foregroundStyle(Ink.secondary)
+      case .unread:
+        // Only a loaded session draws this section, and a loaded session's
+        // history has been read.
+        EmptyView()
       }
     }
   }

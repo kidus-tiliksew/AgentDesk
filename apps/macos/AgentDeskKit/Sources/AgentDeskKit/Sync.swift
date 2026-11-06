@@ -368,30 +368,31 @@ public actor Sync {
     case signedOut(APIError)
   }
 
-  /// The pair is the panel's data, so a failure of either request fails the
-  /// pair. A contract `not_found` from either says the session is gone; every
-  /// other failure but a sign-out is transient (component-mac-app §API client).
+  /// Classifies the pair by endpoint (component-mac-app §Detail panel;
+  /// req-mac-app AC-11.12). A sign-out from either request comes first. Only a
+  /// contract `not_found` from the session request says the session is gone.
+  /// With the session found, the same answer from the history request says this
+  /// server has no history, which is no failed read. Every other failure of
+  /// either request is transient (component-mac-app §API client).
   private static func outcome(
     session: Result<AgentSession, APIError>, history: Result<[StatusHistoryEntry], APIError>
   ) -> TargetRead {
+    for case .failure(let error) in [session.map { _ in () }, history.map { _ in () }]
+    where error.isUnauthenticated || error == .signedOut {
+      return .signedOut(error)
+    }
     switch (session, history) {
+    case (.failure(let error), _):
+      return isNotFound(error) ? .detail(.gone) : .transient(error)
     case (.success(let session), .success(let history)):
-      return .detail(.loaded(session, history))
-    case (.failure(let error), .success), (.success, .failure(let error)):
-      return classify([error])
-    case (.failure(let first), .failure(let second)):
-      return classify([first, second])
+      return .detail(.loaded(session, .available(history)))
+    case (.success(let session), .failure(let error)):
+      return isNotFound(error) ? .detail(.loaded(session, .unavailable)) : .transient(error)
     }
   }
 
-  private static func classify(_ errors: [APIError]) -> TargetRead {
-    if let signedOut = errors.first(where: { $0.isUnauthenticated || $0 == .signedOut }) {
-      return .signedOut(signedOut)
-    }
-    if errors.contains(where: { $0.status == 404 && $0.code == "not_found" }) {
-      return .detail(.gone)
-    }
-    return .transient(errors[0])
+  private static func isNotFound(_ error: APIError) -> Bool {
+    error.status == 404 && error.code == "not_found"
   }
 
   private func cancelTimer() {

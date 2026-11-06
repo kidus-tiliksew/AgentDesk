@@ -13,11 +13,20 @@ public struct AgentDetailTarget: Equatable, Sendable {
   }
 }
 
+/// What the history read found for a session the server has.
+public enum AgentHistory: Equatable, Sendable {
+  /// The route answered, newest first in the server's order. It may be empty.
+  case available([StatusHistoryEntry])
+  /// The route answered a contract `not_found`, so this server has no history
+  /// to show. Reading continues, so history appears once the route answers.
+  case unavailable
+}
+
 /// What one read of a session and its history found.
 public enum AgentDetailOutcome: Equatable, Sendable {
-  /// Both requests answered.
-  case loaded(AgentSession, [StatusHistoryEntry])
-  /// A contract `not_found` from either request. Reading has stopped.
+  /// The session answered, and the history answered or is unavailable.
+  case loaded(AgentSession, AgentHistory)
+  /// A contract `not_found` from the session request. Reading has stopped.
   case gone
   /// Any other failure of either request. Reading continues under backoff.
   case failed
@@ -51,22 +60,23 @@ public struct NoAgentDetailReads: AgentDetailReads {
 }
 
 /// The agent session the detail panel shows (component-mac-app §Detail panel;
-/// req-mac-app AC-5.3, AC-11.3, AC-11.4, AC-11.7, AC-11.10).
+/// req-mac-app AC-5.3, AC-11.3, AC-11.4, AC-11.7, AC-11.10, AC-11.12).
 ///
 /// | Read of the session and its history | Panel |
 /// | --- | --- |
-/// | both answer | the pair |
-/// | a contract `not_found` from either | "This agent session is gone."; reading stops |
+/// | both answer | the session and its history |
+/// | the session answers, history contract `not_found` | the session with its history unavailable, and no warning; reading continues |
+/// | session contract `not_found` | "This agent session is gone."; reading stops |
 /// | 401, signed out | nothing; the account signs out, which resets the panel |
-/// | any other failure, no pair yet | the list's record, if any, with a failure and Try Again |
-/// | any other failure, a pair loaded | the pair stays, marked as not refreshed |
+/// | any other failure, no session read yet | the list's record, if any, with a failure and Try Again |
+/// | any other failure, a session loaded | the session and its history state stay, marked as not refreshed |
 @MainActor
 public final class AgentDetail {
   public enum Content: Equatable, Sendable {
-    /// Before the first pair, with the list's record when it holds one.
+    /// Before the first read answers, with the list's record when it holds one.
     case loading(AgentSession?)
-    case loaded(AgentSession, [StatusHistoryEntry])
-    /// A transient failure before the first pair; Try Again reads again.
+    case loaded(AgentSession, AgentHistory)
+    /// A transient failure before the first read answers; Try Again reads again.
     case failed(AgentSession?)
     case gone
   }
@@ -74,7 +84,7 @@ public final class AgentDetail {
   public private(set) var shownID: String?
   /// Nil while no session is shown.
   public private(set) var content: Content?
-  /// The last read failed and `content` holds an older pair.
+  /// The last read failed and `content` holds an older read.
   public private(set) var refreshFailed = false
   /// Runs on the main actor after every change.
   public var onChange: (@MainActor () -> Void)?
@@ -89,7 +99,7 @@ public final class AgentDetail {
     self.reads = reads
   }
 
-  /// The session shown, from the last pair or the list's record.
+  /// The session shown, from the last read or the list's record.
   public var session: AgentSession? {
     switch content {
     case .loading(let seed)?, .failed(let seed)?: seed
@@ -128,7 +138,7 @@ public final class AgentDetail {
     changed()
   }
 
-  /// Try Again: reads this target only, and keeps a loaded pair on screen.
+  /// Try Again: reads this target only, and keeps a loaded session on screen.
   public func retry() {
     guard shownID != nil else { return }
     if case .failed(let seed)? = content {
@@ -222,6 +232,22 @@ public struct AgentDetailModel: Equatable, Sendable, Identifiable {
     public let link: String?
   }
 
+  /// What the panel knows of the session's previous statuses.
+  public enum History: Equatable, Sendable {
+    /// Before the first read answers.
+    case unread
+    /// The server has no history route for this session (AC-11.12).
+    case unavailable
+    /// Newest first, as the server returned them. It may be empty.
+    case available([HistoryEntry])
+
+    /// The rows a successful read returned, and nil otherwise.
+    public var entries: [HistoryEntry]? {
+      if case .available(let entries) = self { return entries }
+      return nil
+    }
+  }
+
   public let id: String
   /// "Working", "Blocked", or "No status yet" for a session with no status.
   public let state: String
@@ -238,17 +264,16 @@ public struct AgentDetailModel: Equatable, Sendable, Identifiable {
   /// False until a decisions read has succeeded, so an unread list never reads
   /// as "No pending decisions" beside a positive count.
   public let pendingIsKnown: Bool
-  /// Newest first, as the server returned them. Nil before the first read
-  /// answers, as distinct from a session with no earlier status.
-  public let history: [HistoryEntry]?
+  public let history: History
   /// The link Open link opens, when it is an absolute http or https URL.
   public let link: URL?
 
   /// `decisions` is the complete pending snapshot; the session's own count
-  /// comes from the session (AC-11.3). `decisionsAreKnown` is false until the
-  /// snapshot holds a successful decisions read.
+  /// comes from the session (AC-11.3). `history` is nil before the first read
+  /// answers. `decisionsAreKnown` is false until the snapshot holds a
+  /// successful decisions read.
   public init(
-    session: AgentSession, history: [StatusHistoryEntry]?, decisions: [Decision], now: Date,
+    session: AgentSession, history: AgentHistory?, decisions: [Decision], now: Date,
     decisionsAreKnown: Bool = true
   ) {
     pendingIsKnown = decisionsAreKnown
@@ -273,10 +298,18 @@ public struct AgentDetailModel: Equatable, Sendable, Identifiable {
         timeLeftIsRed: urgent || Attention.isDueSoon(decision, now: now),
         urgentMarker: urgent ? "Urgent" : nil)
     }
-    self.history = history?.enumerated().map { index, entry in
-      HistoryEntry(
-        id: index, state: Self.stateText(entry.state), line: entry.line,
-        age: DecisionPresentation.age(since: entry.at, now: now), link: entry.link)
+    switch history {
+    case nil:
+      self.history = .unread
+    case .unavailable:
+      self.history = .unavailable
+    case .available(let entries):
+      self.history = .available(
+        entries.enumerated().map { index, entry in
+          HistoryEntry(
+            id: index, state: Self.stateText(entry.state), line: entry.line,
+            age: DecisionPresentation.age(since: entry.at, now: now), link: entry.link)
+        })
     }
     link = session.link.flatMap(AgentEntryModel.webURL)
   }

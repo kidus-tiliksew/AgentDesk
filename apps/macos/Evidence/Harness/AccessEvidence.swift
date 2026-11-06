@@ -595,9 +595,36 @@ func accessEvidence() -> Int32 {
     let row = named(entries, "AXButton", "Ship the 2.4 release")
     check("agent-blocked: the pending decision reads urgent and its time left", (row?.value ?? "").contains("Urgent") && (row?.value ?? "").contains("4m left"))
   }
-  agentScene("agent-no-status", agentPresentation(noStatusAgent, history: [])) { _, _, entries in
+  agentScene("agent-no-status", agentPresentation(noStatusAgent, history: .available([]))) { _, _, entries in
     check("agent-no-status: reads no status and no update", reads(entries, "No status yet, No update yet"))
     check("agent-no-status: the empty history reads as text", reads(entries, "No earlier statuses."))
+    check("agent-no-status: an empty history never reads as unavailable", !reads(entries, "History isn't available on this server."))
+  }
+  // req-mac-app AC-11.12: the server finds the session but not its history.
+  agentScene("agent-history-unavailable", agentPresentation(workingAgent, history: .unavailable)) { model, stage, entries in
+    check(
+      "agent-history-unavailable: the message is static text",
+      entries.contains { $0.role == "AXStaticText" && ($0.value ?? "").contains("History isn't available on this server.") })
+    for (fact, text) in [
+      ("state and update age", "Working, 2m ago"), ("the status line", "Running the migration tests"),
+      ("the display name", "Claude Code · api"), ("the topic", "api/migrations"),
+      ("the pending count", "1 pending decision"), ("the section", "Waiting on you"), ("the history section", "History"),
+    ] {
+      check("agent-history-unavailable: \(fact) reads as text", reads(entries, text))
+    }
+    check("agent-history-unavailable: it never reads as gone", !reads(entries, "This agent session is gone."))
+    check("agent-history-unavailable: it never reads as an empty history", !reads(entries, "No earlier statuses."))
+    check("agent-history-unavailable: it carries no refresh warning", !reads(entries, "Couldn't refresh this agent."))
+    check("agent-history-unavailable: it shows no history entry", !reads(entries, "Waiting for the staging soak"))
+    check(
+      "agent-history-unavailable: the session's controls stay, with no Try Again",
+      Set(entries.filter(\.isControl).map(\.name)) == ["Close detail", "Delete the stale preview databases?", "Open link"])
+    check(
+      "agent-history-unavailable: AXPress on the pending decision shows it, with no browser",
+      named(entries, "AXButton", "Delete the stale preview databases?").map(stage.press) == true && model.decisions == ["ap_1"] && model.openedLinks == 0)
+    check(
+      "agent-history-unavailable: AXPress on Open link opens the link",
+      named(entries, "AXButton", "Open link").map(stage.press) == true && model.openedLinks == 1)
   }
   for (name, session) in [("agent-invalid-link", invalidLinkAgent), ("agent-relative-link", relativeLinkAgent)] {
     agentScene(name, agentPresentation(session)) { _, _, entries in
@@ -620,7 +647,7 @@ func accessEvidence() -> Int32 {
   agentScene(
     "agent-pending-unread",
     AgentDetailPresentation(
-      content: .loaded(blockedAgent, agentHistoryFixture), refreshFailed: false, decisions: [], now: now,
+      content: .loaded(blockedAgent, .available(agentHistoryFixture)), refreshFailed: false, decisions: [], now: now,
       decisionsAreKnown: false)
   ) { _, _, entries in
     check("agent-pending-unread: an unread list says so", reads(entries, "Pending decisions aren't available yet."))

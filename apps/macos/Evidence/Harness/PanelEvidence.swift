@@ -768,7 +768,7 @@ let agentPendingFixture = [
 ]
 
 func agentPresentation(
-  _ session: AgentSession, history: [StatusHistoryEntry] = agentHistoryFixture, refreshFailed: Bool = false
+  _ session: AgentSession, history: AgentHistory = .available(agentHistoryFixture), refreshFailed: Bool = false
 ) -> AgentDetailPresentation {
   AgentDetailPresentation(
     content: .loaded(session, history), refreshFailed: refreshFailed, decisions: agentPendingFixture, now: now)
@@ -779,10 +779,11 @@ func agentScenes() -> [(String, AgentDetailPresentation)] {
     ("agent-working", agentPresentation(workingAgent)),
     ("agent-stale", agentPresentation(staleAgent)),
     ("agent-blocked", agentPresentation(blockedAgent)),
-    ("agent-no-status", agentPresentation(noStatusAgent, history: [])),
+    ("agent-no-status", agentPresentation(noStatusAgent, history: .available([]))),
+    ("agent-history-unavailable", agentPresentation(workingAgent, history: .unavailable)),
     ("agent-invalid-link", agentPresentation(invalidLinkAgent)),
     ("agent-relative-link", agentPresentation(relativeLinkAgent)),
-    ("agent-long", agentPresentation(longAgent, history: longHistory)),
+    ("agent-long", agentPresentation(longAgent, history: .available(longHistory))),
     ("agent-refresh-failed", agentPresentation(workingAgent, refreshFailed: true)),
     (
       "agent-loading",
@@ -803,7 +804,7 @@ func agentScenes() -> [(String, AgentDetailPresentation)] {
     (
       "agent-pending-unread",
       AgentDetailPresentation(
-        content: .loaded(blockedAgent, agentHistoryFixture), refreshFailed: false, decisions: [], now: now,
+        content: .loaded(blockedAgent, .available(agentHistoryFixture)), refreshFailed: false, decisions: [], now: now,
         decisionsAreKnown: false)
     ),
     ("agent-gone", AgentDetailPresentation(content: .gone)),
@@ -822,8 +823,16 @@ private struct AgentPairFixture: View {
   }
 }
 
+private func historyText(_ history: AgentDetailModel.History) -> String {
+  switch history {
+  case .unread: "not read"
+  case .unavailable: "unavailable"
+  case .available(let entries): "\(entries.count)"
+  }
+}
+
 /// Renders the shipped `AgentDetailView` and states what each scene holds
-/// (req-mac-app AC-11.3, AC-11.4, AC-11.9).
+/// (req-mac-app AC-11.3, AC-11.4, AC-11.9, AC-11.12).
 @MainActor
 func agentPanelEvidence(_ failures: inout [String]) {
   line("## Agent panel (the shipped AgentDetailView, offscreen)")
@@ -868,23 +877,28 @@ func agentPanelEvidence(_ failures: inout [String]) {
       line("- \(name): no session to show")
       continue
     }
-    line("- \(name): \(model.statusAccessibilityLabel) | line: \(model.line ?? "none") | \(model.displayName) | \(model.topic) | \(model.pendingCountText) | listed \(model.pending.map(\.id)) | history \(model.history?.count ?? -1) | link \(model.link?.absoluteString ?? "none")")
+    line("- \(name): \(model.statusAccessibilityLabel) | line: \(model.line ?? "none") | \(model.displayName) | \(model.topic) | \(model.pendingCountText) | listed \(model.pending.map(\.id)) | history \(historyText(model.history)) | link \(model.link?.absoluteString ?? "none")")
   }
   line("")
   let working = agentPresentation(workingAgent).model
   let stale = agentPresentation(staleAgent).model
   let blocked = agentPresentation(blockedAgent).model
-  let none = agentPresentation(noStatusAgent, history: []).model
+  let none = agentPresentation(noStatusAgent, history: .available([])).model
+  let unavailable = agentPresentation(workingAgent, history: .unavailable).model
   check("a working session reads Working, its update age, and its link", working?.state == "Working" && working?.updateAge == "2m ago" && working?.link != nil, &failures)
   check("a stale session carries the text marker Stale", stale?.staleMarker == "Stale" && (stale?.statusAccessibilityLabel.contains("Stale") == true), &failures)
   check("a blocked session reads Blocked in words", blocked?.state == "Blocked" && blocked?.isBlocked == true, &failures)
   check("a session with no status invents none", none?.state == "No status yet" && none?.updateAge == "No update yet" && none?.line == nil, &failures)
   check("Waiting on you holds only this session's pending decisions", working?.pending.map(\.id) == ["ap_1"], &failures)
-  check("history keeps the server's order", working?.history?.map(\.line) == agentHistoryFixture.map(\.line), &failures)
+  check("history keeps the server's order", working?.history.entries?.map(\.line) == agentHistoryFixture.map(\.line), &failures)
   check("a 200-character status line is not cut", agentPresentation(longAgent).model?.line?.count == 200, &failures)
-  check("the long history keeps every entry", agentPresentation(longAgent, history: longHistory).model?.history?.count == 20, &failures)
+  check("the long history keeps every entry", agentPresentation(longAgent, history: .available(longHistory)).model?.history.entries?.count == 20, &failures)
   check("a javascript link offers no control", agentPresentation(invalidLinkAgent).model?.link == nil, &failures)
   check("a relative link offers no control", agentPresentation(relativeLinkAgent).model?.link == nil, &failures)
+  check("unavailable history is its own state and holds no rows", unavailable?.history == .unavailable && unavailable?.history.entries == nil, &failures)
+  check("an empty history stays apart from unavailable history", none?.history == .available([]) && none?.history != unavailable?.history, &failures)
+  check("a session not read yet stays apart from both", agentPresentation(workingAgent).model?.history != unavailable?.history && AgentDetailPresentation(content: .loading(workingAgent), refreshFailed: false, decisions: [], now: now).model?.history == .unread, &failures)
+  check("unavailable history keeps the session's facts", unavailable?.state == working?.state && unavailable?.line == working?.line && unavailable?.displayName == working?.displayName && unavailable?.topic == working?.topic && unavailable?.pendingCountText == working?.pendingCountText && unavailable?.pending == working?.pending && unavailable?.link == working?.link, &failures)
   line("")
 
   line("### AppKit controls of each agent scene")
@@ -1062,7 +1076,7 @@ func agentPairedWindowEvidence(_ failures: inout [String]) {
   }
   func load(_ session: AgentSession) {
     guard let target = model.reads.last else { return }
-    coordinator.agent.apply(AgentDetailUpdate(target: target, outcome: .loaded(session, agentHistoryFixture)))
+    coordinator.agent.apply(AgentDetailUpdate(target: target, outcome: .loaded(session, .available(agentHistoryFixture))))
     drain(0.2)
   }
 
