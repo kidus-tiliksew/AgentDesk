@@ -3,7 +3,7 @@ import XCTest
 
 @testable import AgentDeskKit
 
-/// The expanded row's draft builds the answer for each input type
+/// The panel's draft builds the answer for each input type
 /// (component-mac-app §Rows; req-mac-app AC-4.6, AC-4.7, AC-7.1;
 /// req-decision-requests REQ-2, REQ-3).
 final class AnswerDraftTests: XCTestCase {

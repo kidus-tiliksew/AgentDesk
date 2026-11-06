@@ -1,9 +1,18 @@
-<tmp>/src/AnswerControls.swift:75:31: warning: '+' was deprecated in macOS 26.0: Use string interpolation on `Text` instead: `Text("Hello \(name)")` [#DeprecatedDeclaration]
- 73 |   private func optionLabel(_ option: Option) -> Text {
- 74 |     guard draft.isSuggested(option.id) else { return Text(option.label) }
- 75 |     return Text(option.label) + Text("  Suggested").foregroundStyle(Ink.tertiary)
+<tmp>/src/AnswerControls.swift:64:31: warning: '+' was deprecated in macOS 26.0: Use string interpolation on `Text` instead: `Text("Hello \(name)")` [#DeprecatedDeclaration]
+ 62 |   private func optionLabel(_ option: Option) -> Text {
+ 63 |     guard draft.isSuggested(option.id) else { return Text(option.label) }
+ 64 |     return Text(option.label) + Text("  Suggested").foregroundStyle(Ink.tertiary)
     |                               `- warning: '+' was deprecated in macOS 26.0: Use string interpolation on `Text` instead: `Text("Hello \(name)")` [#DeprecatedDeclaration]
- 76 |   }
- 77 | 
+ 65 |   }
+ 66 | 
 
 [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+<tmp>/src/DetailPanelWindow.swift:117:62: warning: capture of non-Sendable type 'Root.Type' in an isolated closure [#SendableMetatypes]
+115 |       }
+116 |     }
+117 |     heightObservation = host.observe(\.preferredContentSize) { [weak self] _, _ in
+    |                                                              `- warning: capture of non-Sendable type 'Root.Type' in an isolated closure [#SendableMetatypes]
+118 |       // After the layout pass that changed it, not inside it.
+119 |       Task { @MainActor in self?.place() }
+
+[#SendableMetatypes]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-metatypes>

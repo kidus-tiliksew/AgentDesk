@@ -1,0 +1,457 @@
+# Panel keyboard and assistive evidence
+Compiled from the shipped DecisionDetailView, AnswerControls, and ApproveRejectButtons; only the actions and draft storage are fixtures.
+An Accessibility API read shows what an assistive client is given, not what VoiceOver speaks.
+
+## Full keyboard access for this process
+Route 1, launch argument -AppleKeyboardUIMode 2: this process's defaults read 2, and NSApp.isFullKeyboardAccessEnabled reads false.
+The override did not take effect: AppKit does not read that value from the argument domain.
+
+Real key view loop, Tab and Shift-Tab posted to the transparent window, with NSApp.isFullKeyboardAccessEnabled false:
+- approve-reject: Tab Note for the agent (optional); Shift-Tab Note for the agent (optional)
+ok approve-reject: Tab reaches the note field
+ok approve-reject: Shift-Tab from the last stop walks the same stops in reverse
+- single-choice: Tab Note for the agent (optional); Shift-Tab Note for the agent (optional)
+ok single-choice: Tab reaches the note field
+ok single-choice: Shift-Tab from the last stop walks the same stops in reverse
+- multiple-choice: Tab Note for the agent (optional); Shift-Tab Note for the agent (optional)
+ok multiple-choice: Tab reaches the note field
+ok multiple-choice: Shift-Tab from the last stop walks the same stops in reverse
+- free-text: Tab agentdesk-core > Note for the agent (optional); Shift-Tab agentdesk-core > Note for the agent (optional)
+ok free-text: Tab reaches the note field
+ok free-text: Shift-Tab from the last stop walks the same stops in reverse
+- single-choice-or-text: Tab Or type another answer > Note for the agent (optional); Shift-Tab Or type another answer > Note for the agent (optional)
+ok single-choice-or-text: Tab reaches the note field
+ok single-choice-or-text: Shift-Tab from the last stop walks the same stops in reverse
+ok single-choice-or-text: Tab moves from the answer field to the note field
+
+Route 2, NSApp.isFullKeyboardAccessEnabled replaced in this process only: it reads true.
+The key view loop did not change: AppKit and SwiftUI decide button focus from a value this method does not supply.
+NOT EXERCISED, assigned to the operator's pre-release checks: buttons, links, radio buttons, and checkboxes in the Tab order with the Mac's Keyboard navigation setting on. Neither override reproduces that setting, and the setting was not changed.
+
+## Assistive client (AXUIElement calls within this process, with AXIsProcessTrusted true)
+AXManualAccessibility set returned -25205, which is kAXErrorAttributeUnsupported on this OS; the tree below builds without it. These calls stay inside this process.
+
+### approve-reject
+    AXGroup description="Decision detail"
+      AXStaticText value="Claude Code · api · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="Delete the stale preview databases?"
+        AXStaticText value="Seven previews have had no traffic for 30 days.
+The newest is pr-412."
+        AXStaticText value="Recommendation, Approve"
+        AXStaticText value="Deadline, 2:00 PM, 2h left"
+        AXStaticText value="Default, If nobody answers by 2:00 PM, the agent goes with Reject."
+        AXStaticText value="Topic, deploy"
+        AXTextField description="Note for the agent" actions=AXConfirm focusable
+        AXButton description="Reject" actions=AXPress focusable
+        AXButton description="Approve" help="Suggested by the agent" actions=AXPress focusable
+ok approve-reject: every control has a name
+ok approve-reject: every button, link, radio button, and checkbox offers AXPress
+ok approve-reject: the close control is named and pressable
+ok approve-reject: the panel names itself
+ok approve-reject: the note field is named
+ok approve-reject: the recommended button says so, not by color
+ok approve-reject: AXPress on Reject answers
+ok approve-reject: AXPress on Approve answers
+approve-reject: setting the note's AXValue returned true, and the draft's note then read "".
+ok approve-reject: typing in the focused note field reaches the draft
+ok approve-reject: an over-long note reads as disabled Reject and Approve
+ok approve-reject: the note limit is read as text
+ok approve-reject: AXPress on the close control runs it
+
+### single-choice
+    AXGroup description="Decision detail"
+      AXStaticText value="Codex · web · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="Ship the 2.4 release now?"
+        AXStaticText value="Staging soaked for 24 hours without errors."
+        AXStaticText value="Recommendation, Ship now"
+        AXStaticText value="Deadline, No deadline"
+        AXStaticText value="Default, No default"
+        AXStaticText value="Topic, deploy"
+        AXRadioGroup description="Answer"
+          AXRadioButton description="Ship now  Suggested" value="1" actions=AXPress focusable
+          AXRadioButton description="Wait for Monday" value="0" actions=AXPress focusable
+        AXTextField description="Note for the agent" actions=AXConfirm focusable
+        AXButton description="Send" help="Command-Return" actions=AXPress focusable
+ok single-choice: every control has a name
+ok single-choice: every button, link, radio button, and checkbox offers AXPress
+ok single-choice: the close control is named and pressable
+ok single-choice: the panel names itself
+ok single-choice: the group is named
+ok single-choice: the suggestion is in the name, not by color
+ok single-choice: the chosen radio button reads its value
+ok single-choice: AXPress chooses a radio button
+ok single-choice: the new choice reads back
+ok single-choice: AXPress on Send sends
+ok single-choice: Send names its key
+ok single-choice: AXPress on the close control runs it
+
+### multiple-choice
+    AXGroup description="Decision detail"
+      AXStaticText value="Claude Code · api · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="Which regions get the canary?"
+        AXStaticText value="Pick one or more."
+        AXStaticText value="Recommendation, Europe, United States"
+        AXStaticText value="Deadline, No deadline"
+        AXStaticText value="Default, No default"
+        AXStaticText value="Topic, deploy"
+        AXCheckBox description="Europe  Suggested" value="1" actions=AXPress focusable
+        AXCheckBox description="United States  Suggested" value="1" actions=AXPress focusable
+        AXCheckBox description="Asia Pacific" value="0" actions=AXPress focusable
+        AXTextField description="Note for the agent" actions=AXConfirm focusable
+        AXButton description="Send" help="Command-Return" actions=AXPress focusable
+ok multiple-choice: every control has a name
+ok multiple-choice: every button, link, radio button, and checkbox offers AXPress
+ok multiple-choice: the close control is named and pressable
+ok multiple-choice: the panel names itself
+ok multiple-choice: each option is a named checkbox
+ok multiple-choice: suggestions are in the name, not by color
+ok multiple-choice: each checkbox reads its value
+ok multiple-choice: AXPress toggles a checkbox
+ok multiple-choice: the new state reads back
+ok multiple-choice: AXPress on Send sends
+ok multiple-choice: AXPress on the close control runs it
+
+### free-text
+    AXGroup description="Decision detail"
+      AXStaticText value="Claude Code · api · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="Which name should the new package use?"
+        AXStaticText value="It replaces agentdesk-utils."
+        AXStaticText value="Recommendation, agentdesk-core"
+        AXStaticText value="Deadline, No deadline"
+        AXStaticText value="Default, No default"
+        AXStaticText value="Topic, deploy"
+        AXTextField description="Your answer" actions=AXConfirm focusable
+        AXTextField description="Note for the agent" actions=AXConfirm focusable
+        AXButton description="Send" help="Command-Return" actions=AXPress focusable
+ok free-text: every control has a name
+ok free-text: every button, link, radio button, and checkbox offers AXPress
+ok free-text: the close control is named and pressable
+ok free-text: the panel names itself
+ok free-text: the answer field is named
+ok free-text: the note field is named
+ok free-text: typing in the focused answer field reaches the draft
+ok free-text: AXPress on Send sends
+ok free-text: invalid input reads as a disabled Send
+ok free-text: AXPress on the close control runs it
+
+### single-choice-or-text
+    AXGroup description="Decision detail"
+      AXStaticText value="Claude Code · api · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="When should the migration run?"
+        AXStaticText value="It locks the events table for about a minute."
+        AXStaticText value="Recommendation, Tonight at 02:00"
+        AXStaticText value="Deadline, 1:00 PM, 1h left"
+        AXStaticText value="Default, If nobody answers by 1:00 PM, the agent goes with Tonight at 02:00."
+        AXStaticText value="Topic, deploy"
+        AXRadioGroup description="Answer"
+          AXRadioButton description="Now" value="0" actions=AXPress focusable
+          AXRadioButton description="Tonight at 02:00  Suggested" value="1" actions=AXPress focusable
+        AXTextField description="Your answer" actions=AXConfirm focusable
+        AXTextField description="Note for the agent" actions=AXConfirm focusable
+        AXButton description="Send" help="Command-Return" actions=AXPress focusable
+ok single-choice-or-text: every control has a name
+ok single-choice-or-text: every button, link, radio button, and checkbox offers AXPress
+ok single-choice-or-text: the close control is named and pressable
+ok single-choice-or-text: the panel names itself
+ok single-choice-or-text: the radio buttons are named
+ok single-choice-or-text: the alternative field is named
+ok single-choice-or-text: AXPress chooses a radio button
+ok single-choice-or-text: AXPress on Send sends
+ok single-choice-or-text: AXPress on the close control runs it
+
+### linked, urgent, with a default
+    AXGroup description="Decision detail"
+      AXStaticText value="Urgent"
+      AXStaticText value="Codex · web · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="Ship the 2.4 release now that the staging soak passed?"
+        AXStaticText value="This follows the soak decision."
+        AXStaticText value="Recommendation, Ship now"
+        AXStaticText value="Deadline, 12:04 PM, 4m left"
+        AXStaticText value="Default, If nobody answers by 12:04 PM, the agent goes with Wait."
+        AXStaticText value="Topic, release"
+        AXLink description="Follow-up to Run the staging soak first?" help="Shows this decision in the panel" actions=AXPress
+        AXHeading description="Follow-ups"
+        AXLink description="Follow-up decision 1" help="Shows this decision in the panel" actions=AXPress
+        AXLink description="Tell the team about the release?" help="Shows this decision in the panel" actions=AXPress
+        AXRadioGroup description="Answer"
+          AXRadioButton description="Ship now  Suggested" value="1" actions=AXPress focusable
+          AXRadioButton description="Wait" value="0" actions=AXPress focusable
+        AXTextField description="Note for the agent" actions=AXConfirm focusable
+        AXButton description="Send" help="Command-Return" actions=AXPress focusable
+ok linked, urgent, with a default: every control has a name
+ok linked, urgent, with a default: every button, link, radio button, and checkbox offers AXPress
+ok linked, urgent, with a default: the close control is named and pressable
+ok linked, urgent, with a default: the panel names itself
+ok linked: the parent and each follow-up are links
+ok linked: each link says what it does
+ok linked: Urgent is text, not only red
+ok linked: the title is a heading
+ok linked: the agent and age read
+ok linked: the time left is text, not only red
+ok linked: the separator between deadline and time left is not read
+ok linked: Recommendation reads with its value in one element
+ok linked: Deadline reads with its value in one element
+ok linked: Default reads with its value in one element
+ok linked: Topic reads with its value in one element
+ok linked: the Markdown body reads
+ok linked: "Follow-ups" is a heading
+ok linked: AXPress on each link shows its decision
+ok linked, urgent, with a default: AXPress on the close control runs it
+
+### settled-answered
+    AXGroup description="Decision detail"
+      AXStaticText value="Claude Code · api · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="Delete the stale preview databases?"
+        AXStaticText value="Answered in the app: Approve"
+        AXStaticText value="11:59 AM"
+        AXStaticText value="Note"
+        AXStaticText value="Keep pr-412 for the demo."
+        AXStaticText value="Seven previews have had no traffic for 30 days."
+        AXStaticText value="Recommendation, Approve"
+        AXStaticText value="Topic, deploy"
+ok settled-answered: every control has a name
+ok settled-answered: every button, link, radio button, and checkbox offers AXPress
+ok settled-answered: the close control is named and pressable
+ok settled-answered: the panel names itself
+ok settled-answered: the close control is the only control
+ok settled-answered: the recorded outcome reads as text
+ok settled-answered: no element has an unknown role
+ok settled-answered: AXPress on the close control runs it
+
+### settled-chat
+    AXGroup description="Decision detail"
+      AXStaticText value="Codex · web · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="Ship the 2.4 release now?"
+        AXStaticText value="Answered in chat: Wait for Monday"
+        AXStaticText value="11:58 AM"
+        AXStaticText value="Your message in chat"
+        AXStaticText value="**wait** until monday, the team is out"
+        AXStaticText value="Topic, deploy"
+ok settled-chat: every control has a name
+ok settled-chat: every button, link, radio button, and checkbox offers AXPress
+ok settled-chat: the close control is named and pressable
+ok settled-chat: the panel names itself
+ok settled-chat: the close control is the only control
+ok settled-chat: the recorded outcome reads as text
+ok settled-chat: no element has an unknown role
+ok settled-chat: AXPress on the close control runs it
+
+### settled-default
+    AXGroup description="Decision detail"
+      AXStaticText value="Claude Code · api · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="When should the migration run?"
+        AXStaticText value="Expired. The default applied: Tonight at 02:00"
+        AXStaticText value="11:30 AM"
+        AXStaticText value="Deadline, 11:30 AM"
+        AXStaticText value="Default, Tonight at 02:00"
+        AXStaticText value="Topic, deploy"
+ok settled-default: every control has a name
+ok settled-default: every button, link, radio button, and checkbox offers AXPress
+ok settled-default: the close control is named and pressable
+ok settled-default: the panel names itself
+ok settled-default: the close control is the only control
+ok settled-default: the recorded outcome reads as text
+ok settled-default: no element has an unknown role
+ok settled-default: AXPress on the close control runs it
+
+### settled-expired
+    AXGroup description="Decision detail"
+      AXStaticText value="Claude Code · api · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="Rotate the signing key today?"
+        AXStaticText value="Expired without an answer"
+        AXStaticText value="Deadline, 10:00 AM"
+        AXStaticText value="Topic, deploy"
+ok settled-expired: every control has a name
+ok settled-expired: every button, link, radio button, and checkbox offers AXPress
+ok settled-expired: the close control is named and pressable
+ok settled-expired: the panel names itself
+ok settled-expired: the close control is the only control
+ok settled-expired: the recorded outcome reads as text
+ok settled-expired: no element has an unknown role
+ok settled-expired: AXPress on the close control runs it
+
+### settled-cancelled
+    AXGroup description="Decision detail"
+      AXStaticText value="Ended agent · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="Which name should the new package use?"
+        AXStaticText value="Cancelled. No answer was recorded."
+        AXStaticText value="Topic, deploy"
+ok settled-cancelled: every control has a name
+ok settled-cancelled: every button, link, radio button, and checkbox offers AXPress
+ok settled-cancelled: the close control is named and pressable
+ok settled-cancelled: the panel names itself
+ok settled-cancelled: the close control is the only control
+ok settled-cancelled: the recorded outcome reads as text
+ok settled-cancelled: no element has an unknown role
+ok settled-cancelled: AXPress on the close control runs it
+
+### settled-chat message
+    AXGroup description="Decision detail"
+      AXStaticText value="Codex · web · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="Ship the 2.4 release now?"
+        AXStaticText value="Answered in chat: Wait for Monday"
+        AXStaticText value="11:58 AM"
+        AXStaticText value="Your message in chat"
+        AXStaticText value="**wait** until monday, the team is out"
+        AXStaticText value="Topic, deploy"
+ok settled-chat message: every control has a name
+ok settled-chat message: every button, link, radio button, and checkbox offers AXPress
+ok settled-chat message: the close control is named and pressable
+ok settled-chat message: the panel names itself
+ok settled-chat: the message reads word for word
+ok settled-chat message: AXPress on the close control runs it
+
+### load-failed
+    AXGroup description="Decision detail"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="Couldn't load this decision."
+        AXButton description="Try Again" actions=AXPress focusable
+ok load-failed: every control has a name
+ok load-failed: every button, link, radio button, and checkbox offers AXPress
+ok load-failed: the close control is named and pressable
+ok load-failed: the panel names itself
+ok load-failed: the message reads
+ok load-failed: AXPress on Try Again retries
+
+### unavailable
+    AXGroup description="Decision detail"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXStaticText value="This decision isn't available."
+ok unavailable: every control has a name
+ok unavailable: every button, link, radio button, and checkbox offers AXPress
+ok unavailable: the close control is named and pressable
+ok unavailable: the panel names itself
+ok unavailable: the message reads
+ok unavailable: the close control is the only control
+
+### loading
+    AXGroup description="Decision detail"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXBusyIndicator description="Loading the decision…" value="0"
+ok loading: every control has a name
+ok loading: every button, link, radio button, and checkbox offers AXPress
+ok loading: the close control is named and pressable
+ok loading: the panel names itself
+ok loading: the state is named
+
+### send-failed
+    AXGroup description="Decision detail"
+      AXStaticText value="Codex · web · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="Ship the 2.4 release now?"
+        AXStaticText value="Staging soaked for 24 hours without errors."
+        AXStaticText value="Recommendation, Ship now"
+        AXStaticText value="Deadline, No deadline"
+        AXStaticText value="Default, No default"
+        AXStaticText value="Topic, deploy"
+        AXRadioGroup description="Answer"
+          AXRadioButton description="Ship now  Suggested" value="1" actions=AXPress focusable
+          AXRadioButton description="Wait for Monday" value="0" actions=AXPress focusable
+        AXTextField description="Note for the agent" actions=AXConfirm focusable
+        AXButton description="Send" help="Command-Return" actions=AXPress focusable
+        AXStaticText value="Couldn't send. Try again."
+ok send-failed: every control has a name
+ok send-failed: every button, link, radio button, and checkbox offers AXPress
+ok send-failed: the close control is named and pressable
+ok send-failed: the panel names itself
+ok send-failed: the failure reads as text
+ok send-failed: Send stays reachable to retry
+
+### answer-held
+    AXGroup description="Decision detail"
+      AXStaticText value="Claude Code · api · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="Delete the stale preview databases?"
+        AXStaticText value="Seven previews have had no traffic for 30 days.
+The newest is pr-412."
+        AXStaticText value="Recommendation, Approve"
+        AXStaticText value="Deadline, 2:00 PM, 2h left"
+        AXStaticText value="Default, If nobody answers by 2:00 PM, the agent goes with Reject."
+        AXStaticText value="Topic, deploy"
+        AXStaticText value="Your answer to this decision is on its way."
+ok answer-held: every control has a name
+ok answer-held: every button, link, radio button, and checkbox offers AXPress
+ok answer-held: the close control is named and pressable
+ok answer-held: the panel names itself
+ok answer-held: the state reads as text
+ok answer-held: the close control is the only control
+
+### refresh-failed
+    AXGroup description="Decision detail"
+      AXStaticText value="Claude Code · api · 2m ago"
+      AXButton description="Close detail" help="Escape" actions=AXPress
+      AXScrollArea
+        AXHeading description="Delete the stale preview databases?"
+        AXStaticText value="Couldn't refresh this decision. It may be out of date."
+        AXStaticText value="Seven previews have had no traffic for 30 days.
+The newest is pr-412."
+        AXStaticText value="Recommendation, Approve"
+        AXStaticText value="Deadline, 2:00 PM, 2h left"
+        AXStaticText value="Default, If nobody answers by 2:00 PM, the agent goes with Reject."
+        AXStaticText value="Topic, deploy"
+        AXTextField description="Note for the agent" actions=AXConfirm focusable
+        AXButton description="Reject" actions=AXPress focusable
+        AXButton description="Approve" help="Suggested by the agent" actions=AXPress focusable
+ok refresh-failed: every control has a name
+ok refresh-failed: every button, link, radio button, and checkbox offers AXPress
+ok refresh-failed: the close control is named and pressable
+ok refresh-failed: the panel names itself
+ok refresh-failed: the state reads as text
+
+### popover rows
+    AXStaticText value="AgentDesk"
+    AXStaticText value="3 waiting"
+    AXImage description="More"
+    AXScrollArea
+      AXButton description="Ship the 2.4 release to production now that the staging soak passed?" value="Codex · web, 4m left, new, urgent, suggests Ship now" help="Opens the detail panel" actions=AXPress
+      AXButton description="Delete the stale preview databases?" value="Claude Code · api, 2h left" help="Opens the detail panel" actions=AXPress
+      AXButton description="Reject" actions=AXPress focusable
+      AXButton description="Approve" actions=AXPress focusable
+      AXButton description="Which name should the new package use?" value="Ended agent, new, suggests agentdesk-core" help="Opens the detail panel" actions=AXPress
+    AXButton description="1 active, 1 quiet, 1 blocked" value="Collapsed" actions=AXPress focusable
+ok row: the title is its name
+ok row: the value reads the agent, time left, new, urgent, and suggestion
+ok row: it offers AXPress
+ok row: Reject and Approve are separate named buttons
+
+## What this does not establish
+This evidence is non-live, and it does not establish the reach req-mac-app AC-11.11 sets. These checks are assigned to the operator's pre-release checks:
+NOT EXERCISED: VoiceOver speech and focus. VoiceOver did not run; the tree above is what it would be given.
+NOT EXERCISED: the Mac's Keyboard navigation setting on, and physical Tab or Shift-Tab keys.
+NOT EXERCISED: focus moving on opening, replacing, and closing the panel in the live app.
+NOT EXERCISED: an assistive client in another process. These AXUIElement calls were answered inside this process.
+NOT EXERCISED: moving AX focus into a control, since this app stays inactive and its windows never take key focus. Focusable above means AXFocused is settable.
+
+## Focus
+ok this process never became the active app
+
+RESULT: PASS

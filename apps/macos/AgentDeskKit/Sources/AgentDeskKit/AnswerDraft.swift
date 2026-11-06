@@ -1,10 +1,10 @@
 import Foundation
 
-/// The answer the user is composing in an expanded row: the chosen option or
-/// options, the typed text, and the optional note (component-mac-app §Rows;
-/// req-mac-app AC-4.6, AC-4.7). The row's controls bind to it, and Send and
-/// ⌘↩ both read `submission`, so the answer the app sends is the one the
-/// controls show.
+/// The answer the user is composing in the detail panel: the chosen option or
+/// options, the typed text, and the optional note (component-mac-app §Detail
+/// panel; req-mac-app AC-4.7, AC-11.2). The panel's controls bind to it, and
+/// Send and ⌘↩ both read `submission`, so the answer the app sends is the one
+/// the controls show.
 public struct AnswerDraft: Equatable, Sendable {
   /// The longest note the server accepts, counted as it counts, in UTF-16
   /// code units (req-decision-requests AC-2.5).
@@ -36,7 +36,14 @@ public struct AnswerDraft: Equatable, Sendable {
   public var isNoteOpen = false
   public var note = ""
 
-  /// A draft with the recommendation preselected (AC-4.6).
+  /// A draft for the panel, whose note field is always showing (AC-11.2).
+  public static func forPanel(_ decision: Decision) -> AnswerDraft {
+    var draft = AnswerDraft(decision: decision)
+    draft.isNoteOpen = true
+    return draft
+  }
+
+  /// A draft with the recommendation preselected.
   public init(decision: Decision) {
     inputType = decision.inputType
     options = decision.options ?? []
@@ -55,7 +62,7 @@ public struct AnswerDraft: Equatable, Sendable {
 
   // MARK: Presentation
 
-  /// Whether the option is part of the recommendation, so the row labels it
+  /// Whether the option is part of the recommendation, so the panel labels it
   /// "Suggested".
   public func isSuggested(_ optionID: String) -> Bool {
     switch recommendation {
@@ -72,7 +79,7 @@ public struct AnswerDraft: Equatable, Sendable {
   }
 
   /// Whether the button for `answer` carries the recommendation, for
-  /// approve-or-reject rows (AC-4.5).
+  /// approve-or-reject decisions (AC-4.5).
   public func isSuggested(_ answer: Answer) -> Bool { recommendation == answer }
 
   // MARK: Answer

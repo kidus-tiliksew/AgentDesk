@@ -22,15 +22,15 @@ trap 'rm -rf "$work"' EXIT
 mkdir -p "$out" "$work/src"
 rm -f "$out"/*.png "$out"/*.txt "$out"/*.log "$out"/manifest.json
 
-# The harness compiles the kit and eight app-target files into one module, so
+# The harness compiles the kit and eleven app-target files into one module, so
 # their `import AgentDeskKit` lines are dropped.
 cp "$macos"/AgentDeskKit/Sources/AgentDeskKit/*.swift "$macos"/AgentDeskKit/Sources/AgentDeskKit/Models/*.swift "$work/src/"
-for file in DecisionRow AnswerControls AgentsView ScrollSupport Ink MenuBarLabel NotificationController NotificationPauseLine; do
+for file in DecisionRow AnswerControls DecisionDetailView DetailPanelWindow PopoverKeyObserver AgentsView ScrollSupport Ink MenuBarLabel NotificationController NotificationPauseLine; do
   sed '/^import AgentDeskKit$/d' "$macos/AgentDesk/$file.swift" >"$work/src/$file.swift"
 done
 cp "$here"/Harness/*.swift "$work/src/"
 
-build_cmd="swiftc -swift-version 6 -O -o <tmp>/evidence <kit sources> AgentDesk/{DecisionRow,AnswerControls,AgentsView,ScrollSupport,Ink,MenuBarLabel,NotificationController,NotificationPauseLine}.swift Evidence/Harness/*.swift"
+build_cmd="swiftc -swift-version 6 -O -o <tmp>/evidence <kit sources> AgentDesk/{DecisionRow,AnswerControls,DecisionDetailView,DetailPanelWindow,PopoverKeyObserver,AgentsView,ScrollSupport,Ink,MenuBarLabel,NotificationController,NotificationPauseLine}.swift Evidence/Harness/*.swift"
 swiftc -swift-version 6 -O -o "$work/evidence" "$work"/src/*.swift >"$out/build.log" 2>&1
 build_exit=$?
 
@@ -38,6 +38,16 @@ harness_exit=127
 if [ "$build_exit" -eq 0 ]; then
   "$work/evidence" "$out" >"$out/harness.log" 2>&1
   harness_exit=$?
+fi
+
+# The panel's Tab stops and accessibility tree, in their own process with only
+# full keyboard access overridden through the argument domain. No setting
+# changes and VoiceOver does not start.
+access_cmd="<tmp>/evidence apps/macos/Evidence/output --access -AppleKeyboardUIMode 2"
+access_exit=127
+if [ "$build_exit" -eq 0 ]; then
+  "$work/evidence" "$out" --access -AppleKeyboardUIMode 2 >"$out/access.log" 2>&1
+  access_exit=$?
 fi
 
 # The full suite, as CI runs it; the freshness measurement is part of it.
@@ -83,6 +93,10 @@ bundle_exit=0
   sparkle_version=$(plutil -extract CFBundleShortVersionString raw -o - "$framework/Resources/Info.plist" 2>/dev/null) || sparkle_version="<missing>"
   if [ "$sparkle_version" = 2.10.1 ]; then verdict=ok; else verdict=FAIL; bundle_exit=1; fi
   printf '%s Contents/Frameworks/Sparkle.framework CFBundleShortVersionString = %s\n' "$verdict" "$sparkle_version"
+  # No Dock icon, with the detail panel as with the popover (req-mac-app AC-1.1).
+  ui_element=$(plutil -extract LSUIElement raw -o - "$info" 2>/dev/null) || ui_element="<missing>"
+  if [ "$ui_element" = true ]; then verdict=ok; else verdict=FAIL; bundle_exit=1; fi
+  printf '%s LSUIElement = %s\n' "$verdict" "$ui_element"
 
   # The app icon (req-mac-app AC-1.4): the catalog's slots, the build setting,
   # the compiled resources, and the icon macOS returns for the built bundle.
@@ -191,6 +205,7 @@ fi
   # One key per line, as the repository's Biome formatter writes JSON.
   printf '    {\n      "command": "%s",\n      "exit": %d,\n      "log": "build.log"\n    },\n' "$build_cmd" "$build_exit"
   printf '    {\n      "command": "<tmp>/evidence apps/macos/Evidence/output",\n      "exit": %d,\n      "log": "harness.log",\n      "report": "report.txt"\n    },\n' "$harness_exit"
+  printf '    {\n      "command": "%s",\n      "exit": %d,\n      "log": "access.log",\n      "report": "access.txt"\n    },\n' "$access_cmd" "$access_exit"
   printf '    {\n      "command": "%s",\n      "exit": %d,\n      "log": "tests.log",\n      "summary": "freshness.txt"\n    },\n' "$tests_cmd" "$tests_exit"
   printf '    {\n      "command": "%s",\n      "exit": %d,\n      "log": "xcodebuild.log"\n    },\n' "$xcodebuild_cmd" "$xcodebuild_exit"
   printf '    {\n      "command": "plutil, base64, sips, assetutil, and Evidence/IconAudit on <tmp>/DerivedData/Build/Products/Debug/AgentDesk.app",\n      "exit": %d,\n      "log": "bundle.txt"\n    },\n' "$bundle_exit"
@@ -218,6 +233,6 @@ if [ -n "$ignored" ]; then
   ignored_exit=1
 fi
 
-echo "build=$build_exit harness=$harness_exit tests=$tests_exit xcodebuild=$xcodebuild_exit bundle=$bundle_exit release_tests=$release_tests_exit dry_run=$dry_run_exit ignored=$ignored_exit dirty=$dirty -> $out"
-[ "$build_exit" -eq 0 ] && [ "$harness_exit" -eq 0 ] && [ "$tests_exit" -eq 0 ] && [ "$xcodebuild_exit" -eq 0 ] \
+echo "build=$build_exit harness=$harness_exit access=$access_exit tests=$tests_exit xcodebuild=$xcodebuild_exit bundle=$bundle_exit release_tests=$release_tests_exit dry_run=$dry_run_exit ignored=$ignored_exit dirty=$dirty -> $out"
+[ "$build_exit" -eq 0 ] && [ "$harness_exit" -eq 0 ] && [ "$access_exit" -eq 0 ] && [ "$tests_exit" -eq 0 ] && [ "$xcodebuild_exit" -eq 0 ] \
   && [ "$bundle_exit" -eq 0 ] && [ "$release_tests_exit" -eq 0 ] && [ "$dry_run_exit" -eq 0 ] && [ "$ignored_exit" -eq 0 ]

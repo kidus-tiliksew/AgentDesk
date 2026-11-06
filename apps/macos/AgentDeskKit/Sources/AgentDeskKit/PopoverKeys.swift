@@ -1,7 +1,7 @@
 import Foundation
 
-/// The popover's keys (component-mac-app §Keyboard and accessibility;
-/// req-mac-app AC-7.1).
+/// The keys of the popover and the detail panel (component-mac-app §Keyboard
+/// and accessibility; req-mac-app AC-7.1, AC-11.7).
 public enum PopoverKey: Equatable, Sendable {
   case up
   case down
@@ -10,47 +10,51 @@ public enum PopoverKey: Equatable, Sendable {
   case escape
 }
 
-/// What a key does to the list.
+/// What a key does to the list and the panel.
 public enum PopoverKeyAction: Equatable, Sendable {
   /// Select this row.
   case select(String)
-  /// Expand the row, or collapse it when it is expanded.
+  /// Open this decision in the panel, or close the panel when it shows it.
   case toggle(String)
-  /// Send the row's chosen answer, or its recommendation.
+  /// Send the decision's chosen answer, or its recommendation.
   case send(String)
-  /// Collapse the expanded row.
-  case collapse
-  /// Leave the key to the focused control or the popover window: a text
-  /// field keeps its arrows and Return, and Escape with nothing expanded
-  /// closes the popover.
+  /// Close the panel and leave the popover open.
+  case closePanel
+  /// Leave the key to the focused control or the window: a text field keeps
+  /// its arrows and Return, and Escape with no panel closes the popover.
   case passThrough
 }
 
 public enum PopoverKeys {
-  /// Maps a key to its action. Selection and expansion are decision ids;
-  /// an id no longer in `rows` counts as none. While a text field is being
-  /// edited, ↑, ↓, and ↩ stay with the field, and ⌘↩ and Escape still act.
+  /// Maps a key to its action. `selected` is a row id, and one no longer in
+  /// `rows` counts as none. `shown` is the panel's target, which may be a
+  /// decision the list does not hold, and `shownIsAnswerable` says whether it
+  /// can take an answer. While a text field is being edited, ↑, ↓, and ↩ stay
+  /// with the field, and ⌘↩ and Escape still act.
   public static func action(
-    for key: PopoverKey, rows: [String], selected: String?, expanded: String?, editingText: Bool
+    for key: PopoverKey, rows: [String], selected: String?, shown: String?,
+    shownIsAnswerable: Bool = true, editingText: Bool
   ) -> PopoverKeyAction {
     let selected = selected.flatMap { rows.contains($0) ? $0 : nil }
-    let expanded = expanded.flatMap { rows.contains($0) ? $0 : nil }
     switch key {
     case .up, .down:
       guard !editingText, !rows.isEmpty else { return .passThrough }
-      guard let current = selected ?? expanded, let index = rows.firstIndex(of: current) else {
+      let listedShown = shown.flatMap { rows.contains($0) ? $0 : nil }
+      guard let current = selected ?? listedShown, let index = rows.firstIndex(of: current) else {
         return .select(key == .down ? rows[0] : rows[rows.count - 1])
       }
       let next = key == .down ? min(index + 1, rows.count - 1) : max(index - 1, 0)
       return .select(rows[next])
     case .returnKey:
-      guard !editingText, let target = selected ?? expanded else { return .passThrough }
+      guard !editingText, let target = selected ?? shown else { return .passThrough }
       return .toggle(target)
     case .commandReturn:
-      guard let target = selected ?? expanded else { return .passThrough }
-      return .send(target)
+      // The shown decision comes first. A settled one sends nothing, and
+      // never falls through to a row the user is not reading.
+      if let shown { return shownIsAnswerable ? .send(shown) : .passThrough }
+      return selected.map(PopoverKeyAction.send) ?? .passThrough
     case .escape:
-      return expanded == nil ? .passThrough : .collapse
+      return shown == nil ? .passThrough : .closePanel
     }
   }
 

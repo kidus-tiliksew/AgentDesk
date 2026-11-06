@@ -1,39 +1,28 @@
 import AgentDeskKit
 import SwiftUI
 
-/// The expanded row (component-mac-app §Rows; req-mac-app AC-4.6, AC-4.7):
-/// the body as Markdown, the controls for the input type with the
-/// recommendation preselected and labelled "Suggested", the deadline and
-/// default, Add note, Open agent page, and Send. Every control binds to the
-/// row's `AnswerDraft`, which builds the answer Send and ⌘↩ submit.
+/// The detail panel's answer controls (component-mac-app §Detail panel;
+/// req-mac-app AC-4.7, AC-11.2): the controls for the input type with the
+/// recommendation preselected and labelled "Suggested", the note field, and
+/// Reject and Approve or Send. Every control binds to the decision's
+/// `AnswerDraft`, which builds the answer Send and ⌘↩ submit.
 struct AnswerControls: View {
-  let item: DecisionListItem
+  let decision: Decision
   @Binding var draft: AnswerDraft
-  let actions: DecisionListActions
-
-  private var decision: Decision { item.decision }
+  let answer: (Answer) -> Void
+  let send: () -> Void
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      if let body = decision.body, !body.isEmpty {
-        MarkdownBody(text: body)
-      }
+    VStack(alignment: .leading, spacing: 10) {
       inputs
-      if let sentence = item.defaultSentence {
-        Text(sentence)
+      TextField("Note for the agent (optional)", text: $draft.note, axis: .vertical)
+        .lineLimit(1...4)
+        .textFieldStyle(.roundedBorder)
+        .accessibilityLabel("Note for the agent")
+      if !draft.noteIsValid {
+        Text("Notes can be up to \(AnswerDraft.noteLimit) characters.")
           .font(.callout)
           .foregroundStyle(Ink.secondary)
-          .fixedSize(horizontal: false, vertical: true)
-      }
-      if draft.isNoteOpen {
-        TextField("Note for the agent", text: $draft.note, axis: .vertical)
-          .lineLimit(1...4)
-          .textFieldStyle(.roundedBorder)
-        if !draft.noteIsValid {
-          Text("Notes can be up to \(AnswerDraft.noteLimit) characters.")
-            .font(.callout)
-            .foregroundStyle(Ink.secondary)
-        }
       }
       footer
     }
@@ -88,42 +77,35 @@ struct AnswerControls: View {
     TextField(placeholder, text: $draft.text, axis: .vertical)
       .lineLimit(1...4)
       .textFieldStyle(.roundedBorder)
+      .accessibilityLabel("Your answer")
   }
 
+  @ViewBuilder
   private var footer: some View {
-    HStack(spacing: 10) {
-      if !draft.isNoteOpen {
-        Button("Add note") { draft.isNoteOpen = true }
-          .buttonStyle(.link)
-      }
-      if let link = item.agentLink {
-        Button("Open agent page") { actions.openLink(link) }
-          .buttonStyle(.link)
-      }
-      Spacer(minLength: 0)
-      if decision.inputType != .approveReject {
+    if decision.inputType == .approveReject {
+      ApproveRejectButtons(recommendation: decision.recommendation, answer: answer)
+        .disabled(!draft.noteIsValid)
+    } else {
+      HStack(spacing: 10) {
+        Spacer(minLength: 0)
         Text("⌘↩")
           .font(.callout)
           .foregroundStyle(Ink.tertiary)
           .accessibilityHidden(true)
-        Button("Send") { actions.send(item.id) }
+        Button("Send", action: send)
           .buttonStyle(.borderedProminent)
           .controlSize(.small)
           .disabled(!draft.canSend)
           .accessibilityHint("Command-Return")
       }
     }
-    .font(.callout)
   }
 }
 
-/// The body as Markdown with `.inlineOnlyPreservingWhitespace`, scrolling
-/// within 150 pt.
+/// The body as Markdown with `.inlineOnlyPreservingWhitespace`. The panel's
+/// own scroll view scrolls it (req-mac-app AC-11.9).
 struct MarkdownBody: View {
-  static let maxHeight: CGFloat = 150
-
   let text: String
-  @State private var height: CGFloat = 0
 
   private var rendered: AttributedString {
     (try? AttributedString(
@@ -134,15 +116,9 @@ struct MarkdownBody: View {
   }
 
   var body: some View {
-    ScrollView {
-      Text(rendered)
-        .font(.callout)
-        .textSelection(.enabled)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .fixedSize(horizontal: false, vertical: true)
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
-    }
-    .scrollBounceBehavior(.basedOnSize)
-    .frame(height: min(max(height, 1), Self.maxHeight))
+    Text(rendered)
+      .textSelection(.enabled)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .fixedSize(horizontal: false, vertical: true)
   }
 }

@@ -2,16 +2,15 @@ import AgentDeskKit
 import AppKit
 import SwiftUI
 
-/// One listed decision with what its expanded row shows.
+/// One listed decision.
 struct DecisionListItem: Identifiable {
   let row: DecisionRowModel
   let decision: Decision
-  /// The asking session's page, when it is live and has a web link.
-  let agentLink: URL?
-  /// "If nobody answers by <time>, the agent goes with <default>."
-  let defaultSentence: String?
   /// "Couldn't send. Try again." under a row whose answer failed.
   let failure: String?
+  /// False when the decision's draft holds a note over the limit, which
+  /// refuses every answer until the user shortens it in the panel.
+  var noteIsValid = true
 
   var id: String { row.id }
 }
@@ -19,21 +18,19 @@ struct DecisionListItem: Identifiable {
 /// What the list's rows do. The app routes each action to `AppState`; the
 /// evidence harness renders the same views without one.
 struct DecisionListActions {
+  /// Opens the row in the detail panel, or closes the panel when it shows it.
   var toggle: (String) -> Void = { _ in }
   var answer: (String, Answer) -> Void = { _, _ in }
-  var send: (String) -> Void = { _ in }
-  var openLink: (URL) -> Void = { NSWorkspace.shared.open($0) }
-  /// The expanded row's draft.
-  var draft: (DecisionListItem) -> Binding<AnswerDraft> = { .constant(AnswerDraft(decision: $0.decision)) }
 }
 
 /// One pending decision (component-mac-app §Rows; req-mac-app AC-4.2 to
-/// AC-4.7). Clicking its text expands it in place; approve-or-reject rows
-/// carry Reject and Approve.
+/// AC-4.6). Clicking its text opens it in the detail panel, and it never
+/// expands; approve-or-reject rows carry Reject and Approve.
 struct DecisionRow: View {
   let item: DecisionListItem
   let isSelected: Bool
-  let isExpanded: Bool
+  /// The detail panel shows this row's decision.
+  let isShown: Bool
   let actions: DecisionListActions
 
   private var row: DecisionRowModel { item.row }
@@ -42,15 +39,15 @@ struct DecisionRow: View {
     VStack(alignment: .leading, spacing: 6) {
       summary
       if item.decision.inputType == .approveReject {
-        ApproveRejectButtons(item: item, actions: actions)
+        ApproveRejectButtons(recommendation: item.decision.recommendation) {
+          actions.answer(item.id, $0)
+        }
+        .disabled(!item.noteIsValid)
       }
       if let failure = item.failure {
         Text(failure)
           .font(.callout)
           .foregroundStyle(Ink.secondary)
-      }
-      if isExpanded {
-        AnswerControls(item: item, draft: actions.draft(item), actions: actions)
       }
     }
     .padding(.horizontal, 14)
@@ -113,7 +110,7 @@ struct DecisionRow: View {
     .accessibilityLabel(row.accessibilityLabel)
     .accessibilityValue(row.accessibilityValue)
     .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-    .accessibilityHint(isExpanded ? "Collapses the decision" : "Expands the decision")
+    .accessibilityHint(isShown ? "Closes the detail panel" : "Opens the detail panel")
     .accessibilityAction { actions.toggle(item.id) }
   }
 }
@@ -121,8 +118,8 @@ struct DecisionRow: View {
 /// Reject and Approve in one neutral style. The recommended one has the
 /// hint "Suggested by the agent" (req-mac-app AC-4.5).
 struct ApproveRejectButtons: View {
-  let item: DecisionListItem
-  let actions: DecisionListActions
+  let recommendation: Answer?
+  let answer: (Answer) -> Void
 
   var body: some View {
     HStack(spacing: 8) {
@@ -132,13 +129,13 @@ struct ApproveRejectButtons: View {
     }
   }
 
-  private func button(_ title: String, _ answer: Answer) -> some View {
+  private func button(_ title: String, _ value: Answer) -> some View {
     Button(title) {
-      actions.answer(item.id, answer)
+      answer(value)
     }
     .buttonStyle(.bordered)
     .controlSize(.small)
-    .accessibilityHint(item.decision.recommendation == answer ? "Suggested by the agent" : "")
+    .accessibilityHint(recommendation == value ? "Suggested by the agent" : "")
   }
 }
 
@@ -146,11 +143,11 @@ struct ApproveRejectButtons: View {
 /// scroller that stays visible (req-mac-app AC-4.13). `scrollRequest` moves
 /// the list: the top on opening, or a row the keys or a notification asked
 /// for (component-mac-app §List scrolling). Hairlines hide around the
-/// hovered, selected, or expanded row.
+/// hovered, selected, or shown row.
 struct DecisionList: View {
   let items: [DecisionListItem]
   let selectedID: String?
-  let expandedID: String?
+  let shownID: String?
   let maxHeight: CGFloat
   var scrollRequest = ListScrollRequest()
   var rowScrollAnimation: Animation? = .easeOut(duration: 0.15)
@@ -159,7 +156,7 @@ struct DecisionList: View {
   @State private var hoveredID: String?
 
   private func isHighlighted(_ id: String) -> Bool {
-    id == hoveredID || id == selectedID || id == expandedID
+    id == hoveredID || id == selectedID || id == shownID
   }
 
   var body: some View {
@@ -173,7 +170,7 @@ struct DecisionList: View {
                 .opacity(isHighlighted(items[index - 1].id) || isHighlighted(item.id) ? 0 : 1)
             }
             DecisionRow(
-              item: item, isSelected: item.id == selectedID, isExpanded: item.id == expandedID,
+              item: item, isSelected: item.id == selectedID, isShown: item.id == shownID,
               actions: actions
             )
             .background(

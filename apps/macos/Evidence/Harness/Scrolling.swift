@@ -41,7 +41,7 @@ private struct ScrollFixture: View {
       AnswerStrips(outcome: nil, undoText: model.undo)
         .measuredHeight($stripsHeight)
       DecisionList(
-        items: model.items, selectedID: nil, expandedID: nil,
+        items: model.items, selectedID: nil, shownID: nil,
         maxHeight: CGFloat(
           PopoverLayout.listMaxHeight(chromeHeight: Double(headerHeight + stripsHeight + agentsHeight + 2))),
         scrollRequest: model.request, rowScrollAnimation: nil)

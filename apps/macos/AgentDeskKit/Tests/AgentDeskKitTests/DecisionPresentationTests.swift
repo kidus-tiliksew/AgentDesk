@@ -176,14 +176,36 @@ final class DecisionPresentationTests: XCTestCase {
     XCTAssertEqual(outcome(["state": "cancelled"]), "Cancelled before your answer")
   }
 
-  func testAgentLinkNeedsALiveSessionWithAWebLink() {
-    let withLink = Fixtures.session("ags_1", ["link": "https://example.com/run/1"])
-    let ftp = Fixtures.session("ags_2", ["link": "ftp://example.com/x"])
-    let decision = Fixtures.pending("a", ["agent_session_id": "ags_1"])
+  func testSettledOutcomeReadsTheRecordedAnswerAndItsSurface() {
+    let at = Fixtures.instant("2026-10-27T12:00:00Z")
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "UTC")!
+    func outcome(_ fields: [String: Any]) -> DecisionOutcome? {
+      DecisionPresentation.settledOutcome(
+        Fixtures.pending("a", fields), now: at, calendar: calendar, locale: Locale(identifier: "en_US"))
+    }
+    XCTAssertNil(outcome([:]), "a pending decision has no outcome")
+    let answered = outcome([
+      "state": "answered", "answer": ["kind": "approve"], "answered_via": "api",
+      "answered_at": "2026-10-27T11:30:00Z", "note": "after the soak",
+    ])
+    XCTAssertEqual(answered?.summary, "Answered through the API: Approve")
+    XCTAssertEqual(answered?.note, "after the soak")
+    XCTAssertTrue(answered?.time?.contains("11:30") == true, "today reads as a time of day")
+    XCTAssertNil(answered?.chatMessage)
+
+    let chat = outcome([
+      "state": "answered", "answer": ["kind": "reject"], "answered_via": "chat", "chat_message": "not yet",
+    ])
+    XCTAssertEqual(chat?.summary, "Answered in chat: Reject")
+    XCTAssertEqual(chat?.chatMessage, "not yet", "an answer given in chat shows the message word for word")
+
     XCTAssertEqual(
-      DecisionPresentation.agentLink(for: decision, agents: [withLink]), URL(string: "https://example.com/run/1"))
-    XCTAssertNil(DecisionPresentation.agentLink(for: decision, agents: []), "an ended session has no link")
-    XCTAssertNil(
-      DecisionPresentation.agentLink(for: Fixtures.pending("b", ["agent_session_id": "ags_2"]), agents: [ftp]))
+      outcome([
+        "state": "expired", "answer": ["kind": "reject"], "answered_via": "default",
+        "applied_by_default": true,
+      ])?.summary, "Expired. The default applied: Reject")
+    XCTAssertEqual(outcome(["state": "expired"])?.summary, "Expired without an answer")
+    XCTAssertEqual(outcome(["state": "cancelled"])?.summary, "Cancelled. No answer was recorded.")
   }
 }
