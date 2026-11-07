@@ -508,6 +508,15 @@ NOT EXERCISED, assigned to the operator's pre-release checks: the panel's height
 
 ## The panel across later clicks (the shipped coordinator and controller, a real NSPopover, a click inside a SwiftUI action, a read after 250 ms)
 tolerances: frames within 1 pt; the close control's top 7...12 pt below the window's top; layout holds still for 0.3 s within 2 s
+declared panel source: unfixed, by --unfixed-panel
+ok the matcher accepts AppKit's constraint as expected
+ok the matcher fails a missing constraint
+ok the matcher fails a renamed constraint
+ok the matcher fails a constraint on another attribute
+ok the matcher fails a constraint at another priority
+ok the absence check accepts no constraint
+ok the absence check fails AppKit's constraint
+ok the absence check fails a renamed constraint
 agent, click 1, s1: window 369.0, host 369.0, preferred 369.0, header top 11.0, header block 21.0, bottom 0.0, body 337.0, viewport 337.0, clip 0.0, safe area top 0 bottom 0
 ok agent, click 1, s1: the click reached the row
 ok agent, click 1, s1: layout holds still within 2 s
@@ -517,6 +526,8 @@ ok agent, click 1, s1: the body ends at the window's bottom
 ok agent, click 1, s1: the hosting view has no safe-area inset
 ok agent, click 1, s1: the window's height matches header plus body
 ok agent, click 1, s1: the body starts at its top
+ok agent, click 1, s1: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 369.0, priority 501.0, preferred 369.0
 agent, click 2, s2: window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 687.0, viewport 528.0, clip 0.0, safe area top 0 bottom 0
 ok agent, click 2, s2: the click reached the row
 ok agent, click 2, s2: layout holds still within 2 s
@@ -526,6 +537,8 @@ ok agent, click 2, s2: the body ends at the window's bottom
 ok agent, click 2, s2: the hosting view has no safe-area inset
 ok agent, click 2, s2: the window stops at the 560 pt limit
 ok agent, click 2, s2: the body starts at its top
+ok agent, click 2, s2: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 560.0, priority 501.0, preferred 560.0
 agent, click 3, s3: window 298.0, host 298.0, preferred 298.0, header top 11.0, header block 21.0, bottom 0.0, body 266.0, viewport 266.0, clip 0.0, safe area top 0 bottom 0
 ok agent, click 3, s3: the click reached the row
 ok agent, click 3, s3: layout holds still within 2 s
@@ -535,6 +548,8 @@ ok agent, click 3, s3: the body ends at the window's bottom
 ok agent, click 3, s3: the hosting view has no safe-area inset
 ok agent, click 3, s3: the window's height matches header plus body
 ok agent, click 3, s3: the body starts at its top
+ok agent, click 3, s3: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 298.0, priority 501.0, preferred 298.0
 agent, click 4, s4: window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 687.0, viewport 528.0, clip 0.0, safe area top 0 bottom 0
 ok agent, click 4, s4: the click reached the row
 ok agent, click 4, s4: layout holds still within 2 s
@@ -544,6 +559,8 @@ ok agent, click 4, s4: the body ends at the window's bottom
 ok agent, click 4, s4: the hosting view has no safe-area inset
 ok agent, click 4, s4: the window stops at the 560 pt limit
 ok agent, click 4, s4: the body starts at its top
+ok agent, click 4, s4: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 560.0, priority 501.0, preferred 560.0
 agent, click 5, s5: window 377.0, host 377.0, preferred 377.0, header top 11.0, header block 21.0, bottom 0.0, body 345.0, viewport 345.0, clip 0.0, safe area top 0 bottom 0
 ok agent, click 5, s5: the click reached the row
 ok agent, click 5, s5: layout holds still within 2 s
@@ -553,6 +570,8 @@ ok agent, click 5, s5: the body ends at the window's bottom
 ok agent, click 5, s5: the hosting view has no safe-area inset
 ok agent, click 5, s5: the window's height matches header plus body
 ok agent, click 5, s5: the body starts at its top
+ok agent, click 5, s5: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 377.0, priority 501.0, preferred 377.0
 agent, click 6, s6: window 383.0, host 383.0, preferred 383.0, header top 11.0, header block 21.0, bottom 0.0, body 351.0, viewport 351.0, clip 0.0, safe area top 0 bottom 0
 ok agent, click 6, s6: the click reached the row
 ok agent, click 6, s6: layout holds still within 2 s
@@ -562,6 +581,8 @@ ok agent, click 6, s6: the body ends at the window's bottom
 ok agent, click 6, s6: the hosting view has no safe-area inset
 ok agent, click 6, s6: the window's height matches header plus body
 ok agent, click 6, s6: the body starts at its top
+ok agent, click 6, s6: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 383.0, priority 501.0, preferred 383.0
 agent, AppKit's height constraint held down, click 1, s1: window 369.0, host 369.0, preferred 369.0, header top 11.0, header block 21.0, bottom 0.0, body 337.0, viewport 337.0, clip 0.0, safe area top 0 bottom 0
 ok agent, AppKit's height constraint held down, click 1, s1: the click reached the row
 ok agent, AppKit's height constraint held down, click 1, s1: layout holds still within 2 s
@@ -571,6 +592,9 @@ ok agent, AppKit's height constraint held down, click 1, s1: the body ends at th
 ok agent, AppKit's height constraint held down, click 1, s1: the hosting view has no safe-area inset
 ok agent, AppKit's height constraint held down, click 1, s1: the window's height matches header plus body
 ok agent, AppKit's height constraint held down, click 1, s1: the body starts at its top
+ok agent, AppKit's height constraint held down, click 1, s1: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 369.0, priority 501.0, preferred 369.0
+ok agent, AppKit's height constraint held down, click 1, s1: the injection is applied
 agent, AppKit's height constraint held down, click 2, s2: window 369.0, host 369.0, preferred 560.0, header top -84.5, header block 21.0, bottom -95.5, body 687.0, viewport 528.0, clip 0.0, safe area top 0 bottom 0
 ok agent, AppKit's height constraint held down, click 2, s2: the click reached the row
 ok agent, AppKit's height constraint held down, click 2, s2: layout holds still within 2 s
@@ -580,6 +604,9 @@ FAIL agent, AppKit's height constraint held down, click 2, s2: the body ends at 
 ok agent, AppKit's height constraint held down, click 2, s2: the hosting view has no safe-area inset
 FAIL agent, AppKit's height constraint held down, click 2, s2: the window stops at the 560 pt limit
 ok agent, AppKit's height constraint held down, click 2, s2: the body starts at its top
+ok agent, AppKit's height constraint held down, click 2, s2: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 1
+  NSViewController.preferredContentSize.height: constant 560.0, priority 1.0, preferred 560.0
+ok agent, AppKit's height constraint held down, click 2, s2: the held constraint is the same object and stays held
 agent, AppKit's height constraint held down, click 3, s3: window 560.0, host 560.0, preferred 298.0, header top 142.0, header block 21.0, bottom 131.0, body 266.0, viewport 266.0, clip 0.0, safe area top 0 bottom 0
 ok agent, AppKit's height constraint held down, click 3, s3: the click reached the row
 ok agent, AppKit's height constraint held down, click 3, s3: layout holds still within 2 s
@@ -589,6 +616,9 @@ FAIL agent, AppKit's height constraint held down, click 3, s3: the body ends at 
 ok agent, AppKit's height constraint held down, click 3, s3: the hosting view has no safe-area inset
 FAIL agent, AppKit's height constraint held down, click 3, s3: the window's height matches header plus body
 ok agent, AppKit's height constraint held down, click 3, s3: the body starts at its top
+ok agent, AppKit's height constraint held down, click 3, s3: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 1
+  NSViewController.preferredContentSize.height: constant 298.0, priority 1.0, preferred 298.0
+ok agent, AppKit's height constraint held down, click 3, s3: the held constraint is the same object and stays held
 agent, AppKit's height constraint held down, click 4, s4: window 298.0, host 298.0, preferred 560.0, header top -120.0, header block 21.0, bottom -131.0, body 687.0, viewport 528.0, clip 0.0, safe area top 0 bottom 0
 ok agent, AppKit's height constraint held down, click 4, s4: the click reached the row
 ok agent, AppKit's height constraint held down, click 4, s4: layout holds still within 2 s
@@ -598,6 +628,9 @@ FAIL agent, AppKit's height constraint held down, click 4, s4: the body ends at 
 ok agent, AppKit's height constraint held down, click 4, s4: the hosting view has no safe-area inset
 FAIL agent, AppKit's height constraint held down, click 4, s4: the window stops at the 560 pt limit
 ok agent, AppKit's height constraint held down, click 4, s4: the body starts at its top
+ok agent, AppKit's height constraint held down, click 4, s4: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 1
+  NSViewController.preferredContentSize.height: constant 560.0, priority 1.0, preferred 560.0
+ok agent, AppKit's height constraint held down, click 4, s4: the held constraint is the same object and stays held
 agent, AppKit's height constraint held down, click 5, s5: window 560.0, host 560.0, preferred 377.0, header top 102.5, header block 21.0, bottom 91.5, body 345.0, viewport 345.0, clip 0.0, safe area top 0 bottom 0
 ok agent, AppKit's height constraint held down, click 5, s5: the click reached the row
 ok agent, AppKit's height constraint held down, click 5, s5: layout holds still within 2 s
@@ -607,6 +640,9 @@ FAIL agent, AppKit's height constraint held down, click 5, s5: the body ends at 
 ok agent, AppKit's height constraint held down, click 5, s5: the hosting view has no safe-area inset
 FAIL agent, AppKit's height constraint held down, click 5, s5: the window's height matches header plus body
 ok agent, AppKit's height constraint held down, click 5, s5: the body starts at its top
+ok agent, AppKit's height constraint held down, click 5, s5: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 1
+  NSViewController.preferredContentSize.height: constant 377.0, priority 1.0, preferred 377.0
+ok agent, AppKit's height constraint held down, click 5, s5: the held constraint is the same object and stays held
 agent, AppKit's height constraint held down, click 6, s6: window 377.0, host 377.0, preferred 383.0, header top 8.0, header block 21.0, bottom -3.0, body 351.0, viewport 351.0, clip 0.0, safe area top 0 bottom 0
 ok agent, AppKit's height constraint held down, click 6, s6: the click reached the row
 ok agent, AppKit's height constraint held down, click 6, s6: layout holds still within 2 s
@@ -616,7 +652,10 @@ FAIL agent, AppKit's height constraint held down, click 6, s6: the body ends at 
 ok agent, AppKit's height constraint held down, click 6, s6: the hosting view has no safe-area inset
 FAIL agent, AppKit's height constraint held down, click 6, s6: the window's height matches header plus body
 ok agent, AppKit's height constraint held down, click 6, s6: the body starts at its top
-agent: AppKit height constraints held down across the clicks: 6
+ok agent, AppKit's height constraint held down, click 6, s6: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 1
+  NSViewController.preferredContentSize.height: constant 383.0, priority 1.0, preferred 383.0
+ok agent, AppKit's height constraint held down, click 6, s6: the held constraint is the same object and stays held
+ok agent, AppKit's height constraint held down: the injection was exercised
 decision, click 1, e1: window 301.0, host 301.0, preferred 301.0, header top 11.0, header block 21.0, bottom 0.0, body 269.0, viewport 269.0, clip 0.0, safe area top 0 bottom 0
 ok decision, click 1, e1: the click reached the row
 ok decision, click 1, e1: layout holds still within 2 s
@@ -626,6 +665,8 @@ ok decision, click 1, e1: the body ends at the window's bottom
 ok decision, click 1, e1: the hosting view has no safe-area inset
 ok decision, click 1, e1: the window's height matches header plus body
 ok decision, click 1, e1: the body starts at its top
+ok decision, click 1, e1: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 301.0, priority 501.0, preferred 301.0
 decision, click 2, dp_long: window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 1761.0, viewport 528.0, clip 0.0, safe area top 0 bottom 0
 ok decision, click 2, dp_long: the click reached the row
 ok decision, click 2, dp_long: layout holds still within 2 s
@@ -635,6 +676,8 @@ ok decision, click 2, dp_long: the body ends at the window's bottom
 ok decision, click 2, dp_long: the hosting view has no safe-area inset
 ok decision, click 2, dp_long: the window stops at the 560 pt limit
 ok decision, click 2, dp_long: the body starts at its top
+ok decision, click 2, dp_long: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 560.0, priority 501.0, preferred 560.0
 decision, click 3, dp_s4: window 173.0, host 173.0, preferred 173.0, header top 11.0, header block 21.0, bottom 0.0, body 141.0, viewport 141.0, clip 0.0, safe area top 0 bottom 0
 ok decision, click 3, dp_s4: the click reached the row
 ok decision, click 3, dp_s4: layout holds still within 2 s
@@ -644,6 +687,8 @@ ok decision, click 3, dp_s4: the body ends at the window's bottom
 ok decision, click 3, dp_s4: the hosting view has no safe-area inset
 ok decision, click 3, dp_s4: the window's height matches header plus body
 ok decision, click 3, dp_s4: the body starts at its top
+ok decision, click 3, dp_s4: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 173.0, priority 501.0, preferred 173.0
 decision, click 4, dp_long3: window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 1742.0, viewport 528.0, clip 0.0, safe area top 0 bottom 0
 ok decision, click 4, dp_long3: the click reached the row
 ok decision, click 4, dp_long3: layout holds still within 2 s
@@ -653,6 +698,8 @@ ok decision, click 4, dp_long3: the body ends at the window's bottom
 ok decision, click 4, dp_long3: the hosting view has no safe-area inset
 ok decision, click 4, dp_long3: the window stops at the 560 pt limit
 ok decision, click 4, dp_long3: the body starts at its top
+ok decision, click 4, dp_long3: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 560.0, priority 501.0, preferred 560.0
 decision, click 5, e2: window 319.0, host 319.0, preferred 319.0, header top 11.0, header block 21.0, bottom 0.0, body 287.0, viewport 287.0, clip 0.0, safe area top 0 bottom 0
 ok decision, click 5, e2: the click reached the row
 ok decision, click 5, e2: layout holds still within 2 s
@@ -662,6 +709,8 @@ ok decision, click 5, e2: the body ends at the window's bottom
 ok decision, click 5, e2: the hosting view has no safe-area inset
 ok decision, click 5, e2: the window's height matches header plus body
 ok decision, click 5, e2: the body starts at its top
+ok decision, click 5, e2: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 319.0, priority 501.0, preferred 319.0
 decision, click 6, dp_s5: window 154.0, host 154.0, preferred 154.0, header top 11.0, header block 21.0, bottom 0.0, body 122.0, viewport 122.0, clip 0.0, safe area top 0 bottom 0
 ok decision, click 6, dp_s5: the click reached the row
 ok decision, click 6, dp_s5: layout holds still within 2 s
@@ -671,6 +720,8 @@ ok decision, click 6, dp_s5: the body ends at the window's bottom
 ok decision, click 6, dp_s5: the hosting view has no safe-area inset
 ok decision, click 6, dp_s5: the window's height matches header plus body
 ok decision, click 6, dp_s5: the body starts at its top
+ok decision, click 6, dp_s5: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 154.0, priority 501.0, preferred 154.0
 decision, AppKit's height constraint held down, click 1, e1: window 301.0, host 301.0, preferred 301.0, header top 11.0, header block 21.0, bottom 0.0, body 269.0, viewport 269.0, clip 0.0, safe area top 0 bottom 0
 ok decision, AppKit's height constraint held down, click 1, e1: the click reached the row
 ok decision, AppKit's height constraint held down, click 1, e1: layout holds still within 2 s
@@ -680,6 +731,9 @@ ok decision, AppKit's height constraint held down, click 1, e1: the body ends at
 ok decision, AppKit's height constraint held down, click 1, e1: the hosting view has no safe-area inset
 ok decision, AppKit's height constraint held down, click 1, e1: the window's height matches header plus body
 ok decision, AppKit's height constraint held down, click 1, e1: the body starts at its top
+ok decision, AppKit's height constraint held down, click 1, e1: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 501
+  NSViewController.preferredContentSize.height: constant 301.0, priority 501.0, preferred 301.0
+ok decision, AppKit's height constraint held down, click 1, e1: the injection is applied
 decision, AppKit's height constraint held down, click 2, dp_long: window 296.0, host 296.0, preferred 560.0, header top -121.0, header block 21.0, bottom -132.0, body 1761.0, viewport 528.0, clip 0.0, safe area top 0 bottom 0
 ok decision, AppKit's height constraint held down, click 2, dp_long: the click reached the row
 ok decision, AppKit's height constraint held down, click 2, dp_long: layout holds still within 2 s
@@ -689,6 +743,9 @@ FAIL decision, AppKit's height constraint held down, click 2, dp_long: the body 
 ok decision, AppKit's height constraint held down, click 2, dp_long: the hosting view has no safe-area inset
 FAIL decision, AppKit's height constraint held down, click 2, dp_long: the window stops at the 560 pt limit
 ok decision, AppKit's height constraint held down, click 2, dp_long: the body starts at its top
+ok decision, AppKit's height constraint held down, click 2, dp_long: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 1
+  NSViewController.preferredContentSize.height: constant 560.0, priority 1.0, preferred 560.0
+ok decision, AppKit's height constraint held down, click 2, dp_long: the held constraint is the same object and stays held
 decision, AppKit's height constraint held down, click 3, dp_s4: window 555.0, host 555.0, preferred 173.0, header top 202.0, header block 21.0, bottom 191.0, body 141.0, viewport 141.0, clip 0.0, safe area top 0 bottom 0
 ok decision, AppKit's height constraint held down, click 3, dp_s4: the click reached the row
 ok decision, AppKit's height constraint held down, click 3, dp_s4: layout holds still within 2 s
@@ -698,6 +755,9 @@ FAIL decision, AppKit's height constraint held down, click 3, dp_s4: the body en
 ok decision, AppKit's height constraint held down, click 3, dp_s4: the hosting view has no safe-area inset
 FAIL decision, AppKit's height constraint held down, click 3, dp_s4: the window's height matches header plus body
 ok decision, AppKit's height constraint held down, click 3, dp_s4: the body starts at its top
+ok decision, AppKit's height constraint held down, click 3, dp_s4: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 1
+  NSViewController.preferredContentSize.height: constant 173.0, priority 1.0, preferred 173.0
+ok decision, AppKit's height constraint held down, click 3, dp_s4: the held constraint is the same object and stays held
 decision, AppKit's height constraint held down, click 4, dp_long3: window 168.0, host 168.0, preferred 560.0, header top -185.0, header block 21.0, bottom -196.0, body 1742.0, viewport 528.0, clip 0.0, safe area top 0 bottom 0
 ok decision, AppKit's height constraint held down, click 4, dp_long3: the click reached the row
 ok decision, AppKit's height constraint held down, click 4, dp_long3: layout holds still within 2 s
@@ -707,6 +767,9 @@ FAIL decision, AppKit's height constraint held down, click 4, dp_long3: the body
 ok decision, AppKit's height constraint held down, click 4, dp_long3: the hosting view has no safe-area inset
 FAIL decision, AppKit's height constraint held down, click 4, dp_long3: the window stops at the 560 pt limit
 ok decision, AppKit's height constraint held down, click 4, dp_long3: the body starts at its top
+ok decision, AppKit's height constraint held down, click 4, dp_long3: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 1
+  NSViewController.preferredContentSize.height: constant 560.0, priority 1.0, preferred 560.0
+ok decision, AppKit's height constraint held down, click 4, dp_long3: the held constraint is the same object and stays held
 decision, AppKit's height constraint held down, click 5, e2: window 555.0, host 555.0, preferred 319.0, header top 129.0, header block 21.0, bottom 118.0, body 287.0, viewport 287.0, clip 0.0, safe area top 0 bottom 0
 ok decision, AppKit's height constraint held down, click 5, e2: the click reached the row
 ok decision, AppKit's height constraint held down, click 5, e2: layout holds still within 2 s
@@ -716,6 +779,9 @@ FAIL decision, AppKit's height constraint held down, click 5, e2: the body ends 
 ok decision, AppKit's height constraint held down, click 5, e2: the hosting view has no safe-area inset
 FAIL decision, AppKit's height constraint held down, click 5, e2: the window's height matches header plus body
 ok decision, AppKit's height constraint held down, click 5, e2: the body starts at its top
+ok decision, AppKit's height constraint held down, click 5, e2: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 1
+  NSViewController.preferredContentSize.height: constant 319.0, priority 1.0, preferred 319.0
+ok decision, AppKit's height constraint held down, click 5, e2: the held constraint is the same object and stays held
 decision, AppKit's height constraint held down, click 6, dp_s5: window 314.0, host 314.0, preferred 154.0, header top 91.0, header block 21.0, bottom 80.0, body 122.0, viewport 122.0, clip 0.0, safe area top 0 bottom 0
 ok decision, AppKit's height constraint held down, click 6, dp_s5: the click reached the row
 ok decision, AppKit's height constraint held down, click 6, dp_s5: layout holds still within 2 s
@@ -725,7 +791,10 @@ FAIL decision, AppKit's height constraint held down, click 6, dp_s5: the body en
 ok decision, AppKit's height constraint held down, click 6, dp_s5: the hosting view has no safe-area inset
 FAIL decision, AppKit's height constraint held down, click 6, dp_s5: the window's height matches header plus body
 ok decision, AppKit's height constraint held down, click 6, dp_s5: the body starts at its top
-decision: AppKit height constraints held down across the clicks: 6
+ok decision, AppKit's height constraint held down, click 6, dp_s5: AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority 1
+  NSViewController.preferredContentSize.height: constant 154.0, priority 1.0, preferred 154.0
+ok decision, AppKit's height constraint held down, click 6, dp_s5: the held constraint is the same object and stays held
+ok decision, AppKit's height constraint held down: the injection was exercised
 ok the later-clicks section never made this process the active app
 Holding the constraint down is an injected condition. These transparent windows do not reproduce the operator's report without it, so this section does not show why the constraint does not settle the window in the installed app. NOT EXERCISED, assigned to the operator's pre-release checks: later clicks in the installed app, in a visible key window, with physical clicks and real reads.
 

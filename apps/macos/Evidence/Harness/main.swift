@@ -701,7 +701,7 @@ MainActor.assumeIsolated {
   // The panel's height check alone, for a run on source without the fix.
   if CommandLine.arguments.contains("--panel-height") {
     panelHeightEvidence(&failures)
-    panelLaterClicksEvidence(&failures)
+    panelLaterClicksEvidence(expectsUnfixedPanel: CommandLine.arguments.contains("--unfixed-panel"), &failures)
     print(failures.isEmpty ? "RESULT: PASS" : "RESULT: FAIL")
     for failure in failures { print("  \(failure)") }
     exit(failures.isEmpty ? 0 : 1)

@@ -35,11 +35,26 @@ An earlier run at `04d1771`, before the check gained its stale-resize and reopen
 
 ## The check as delivered
 
-After `report.txt` was captured, review findings changed the check. A run with no screen now fails, and the overflow limit comes from the space below the anchor's top. Each open state must now hold the close control and the scrolling body, a body must have scrolled before its replacement, the samples inside a click must have the header at the top, and the reduced height has a loaded short target. A review then asked for a height regression, so the check gained a later-clicks section.
+After `report.txt` was captured, review findings changed the check. A run with no screen now fails, and the overflow limit comes from the space below the anchor's top. Each open state must now hold the close control and the scrolling body, a body must have scrolled before its replacement, the samples inside a click must have the header at the top, and the reduced height has a loaded short target. A review then asked for a height regression, so the check gained a later-clicks section. A second review asked that its injected condition cannot pass unexercised, so the section now asserts the constraint it holds down.
 
-`panel-height-final-harness.txt` is that check on unfixed source: the `Evidence/Harness` tree `7b063f32122fc2f5ec6879934d3258b2a591f5e7`, built by `run.sh`'s build command with `AgentDesk/DetailPanelWindow.swift` from base `8633bbd`, then run as `<tmp>/evidence <directory> --panel-height`. It exited 1 with 605 ok and 34 FAIL, sha256 `9305cc708aa9a5f3f2f32da36dd2d06e951b9e2b3b9e9cdf724c07d6c2516693`. The same tree with the correction exited 0 with 639 ok and 0 FAIL, and the same sections of `output/report.txt` are its retained run.
+**This regression is conditional.** Its height failures appear only while the height constraint AppKit installs for `preferredContentSize` is held down. Without that injected condition, the later-clicks runs pass on unfixed source, so these transparent windows do not reproduce the operator's report by themselves. Why the window stays at the former target's height in the installed app is not established.
+
+All runs below use the `Evidence/Harness` tree `92f663ae82bf7e702878f8ab4816adb6ba89a0e9`, built by `run.sh`'s build command, then run as `<tmp>/evidence <directory> --panel-height`. `--unfixed-panel` declares that the program holds `AgentDesk/DetailPanelWindow.swift` from base `8633bbd`.
+
+| File | Panel source | Declared | Result | sha256 |
+| --- | --- | --- | --- | --- |
+| `panel-height-final-harness.txt` | base | unfixed | exit 1, 651 ok, 34 FAIL | `22c732501c981c577264b0d7e9d747021fd6ecab468ae0cf117374ada6980846` |
+| `base-source-declared-corrected.txt` | base | corrected | exit 1, 53 FAIL | `7a5ced543b7ebc9281f7cb9a08dfcc554c87e799488033f21c674e8ab4c7761b` |
+| `corrected-source-declared-unfixed.txt` | corrected | unfixed | exit 1, 26 FAIL | `6348ae5139d91b47e99eec1c704feafc12def8742dab244123011c61607111aa` |
+| not kept here; the same sections of `output/report.txt` are its retained run | corrected | corrected | exit 0, 695 ok, 0 FAIL | |
+
+`panel-height-final-harness.txt` is the regression:
 
 - 5 FAIL are header position, the same five as above.
-- 29 FAIL are in the later-clicks section, all in the runs that hold down the height constraint AppKit installs for `preferredContentSize`. In those runs the window stays at the former target's height on later clicks. At the third agent click the window is 560 pt around a 266 pt body, with the header 142 pt down and 131 pt empty below. At the third decision click it is 555 pt around a 141 pt body, with the header 202 pt down and 191 pt empty below.
+- 29 FAIL are in the later-clicks section, all in the runs that hold the constraint down. At the third agent click the window is 560 pt around a 266 pt body, with the header 142 pt down and 131 pt empty below. At the third decision click it is 555 pt around a 141 pt body, with the header 202 pt down and 191 pt empty below.
+- The constraint's identity and attributes pass at every click, the injection is applied after the first click, and the same object stays held at every later click. Its constant follows the preferred height while the window does not follow it.
 
-The later-clicks runs without that injection pass on unfixed source, so these transparent windows do not reproduce the operator's report by themselves.
+The other two files show that the injected case cannot pass unexercised:
+
+- `corrected-source-declared-unfixed.txt` is a real missing constraint: "0 constraints named ...", with 24 identity failures and "the injection was exercised" failing for both kinds.
+- `base-source-declared-corrected.txt` fails the absence checks, 24 for the constraint and 24 for the preferred height.

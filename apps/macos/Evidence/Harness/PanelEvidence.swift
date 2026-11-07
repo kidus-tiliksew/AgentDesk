@@ -1805,6 +1805,75 @@ private struct PanelSequenceRow: View {
   }
 }
 
+/// The identifier AppKit gives the height constraint it installs for a view
+/// controller's `preferredContentSize`.
+private let preferredHeightIdentifier = "NSViewController.preferredContentSize.height"
+/// The priority AppKit gives that constraint.
+private let preferredHeightPriority = NSLayoutConstraint.Priority(501)
+/// The priority the injected condition holds it at.
+private let heldHeightPriority = NSLayoutConstraint.Priority(1)
+
+/// Every height constraint on `view` that could size it by itself, whatever its
+/// identifier, so a renamed constraint is still seen.
+@MainActor
+private func equalHeightConstraints(on view: NSView) -> [NSLayoutConstraint] {
+  view.constraints.filter {
+    ($0.firstItem as? NSView) === view && $0.firstAttribute == .height && $0.secondItem == nil && $0.relation == .equal
+  }
+}
+
+/// Why `view` does not hold AppKit's height constraint exactly as expected, or
+/// nil when it does. A missing, renamed, or altered constraint is a problem, so
+/// the injected case cannot pass without being exercised.
+@MainActor
+private func preferredHeightProblem(on view: NSView, priority: NSLayoutConstraint.Priority) -> String? {
+  let named = view.constraints.filter { $0.identifier == preferredHeightIdentifier }
+  guard named.count == 1, let constraint = named.first else {
+    return "\(named.count) constraints named \(preferredHeightIdentifier), \(equalHeightConstraints(on: view).count) equal height constraints"
+  }
+  guard (constraint.firstItem as? NSView) === view else { return "its first item is not the hosting view" }
+  guard constraint.firstAttribute == .height else { return "its first attribute is not height" }
+  guard constraint.secondItem == nil, constraint.secondAttribute == .notAnAttribute else { return "it has a second item" }
+  guard constraint.relation == .equal else { return "its relation is not equal" }
+  guard constraint.multiplier == 1 else { return "its multiplier is not 1" }
+  guard constraint.priority == priority else { return "its priority is \(constraint.priority.rawValue), not \(priority.rawValue)" }
+  return nil
+}
+
+/// Why `view` holds a constraint that corrected source must not have, or nil.
+@MainActor
+private func heightConstraintPresence(on view: NSView) -> String? {
+  let named = view.constraints.filter { $0.identifier == preferredHeightIdentifier }
+  let equal = equalHeightConstraints(on: view)
+  return named.isEmpty && equal.isEmpty ? nil : "\(named.count) named, \(equal.count) equal height constraints"
+}
+
+/// The two checks above on views built here, so neither can pass by reading
+/// nothing: a missing or renamed constraint fails, and so does a present one.
+@MainActor
+private func heightConstraintSelfCheck(_ check: (String, Bool) -> Void) {
+  func view(_ identifier: String?, attribute: NSLayoutConstraint.Attribute = .height, priority: NSLayoutConstraint.Priority = preferredHeightPriority) -> NSView {
+    let view = NSView()
+    if let identifier {
+      let constraint = NSLayoutConstraint(
+        item: view, attribute: attribute, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1,
+        constant: 100)
+      constraint.identifier = identifier
+      constraint.priority = priority
+      view.addConstraint(constraint)
+    }
+    return view
+  }
+  check("the matcher accepts AppKit's constraint as expected", preferredHeightProblem(on: view(preferredHeightIdentifier), priority: preferredHeightPriority) == nil)
+  check("the matcher fails a missing constraint", preferredHeightProblem(on: view(nil), priority: preferredHeightPriority) != nil)
+  check("the matcher fails a renamed constraint", preferredHeightProblem(on: view("renamed"), priority: preferredHeightPriority) != nil)
+  check("the matcher fails a constraint on another attribute", preferredHeightProblem(on: view(preferredHeightIdentifier, attribute: .width), priority: preferredHeightPriority) != nil)
+  check("the matcher fails a constraint at another priority", preferredHeightProblem(on: view(preferredHeightIdentifier, priority: heldHeightPriority), priority: preferredHeightPriority) != nil)
+  check("the absence check accepts no constraint", heightConstraintPresence(on: view(nil)) == nil)
+  check("the absence check fails AppKit's constraint", heightConstraintPresence(on: view(preferredHeightIdentifier)) != nil)
+  check("the absence check fails a renamed constraint", heightConstraintPresence(on: view("renamed")) != nil)
+}
+
 /// A first click and later clicks on other targets, through the shipped
 /// `DecisionCoordinator`, a real `NSPopover`, and the shipped controller, with a
 /// read answering 250 ms after each click (req-mac-app AC-5.3, AC-11.1, AC-11.5;
@@ -1818,8 +1887,15 @@ private struct PanelSequenceRow: View {
 /// these transparent windows, and the operator's report on the installed app
 /// says it does not settle there. With the correction the constraint does not
 /// exist, so this run changes nothing.
+///
+/// `expectsUnfixedPanel` states which source this program was built with, so a
+/// missing constraint is never taken as proof of corrected source. On corrected
+/// source, which `run.sh` builds, each click asserts the constraint is absent. On
+/// base source, which only `--unfixed-panel` declares, each click asserts its
+/// identity and attributes, and the held run asserts the injection was applied
+/// and persists.
 @MainActor
-func panelLaterClicksEvidence(_ failures: inout [String]) {
+func panelLaterClicksEvidence(expectsUnfixedPanel: Bool = false, _ failures: inout [String]) {
   line("## The panel across later clicks (the shipped coordinator and controller, a real NSPopover, a click inside a SwiftUI action, a read after 250 ms)")
   guard let screen = NSScreen.main else {
     line("FAIL not exercised: this session has no screen")
@@ -1833,6 +1909,9 @@ func panelLaterClicksEvidence(_ failures: inout [String]) {
     line("\(passed ? "ok" : "FAIL") \(name)")
     if !passed { failures.append("later clicks: \(name)") }
   }
+
+  line("declared panel source: \(expectsUnfixedPanel ? "unfixed, by --unfixed-panel" : "corrected")")
+  heightConstraintSelfCheck { name, passed in check(name, passed, &failures) }
 
   let longLine = String(repeating: "The migration rewrites every row of the events table. ", count: 3)
   func agent(_ id: String, _ text: String, link: String? = nil) -> AgentSession {
@@ -1909,7 +1988,7 @@ func panelLaterClicksEvidence(_ failures: inout [String]) {
       }
       let cap = min(CGFloat(DetailPanelPlacement.maxHeight), popoverWindow.frame.maxY - screen.visibleFrame.minY)
 
-      var heldDown = 0
+      var heldConstraint: NSLayoutConstraint?
       for index in 0..<count {
         var fired = false
         let overflows: Bool
@@ -1963,15 +2042,35 @@ func panelLaterClicksEvidence(_ failures: inout [String]) {
           check("\(name): the window's height matches header plus body", abs(last.windowHeight - last.contentHeight) <= tolerance, &failures)
         }
         check("\(name): the body starts at its top", abs(last.clipOffset) <= tolerance, &failures)
-        if held, let hostView = panel.window.contentView?.subviews.first {
-          // After the first click, as AppKit installs the constraint with the first height.
-          for constraint in hostView.constraints where constraint.identifier == "NSViewController.preferredContentSize.height" {
-            constraint.priority = NSLayoutConstraint.Priority(1)
-            heldDown += 1
+        guard let hostView = panel.window.contentView?.subviews.first else {
+          check("\(name): the hosting view exists", false, &failures)
+          continue
+        }
+        if expectsUnfixedPanel {
+          let expected = heldConstraint == nil ? preferredHeightPriority : heldHeightPriority
+          let problem = preferredHeightProblem(on: hostView, priority: expected)
+          if let problem { line("  \(problem)") }
+          check("\(name): AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority \(Int(expected.rawValue))", problem == nil, &failures)
+          let matched = hostView.constraints.first { $0.identifier == preferredHeightIdentifier }
+          if let matched { line("  \(preferredHeightIdentifier): constant \(matched.constant), priority \(matched.priority.rawValue), preferred \(last.preferredHeight)") }
+          if let heldConstraint {
+            check("\(name): the held constraint is the same object and stays held", matched === heldConstraint && heldConstraint.priority == heldHeightPriority && heldConstraint.isActive, &failures)
+          } else if held, let matched {
+            // After the first click, because AppKit installs it with the first height.
+            matched.priority = heldHeightPriority
+            heldConstraint = matched
+            check("\(name): the injection is applied", matched.priority == heldHeightPriority, &failures)
           }
+        } else {
+          let present = heightConstraintPresence(on: hostView)
+          if let present { line("  \(present)") }
+          check("\(name): corrected source has no height constraint from AppKit, so nothing is held", present == nil, &failures)
+          check("\(name): corrected source reports no preferred height", last.preferredHeight == 0, &failures)
         }
       }
-      if held { line("\(kind): AppKit height constraints held down across the clicks: \(heldDown)") }
+      if held && expectsUnfixedPanel {
+        check("\(pass): the injection was exercised", heldConstraint != nil, &failures)
+      }
       popover.performClose(nil)
       panel.hide()
       anchorWindow.orderOut(nil)
