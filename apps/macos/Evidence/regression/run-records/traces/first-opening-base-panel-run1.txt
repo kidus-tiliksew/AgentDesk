@@ -1,0 +1,8 @@
+FIRST OPENING, not in a click
+  358.894 present anchorWindow=true panelVisible=false
+  358.895 place enter anchor=true anchorWindow=true
+  358.915 place setFrame x=388.0 y=993.5 height=70.5 wasHeight=120.0
+REOPENING IN A CLICK
+  369.715 present anchorWindow=true panelVisible=false
+  369.716 place enter anchor=true anchorWindow=true
+  369.731 place setFrame x=388.0 y=1031.0 height=33.0 wasHeight=71.0

@@ -1,0 +1,17 @@
+#!/bin/sh
+# $1 attempt name, $2 seconds to wait. Exit 5: the condition was not met in time. Otherwise run.sh's exit.
+SP="<scratch>"; W="<worktree>"; A="$SP/final-attempts/$1"; mkdir -p "$A"; L="$A/lock.log"
+read_state() { "$SP/sess/s" | awk '/ScreenIsLocked/{l=$2} /displayAsleep/{d=$2} /idle seconds/{i=$3} END{print l, d, i}'; }
+start=$(date +%s)
+while :; do
+  set -- $(read_state); now=$(date +%s)
+  if [ "$1" = absent ] && [ "$2" = 0 ] && awk "BEGIN{exit !($3 >= 60)}"; then break; fi
+  if [ $((now - start)) -ge "$WAIT" ]; then echo "condition not met at $(date -u +%H:%M:%S): lock=$1 asleep=$2 idle=$3" >> "$A/wait.log"; exit 5; fi
+  sleep 5
+done
+cd "$W"; test -z "$(git status --porcelain)" || { echo DIRTY >> "$A/wait.log"; exit 6; }
+echo "condition met at $(date -u +%H:%M:%S): lock=$1 asleep=$2 idle=$3; head $(git rev-parse HEAD)" >> "$A/wait.log"
+( while :; do printf '%s ' "$(date -u +%H:%M:%S)" >> "$L"; read_state >> "$L"; sleep 5; done ) & S=$!
+caffeinate -d -i apps/macos/Evidence/run.sh > "$A/stdout" 2>&1; c=$?; kill $S 2>/dev/null; wait $S 2>/dev/null
+echo "run.sh exit=$c at $(date -u +%H:%M:%S)" >> "$A/stdout"; tail -2 "$A/stdout" | cut -c1-170
+exit $c

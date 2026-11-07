@@ -1,0 +1,1 @@
+apps/macos/Evidence/run.sh: line 34: 51860 Terminated: 15          swiftc -swift-version 6 -O -o "$work/evidence" "$work"/src/*.swift > "$out/build.log" 2>&1

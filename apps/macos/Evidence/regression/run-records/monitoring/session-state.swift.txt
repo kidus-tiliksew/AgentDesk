@@ -1,0 +1,6 @@
+import CoreGraphics
+import Foundation
+let d = (CGSessionCopyCurrentDictionary() as? [String: Any]) ?? [:]
+for k in ["CGSSessionScreenIsLocked","kCGSSessionOnConsoleKey","kCGSessionLoginDoneKey"] { print(k, d[k] ?? "absent") }
+print("displayAsleep", CGDisplayIsAsleep(CGMainDisplayID()))
+print("idle seconds", CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!))

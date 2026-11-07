@@ -1,0 +1,7 @@
+1 fixed start=18:55:27 end=18:57:06 exit=0 ok=635 FAIL=0 idle=128.49 lock=absent
+2 fixed start=18:57:06 end=18:58:43 exit=0 ok=635 FAIL=0 idle=225.38 lock=absent
+3 base start=18:58:43 end=19:00:03 exit=0 ok=248 FAIL=0 idle=4.1103 lock=absent
+4 fixed start=19:00:03 end=19:01:39 exit=0 ok=635 FAIL=0 idle=100.42 lock=absent
+5 fixed start=19:01:39 end=19:03:16 exit=0 ok=635 FAIL=0 idle=197.02 lock=absent
+6 base start=19:03:16 end=19:04:34 exit=0 ok=248 FAIL=0 idle=275.09 lock=absent
+7 fixed start=19:04:34 end=19:06:10 exit=0 ok=635 FAIL=0 idle=70.374 lock=absent

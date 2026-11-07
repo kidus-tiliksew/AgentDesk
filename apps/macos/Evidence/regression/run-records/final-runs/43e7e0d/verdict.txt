@@ -1,0 +1,1 @@
+FINISHED run.sh exit=0 at 09:17:56 finalState=absent/0/447.873027416 inputAfterLastSample=no

@@ -1,0 +1,24 @@
+Input near the two paired-window openings, 2026-11-07, runs 3 to 20, the runs whose capture holds the trace.
+Each opening time is seconds within the hour, from that run's trace. Input instants come from the 5 s idle samples, so this is a rough count that can miss input.
+A run counts as input-near when a last-input instant falls from 5 s before the first opening through 1 s after the second.
+
+run 03 fixed: openings 796.6 to 797.6, input-near
+run 04 base: openings 894.3 to 895.3, input-near
+run 05 fixed: openings 973.5 to 974.5, input-near
+run 06 base: openings 1070.7 to 1071.7, quiet
+run 07 fixed: openings 1150.1 to 1151.1, quiet
+run 08 base: openings 1247.3 to 1248.4, quiet
+run 09 fixed: openings 1340.8 to 1341.8, quiet
+run 10 base: openings 1438.6 to 1439.6, input-near
+run 11 fixed: openings 1526.0 to 1527.1, quiet
+run 12 base: openings 1622.7 to 1623.7, quiet
+run 13 fixed: openings 1701.4 to 1702.4, quiet
+run 14 base: openings 1799.1 to 1800.1, quiet
+run 15 fixed: openings 1892.0 to 1893.0, input-near
+run 16 base: openings 1989.0 to 1990.0, quiet
+run 17 fixed: openings 2068.4 to 2069.4, quiet
+run 18 base: openings 2166.1 to 2167.1, quiet
+run 19 fixed: openings 2245.3 to 2246.3, quiet
+run 20 base: openings 2343.2 to 2344.3, input-near
+fixed: 3 of 9 runs input-near
+base: 3 of 9 runs input-near

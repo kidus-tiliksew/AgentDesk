@@ -1,0 +1,2 @@
+run start 19:06:56 at b845b6552fa3786b2bb997bf74df4fe7142f8495
+apps/macos/Evidence/run.sh: line 51: 75678 Terminated: 15          "$work/evidence" "$out" --access -AppleKeyboardUIMode 2 > "$out/access.log" 2>&1

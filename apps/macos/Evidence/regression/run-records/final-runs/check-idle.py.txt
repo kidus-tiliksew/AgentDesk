@@ -1,0 +1,24 @@
+# Reads a run's lock-samples.txt: "HH:MM:SS lock asleep idle-seconds".
+# Run with: python3 final-runs/check-idle.py.txt final-runs/43e7e0d/lock-samples.txt
+# Idle time grows with the clock until input resets it, so any reset shows as a fall,
+# and a reset between two samples also shows, because the samples are seconds apart.
+import sys
+
+rows = [line.split() for line in open(sys.argv[1])]
+
+
+def seconds(text):
+    hour, minute, second = map(int, text.split(":"))
+    return hour * 3600 + minute * 60 + second
+
+
+idle = [float(row[3]) for row in rows]
+times = [seconds(row[0]) for row in rows]
+falls = [rows[i + 1][0] for i in range(len(rows) - 1) if idle[i + 1] < idle[i]]
+gaps = [b - a for a, b in zip(times, times[1:])]
+drift = max(abs((i - idle[0]) - (t - times[0])) for i, t in zip(idle, times))
+print(f"samples {len(rows)}, from {rows[0][0]} to {rows[-1][0]}, largest gap {max(gaps)} s")
+print(f"idle from {idle[0]:.1f} s to {idle[-1]:.1f} s, lowest {min(idle):.1f} s")
+print(f"lock and display states: {sorted(set((r[1], r[2]) for r in rows))}")
+print(f"samples where idle fell: {len(falls)} {falls}")
+print(f"largest difference between idle growth and the clock: {drift:.2f} s")

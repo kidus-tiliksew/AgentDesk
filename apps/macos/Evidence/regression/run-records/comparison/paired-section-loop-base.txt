@@ -1,0 +1,571 @@
+DIAG pass 0
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+DIAG left end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=1 didClose=0 lifetime=true frame=(383.0, 732.0, 400.0, 319.0) elapsed=0.46396005153656006
+ok left end of the screen: the panel has not taken key focus
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+ok left end of the screen: the panel is 400 pt wide with the popover still showing
+ok left end of the screen: the panel sits right of the popover, 8 pt away
+ok left end of the screen: the tops meet
+DIAG right end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=2 didClose=1 lifetime=true frame=(955.0, 732.0, 400.0, 319.0) elapsed=0.42516791820526123
+ok right end of the screen: the panel has not taken key focus
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+ok right end of the screen: the panel is 400 pt wide with the popover still showing
+ok right end of the screen: the panel sits left of the popover, 8 pt away
+ok right end of the screen: the tops meet
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+DIAG note NSApplicationDidResignActiveNotification
+ok the app's deactivation (posted) closes both
+DIAG note NSWorkspaceActiveSpaceDidChangeNotification 2026-11-06 18:52:07 +0000
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+DIAG pass 1
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+DIAG left end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=1 didClose=0 lifetime=true frame=(383.0, 732.0, 400.0, 319.0) elapsed=0.4789220094680786
+ok left end of the screen: the panel has not taken key focus
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+ok left end of the screen: the panel is 400 pt wide with the popover still showing
+ok left end of the screen: the panel sits right of the popover, 8 pt away
+ok left end of the screen: the tops meet
+DIAG right end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=2 didClose=1 lifetime=true frame=(955.0, 732.0, 400.0, 319.0) elapsed=0.43869102001190186
+ok right end of the screen: the panel has not taken key focus
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+ok right end of the screen: the panel is 400 pt wide with the popover still showing
+ok right end of the screen: the panel sits left of the popover, 8 pt away
+ok right end of the screen: the tops meet
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+DIAG note NSApplicationDidResignActiveNotification
+ok the app's deactivation (posted) closes both
+DIAG note NSWorkspaceActiveSpaceDidChangeNotification 2026-11-06 18:52:15 +0000
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+DIAG pass 2
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+DIAG left end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=1 didClose=0 lifetime=true frame=(383.0, 732.0, 400.0, 319.0) elapsed=0.4621819257736206
+ok left end of the screen: the panel has not taken key focus
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+ok left end of the screen: the panel is 400 pt wide with the popover still showing
+ok left end of the screen: the panel sits right of the popover, 8 pt away
+ok left end of the screen: the tops meet
+DIAG right end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=2 didClose=1 lifetime=true frame=(955.0, 732.0, 400.0, 319.0) elapsed=0.43171894550323486
+ok right end of the screen: the panel has not taken key focus
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+ok right end of the screen: the panel is 400 pt wide with the popover still showing
+ok right end of the screen: the panel sits left of the popover, 8 pt away
+ok right end of the screen: the tops meet
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+DIAG note NSApplicationDidResignActiveNotification
+ok the app's deactivation (posted) closes both
+DIAG note NSWorkspaceActiveSpaceDidChangeNotification 2026-11-06 18:52:24 +0000
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+DIAG pass 3
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+DIAG left end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=1 didClose=0 lifetime=true frame=(383.0, 732.0, 400.0, 319.0) elapsed=0.46232008934020996
+ok left end of the screen: the panel has not taken key focus
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+ok left end of the screen: the panel is 400 pt wide with the popover still showing
+ok left end of the screen: the panel sits right of the popover, 8 pt away
+ok left end of the screen: the tops meet
+DIAG right end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=2 didClose=1 lifetime=true frame=(955.0, 732.0, 400.0, 319.0) elapsed=0.42720603942871094
+ok right end of the screen: the panel has not taken key focus
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+ok right end of the screen: the panel is 400 pt wide with the popover still showing
+ok right end of the screen: the panel sits left of the popover, 8 pt away
+ok right end of the screen: the tops meet
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+DIAG note NSApplicationDidResignActiveNotification
+ok the app's deactivation (posted) closes both
+DIAG note NSWorkspaceActiveSpaceDidChangeNotification 2026-11-06 18:52:33 +0000
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+DIAG pass 4
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+DIAG left end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=1 didClose=0 lifetime=true frame=(383.0, 732.0, 400.0, 319.0) elapsed=0.4520610570907593
+ok left end of the screen: the panel has not taken key focus
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+ok left end of the screen: the panel is 400 pt wide with the popover still showing
+ok left end of the screen: the panel sits right of the popover, 8 pt away
+ok left end of the screen: the tops meet
+DIAG right end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=2 didClose=1 lifetime=true frame=(955.0, 732.0, 400.0, 319.0) elapsed=0.4301379919052124
+ok right end of the screen: the panel has not taken key focus
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+ok right end of the screen: the panel is 400 pt wide with the popover still showing
+ok right end of the screen: the panel sits left of the popover, 8 pt away
+ok right end of the screen: the tops meet
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+DIAG note NSApplicationDidResignActiveNotification
+ok the app's deactivation (posted) closes both
+DIAG note NSWorkspaceActiveSpaceDidChangeNotification 2026-11-06 18:52:41 +0000
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+DIAG pass 5
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+DIAG left end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=1 didClose=0 lifetime=true frame=(383.0, 732.0, 400.0, 319.0) elapsed=0.4656749963760376
+ok left end of the screen: the panel has not taken key focus
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+ok left end of the screen: the panel is 400 pt wide with the popover still showing
+ok left end of the screen: the panel sits right of the popover, 8 pt away
+ok left end of the screen: the tops meet
+DIAG right end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=2 didClose=1 lifetime=true frame=(955.0, 732.0, 400.0, 319.0) elapsed=0.42843401432037354
+ok right end of the screen: the panel has not taken key focus
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+ok right end of the screen: the panel is 400 pt wide with the popover still showing
+ok right end of the screen: the panel sits left of the popover, 8 pt away
+ok right end of the screen: the tops meet
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+DIAG note NSApplicationDidResignActiveNotification
+ok the app's deactivation (posted) closes both
+DIAG note NSWorkspaceActiveSpaceDidChangeNotification 2026-11-06 18:52:50 +0000
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+DIAG pass 6
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+DIAG left end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=1 didClose=0 lifetime=true frame=(383.0, 732.0, 400.0, 319.0) elapsed=0.4754369258880615
+ok left end of the screen: the panel has not taken key focus
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+ok left end of the screen: the panel is 400 pt wide with the popover still showing
+ok left end of the screen: the panel sits right of the popover, 8 pt away
+ok left end of the screen: the tops meet
+DIAG right end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=2 didClose=1 lifetime=true frame=(955.0, 732.0, 400.0, 319.0) elapsed=0.422544002532959
+ok right end of the screen: the panel has not taken key focus
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+ok right end of the screen: the panel is 400 pt wide with the popover still showing
+ok right end of the screen: the panel sits left of the popover, 8 pt away
+ok right end of the screen: the tops meet
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+DIAG note NSApplicationDidResignActiveNotification
+ok the app's deactivation (posted) closes both
+DIAG note NSWorkspaceActiveSpaceDidChangeNotification 2026-11-06 18:52:59 +0000
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+DIAG pass 7
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+DIAG left end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=1 didClose=0 lifetime=true frame=(383.0, 732.0, 400.0, 319.0) elapsed=0.4570319652557373
+ok left end of the screen: the panel has not taken key focus
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+ok left end of the screen: the panel is 400 pt wide with the popover still showing
+ok left end of the screen: the panel sits right of the popover, 8 pt away
+ok left end of the screen: the tops meet
+DIAG right end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=2 didClose=1 lifetime=true frame=(955.0, 732.0, 400.0, 319.0) elapsed=0.4343419075012207
+ok right end of the screen: the panel has not taken key focus
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+ok right end of the screen: the panel is 400 pt wide with the popover still showing
+ok right end of the screen: the panel sits left of the popover, 8 pt away
+ok right end of the screen: the tops meet
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+DIAG note NSApplicationDidResignActiveNotification
+ok the app's deactivation (posted) closes both
+DIAG note NSWorkspaceActiveSpaceDidChangeNotification 2026-11-06 18:53:07 +0000
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+DIAG pass 8
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+DIAG left end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=1 didClose=0 lifetime=true frame=(383.0, 732.0, 400.0, 319.0) elapsed=0.479282021522522
+ok left end of the screen: the panel has not taken key focus
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+ok left end of the screen: the panel is 400 pt wide with the popover still showing
+ok left end of the screen: the panel sits right of the popover, 8 pt away
+ok left end of the screen: the tops meet
+DIAG right end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=2 didClose=1 lifetime=true frame=(955.0, 732.0, 400.0, 319.0) elapsed=0.43286001682281494
+ok right end of the screen: the panel has not taken key focus
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+ok right end of the screen: the panel is 400 pt wide with the popover still showing
+ok right end of the screen: the panel sits left of the popover, 8 pt away
+ok right end of the screen: the tops meet
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+DIAG note NSApplicationDidResignActiveNotification
+ok the app's deactivation (posted) closes both
+DIAG note NSWorkspaceActiveSpaceDidChangeNotification 2026-11-06 18:53:16 +0000
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+DIAG pass 9
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+DIAG left end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=1 didClose=0 lifetime=true frame=(383.0, 732.0, 400.0, 319.0) elapsed=0.46894192695617676
+ok left end of the screen: the panel has not taken key focus
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+ok left end of the screen: the panel is 400 pt wide with the popover still showing
+ok left end of the screen: the panel sits right of the popover, 8 pt away
+ok left end of the screen: the tops meet
+DIAG right end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=2 didClose=1 lifetime=true frame=(955.0, 732.0, 400.0, 319.0) elapsed=0.43618106842041016
+ok right end of the screen: the panel has not taken key focus
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+ok right end of the screen: the panel is 400 pt wide with the popover still showing
+ok right end of the screen: the panel sits left of the popover, 8 pt away
+ok right end of the screen: the tops meet
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+DIAG note NSApplicationDidResignActiveNotification
+ok the app's deactivation (posted) closes both
+DIAG note NSWorkspaceActiveSpaceDidChangeNotification 2026-11-06 18:53:25 +0000
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+DIAG failures 0

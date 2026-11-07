@@ -1,0 +1,21 @@
+run 1 fixed start=07:00:25 end=07:02:02 exit=0 ok=635 FAIL=0 captures=0 lockedSamples=0 samples=20 counted=yes
+run 2 base start=07:02:02 end=07:03:28 exit=1 ok=246 FAIL=2 captures=2 lockedSamples=0 samples=17 counted=yes
+--- capture v2 from run 3
+run 3 fixed dir=run3-071242 start=07:12:42 end=07:14:20 exit=0 ok=635 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=20 minIdle=0.0004 counted=yes
+run 4 base dir=run4-071420 start=07:14:20 end=07:15:40 exit=0 ok=248 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=16 minIdle=0.0003 counted=yes
+run 5 fixed dir=run5-071540 start=07:15:40 end=07:17:17 exit=0 ok=635 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=20 minIdle=0.0004 counted=yes
+run 6 base dir=run6-071717 start=07:17:17 end=07:18:36 exit=0 ok=248 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=16 minIdle=64.457 counted=yes
+run 7 fixed dir=run7-071836 start=07:18:36 end=07:20:13 exit=0 ok=635 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=20 minIdle=0.0124 counted=yes
+run 8 base dir=run8-072013 start=07:20:13 end=07:21:32 exit=0 ok=248 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=16 minIdle=86.171 counted=yes
+run 9 fixed dir=run9-072147 start=07:21:47 end=07:23:24 exit=0 ok=635 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=20 minIdle=0.0306 counted=yes
+run 10 base dir=run10-072324 start=07:23:24 end=07:24:52 exit=1 ok=246 FAIL=2 placementFAIL=0 captures=2 lockedSamples=0 samples=18 minIdle=0.0005 counted=yes
+run 11 fixed dir=run11-072452 start=07:24:52 end=07:26:29 exit=0 ok=635 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=20 minIdle=9.6988 counted=yes
+run 12 base dir=run12-072629 start=07:26:29 end=07:27:47 exit=0 ok=248 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=16 minIdle=106.28 counted=yes
+run 13 fixed dir=run13-072747 start=07:27:47 end=07:29:25 exit=0 ok=635 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=20 minIdle=0.0008 counted=yes
+run 14 base dir=run14-072925 start=07:29:25 end=07:30:45 exit=0 ok=248 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=16 minIdle=0.0005 counted=yes
+run 15 fixed dir=run15-073058 start=07:30:58 end=07:32:35 exit=0 ok=635 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=20 minIdle=0.0005 counted=yes
+run 16 base dir=run16-073235 start=07:32:35 end=07:33:54 exit=0 ok=248 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=16 minIdle=0.0001 counted=yes
+run 17 fixed dir=run17-073354 start=07:33:54 end=07:35:32 exit=0 ok=635 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=20 minIdle=53.389 counted=yes
+run 18 base dir=run18-073532 start=07:35:32 end=07:36:52 exit=0 ok=248 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=16 minIdle=151.38 counted=yes
+run 19 fixed dir=run19-073652 start=07:36:52 end=07:38:29 exit=0 ok=635 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=20 minIdle=2.0041 counted=yes
+run 20 base dir=run20-073829 start=07:38:29 end=07:39:49 exit=0 ok=248 FAIL=0 placementFAIL=0 captures=0 lockedSamples=0 samples=16 minIdle=0.0007 counted=yes

@@ -1,0 +1,2 @@
+build=0 harness=0 access=0 tests=0 xcodebuild=0 bundle=0 release_tests=0 dry_run=0 ignored=0 dirty=false -> <worktree>/apps/macos/Evidence/output
+run.sh exit=0 at 08:58:00

@@ -1,0 +1,24 @@
+import sys
+d=sys.argv[1]; p=d+'/DetailPanelWindow.swift'; s=open(p).read()
+s=s.replace('  func place() {\n','  func place() {\n    print("TRACE place enter \\(Date().timeIntervalSince1970)")\n',1)
+a='    window.setFrame(\n      NSRect(x: frame.x'
+assert a in s
+s=s.replace(a,'    print("TRACE setFrame height=\\(frame.height) was=\\(window.frame.height)")\n'+a,1)
+if 'host.observe' in s:
+    a='Task { @MainActor in self?.place() }'
+    assert a in s
+    s=s.replace(a,'print("TRACE preferred kvo"); Task { @MainActor in self?.place() }',1)
+open(p,'w').write(s)
+p=d+'/PanelEvidence.swift'; s=open(p).read()
+a='  let dropConstraint = env["PROBE_DROP"] == "1"\n'
+assert a in s
+s=s.replace(a,'  let dropConstraint = env["PROBE_DROP"] == "1" || env["PROBE_DROP"] == "start"\n',1)
+a='''  popover.show(relativeTo: anchorWindow.contentView!.bounds'''
+s=s.replace(a,'''  if env["PROBE_DROP"] == "start" {
+    panel.window.setFrame(NSRect(x: 0, y: 0, width: 400, height: 120), display: false)
+    panel.window.contentView?.subviews.first?.layoutSubtreeIfNeeded()
+    dropAppKitHeight()
+    print("PROBE constraints at start: \\(panel.window.contentView?.subviews.first?.constraints.filter { $0.identifier?.contains("preferredContentSize") ?? false }.map { "\\($0.identifier ?? "") \\($0.priority.rawValue)" } ?? [])")
+  }
+'''+a,1)
+open(p,'w').write(s)

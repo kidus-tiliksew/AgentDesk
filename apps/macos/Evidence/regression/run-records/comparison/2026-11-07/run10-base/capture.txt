@@ -1,0 +1,126 @@
+OPENINGS TRACE
+  1438.551 popover willShow
+  1438.555 popover didShow
+  1438.555 open after show isShown=true window=true
+  1438.663 open after drain isShown=true window=true
+  1438.663 onChange shownID=a target=nil popoverShown=true
+  1438.663 present anchorWindow=true panelVisible=false
+  1438.663 place enter anchor=true anchorWindow=true
+  1438.664 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+  1438.990 after drain(0.3) left end of the screen: isShown=true panelVisible=true frame=(383.0, 732.0, 400.0, 319.0)
+  1438.991 popover willClose appActive=false activations=0
+  1438.991 onChange shownID=nil target=a popoverShown=true
+  1438.991 hide
+  1438.992 popover didClose
+  1439.114 popover willShow
+  1439.115 popover didShow
+  1439.115 open after show isShown=true window=true
+  1439.229 open after drain isShown=true window=true
+  1439.229 onChange shownID=a target=nil popoverShown=true
+  1439.229 present anchorWindow=true panelVisible=false
+  1439.229 place enter anchor=true anchorWindow=true
+  1439.229 place setFrame x=955.0 y=732.0 height=319.0 wasHeight=319.0
+  1439.548 after drain(0.3) right end of the screen: isShown=true panelVisible=true frame=(955.0, 732.0, 400.0, 319.0)
+  1439.551 popover willClose appActive=false activations=0
+  1439.551 onChange shownID=nil target=a popoverShown=true
+  1439.551 hide
+  1439.554 popover didClose
+CAPTURE [paired] this process never became the active app, so the user's focus never moved at 2026-11-07 07:24:07 +0000
+  now: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  session: locked=absent displayAsleep=0 idleAny=5.2 idleClick=6.8 idleKey=143.9 idleMove=5.3 idleScroll=7.3 appActive=true activations=1 frontmost=<app>
+  last popover close: 1447.091 locked=absent displayAsleep=0 idleAny=5.1 idleClick=6.6 idleKey=143.7 idleMove=5.1 idleScroll=7.2 appActive=true activations=1 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+  activation log: NSApplicationDidBecomeActiveNotification isActive=true at 2026-11-07 07:24:00 +0000 locked=absent displayAsleep=0 idleAny=0.0 idleClick=0.0 idleKey=137.1 idleMove=0.1 idleScroll=0.6 appActive=true activations=1 frontmost=<app>; NSApplicationDidResignActiveNotification isActive=true at 2026-11-07 07:24:01 +0000 locked=absent displayAsleep=0 idleAny=0.0 idleClick=0.7 idleKey=137.8 idleMove=0.8 idleScroll=1.2 appActive=true activations=1 frontmost=<app>
+  trace before the capture:
+    1442.648 popover didShow
+    1442.648 open after show isShown=true window=true
+    1442.765 open after drain isShown=true window=true
+    1442.765 onChange shownID=a target=nil popoverShown=true
+    1442.765 present anchorWindow=true panelVisible=false
+    1442.766 place enter anchor=true anchorWindow=true
+    1442.766 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+    1442.882 lifetime apply elsewhere menuTracking=false
+    1442.885 popover willClose appActive=true activations=1
+    1442.885 onChange shownID=nil target=a popoverShown=true
+    1442.885 hide
+    1442.887 popover didClose
+    1443.007 popover willShow
+    1443.008 popover didShow
+    1443.009 open after show isShown=true window=true
+    1443.128 open after drain isShown=true window=true
+    1443.128 onChange shownID=a target=nil popoverShown=true
+    1443.128 present anchorWindow=true panelVisible=false
+    1443.128 place enter anchor=true anchorWindow=true
+    1443.128 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+    1443.244 lifetime apply elsewhere menuTracking=false
+    1443.247 popover willClose appActive=true activations=1
+    1443.247 onChange shownID=nil target=a popoverShown=true
+    1443.247 hide
+    1443.249 popover didClose
+    1443.365 popover willShow
+    1443.367 popover didShow
+    1443.367 open after show isShown=true window=true
+    1443.481 open after drain isShown=true window=true
+    1443.836 onChange shownID=a target=nil popoverShown=true
+    1443.836 present anchorWindow=true panelVisible=false
+    1443.837 place enter anchor=true anchorWindow=true
+    1443.837 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+    1443.867 onChange shownID=a target=a popoverShown=true
+    1443.952 onChange shownID=nil target=a popoverShown=true
+    1443.953 hide
+    1444.057 onChange shownID=a target=nil popoverShown=true
+    1444.057 present anchorWindow=true panelVisible=false
+    1444.057 place enter anchor=true anchorWindow=true
+    1444.057 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+    1444.080 onChange shownID=a target=a popoverShown=true
+    1444.278 onChange shownID=b target=a popoverShown=true
+    1444.278 present anchorWindow=true panelVisible=true
+    1444.278 place enter anchor=true anchorWindow=true
+    1444.278 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+    1444.279 onChange shownID=b target=b popoverShown=true
+    1445.186 onChange shownID=nil target=b popoverShown=true
+    1445.186 hide
+    1445.301 onChange shownID=b target=nil popoverShown=true
+    1445.302 present anchorWindow=true panelVisible=false
+    1445.302 place enter anchor=true anchorWindow=true
+    1445.312 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+    1445.521 onChange shownID=nil target=b popoverShown=true
+    1445.521 hide
+    1445.634 popover willClose appActive=true activations=1
+    1445.636 popover didClose
+    1445.870 popover willShow
+    1445.872 popover didShow
+    1445.872 open after show isShown=true window=true
+    1445.990 open after drain isShown=true window=true
+    1445.990 onChange shownID=b target=nil popoverShown=true
+    1445.990 present anchorWindow=true panelVisible=false
+    1445.990 place enter anchor=true anchorWindow=true
+    1445.990 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+    1446.331 onChange shownID=nil target=b popoverShown=true
+    1446.331 hide
+    1446.452 popover willClose appActive=true activations=1
+    1446.455 popover didClose
+    1446.578 popover willShow
+    1446.579 popover didShow
+    1446.579 open after show isShown=true window=true
+    1446.694 open after drain isShown=true window=true
+    1446.694 onChange shownID=b target=nil popoverShown=true
+    1446.694 present anchorWindow=true panelVisible=false
+    1446.695 place enter anchor=true anchorWindow=true
+    1446.695 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+    1446.968 onChange shownID=nil target=b popoverShown=true
+    1446.968 hide
+    1447.092 popover willClose appActive=true activations=1
+    1447.094 popover didClose
+  later +0.5 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  later +1.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  later +2.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  later +3.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  later +5.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  later +8.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  trace during the longer drain:
+  session after: locked=absent displayAsleep=0 idleAny=0.0 idleClick=3.6 idleKey=151.9 idleMove=0.5 idleScroll=15.4 appActive=true activations=1 frontmost=<app>
+CAPTURE [agent paired] this process never became the active app, so the user's focus never moved at 2026-11-07 07:24:19 +0000
+  now: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 812.0, 400.0, 239.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  session: locked=absent displayAsleep=0 idleAny=0.2 idleClick=4.4 idleKey=156.5 idleMove=3.2 idleScroll=20.0 appActive=false activations=2 frontmost=<app>
+  last popover close: 1459.723 locked=absent displayAsleep=0 idleAny=0.1 idleClick=4.3 idleKey=156.4 idleMove=3.1 idleScroll=19.8 appActive=false activations=2 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20PairedWindowLifetimeC5startyyFyACYbScMYccfU1_ | evidence $s8evidence20PairedWindowLifetimeC7observe33_49BD17FA88214C74A2D42EE1FF860443LLyySo20NSNot | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence $s8evidence20PairedWindowLifetimeC7observe33_49BD17FA88214C74A2D42EE1FF860443LLyySo20NSNot | evidence $s10Foundation12NotificationVIeghn_So14NSNotificationCIeyBhy_TR | evidence $s8evidence25agentPairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+  activation log: NSApplicationDidBecomeActiveNotification isActive=true at 2026-11-07 07:24:00 +0000 locked=absent displayAsleep=0 idleAny=0.0 idleClick=0.0 idleKey=137.1 idleMove=0.1 idleScroll=0.6 appActive=true activations=1 frontmost=<app>; NSApplicationDidResignActiveNotification isActive=true at 2026-11-07 07:24:01 +0000 locked=absent displayAsleep=0 idleAny=0.0 idleClick=0.7 idleKey=137.8 idleMove=0.8 idleScroll=1.2 appActive=true activations=1 frontmost=<app>; NSApplicationDidBecomeActiveNotification isActive=true at 2026-11-07 07:24:15 +0000 locked=absent displayAsleep=0 idleAny=0.0 idleClick=0.0 idleKey=152.1 idleMove=0.7 idleScroll=15.5 appActive=true activations=2 frontmost=<app>; NSApplicationDidResignActiveNotification isActive=false at 2026-11-07 07:24:19 +0000 locked=absent displayAsleep=0 idleAny=0.1 idleClick=4.3 idleKey=156.3 idleMove=3.1 idleScroll=19.8 appActive=false activations=2 frontmost=<app>

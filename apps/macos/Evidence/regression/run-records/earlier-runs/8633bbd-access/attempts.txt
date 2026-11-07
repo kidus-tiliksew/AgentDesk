@@ -1,0 +1,2 @@
+attempt base-harness 8633bbd 12:46:09: exit=1 ok=125 FAIL=177
+attempt base 12:46:32: exit=1 ok=125 FAIL=177

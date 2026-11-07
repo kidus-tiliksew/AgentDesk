@@ -1,0 +1,13 @@
+import sys,re
+p=sys.argv[1]+'/main.swift'
+L=open(p).read().split('\n')
+out=[]
+for l in L:
+    if 'DIAG always' in l:
+        out.append('    NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) { n in')
+        out.append('      let app = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication')
+        out.append('      print("DIAG always \\(n.name.rawValue) \\(Date()) \\(app?.bundleIdentifier ?? "-")")')
+        out.append('    }')
+    else:
+        out.append(l)
+open(p,'w').write('\n'.join(out))

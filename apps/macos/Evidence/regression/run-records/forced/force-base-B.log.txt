@@ -1,0 +1,125 @@
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+ok left end of the screen: the panel has not taken key focus
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+ok left end of the screen: the panel is 400 pt wide with the popover still showing
+ok left end of the screen: the panel sits right of the popover, 8 pt away
+ok left end of the screen: the tops meet
+ok right end of the screen: the panel has not taken key focus
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+FAIL right end of the screen: the panel is 400 pt wide with the popover still showing
+DIAG CAPTURE [paired] right end of the screen: the panel is 400 pt wide with the popover still showing at 2026-11-07 06:59:41 +0000
+DIAG   now: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+DIAG   session: locked=absent displayAsleep=0 idleAny=0.0 idleClick=0.5 idleKey=8.3 idleMove=0.7 idleScroll=14.3 appActive=false activations=0 frontmost=<app>
+DIAG   trace before the capture:
+DIAG     3580.207 popover willShow
+DIAG     3580.214 popover didShow
+DIAG     3580.214 open after show isShown=true window=true
+DIAG     3580.326 open after drain isShown=true window=true
+DIAG     3580.326 onChange shownID=a target=nil popoverShown=true
+DIAG     3580.326 present anchorWindow=true panelVisible=false
+DIAG     3580.326 place enter anchor=true anchorWindow=true
+DIAG     3580.326 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+DIAG     3580.639 after drain(0.3) left end of the screen: isShown=true panelVisible=true frame=(383.0, 732.0, 400.0, 319.0)
+DIAG     3580.639 popover willClose
+DIAG     3580.639 onChange shownID=nil target=a popoverShown=true
+DIAG     3580.639 hide
+DIAG     3580.640 popover didClose
+DIAG     3580.745 popover willShow
+DIAG     3580.746 popover didShow
+DIAG     3580.746 open after show isShown=true window=true
+DIAG     3580.855 open after drain isShown=true window=true
+DIAG     3580.855 onChange shownID=a target=nil popoverShown=true
+DIAG     3580.855 present anchorWindow=true panelVisible=false
+DIAG     3580.855 place enter anchor=true anchorWindow=true
+DIAG     3580.855 place setFrame x=955.0 y=732.0 height=319.0 wasHeight=319.0
+DIAG     3580.976 FORCED shape B: a Space change posted after placement
+DIAG     3580.976 workspace NSWorkspaceActiveSpaceDidChangeNotification -
+DIAG     3580.976 lifetime note NSWorkspaceActiveSpaceDidChangeNotification
+DIAG     3580.976 popover willClose
+DIAG     3580.976 onChange shownID=nil target=a popoverShown=true
+DIAG     3580.976 hide
+DIAG     3580.980 popover didClose
+DIAG     3581.288 after drain(0.3) right end of the screen: isShown=false panelVisible=false frame=(955.0, 732.0, 400.0, 319.0)
+DIAG   later +0.5 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+DIAG   later +1.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+DIAG   later +2.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+DIAG   later +3.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+DIAG   later +5.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+DIAG   later +8.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+DIAG   trace during the longer drain:
+DIAG   session after: locked=absent displayAsleep=0 idleAny=0.1 idleClick=8.5 idleKey=16.3 idleMove=6.3 idleScroll=4.4 appActive=false activations=0 frontmost=<app>
+ok right end of the screen: the panel sits left of the popover, 8 pt away
+ok right end of the screen: the tops meet
+DIAG OPENINGS TRACE
+DIAG   3580.207 popover willShow
+DIAG   3580.214 popover didShow
+DIAG   3580.214 open after show isShown=true window=true
+DIAG   3580.326 open after drain isShown=true window=true
+DIAG   3580.326 onChange shownID=a target=nil popoverShown=true
+DIAG   3580.326 present anchorWindow=true panelVisible=false
+DIAG   3580.326 place enter anchor=true anchorWindow=true
+DIAG   3580.326 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+DIAG   3580.639 after drain(0.3) left end of the screen: isShown=true panelVisible=true frame=(383.0, 732.0, 400.0, 319.0)
+DIAG   3580.639 popover willClose
+DIAG   3580.639 onChange shownID=nil target=a popoverShown=true
+DIAG   3580.639 hide
+DIAG   3580.640 popover didClose
+DIAG   3580.745 popover willShow
+DIAG   3580.746 popover didShow
+DIAG   3580.746 open after show isShown=true window=true
+DIAG   3580.855 open after drain isShown=true window=true
+DIAG   3580.855 onChange shownID=a target=nil popoverShown=true
+DIAG   3580.855 present anchorWindow=true panelVisible=false
+DIAG   3580.855 place enter anchor=true anchorWindow=true
+DIAG   3580.855 place setFrame x=955.0 y=732.0 height=319.0 wasHeight=319.0
+DIAG   3580.976 FORCED shape B: a Space change posted after placement
+DIAG   3580.976 workspace NSWorkspaceActiveSpaceDidChangeNotification -
+DIAG   3580.976 lifetime note NSWorkspaceActiveSpaceDidChangeNotification
+DIAG   3580.976 popover willClose
+DIAG   3580.976 onChange shownID=nil target=a popoverShown=true
+DIAG   3580.976 hide
+DIAG   3580.980 popover didClose
+DIAG   3581.288 after drain(0.3) right end of the screen: isShown=false panelVisible=false frame=(955.0, 732.0, 400.0, 319.0)
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+ok the app's deactivation (posted) closes both
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+DIAGRESULT 1 failures
+DIAGRESULT   paired windows: right end of the screen: the panel is 400 pt wide with the popover still showing

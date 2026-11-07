@@ -1,0 +1,17 @@
+import sys
+p=sys.argv[1]+'/PanelEvidence.swift'; s=open(p).read()
+a='''  verify("agent opens loading", &failures) { present(agentLoading) }
+'''
+assert a in s
+s=s.replace(a,'''  diagTraceLines = []
+'''+a+'''  diagEmit("FIRST OPENING, not in a click")
+  for traced in diagTraceLines { diagEmit("  " + traced) }
+''',1)
+a='''  verify("a row's click reopens the panel on a short loading", &failures) { clickRow() }
+'''
+assert a in s
+s=s.replace(a,'''  diagTraceLines = []
+'''+a+'''  diagEmit("REOPENING IN A CLICK")
+  for traced in diagTraceLines { diagEmit("  " + traced) }
+''',1)
+open(p,'w').write(s)
