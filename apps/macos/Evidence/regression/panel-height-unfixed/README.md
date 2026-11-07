@@ -35,6 +35,11 @@ An earlier run at `04d1771`, before the check gained its stale-resize and reopen
 
 ## The check as delivered
 
-After `report.txt` was captured, review findings changed the check twice. A run with no screen now fails, and the overflow limit comes from the space below the anchor's top. Each open state must now hold the close control and the scrolling body, a body must have scrolled before its replacement, the samples inside a click must have the header at the top, and the reduced height has a loaded short target.
+After `report.txt` was captured, review findings changed the check. A run with no screen now fails, and the overflow limit comes from the space below the anchor's top. Each open state must now hold the close control and the scrolling body, a body must have scrolled before its replacement, the samples inside a click must have the header at the top, and the reduced height has a loaded short target. A review then asked for a height regression, so the check gained a later-clicks section.
 
-`panel-height-final-harness.txt` is that check on unfixed source: the `Evidence/Harness` tree `5b8ac829b94add97d00ba3e5efe17d75dc4358ca`, built by `run.sh`'s build command with `AgentDesk/DetailPanelWindow.swift` from base `8633bbd`, then run as `<tmp>/evidence <directory> --panel-height`. It exited 1 with 441 ok and the same 5 FAIL, sha256 `9dbcf3d6adffa49386bce622221b593f094f3193f8b99b041de474e38ce7a22c`. The same tree with the correction exited 0 with 446 ok and 0 FAIL, and the same section of `output/report.txt` is its retained run.
+`panel-height-final-harness.txt` is that check on unfixed source: the `Evidence/Harness` tree `7b063f32122fc2f5ec6879934d3258b2a591f5e7`, built by `run.sh`'s build command with `AgentDesk/DetailPanelWindow.swift` from base `8633bbd`, then run as `<tmp>/evidence <directory> --panel-height`. It exited 1 with 605 ok and 34 FAIL, sha256 `9305cc708aa9a5f3f2f32da36dd2d06e951b9e2b3b9e9cdf724c07d6c2516693`. The same tree with the correction exited 0 with 639 ok and 0 FAIL, and the same sections of `output/report.txt` are its retained run.
+
+- 5 FAIL are header position, the same five as above.
+- 29 FAIL are in the later-clicks section, all in the runs that hold down the height constraint AppKit installs for `preferredContentSize`. In those runs the window stays at the former target's height on later clicks. At the third agent click the window is 560 pt around a 266 pt body, with the header 142 pt down and 131 pt empty below. At the third decision click it is 555 pt around a 141 pt body, with the header 202 pt down and 191 pt empty below.
+
+The later-clicks runs without that injection pass on unfixed source, so these transparent windows do not reproduce the operator's report by themselves.

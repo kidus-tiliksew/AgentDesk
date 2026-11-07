@@ -701,6 +701,7 @@ MainActor.assumeIsolated {
   // The panel's height check alone, for a run on source without the fix.
   if CommandLine.arguments.contains("--panel-height") {
     panelHeightEvidence(&failures)
+    panelLaterClicksEvidence(&failures)
     print(failures.isEmpty ? "RESULT: PASS" : "RESULT: FAIL")
     for failure in failures { print("  \(failure)") }
     exit(failures.isEmpty ? 0 : 1)
@@ -865,6 +866,7 @@ MainActor.assumeIsolated {
   pairedWindowEvidence(&failures)
   agentPairedWindowEvidence(&failures)
   panelHeightEvidence(&failures)
+  panelLaterClicksEvidence(&failures)
   linkedRecoveryEvidence(&failures)
 
   line("## Strips")
