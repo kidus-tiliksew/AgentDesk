@@ -2,6 +2,7 @@
 tolerances: frames within 1 pt; the close control's top 7...12 pt below the window's top; layout holds still for 0.3 s within 2 s
 agent opens loading: 2 readings; settled window 71.0, host 70.5, preferred 70.5, header top 8.5, header block 18.5, bottom 0.0, body 44.0, viewport 44.0, clip 0.0
 ok agent opens loading: layout holds still within 2 s
+ok agent opens loading: the close control and the scrolling body exist
 ok agent opens loading: no later reading moves the window from its height
   header away from the top: window 71.0, host 71.0, preferred 70.5, header top 33.0, header block 18.5, bottom -24.5, body 44.0, viewport 44.0, clip 0.0
 FAIL agent opens loading: the header stays at the window's top in every reading
@@ -12,6 +13,7 @@ ok agent opens loading: the viewport holds the whole body
 ok agent opens loading: the body starts at its top
 agent loading to short: 2 readings; settled window 298.0, host 298.0, preferred 298.0, header top 11.0, header block 21.0, bottom 0.0, body 266.0, viewport 266.0, clip 0.0
 ok agent loading to short: layout holds still within 2 s
+ok agent loading to short: the close control and the scrolling body exist
 ok agent loading to short: no later reading moves the window from its height
 ok agent loading to short: the header stays at the window's top in every reading
 ok agent loading to short: the body ends at the window's bottom
@@ -21,6 +23,7 @@ ok agent loading to short: the viewport holds the whole body
 ok agent loading to short: the body starts at its top
 agent replaced by a seeded loading: 1 readings; settled window 192.0, host 192.0, preferred 192.0, header top 11.0, header block 21.0, bottom 0.0, body 160.0, viewport 160.0, clip 0.0
 ok agent replaced by a seeded loading: layout holds still within 2 s
+ok agent replaced by a seeded loading: the close control and the scrolling body exist
 ok agent replaced by a seeded loading: no later reading moves the window from its height
 ok agent replaced by a seeded loading: the header stays at the window's top in every reading
 ok agent replaced by a seeded loading: the body ends at the window's bottom
@@ -30,6 +33,7 @@ ok agent replaced by a seeded loading: the viewport holds the whole body
 ok agent replaced by a seeded loading: the body starts at its top
 agent seeded loading to overflowing: 2 readings; settled window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 1623.0, viewport 528.0, clip 0.0
 ok agent seeded loading to overflowing: layout holds still within 2 s
+ok agent seeded loading to overflowing: the close control and the scrolling body exist
 ok agent seeded loading to overflowing: no later reading moves the window from its height
 ok agent seeded loading to overflowing: the header stays at the window's top in every reading
 ok agent seeded loading to overflowing: the body ends at the window's bottom
@@ -40,6 +44,7 @@ ok agent seeded loading to overflowing: the overflowing body shows its scroller
 ok agent seeded loading to overflowing: the body starts at its top
 overflowing agent replaced by loading: 1 readings; settled window 71.0, host 70.5, preferred 70.5, header top 8.5, header block 18.5, bottom 0.0, body 44.0, viewport 44.0, clip 0.0
 ok overflowing agent replaced by loading: layout holds still within 2 s
+ok overflowing agent replaced by loading: the close control and the scrolling body exist
 ok overflowing agent replaced by loading: no later reading moves the window from its height
 ok overflowing agent replaced by loading: the header stays at the window's top in every reading
 ok overflowing agent replaced by loading: the body ends at the window's bottom
@@ -49,6 +54,7 @@ ok overflowing agent replaced by loading: the viewport holds the whole body
 ok overflowing agent replaced by loading: the body starts at its top
 that loading to short: 2 readings; settled window 271.0, host 271.0, preferred 271.0, header top 11.0, header block 21.0, bottom 0.0, body 239.0, viewport 239.0, clip 0.0
 ok that loading to short: layout holds still within 2 s
+ok that loading to short: the close control and the scrolling body exist
 ok that loading to short: no later reading moves the window from its height
 ok that loading to short: the header stays at the window's top in every reading
 ok that loading to short: the body ends at the window's bottom
@@ -58,6 +64,7 @@ ok that loading to short: the viewport holds the whole body
 ok that loading to short: the body starts at its top
 agent grows to overflowing: 2 readings; settled window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 1623.0, viewport 528.0, clip 0.0
 ok agent grows to overflowing: layout holds still within 2 s
+ok agent grows to overflowing: the close control and the scrolling body exist
 ok agent grows to overflowing: no later reading moves the window from its height
 ok agent grows to overflowing: the header stays at the window's top in every reading
 ok agent grows to overflowing: the body ends at the window's bottom
@@ -68,6 +75,7 @@ ok agent grows to overflowing: the overflowing body shows its scroller
 ok agent grows to overflowing: the body starts at its top
 overflowing agent replaced by a seeded loading: 1 readings; settled window 192.0, host 192.0, preferred 192.0, header top 11.0, header block 21.0, bottom 0.0, body 160.0, viewport 160.0, clip 0.0
 ok overflowing agent replaced by a seeded loading: layout holds still within 2 s
+ok overflowing agent replaced by a seeded loading: the close control and the scrolling body exist
 ok overflowing agent replaced by a seeded loading: no later reading moves the window from its height
 ok overflowing agent replaced by a seeded loading: the header stays at the window's top in every reading
 ok overflowing agent replaced by a seeded loading: the body ends at the window's bottom
@@ -77,6 +85,7 @@ ok overflowing agent replaced by a seeded loading: the viewport holds the whole 
 ok overflowing agent replaced by a seeded loading: the body starts at its top
 that seeded loading to short: 2 readings; settled window 298.0, host 298.0, preferred 298.0, header top 11.0, header block 21.0, bottom 0.0, body 266.0, viewport 266.0, clip 0.0
 ok that seeded loading to short: layout holds still within 2 s
+ok that seeded loading to short: the close control and the scrolling body exist
 ok that seeded loading to short: no later reading moves the window from its height
 ok that seeded loading to short: the header stays at the window's top in every reading
 ok that seeded loading to short: the body ends at the window's bottom
@@ -86,6 +95,7 @@ ok that seeded loading to short: the viewport holds the whole body
 ok that seeded loading to short: the body starts at its top
 agent grows short of the limit: 2 readings; settled window 507.0, host 507.0, preferred 507.0, header top 11.0, header block 21.0, bottom 0.0, body 475.0, viewport 475.0, clip 0.0
 ok agent grows short of the limit: layout holds still within 2 s
+ok agent grows short of the limit: the close control and the scrolling body exist
 ok agent grows short of the limit: no later reading moves the window from its height
 ok agent grows short of the limit: the header stays at the window's top in every reading
 ok agent grows short of the limit: the body ends at the window's bottom
@@ -95,6 +105,7 @@ ok agent grows short of the limit: the viewport holds the whole body
 ok agent grows short of the limit: the body starts at its top
 agent short of the limit replaced by a seeded loading: 1 readings; settled window 192.0, host 192.0, preferred 192.0, header top 11.0, header block 21.0, bottom 0.0, body 160.0, viewport 160.0, clip 0.0
 ok agent short of the limit replaced by a seeded loading: layout holds still within 2 s
+ok agent short of the limit replaced by a seeded loading: the close control and the scrolling body exist
 ok agent short of the limit replaced by a seeded loading: no later reading moves the window from its height
 ok agent short of the limit replaced by a seeded loading: the header stays at the window's top in every reading
 ok agent short of the limit replaced by a seeded loading: the body ends at the window's bottom
@@ -104,6 +115,7 @@ ok agent short of the limit replaced by a seeded loading: the viewport holds the
 ok agent short of the limit replaced by a seeded loading: the body starts at its top
 agent overflowing again: 2 readings; settled window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 1623.0, viewport 528.0, clip 0.0
 ok agent overflowing again: layout holds still within 2 s
+ok agent overflowing again: the close control and the scrolling body exist
 ok agent overflowing again: no later reading moves the window from its height
 ok agent overflowing again: the header stays at the window's top in every reading
 ok agent overflowing again: the body ends at the window's bottom
@@ -112,8 +124,10 @@ ok agent overflowing again: the body is taller than its viewport
 ok agent overflowing again: the window stops at the 560 pt limit
 ok agent overflowing again: the overflowing body shows its scroller
 ok agent overflowing again: the body starts at its top
+ok agent: the body has scrolled before its replacement
 a scrolled agent replaced by another overflowing agent starts at its top: 1 readings; settled window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 1403.0, viewport 528.0, clip 0.0
 ok a scrolled agent replaced by another overflowing agent starts at its top: layout holds still within 2 s
+ok a scrolled agent replaced by another overflowing agent starts at its top: the close control and the scrolling body exist
 ok a scrolled agent replaced by another overflowing agent starts at its top: no later reading moves the window from its height
 ok a scrolled agent replaced by another overflowing agent starts at its top: the header stays at the window's top in every reading
 ok a scrolled agent replaced by another overflowing agent starts at its top: the body ends at the window's bottom
@@ -133,6 +147,7 @@ ok agent closes: the viewport holds the whole body
 ok agent closes: the body starts at its top
 agent reopens loading after a tall one: 1 readings; settled window 71.0, host 70.5, preferred 70.5, header top 8.5, header block 18.5, bottom 0.0, body 44.0, viewport 44.0, clip 0.0
 ok agent reopens loading after a tall one: layout holds still within 2 s
+ok agent reopens loading after a tall one: the close control and the scrolling body exist
 ok agent reopens loading after a tall one: no later reading moves the window from its height
 ok agent reopens loading after a tall one: the header stays at the window's top in every reading
 ok agent reopens loading after a tall one: the body ends at the window's bottom
@@ -142,6 +157,7 @@ ok agent reopens loading after a tall one: the viewport holds the whole body
 ok agent reopens loading after a tall one: the body starts at its top
 agent grows again: 2 readings; settled window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 1623.0, viewport 528.0, clip 0.0
 ok agent grows again: layout holds still within 2 s
+ok agent grows again: the close control and the scrolling body exist
 ok agent grows again: no later reading moves the window from its height
 ok agent grows again: the header stays at the window's top in every reading
 ok agent grows again: the body ends at the window's bottom
@@ -152,6 +168,7 @@ ok agent grows again: the overflowing body shows its scroller
 ok agent grows again: the body starts at its top
 overflowing agent replaced by a decision loading: 1 readings; settled window 71.0, host 70.5, preferred 70.5, header top 8.5, header block 18.5, bottom 0.0, body 44.0, viewport 44.0, clip 0.0
 ok overflowing agent replaced by a decision loading: layout holds still within 2 s
+ok overflowing agent replaced by a decision loading: the close control and the scrolling body exist
 ok overflowing agent replaced by a decision loading: no later reading moves the window from its height
 ok overflowing agent replaced by a decision loading: the header stays at the window's top in every reading
 ok overflowing agent replaced by a decision loading: the body ends at the window's bottom
@@ -161,6 +178,7 @@ ok overflowing agent replaced by a decision loading: the viewport holds the whol
 ok overflowing agent replaced by a decision loading: the body starts at its top
 decision loading to short: 2 readings; settled window 301.0, host 301.0, preferred 301.0, header top 11.0, header block 21.0, bottom 0.0, body 269.0, viewport 269.0, clip 0.0
 ok decision loading to short: layout holds still within 2 s
+ok decision loading to short: the close control and the scrolling body exist
 ok decision loading to short: no later reading moves the window from its height
 ok decision loading to short: the header stays at the window's top in every reading
 ok decision loading to short: the body ends at the window's bottom
@@ -170,6 +188,7 @@ ok decision loading to short: the viewport holds the whole body
 ok decision loading to short: the body starts at its top
 decision grows to overflowing: 2 readings; settled window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 1761.0, viewport 528.0, clip 0.0
 ok decision grows to overflowing: layout holds still within 2 s
+ok decision grows to overflowing: the close control and the scrolling body exist
 ok decision grows to overflowing: no later reading moves the window from its height
 ok decision grows to overflowing: the header stays at the window's top in every reading
 ok decision grows to overflowing: the body ends at the window's bottom
@@ -180,6 +199,7 @@ ok decision grows to overflowing: the overflowing body shows its scroller
 ok decision grows to overflowing: the body starts at its top
 overflowing decision replaced by loading: 1 readings; settled window 71.0, host 70.5, preferred 70.5, header top 8.5, header block 18.5, bottom 0.0, body 44.0, viewport 44.0, clip 0.0
 ok overflowing decision replaced by loading: layout holds still within 2 s
+ok overflowing decision replaced by loading: the close control and the scrolling body exist
 ok overflowing decision replaced by loading: no later reading moves the window from its height
 ok overflowing decision replaced by loading: the header stays at the window's top in every reading
 ok overflowing decision replaced by loading: the body ends at the window's bottom
@@ -189,6 +209,7 @@ ok overflowing decision replaced by loading: the viewport holds the whole body
 ok overflowing decision replaced by loading: the body starts at its top
 decision loading to overflowing: 2 readings; settled window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 1761.0, viewport 528.0, clip 0.0
 ok decision loading to overflowing: layout holds still within 2 s
+ok decision loading to overflowing: the close control and the scrolling body exist
 ok decision loading to overflowing: no later reading moves the window from its height
 ok decision loading to overflowing: the header stays at the window's top in every reading
 ok decision loading to overflowing: the body ends at the window's bottom
@@ -197,8 +218,10 @@ ok decision loading to overflowing: the body is taller than its viewport
 ok decision loading to overflowing: the window stops at the 560 pt limit
 ok decision loading to overflowing: the overflowing body shows its scroller
 ok decision loading to overflowing: the body starts at its top
+ok decision: the body has scrolled before its replacement
 a scrolled decision replaced by another overflowing decision starts at its top: 1 readings; settled window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 1742.0, viewport 528.0, clip 0.0
 ok a scrolled decision replaced by another overflowing decision starts at its top: layout holds still within 2 s
+ok a scrolled decision replaced by another overflowing decision starts at its top: the close control and the scrolling body exist
 ok a scrolled decision replaced by another overflowing decision starts at its top: no later reading moves the window from its height
 ok a scrolled decision replaced by another overflowing decision starts at its top: the header stays at the window's top in every reading
 ok a scrolled decision replaced by another overflowing decision starts at its top: the body ends at the window's bottom
@@ -209,6 +232,7 @@ ok a scrolled decision replaced by another overflowing decision starts at its to
 ok a scrolled decision replaced by another overflowing decision starts at its top: the body starts at its top
 overflowing decision replaced by a short one: 1 readings; settled window 173.0, host 173.0, preferred 173.0, header top 11.0, header block 21.0, bottom 0.0, body 141.0, viewport 141.0, clip 0.0
 ok overflowing decision replaced by a short one: layout holds still within 2 s
+ok overflowing decision replaced by a short one: the close control and the scrolling body exist
 ok overflowing decision replaced by a short one: no later reading moves the window from its height
 ok overflowing decision replaced by a short one: the header stays at the window's top in every reading
 ok overflowing decision replaced by a short one: the body ends at the window's bottom
@@ -218,6 +242,7 @@ ok overflowing decision replaced by a short one: the viewport holds the whole bo
 ok overflowing decision replaced by a short one: the body starts at its top
 decision grows to overflowing again: 2 readings; settled window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 1761.0, viewport 528.0, clip 0.0
 ok decision grows to overflowing again: layout holds still within 2 s
+ok decision grows to overflowing again: the close control and the scrolling body exist
 ok decision grows to overflowing again: no later reading moves the window from its height
 ok decision grows to overflowing again: the header stays at the window's top in every reading
 ok decision grows to overflowing again: the body ends at the window's bottom
@@ -228,6 +253,7 @@ ok decision grows to overflowing again: the overflowing body shows its scroller
 ok decision grows to overflowing again: the body starts at its top
 overflowing decision replaced by an agent loading: 1 readings; settled window 71.0, host 70.5, preferred 70.5, header top 8.5, header block 18.5, bottom 0.0, body 44.0, viewport 44.0, clip 0.0
 ok overflowing decision replaced by an agent loading: layout holds still within 2 s
+ok overflowing decision replaced by an agent loading: the close control and the scrolling body exist
 ok overflowing decision replaced by an agent loading: no later reading moves the window from its height
 ok overflowing decision replaced by an agent loading: the header stays at the window's top in every reading
 ok overflowing decision replaced by an agent loading: the body ends at the window's bottom
@@ -237,6 +263,7 @@ ok overflowing decision replaced by an agent loading: the viewport holds the who
 ok overflowing decision replaced by an agent loading: the body starts at its top
 agent tall before a row's click: 1 readings; settled window 507.0, host 507.0, preferred 507.0, header top 11.0, header block 21.0, bottom 0.0, body 475.0, viewport 475.0, clip 0.0
 ok agent tall before a row's click: layout holds still within 2 s
+ok agent tall before a row's click: the close control and the scrolling body exist
 ok agent tall before a row's click: no later reading moves the window from its height
 ok agent tall before a row's click: the header stays at the window's top in every reading
 ok agent tall before a row's click: the body ends at the window's bottom
@@ -246,6 +273,7 @@ ok agent tall before a row's click: the viewport holds the whole body
 ok agent tall before a row's click: the body starts at its top
 agent: a row's click replaces it with a short loading: 2 readings; settled window 192.0, host 192.0, preferred 192.0, header top 11.0, header block 21.0, bottom 0.0, body 160.0, viewport 160.0, clip 0.0
 ok agent: a row's click replaces it with a short loading: layout holds still within 2 s
+ok agent: a row's click replaces it with a short loading: the close control and the scrolling body exist
 ok agent: a row's click replaces it with a short loading: no later reading moves the window from its height
 ok agent: a row's click replaces it with a short loading: the header stays at the window's top in every reading
 ok agent: a row's click replaces it with a short loading: the body ends at the window's bottom
@@ -254,9 +282,11 @@ ok agent: a row's click replaces it with a short loading: the window's height ma
 ok agent: a row's click replaces it with a short loading: the viewport holds the whole body
 ok agent: a row's click replaces it with a short loading: the body starts at its top
   inside the click, before SwiftUI's update: window 507.0, host 507.0, preferred 507.0, header top 11.0, header block 21.0, bottom 0.0, body 475.0, viewport 475.0, clip 0.0
+ok agent: the header stays at the window's top inside the click
 ok agent: the click reached the row
 decision tall before a row's click: 1 readings; settled window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 1761.0, viewport 528.0, clip 0.0
 ok decision tall before a row's click: layout holds still within 2 s
+ok decision tall before a row's click: the close control and the scrolling body exist
 ok decision tall before a row's click: no later reading moves the window from its height
 ok decision tall before a row's click: the header stays at the window's top in every reading
 ok decision tall before a row's click: the body ends at the window's bottom
@@ -267,6 +297,7 @@ ok decision tall before a row's click: the overflowing body shows its scroller
 ok decision tall before a row's click: the body starts at its top
 decision: a row's click replaces it with a short loading: 3 readings; settled window 71.0, host 70.5, preferred 70.5, header top 8.5, header block 18.5, bottom 0.0, body 44.0, viewport 44.0, clip 0.0
 ok decision: a row's click replaces it with a short loading: layout holds still within 2 s
+ok decision: a row's click replaces it with a short loading: the close control and the scrolling body exist
 ok decision: a row's click replaces it with a short loading: no later reading moves the window from its height
 ok decision: a row's click replaces it with a short loading: the header stays at the window's top in every reading
 ok decision: a row's click replaces it with a short loading: the body ends at the window's bottom
@@ -275,9 +306,11 @@ ok decision: a row's click replaces it with a short loading: the window's height
 ok decision: a row's click replaces it with a short loading: the viewport holds the whole body
 ok decision: a row's click replaces it with a short loading: the body starts at its top
   inside the click, before SwiftUI's update: window 555.0, host 554.5, preferred 554.5, header top 8.5, header block 18.5, bottom 0.0, body 44.0, viewport 528.0, clip 0.0
+ok decision: the header stays at the window's top inside the click
 ok decision: the click reached the row
 a row's click reopens the panel on a short loading: 3 readings; settled window 192.0, host 192.0, preferred 192.0, header top 11.0, header block 21.0, bottom 0.0, body 160.0, viewport 160.0, clip 0.0
 ok a row's click reopens the panel on a short loading: layout holds still within 2 s
+ok a row's click reopens the panel on a short loading: the close control and the scrolling body exist
 ok a row's click reopens the panel on a short loading: no later reading moves the window from its height
 ok a row's click reopens the panel on a short loading: the header stays at the window's top in every reading
 ok a row's click reopens the panel on a short loading: the body ends at the window's bottom
@@ -286,9 +319,11 @@ ok a row's click reopens the panel on a short loading: the window's height match
 ok a row's click reopens the panel on a short loading: the viewport holds the whole body
 ok a row's click reopens the panel on a short loading: the body starts at its top
   inside the click, before SwiftUI's update: window 33.0, host 33.0, preferred 33.0, header top 11.0, header block 21.0, bottom 0.0, body 160.0, viewport 1.0, clip 0.0
+ok reopening: the header stays at the window's top inside the click
 ok reopening: the click reached the row
 agent loading before an oversized window: 1 readings; settled window 71.0, host 70.5, preferred 70.5, header top 8.5, header block 18.5, bottom 0.0, body 44.0, viewport 44.0, clip 0.0
 ok agent loading before an oversized window: layout holds still within 2 s
+ok agent loading before an oversized window: the close control and the scrolling body exist
 ok agent loading before an oversized window: no later reading moves the window from its height
 ok agent loading before an oversized window: the header stays at the window's top in every reading
 ok agent loading before an oversized window: the body ends at the window's bottom
@@ -301,6 +336,7 @@ ok agent loading: the host is held taller than its content
 FAIL agent loading: the header stays at the top of the oversized window
 agent loading after the oversized window: 1 readings; settled window 71.0, host 70.5, preferred 70.5, header top 8.5, header block 18.5, bottom 0.0, body 44.0, viewport 44.0, clip 0.0
 ok agent loading after the oversized window: layout holds still within 2 s
+ok agent loading after the oversized window: the close control and the scrolling body exist
 ok agent loading after the oversized window: no later reading moves the window from its height
 ok agent loading after the oversized window: the header stays at the window's top in every reading
 ok agent loading after the oversized window: the body ends at the window's bottom
@@ -311,6 +347,7 @@ ok agent loading after the oversized window: the body starts at its top
 ok agent loading: the window returns to its content
 agent short before an oversized window: 1 readings; settled window 298.0, host 298.0, preferred 298.0, header top 11.0, header block 21.0, bottom 0.0, body 266.0, viewport 266.0, clip 0.0
 ok agent short before an oversized window: layout holds still within 2 s
+ok agent short before an oversized window: the close control and the scrolling body exist
 ok agent short before an oversized window: no later reading moves the window from its height
 ok agent short before an oversized window: the header stays at the window's top in every reading
 ok agent short before an oversized window: the body ends at the window's bottom
@@ -323,6 +360,7 @@ ok agent short: the host is held taller than its content
 FAIL agent short: the header stays at the top of the oversized window
 agent short after the oversized window: 1 readings; settled window 298.0, host 298.0, preferred 298.0, header top 11.0, header block 21.0, bottom 0.0, body 266.0, viewport 266.0, clip 0.0
 ok agent short after the oversized window: layout holds still within 2 s
+ok agent short after the oversized window: the close control and the scrolling body exist
 ok agent short after the oversized window: no later reading moves the window from its height
 ok agent short after the oversized window: the header stays at the window's top in every reading
 ok agent short after the oversized window: the body ends at the window's bottom
@@ -333,6 +371,7 @@ ok agent short after the oversized window: the body starts at its top
 ok agent short: the window returns to its content
 decision loading before an oversized window: 1 readings; settled window 71.0, host 70.5, preferred 70.5, header top 8.5, header block 18.5, bottom 0.0, body 44.0, viewport 44.0, clip 0.0
 ok decision loading before an oversized window: layout holds still within 2 s
+ok decision loading before an oversized window: the close control and the scrolling body exist
 ok decision loading before an oversized window: no later reading moves the window from its height
 ok decision loading before an oversized window: the header stays at the window's top in every reading
 ok decision loading before an oversized window: the body ends at the window's bottom
@@ -345,6 +384,7 @@ ok decision loading: the host is held taller than its content
 FAIL decision loading: the header stays at the top of the oversized window
 decision loading after the oversized window: 1 readings; settled window 71.0, host 70.5, preferred 70.5, header top 8.5, header block 18.5, bottom 0.0, body 44.0, viewport 44.0, clip 0.0
 ok decision loading after the oversized window: layout holds still within 2 s
+ok decision loading after the oversized window: the close control and the scrolling body exist
 ok decision loading after the oversized window: no later reading moves the window from its height
 ok decision loading after the oversized window: the header stays at the window's top in every reading
 ok decision loading after the oversized window: the body ends at the window's bottom
@@ -355,6 +395,7 @@ ok decision loading after the oversized window: the body starts at its top
 ok decision loading: the window returns to its content
 decision short before an oversized window: 1 readings; settled window 301.0, host 301.0, preferred 301.0, header top 11.0, header block 21.0, bottom 0.0, body 269.0, viewport 269.0, clip 0.0
 ok decision short before an oversized window: layout holds still within 2 s
+ok decision short before an oversized window: the close control and the scrolling body exist
 ok decision short before an oversized window: no later reading moves the window from its height
 ok decision short before an oversized window: the header stays at the window's top in every reading
 ok decision short before an oversized window: the body ends at the window's bottom
@@ -367,6 +408,7 @@ ok decision short: the host is held taller than its content
 FAIL decision short: the header stays at the top of the oversized window
 decision short after the oversized window: 1 readings; settled window 301.0, host 301.0, preferred 301.0, header top 11.0, header block 21.0, bottom 0.0, body 269.0, viewport 269.0, clip 0.0
 ok decision short after the oversized window: layout holds still within 2 s
+ok decision short after the oversized window: the close control and the scrolling body exist
 ok decision short after the oversized window: no later reading moves the window from its height
 ok decision short after the oversized window: the header stays at the window's top in every reading
 ok decision short after the oversized window: the body ends at the window's bottom
@@ -377,6 +419,7 @@ ok decision short after the oversized window: the body starts at its top
 ok decision short: the window returns to its content
 short target at the left of the screen: 1 readings; settled window 298.0, host 298.0, preferred 298.0, header top 11.0, header block 21.0, bottom 0.0, body 266.0, viewport 266.0, clip 0.0
 ok short target at the left of the screen: layout holds still within 2 s
+ok short target at the left of the screen: the close control and the scrolling body exist
 ok short target at the left of the screen: no later reading moves the window from its height
 ok short target at the left of the screen: the header stays at the window's top in every reading
 ok short target at the left of the screen: the body ends at the window's bottom
@@ -390,6 +433,7 @@ ok left end: the tops meet
 ok left end: inside the visible frame
 short target at the right of the screen: 1 readings; settled window 298.0, host 298.0, preferred 298.0, header top 11.0, header block 21.0, bottom 0.0, body 266.0, viewport 266.0, clip 0.0
 ok short target at the right of the screen: layout holds still within 2 s
+ok short target at the right of the screen: the close control and the scrolling body exist
 ok short target at the right of the screen: no later reading moves the window from its height
 ok short target at the right of the screen: the header stays at the window's top in every reading
 ok short target at the right of the screen: the body ends at the window's bottom
@@ -403,6 +447,7 @@ ok right end: the tops meet
 ok right end: inside the visible frame
 overflowing target at the right of the screen: 2 readings; settled window 560.0, host 560.0, preferred 560.0, header top 11.0, header block 21.0, bottom 0.0, body 1761.0, viewport 528.0, clip 0.0
 ok overflowing target at the right of the screen: layout holds still within 2 s
+ok overflowing target at the right of the screen: the close control and the scrolling body exist
 ok overflowing target at the right of the screen: no later reading moves the window from its height
 ok overflowing target at the right of the screen: the header stays at the window's top in every reading
 ok overflowing target at the right of the screen: the body ends at the window's bottom
@@ -417,6 +462,7 @@ ok right end, overflowing: the tops meet
 ok right end, overflowing: inside the visible frame
 overflowing target with 300 pt below its top: 1 readings; settled window 300.0, host 300.0, preferred 300.0, header top 11.0, header block 21.0, bottom 0.0, body 1761.0, viewport 268.0, clip 0.0
 ok overflowing target with 300 pt below its top: layout holds still within 2 s
+ok overflowing target with 300 pt below its top: the close control and the scrolling body exist
 ok overflowing target with 300 pt below its top: no later reading moves the window from its height
 ok overflowing target with 300 pt below its top: the header stays at the window's top in every reading
 ok overflowing target with 300 pt below its top: the body ends at the window's bottom
@@ -431,6 +477,7 @@ ok reduced height: the tops meet
 ok reduced height: inside the visible frame
 short target with 300 pt below its top: 1 readings; settled window 71.0, host 70.5, preferred 70.5, header top 8.5, header block 18.5, bottom 0.0, body 44.0, viewport 44.0, clip 0.0
 ok short target with 300 pt below its top: layout holds still within 2 s
+ok short target with 300 pt below its top: the close control and the scrolling body exist
 ok short target with 300 pt below its top: no later reading moves the window from its height
 ok short target with 300 pt below its top: the header stays at the window's top in every reading
 ok short target with 300 pt below its top: the body ends at the window's bottom
@@ -442,6 +489,20 @@ reduced height, short: anchor 40...380, top 300; panel 388...788, top 300, heigh
 ok reduced height, short: 8 pt from the anchor on the right
 ok reduced height, short: the tops meet
 ok reduced height, short: inside the visible frame
+that loading to short with 300 pt below its top: 2 readings; settled window 271.0, host 271.0, preferred 271.0, header top 11.0, header block 21.0, bottom 0.0, body 239.0, viewport 239.0, clip 0.0
+ok that loading to short with 300 pt below its top: layout holds still within 2 s
+ok that loading to short with 300 pt below its top: the close control and the scrolling body exist
+ok that loading to short with 300 pt below its top: no later reading moves the window from its height
+ok that loading to short with 300 pt below its top: the header stays at the window's top in every reading
+ok that loading to short with 300 pt below its top: the body ends at the window's bottom
+ok that loading to short with 300 pt below its top: the window is 400 pt wide
+ok that loading to short with 300 pt below its top: the window's height matches header plus body
+ok that loading to short with 300 pt below its top: the viewport holds the whole body
+ok that loading to short with 300 pt below its top: the body starts at its top
+reduced height, loaded short: anchor 40...380, top 300; panel 388...788, top 300, height 271
+ok reduced height, loaded short: 8 pt from the anchor on the right
+ok reduced height, loaded short: the tops meet
+ok reduced height, loaded short: inside the visible frame
 ok the panel-height section never made this process the active app
 NOT EXERCISED, assigned to the operator's pre-release checks: the panel's height and header in the installed app, on real screens, beside a real status item's popover, with physical clicks. This section reads transparent windows while the app stays inactive, through a root with the shape of DetailPanelRoot.
 

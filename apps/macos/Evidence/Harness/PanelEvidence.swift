@@ -1491,7 +1491,7 @@ func panelHeightEvidence(_ failures: inout [String]) {
   /// Every reading on the way keeps the header at the window's top, the layout
   /// holds still in time, and the last reading fits what the panel shows.
   func verify(
-    _ name: String, overflows: Bool = false, _ failures: inout [String], _ change: () -> Void
+    _ name: String, overflows: Bool = false, expectsBody: Bool = true, _ failures: inout [String], _ change: () -> Void
   ) {
     change()
     let (samples, converged) = settlePanel(panel.window)
@@ -1500,6 +1500,9 @@ func panelHeightEvidence(_ failures: inout [String]) {
     let last = samples.last!
     line("\(name): \(samples.count) readings; settled \(last.text)")
     check("\(name): layout holds still within 2 s", converged, &failures)
+    // Without the close control and the scrolling body, the checks below would
+    // compare zeros and pass.
+    if expectsBody { check("\(name): the close control and the scrolling body exist", last.hasBody, &failures) }
     // A former target's height cannot move the window once it reaches this one's.
     let arrived = samples.firstIndex { abs($0.windowHeight - last.windowHeight) <= tolerance } ?? 0
     check("\(name): no later reading moves the window from its height", samples[arrived...].allSatisfy { abs($0.windowHeight - last.windowHeight) <= tolerance }, &failures)
@@ -1521,11 +1524,12 @@ func panelHeightEvidence(_ failures: inout [String]) {
   }
 
   /// Scrolls the shown body to its end, so a replacement has to reset it.
-  func scrollToEnd() {
+  func scrollToEnd(_ name: String, _ failures: inout [String]) {
     guard let scroll = panelBody(in: panel.window), let document = scroll.documentView else { return }
     scroll.contentView.scroll(to: NSPoint(x: 0, y: document.frame.height - scroll.contentView.bounds.height))
     scroll.reflectScrolledClipView(scroll.contentView)
     drain(0.1)
+    check("\(name): the body has scrolled before its replacement", panelHeightSample(panel.window).clipOffset > tolerance, &failures)
   }
 
   let longDecisionTwo = decision([
@@ -1563,11 +1567,11 @@ func panelHeightEvidence(_ failures: inout [String]) {
   verify("agent grows short of the limit", &failures) { apply(agentMiddle) }
   verify("agent short of the limit replaced by a seeded loading", &failures) { present(agentLoadingSeed) }
   verify("agent overflowing again", overflows: true, &failures) { apply(agentTall) }
-  scrollToEnd()
+  scrollToEnd("agent", &failures)
   verify("a scrolled agent replaced by another overflowing agent starts at its top", overflows: true, &failures) { present(agentTallTwo) }
 
   // A tall target closed, and a short one opened in the same panel.
-  verify("agent closes", &failures) {
+  verify("agent closes", expectsBody: false, &failures) {
     model.agent = nil
     panel.hide()
   }
@@ -1580,7 +1584,7 @@ func panelHeightEvidence(_ failures: inout [String]) {
   verify("decision grows to overflowing", overflows: true, &failures) { apply(decisionTall) }
   verify("overflowing decision replaced by loading", &failures) { present(decisionLoading) }
   verify("decision loading to overflowing", overflows: true, &failures) { apply(decisionTall) }
-  scrollToEnd()
+  scrollToEnd("decision", &failures)
   verify("a scrolled decision replaced by another overflowing decision starts at its top", overflows: true, &failures) { present(decisionTallTwo) }
   verify("overflowing decision replaced by a short one", &failures) { present(decisionOtherShort) }
   verify("decision grows to overflowing again", overflows: true, &failures) { apply(decisionTall) }
@@ -1614,7 +1618,12 @@ func panelHeightEvidence(_ failures: inout [String]) {
       inAction = panelHeightSample(panel.window)
     }
     verify("\(name): a row's click replaces it with a short loading", &failures) { clickRow() }
-    if let inAction { line("  inside the click, before SwiftUI's update: \(inAction.text)") }
+    if let inAction {
+      line("  inside the click, before SwiftUI's update: \(inAction.text)")
+      if inAction.hasBody {
+        check("\(name): the header stays at the window's top inside the click", headerTop.contains(inAction.headerTopGap), &failures)
+      }
+    }
     check("\(name): the click reached the row", inAction != nil, &failures)
   }
 
@@ -1628,7 +1637,12 @@ func panelHeightEvidence(_ failures: inout [String]) {
     reopened = panelHeightSample(panel.window)
   }
   verify("a row's click reopens the panel on a short loading", &failures) { clickRow() }
-  if let reopened { line("  inside the click, before SwiftUI's update: \(reopened.text)") }
+  if let reopened {
+    line("  inside the click, before SwiftUI's update: \(reopened.text)")
+    if reopened.hasBody {
+      check("reopening: the header stays at the window's top inside the click", headerTop.contains(reopened.headerTopGap), &failures)
+    }
+  }
   check("reopening: the click reached the row", reopened != nil, &failures)
   anchorWindow.ignoresMouseEvents = true
   rowHost.removeFromSuperview()
@@ -1685,6 +1699,8 @@ func panelHeightEvidence(_ failures: inout [String]) {
   placementChecks("reduced height", side: .right, &failures)
   verify("short target with \(Int(reduced)) pt below its top", &failures) { present(agentLoading) }
   placementChecks("reduced height, short", side: .right, &failures)
+  verify("that loading to short with \(Int(reduced)) pt below its top", &failures) { apply(agentOtherShort) }
+  placementChecks("reduced height, loaded short", side: .right, &failures)
   anchorWindow.setFrameOrigin(NSPoint(x: visible.minX + 40, y: visible.maxY - 420))
   drain(0.1)
 
