@@ -510,6 +510,9 @@ NOT EXERCISED, assigned to the operator's pre-release checks: the panel's height
 tolerances: frames within 1 pt; the close control's top 7...12 pt below the window's top; layout holds still for 0.3 s within 2 s
 declared panel source: corrected
 ok the matcher accepts AppKit's constraint as expected
+ok the matcher accepts a constant within 1.0 pt of the preferred height
+ok the matcher fails a constant more than 1.0 pt above the preferred height
+ok the matcher fails a constant more than 1.0 pt below the preferred height
 ok the matcher fails a missing constraint
 ok the matcher fails a renamed constraint
 ok the matcher fails a constraint on another attribute

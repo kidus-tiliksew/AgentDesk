@@ -1812,6 +1812,9 @@ private let preferredHeightIdentifier = "NSViewController.preferredContentSize.h
 private let preferredHeightPriority = NSLayoutConstraint.Priority(501)
 /// The priority the injected condition holds it at.
 private let heldHeightPriority = NSLayoutConstraint.Priority(1)
+/// How far the constraint's constant may sit from the hosting view's preferred
+/// height, for ordinary frame rounding.
+private let heightConstantTolerance: CGFloat = 1
 
 /// Every height constraint on `view` that could size it by itself, whatever its
 /// identifier, so a renamed constraint is still seen.
@@ -1826,7 +1829,9 @@ private func equalHeightConstraints(on view: NSView) -> [NSLayoutConstraint] {
 /// nil when it does. A missing, renamed, or altered constraint is a problem, so
 /// the injected case cannot pass without being exercised.
 @MainActor
-private func preferredHeightProblem(on view: NSView, priority: NSLayoutConstraint.Priority) -> String? {
+private func preferredHeightProblem(
+  on view: NSView, priority: NSLayoutConstraint.Priority, preferredHeight: CGFloat
+) -> String? {
   let named = view.constraints.filter { $0.identifier == preferredHeightIdentifier }
   guard named.count == 1, let constraint = named.first else {
     return "\(named.count) constraints named \(preferredHeightIdentifier), \(equalHeightConstraints(on: view).count) equal height constraints"
@@ -1837,6 +1842,9 @@ private func preferredHeightProblem(on view: NSView, priority: NSLayoutConstrain
   guard constraint.relation == .equal else { return "its relation is not equal" }
   guard constraint.multiplier == 1 else { return "its multiplier is not 1" }
   guard constraint.priority == priority else { return "its priority is \(constraint.priority.rawValue), not \(priority.rawValue)" }
+  guard abs(constraint.constant - preferredHeight) <= heightConstantTolerance else {
+    return "its constant is \(constraint.constant), more than \(heightConstantTolerance) pt from the preferred height \(preferredHeight)"
+  }
   return nil
 }
 
@@ -1864,11 +1872,17 @@ private func heightConstraintSelfCheck(_ check: (String, Bool) -> Void) {
     }
     return view
   }
-  check("the matcher accepts AppKit's constraint as expected", preferredHeightProblem(on: view(preferredHeightIdentifier), priority: preferredHeightPriority) == nil)
-  check("the matcher fails a missing constraint", preferredHeightProblem(on: view(nil), priority: preferredHeightPriority) != nil)
-  check("the matcher fails a renamed constraint", preferredHeightProblem(on: view("renamed"), priority: preferredHeightPriority) != nil)
-  check("the matcher fails a constraint on another attribute", preferredHeightProblem(on: view(preferredHeightIdentifier, attribute: .width), priority: preferredHeightPriority) != nil)
-  check("the matcher fails a constraint at another priority", preferredHeightProblem(on: view(preferredHeightIdentifier, priority: heldHeightPriority), priority: preferredHeightPriority) != nil)
+  func problem(_ view: NSView, preferred: CGFloat = 100) -> String? {
+    preferredHeightProblem(on: view, priority: preferredHeightPriority, preferredHeight: preferred)
+  }
+  check("the matcher accepts AppKit's constraint as expected", problem(view(preferredHeightIdentifier)) == nil)
+  check("the matcher accepts a constant within \(heightConstantTolerance) pt of the preferred height", problem(view(preferredHeightIdentifier), preferred: 100 + heightConstantTolerance) == nil)
+  check("the matcher fails a constant more than \(heightConstantTolerance) pt above the preferred height", problem(view(preferredHeightIdentifier), preferred: 100 - heightConstantTolerance - 0.5) != nil)
+  check("the matcher fails a constant more than \(heightConstantTolerance) pt below the preferred height", problem(view(preferredHeightIdentifier), preferred: 100 + heightConstantTolerance + 0.5) != nil)
+  check("the matcher fails a missing constraint", problem(view(nil)) != nil)
+  check("the matcher fails a renamed constraint", problem(view("renamed")) != nil)
+  check("the matcher fails a constraint on another attribute", problem(view(preferredHeightIdentifier, attribute: .width)) != nil)
+  check("the matcher fails a constraint at another priority", problem(view(preferredHeightIdentifier, priority: heldHeightPriority)) != nil)
   check("the absence check accepts no constraint", heightConstraintPresence(on: view(nil)) == nil)
   check("the absence check fails AppKit's constraint", heightConstraintPresence(on: view(preferredHeightIdentifier)) != nil)
   check("the absence check fails a renamed constraint", heightConstraintPresence(on: view("renamed")) != nil)
@@ -1892,8 +1906,9 @@ private func heightConstraintSelfCheck(_ check: (String, Bool) -> Void) {
 /// missing constraint is never taken as proof of corrected source. On corrected
 /// source, which `run.sh` builds, each click asserts the constraint is absent. On
 /// base source, which only `--unfixed-panel` declares, each click asserts its
-/// identity and attributes, and the held run asserts the injection was applied
-/// and persists.
+/// identity and attributes, and that its constant stays within 1 pt of the hosting
+/// view's preferred height, and the held run asserts the injection was applied and
+/// persists.
 @MainActor
 func panelLaterClicksEvidence(expectsUnfixedPanel: Bool = false, _ failures: inout [String]) {
   line("## The panel across later clicks (the shipped coordinator and controller, a real NSPopover, a click inside a SwiftUI action, a read after 250 ms)")
@@ -2048,11 +2063,13 @@ func panelLaterClicksEvidence(expectsUnfixedPanel: Bool = false, _ failures: ino
         }
         if expectsUnfixedPanel {
           let expected = heldConstraint == nil ? preferredHeightPriority : heldHeightPriority
-          let problem = preferredHeightProblem(on: hostView, priority: expected)
+          // The hosting view's own preferred height, read now, and never the window's height.
+          let preferred = (hostView.nextResponder as? NSViewController)?.preferredContentSize.height ?? -1
+          let problem = preferredHeightProblem(on: hostView, priority: expected, preferredHeight: preferred)
           if let problem { line("  \(problem)") }
-          check("\(name): AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, and priority \(Int(expected.rawValue))", problem == nil, &failures)
+          check("\(name): AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, priority \(Int(expected.rawValue)), and a constant within \(heightConstantTolerance) pt of the preferred height", problem == nil, &failures)
           let matched = hostView.constraints.first { $0.identifier == preferredHeightIdentifier }
-          if let matched { line("  \(preferredHeightIdentifier): constant \(matched.constant), priority \(matched.priority.rawValue), preferred \(last.preferredHeight)") }
+          if let matched { line("  \(preferredHeightIdentifier): constant \(matched.constant), priority \(matched.priority.rawValue), preferred \(preferred)") }
           if let heldConstraint {
             check("\(name): the held constraint is the same object and stays held", matched === heldConstraint && heldConstraint.priority == heldHeightPriority && heldConstraint.isActive, &failures)
           } else if held, let matched {
