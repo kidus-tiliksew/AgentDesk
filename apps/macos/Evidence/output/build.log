@@ -7,12 +7,3 @@
  66 | 
 
 [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
-<tmp>/src/DetailPanelWindow.swift:117:62: warning: capture of non-Sendable type 'Root.Type' in an isolated closure [#SendableMetatypes]
-115 |       }
-116 |     }
-117 |     heightObservation = host.observe(\.preferredContentSize) { [weak self] _, _ in
-    |                                                              `- warning: capture of non-Sendable type 'Root.Type' in an isolated closure [#SendableMetatypes]
-118 |       // After the layout pass that changed it, not inside it.
-119 |       Task { @MainActor in self?.place() }
-
-[#SendableMetatypes]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-metatypes>
