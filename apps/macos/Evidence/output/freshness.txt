@@ -1,3 +1,3 @@
 FRESHNESS closed: timer 15.000 s + read 0.0007 s (3 pages, in-process stub) = 15.0007 s; bound 20 s
-FRESHNESS open: timer 5.000 s + read 0.0007 s (3 pages, in-process stub) = 5.0007 s; bound 10 s
-FRESHNESS agent panel: timer 5.000 s + read 0.0005 s (2 pages, in-process stub) = 5.0005 s; bound 10 s
+FRESHNESS open: timer 5.000 s + read 0.0008 s (3 pages, in-process stub) = 5.0008 s; bound 10 s
+FRESHNESS agent panel: timer 5.000 s + read 0.0004 s (2 pages, in-process stub) = 5.0004 s; bound 10 s
