@@ -1,0 +1,161 @@
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+ok left end of the screen: the panel has not taken key focus
+left end of the screen: popover x 35...375, panel x 0...400, panel 400x120 pt
+FAIL left end of the screen: the panel is 400 pt wide with the popover still showing
+DIAG CAPTURE [paired] left end of the screen: the panel is 400 pt wide with the popover still showing at 2026-11-07 07:10:52 +0000
+DIAG   now: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+DIAG   session: locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.5 idleKey=32.4 idleMove=0.0 idleScroll=0.3 appActive=false activations=0 frontmost=<app>
+DIAG   last popover close: 652.609 locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.1 idleKey=32.0 idleMove=2.1 idleScroll=0.0 appActive=false activations=0 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+DIAG   activation log: 
+DIAG   trace before the capture:
+DIAG     652.487 popover willShow
+DIAG     652.490 popover didShow
+DIAG     652.490 open after show isShown=true window=true
+DIAG     652.527 relay height=33.0 was=1.0
+DIAG     652.528 relay height=319.0 was=33.0
+DIAG     652.566 place enter anchor=false anchorWindow=false
+DIAG     652.566 place enter anchor=false anchorWindow=false
+DIAG     652.607 open after drain isShown=true window=true
+DIAG     652.607 FORCED shape A: the popover closes before the target
+DIAG     652.610 popover willClose appActive=false activations=0
+DIAG     652.611 popover didClose
+DIAG     652.675 onChange shownID=a target=nil popoverShown=false
+DIAG     652.980 after drain(0.3) left end of the screen: isShown=false panelVisible=false frame=(0.0, 0.0, 400.0, 120.0)
+DIAG   later +0.5 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+DIAG   later +1.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+DIAG   later +2.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+DIAG   later +3.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+DIAG   later +5.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+DIAG   later +8.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+DIAG   trace during the longer drain:
+DIAG   session after: locked=absent displayAsleep=0 idleAny=0.4 idleClick=0.5 idleKey=40.4 idleMove=0.5 idleScroll=5.8 appActive=false activations=0 frontmost=<app>
+FAIL left end of the screen: the panel sits right of the popover, 8 pt away
+DIAG CAPTURE [paired] left end of the screen: the panel sits right of the popover, 8 pt away at 2026-11-07 07:11:01 +0000
+DIAG   now: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+DIAG   session: locked=absent displayAsleep=0 idleAny=0.4 idleClick=0.5 idleKey=40.4 idleMove=0.6 idleScroll=5.9 appActive=false activations=0 frontmost=<app>
+DIAG   last popover close: 652.609 locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.1 idleKey=32.0 idleMove=2.1 idleScroll=0.0 appActive=false activations=0 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+DIAG   activation log: 
+FAIL left end of the screen: the tops meet
+DIAG CAPTURE [paired] left end of the screen: the tops meet at 2026-11-07 07:11:01 +0000
+DIAG   now: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+DIAG   session: locked=absent displayAsleep=0 idleAny=0.4 idleClick=0.5 idleKey=40.4 idleMove=0.6 idleScroll=5.9 appActive=false activations=0 frontmost=<app>
+DIAG   last popover close: 652.609 locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.1 idleKey=32.0 idleMove=2.1 idleScroll=0.0 appActive=false activations=0 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+DIAG   activation log: 
+ok right end of the screen: the panel has not taken key focus
+right end of the screen: popover x 1363...1703, panel x 0...400, panel 400x120 pt
+FAIL right end of the screen: the panel is 400 pt wide with the popover still showing
+DIAG CAPTURE [paired] right end of the screen: the panel is 400 pt wide with the popover still showing at 2026-11-07 07:11:01 +0000
+DIAG   now: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+DIAG   session: locked=absent displayAsleep=0 idleAny=0.2 idleClick=1.1 idleKey=40.9 idleMove=0.2 idleScroll=6.4 appActive=false activations=0 frontmost=<app>
+DIAG   last popover close: 652.609 locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.1 idleKey=32.0 idleMove=2.1 idleScroll=0.0 appActive=false activations=0 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+DIAG   activation log: 
+DIAG   trace before the capture:
+DIAG     652.487 popover willShow
+DIAG     652.490 popover didShow
+DIAG     652.490 open after show isShown=true window=true
+DIAG     652.527 relay height=33.0 was=1.0
+DIAG     652.528 relay height=319.0 was=33.0
+DIAG     652.566 place enter anchor=false anchorWindow=false
+DIAG     652.566 place enter anchor=false anchorWindow=false
+DIAG     652.607 open after drain isShown=true window=true
+DIAG     652.607 FORCED shape A: the popover closes before the target
+DIAG     652.610 popover willClose appActive=false activations=0
+DIAG     652.611 popover didClose
+DIAG     652.675 onChange shownID=a target=nil popoverShown=false
+DIAG     652.980 after drain(0.3) left end of the screen: isShown=false panelVisible=false frame=(0.0, 0.0, 400.0, 120.0)
+DIAG     661.143 popover willShow
+DIAG     661.145 popover didShow
+DIAG     661.145 open after show isShown=true window=true
+DIAG     661.260 open after drain isShown=true window=true
+DIAG     661.568 after drain(0.3) right end of the screen: isShown=true panelVisible=false frame=(0.0, 0.0, 400.0, 120.0)
+DIAG   later +0.5 s: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+DIAG   later +1.0 s: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+DIAG   later +2.0 s: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+DIAG   later +3.0 s: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+DIAG   later +5.0 s: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+DIAG   later +8.0 s: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+DIAG   trace during the longer drain:
+DIAG   session after: locked=absent displayAsleep=0 idleAny=0.0 idleClick=6.9 idleKey=3.3 idleMove=0.0 idleScroll=14.4 appActive=false activations=0 frontmost=<app>
+FAIL right end of the screen: the panel sits left of the popover, 8 pt away
+DIAG CAPTURE [paired] right end of the screen: the panel sits left of the popover, 8 pt away at 2026-11-07 07:11:09 +0000
+DIAG   now: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+DIAG   session: locked=absent displayAsleep=0 idleAny=0.0 idleClick=6.9 idleKey=3.3 idleMove=0.0 idleScroll=14.4 appActive=false activations=0 frontmost=<app>
+DIAG   last popover close: 652.609 locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.1 idleKey=32.0 idleMove=2.1 idleScroll=0.0 appActive=false activations=0 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+DIAG   activation log: 
+FAIL right end of the screen: the tops meet
+DIAG CAPTURE [paired] right end of the screen: the tops meet at 2026-11-07 07:11:09 +0000
+DIAG   now: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+DIAG   session: locked=absent displayAsleep=0 idleAny=0.0 idleClick=6.9 idleKey=3.3 idleMove=0.0 idleScroll=14.4 appActive=false activations=0 frontmost=<app>
+DIAG   last popover close: 652.609 locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.1 idleKey=32.0 idleMove=2.1 idleScroll=0.0 appActive=false activations=0 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+DIAG   activation log: 
+DIAG OPENINGS TRACE
+DIAG   652.487 popover willShow
+DIAG   652.490 popover didShow
+DIAG   652.490 open after show isShown=true window=true
+DIAG   652.527 relay height=33.0 was=1.0
+DIAG   652.528 relay height=319.0 was=33.0
+DIAG   652.566 place enter anchor=false anchorWindow=false
+DIAG   652.566 place enter anchor=false anchorWindow=false
+DIAG   652.607 open after drain isShown=true window=true
+DIAG   652.607 FORCED shape A: the popover closes before the target
+DIAG   652.610 popover willClose appActive=false activations=0
+DIAG   652.611 popover didClose
+DIAG   652.675 onChange shownID=a target=nil popoverShown=false
+DIAG   652.980 after drain(0.3) left end of the screen: isShown=false panelVisible=false frame=(0.0, 0.0, 400.0, 120.0)
+DIAG   661.143 popover willShow
+DIAG   661.145 popover didShow
+DIAG   661.145 open after show isShown=true window=true
+DIAG   661.260 open after drain isShown=true window=true
+DIAG   661.568 after drain(0.3) right end of the screen: isShown=true panelVisible=false frame=(0.0, 0.0, 400.0, 120.0)
+DIAG   669.599 popover willClose appActive=false activations=0
+DIAG   669.599 onChange shownID=nil target=a popoverShown=true
+DIAG   669.599 hide
+DIAG   669.602 popover didClose
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+ok the app's deactivation (posted) closes both
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+DIAGRESULT 6 failures
+DIAGRESULT   paired windows: left end of the screen: the panel is 400 pt wide with the popover still showing
+DIAGRESULT   paired windows: left end of the screen: the panel sits right of the popover, 8 pt away
+DIAGRESULT   paired windows: left end of the screen: the tops meet
+DIAGRESULT   paired windows: right end of the screen: the panel is 400 pt wide with the popover still showing
+DIAGRESULT   paired windows: right end of the screen: the panel sits left of the popover, 8 pt away
+DIAGRESULT   paired windows: right end of the screen: the tops meet

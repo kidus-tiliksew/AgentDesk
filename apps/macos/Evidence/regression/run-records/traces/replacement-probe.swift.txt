@@ -1,0 +1,148 @@
+
+
+// MARK: Scratch replacement probe, not in the retained harness
+
+private struct ProbeRowView: View {
+  let row: PanelHeightRow
+  var body: some View {
+    Button { row.action() } label: {
+      Color.clear.frame(width: 340, height: 300).contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+  }
+}
+
+@MainActor
+private func probeReading(_ window: NSWindow) -> String {
+  let views = window.contentView.map(allSubviews) ?? []
+  let material = window.contentView
+  let host = material?.subviews.first
+  let scroll = views.compactMap { $0 as? NSScrollView }.first
+  let close = views.compactMap { $0 as? NSButton }.first { $0.enclosingScrollView == nil }
+  let height = window.frame.height
+  let closeTop = close.map { $0.convert($0.bounds, to: nil).maxY } ?? 0
+  let sf = scroll.map { $0.convert($0.bounds, to: nil) } ?? .zero
+  func f(_ v: CGFloat) -> String { String(format: "%.1f", v) }
+  let preferred = (host?.nextResponder as? NSViewController)?.preferredContentSize.height ?? -1
+  let inset = host?.safeAreaInsets ?? NSEdgeInsets()
+  let matInset = material?.safeAreaInsets ?? NSEdgeInsets()
+  let content = scroll?.contentInsets ?? NSEdgeInsets()
+  let clip = scroll?.contentView.bounds ?? .zero
+  let layout = window.contentLayoutRect
+  return "win \(f(height)) top \(f(window.frame.maxY)) host \(f(host?.frame.height ?? 0))@\(f(host?.frame.minY ?? 0)) pref \(f(preferred)) hdrTop \(f(close == nil ? -1 : height - closeTop)) bottom \(f(sf.minY)) body \(f(scroll?.documentView?.frame.height ?? 0)) view \(f(sf.height)) clipY \(f(clip.minY)) safeT \(f(inset.top)) safeB \(f(inset.bottom)) matSafeT \(f(matInset.top)) scrollInsetT \(f(content.top)) autoInset \(scroll?.automaticallyAdjustsContentInsets ?? false) layoutH \(f(layout.height)) occl \(window.occlusionState.contains(.visible)) key \(window.isKeyWindow)"
+}
+
+@MainActor
+func replacementProbe() {
+  guard let screen = NSScreen.main else { print("PROBE no screen"); return }
+  let env = ProcessInfo.processInfo.environment
+  let readDelay = Double(env["PROBE_READ"] ?? "0.25") ?? 0.25
+  if env["PROBE_POLICY"] == "accessory" { NSApp.setActivationPolicy(.accessory) }
+  let dropConstraint = env["PROBE_DROP"] == "1"
+  let record = panelDecisions[1].1
+  let model = AgentPairModel(record: record)
+  let coordinator = model.coordinator
+  let panel = DetailPanelController { AgentPairPanel(model: model, record: record, maxHeight: $0) }
+  let alpha = CGFloat(Double(env["PROBE_ALPHA"] ?? "0") ?? 0)
+  panel.window.alphaValue = alpha
+  panel.window.ignoresMouseEvents = true
+
+  let row = PanelHeightRow()
+  let popover = NSPopover()
+  popover.behavior = .applicationDefined
+  popover.animates = env["PROBE_ANIMATE"] != "0"
+  let host = NSHostingController(rootView: ProbeRowView(row: row))
+  host.sizingOptions = [.preferredContentSize]
+  popover.contentViewController = host
+  let anchorWindow = NSWindow(
+    contentRect: NSRect(x: screen.visibleFrame.minX + 200, y: screen.visibleFrame.maxY - 20, width: 10, height: 10),
+    styleMask: [.borderless], backing: .buffered, defer: false)
+  anchorWindow.alphaValue = 0
+  anchorWindow.ignoresMouseEvents = true
+  anchorWindow.orderFrontRegardless()
+
+  // Fault injection: AppKit's height constraint on the hosting view stops resizing the window.
+  func dropAppKitHeight() {
+    guard dropConstraint, let hostView = panel.window.contentView?.subviews.first else { return }
+    for constraint in hostView.constraints where constraint.identifier == "NSViewController.preferredContentSize.height" {
+      constraint.priority = NSLayoutConstraint.Priority(1)
+    }
+  }
+  var panelTarget: DetailPanelTarget?
+  coordinator.onDetailChange = {
+    model.revision += 1
+    let next = coordinator.panelTarget
+    guard next != panelTarget else { return }
+    panelTarget = next
+    guard let next else {
+      panel.hide()
+      return
+    }
+    _ = next
+    guard popover.isShown else { return }
+    panel.present(beside: host.view, takesKeyFocus: false)
+  }
+  popover.show(relativeTo: anchorWindow.contentView!.bounds, of: anchorWindow.contentView!, preferredEdge: .minY)
+  host.view.window?.alphaValue = alpha
+  host.view.window?.ignoresMouseEvents = true
+  drain(0.5)
+  guard let popWindow = host.view.window else { print("PROBE no popover window"); return }
+
+  var marks: [String] = []
+  func watch(_ label: String, seconds: TimeInterval, _ start: Date) {
+    let until = Date().addingTimeInterval(seconds)
+    var last = ""
+    while Date() < until {
+      if let event = NSApp.nextEvent(matching: .any, until: Date().addingTimeInterval(0.004), inMode: .default, dequeue: true) {
+        NSApp.sendEvent(event)
+      }
+      let now = probeReading(panel.window)
+      if now != last {
+        print(String(format: "PROBE %@ +%4.0f ms ", label, Date().timeIntervalSince(start) * 1000) + now)
+        last = now
+      }
+    }
+    marks.append("\(label) settled: \(last)")
+  }
+  let longLine = String(repeating: "The migration rewrites every row of the events table. ", count: 3)
+  func agent(_ id: String, _ line: String, _ link: String?) -> AgentSession {
+    session(["id": id, "display_name": "Probe \(id)", "topic": "probe/\(id)", "line": line, "link": link as Any? ?? NSNull(), "pending_decision_count": 0])
+  }
+  let tall = Array(longHistory.prefix(4))
+  let cases: [(AgentSession, [StatusHistoryEntry])] = [
+    (agent("a1", "First session, a short line", nil), Array(agentHistoryFixture.prefix(2))),
+    (agent("a2", longLine, "https://example.com/pull/1"), tall),
+    (agent("a3", "Third session, a short line", nil), []),
+    (agent("a4", longLine, "https://example.com/pull/2"), tall),
+    (agent("a5", "Fifth session, a short line", "https://example.com/pull/5"), Array(agentHistoryFixture.prefix(1))),
+    (agent("a6", "Sixth session", nil), Array(longHistory.prefix(2))),
+  ]
+  for (index, entry) in cases.enumerated() {
+    let (agentSession, history) = entry
+    row.action = {
+      coordinator.toggleAgent(agentSession.id, known: agentSession)
+      print("PROBE click \(index + 1) \(agentSession.id) in action: " + probeReading(panel.window))
+    }
+    let start = Date()
+    for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+      NSApp.postEvent(
+        NSEvent.mouseEvent(
+          with: type, location: NSPoint(x: 170, y: 150), modifierFlags: [],
+          timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: popWindow.windowNumber, context: nil,
+          eventNumber: 0, clickCount: 1, pressure: 1)!, atStart: false)
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + readDelay) {
+      MainActor.assumeIsolated {
+        guard let target = model.reads.last else { return }
+        coordinator.agent.apply(AgentDetailUpdate(target: target, outcome: .loaded(agentSession, .available(history))))
+      }
+    }
+    watch("c\(index + 1)-\(agentSession.id)", seconds: readDelay + 1.0, start)
+    dropAppKitHeight()
+  }
+  print("PROBE SUMMARY")
+  for mark in marks { print("PROBE " + mark) }
+  popover.performClose(nil)
+  drain(0.2)
+  print("PROBE activations \(ActivationWatch.shared.count)")
+}

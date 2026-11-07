@@ -1,0 +1,24 @@
+#!/bin/sh
+# Up to $1 fixed and base pairs, scratch only. Each run has its own directory, and none is overwritten.
+# Exit 0: chunk done. 2: a placement failure was captured. 3: the session locked. 4: all pairs done.
+D3="<scratch>/diag3"; SP="<scratch>"; L="$D3/pairs.log"; S="$D3/next-run"
+lockread() { "$SP/sess/s" | head -1 | awk '{print $2}'; }
+idle() { "$SP/sess/s" | tail -1 | awk '{print $3}' | cut -c1-6; }
+i=0; want=$(($1 * 2))
+while [ $i -lt $want ]; do
+  n=$(cat "$S"); if [ $((n % 2)) -eq 1 ]; then t=fixed; else t=base; fi
+  [ $n -le 20 ] || { echo "all pairs done" | tee -a "$L"; exit 4; }
+  l0=$(lockread); if [ "$l0" != absent ]; then echo "run $n $t not started: lock=$l0 at $(date -u +%H:%M:%S)" | tee -a "$L"; exit 3; fi
+  O="$D3/run$n-$(date -u +%H%M%S)"; mkdir -p "$O/out"; : > "$O/lock.log"
+  ( while :; do printf '%s %s %s\n' "$(date -u +%H:%M:%S)" "$(lockread)" "$(idle)" >> "$O/lock.log"; sleep 5; done ) & W=$!
+  s=$(date -u +%H:%M:%S); DIAG_CAPTURE_FILE="$O/capture.txt" "$D3/${t}2/evidence" "$O/out" > "$O/run.log" 2>&1; c=$?; kill $W 2>/dev/null; wait $W 2>/dev/null
+  locked=$(grep -cv ' absent ' "$O/lock.log"); ok=$(grep -c '^ok' "$O/out/report.txt" 2>/dev/null); fl=$(grep -c '^FAIL' "$O/out/report.txt" 2>/dev/null); caps=$(grep -c '^CAPTURE' "$O/capture.txt" 2>/dev/null)
+  place=$(grep -cE '^FAIL .*(end of the screen: |the tops meet|the agent panel is 400|8 pt from)' "$O/out/report.txt" 2>/dev/null)
+  cnt=yes; [ "$locked" = 0 ] || cnt=no-locked
+  minidle=$(awk '{print $3}' "$O/lock.log" | sort -n | head -1)
+  echo "run $n $t dir=$(basename "$O") start=$s end=$(date -u +%H:%M:%S) exit=$c ok=$ok FAIL=$fl placementFAIL=$place captures=$caps lockedSamples=$locked samples=$(wc -l < "$O/lock.log" | tr -d ' ') minIdle=$minidle counted=$cnt" | tee -a "$L"
+  if [ "$locked" != 0 ]; then exit 3; fi
+  echo $((n + 1)) > "$S"; i=$((i + 1))
+  [ "$place" = 0 ] || exit 2
+done
+exit 0

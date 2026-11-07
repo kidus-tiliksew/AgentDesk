@@ -1,0 +1,13 @@
+import CoreGraphics
+import Foundation
+// Exits 0 when the session reads unlocked with the display awake, 3 at the limit. Reads only.
+let limit = Double(CommandLine.arguments[1])!
+let start = Date()
+while Date().timeIntervalSince(start) < limit {
+  let d = (CGSessionCopyCurrentDictionary() as? [String: Any]) ?? [:]
+  let locked = (d["CGSSessionScreenIsLocked"] as? Bool) ?? false
+  if !locked && CGDisplayIsAsleep(CGMainDisplayID()) == 0 { print("unlocked"); exit(0) }
+  Thread.sleep(forTimeInterval: 30)
+}
+print("still locked at the limit")
+exit(3)

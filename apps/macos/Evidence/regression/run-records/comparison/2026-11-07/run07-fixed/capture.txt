@@ -1,0 +1,31 @@
+OPENINGS TRACE
+  1150.136 popover willShow
+  1150.138 popover didShow
+  1150.139 open after show isShown=true window=true
+  1150.164 relay height=33.0 was=1.0
+  1150.165 relay height=319.0 was=33.0
+  1150.215 place enter anchor=false anchorWindow=false
+  1150.215 place enter anchor=false anchorWindow=false
+  1150.244 open after drain isShown=true window=true
+  1150.244 onChange shownID=a target=nil popoverShown=true
+  1150.244 present anchorWindow=true panelVisible=false
+  1150.244 place enter anchor=true anchorWindow=true
+  1150.244 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=120.0
+  1150.568 after drain(0.3) left end of the screen: isShown=true panelVisible=true frame=(383.0, 732.0, 400.0, 319.0)
+  1150.570 popover willClose appActive=false activations=0
+  1150.570 onChange shownID=nil target=a popoverShown=true
+  1150.570 hide
+  1150.571 popover didClose
+  1150.696 popover willShow
+  1150.698 popover didShow
+  1150.698 open after show isShown=true window=true
+  1150.806 open after drain isShown=true window=true
+  1150.807 onChange shownID=a target=nil popoverShown=true
+  1150.807 present anchorWindow=true panelVisible=false
+  1150.807 place enter anchor=true anchorWindow=true
+  1150.807 place setFrame x=955.0 y=732.0 height=319.0 wasHeight=319.0
+  1151.135 after drain(0.3) right end of the screen: isShown=true panelVisible=true frame=(955.0, 732.0, 400.0, 319.0)
+  1151.138 popover willClose appActive=false activations=0
+  1151.138 onChange shownID=nil target=a popoverShown=true
+  1151.138 hide
+  1151.141 popover didClose

@@ -1,0 +1,42 @@
+import sys,re
+d=sys.argv[1]
+p=d+'/PanelEvidence.swift'
+s=open(p).read()
+a='''    let anchor = anchorWindow(atX: x)
+    open(beside: anchor)
+    detail.show("a", known: record)
+    drain(0.3)
+'''
+assert a in s
+s=s.replace(a,'''    let anchor = anchorWindow(atX: x)
+    let t0 = Date()
+    open(beside: anchor)
+    let shownAfterOpen = popover.isShown
+    let wAfterOpen = popoverWindow != nil
+    detail.show("a", known: record)
+    let visibleAfterShow = panel.isVisible
+    drain(0.3)
+    print("DIAG \\(name): open shown=\\(shownAfterOpen) window=\\(wAfterOpen) afterShow panelVisible=\\(visibleAfterShow); end shown=\\(popover.isShown) panelVisible=\\(panel.isVisible) target=\\(detail.shownID ?? "nil") willShow=\\(events.didShow) didClose=\\(events.didClose) lifetime=\\(lifetime.isRunning) frame=\\(panel.window.frame) elapsed=\\(Date().timeIntervalSince(t0))")
+''',1)
+open(p,'w').write(s)
+p=d+'/main.swift'
+s=open(p).read()
+a='''  NSApp.setActivationPolicy(.prohibited)
+  var failures: [String] = []
+'''
+assert a in s
+s=s.replace(a,a+'''  if CommandLine.arguments.contains("--paired-loop") {
+    for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didActivateApplicationNotification] {
+      NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) { n in print("DIAG note \\(n.name.rawValue) \\(Date())") }
+    }
+    NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { n in print("DIAG note \\(n.name.rawValue)") }
+    for i in 0..<10 {
+      print("DIAG pass \\(i)")
+      pairedWindowEvidence(&failures)
+    }
+    print("DIAG failures \\(failures.count)")
+    for f in failures { print("DIAG F \\(f)") }
+    exit(failures.isEmpty ? 0 : 1)
+  }
+''',1)
+open(p,'w').write(s)

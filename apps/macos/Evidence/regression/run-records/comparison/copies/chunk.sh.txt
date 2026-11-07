@@ -1,0 +1,21 @@
+#!/bin/sh
+# Runs up to $1 fixed and base pairs, scratch only. Exit 0: chunk done. 2: a failure was captured. 3: the session locked.
+D3=<scratch>/diag3; SP=<scratch>; L=$D3/pairs.log; S=$D3/next-run; [ -f $S ] || echo 1 > $S
+lockread() { $SP/sess/s | head -1 | awk '{print $2}'; }
+idle() { $SP/sess/s | tail -1 | awk '{print $3}' | cut -c1-6; }
+i=0; want=$(($1 * 2))
+while [ $i -lt $want ]; do
+  n=$(cat $S); if [ $((n % 2)) -eq 1 ]; then t=fixed; else t=base; fi
+  [ $n -le 20 ] || { echo "ten pairs done" | tee -a $L; exit 0; }
+  l0=$(lockread); if [ "$l0" != absent ]; then echo "run $n $t not started: lock=$l0 at $(date -u +%H:%M:%S)" | tee -a $L; exit 3; fi
+  O=$D3/run$n; rm -rf $O; mkdir -p $O/out; : > $O/lock.log
+  ( while :; do printf '%s %s %s\n' "$(date -u +%H:%M:%S)" "$(lockread)" "$(idle)" >> $O/lock.log; sleep 5; done ) & W=$!
+  s=$(date -u +%H:%M:%S); DIAG_CAPTURE_FILE=$O/capture.txt $D3/$t/evidence $O/out > $O/run.log 2>&1; c=$?; kill $W 2>/dev/null; wait $W 2>/dev/null
+  locked=$(grep -cv ' absent ' $O/lock.log); ok=$(grep -c '^ok' $O/out/report.txt 2>/dev/null); fl=$(grep -c '^FAIL' $O/out/report.txt 2>/dev/null); caps=$(grep -c '^CAPTURE' $O/capture.txt 2>/dev/null)
+  cnt=yes; [ "$locked" = 0 ] || cnt=no-locked
+  echo "run $n $t start=$s end=$(date -u +%H:%M:%S) exit=$c ok=$ok FAIL=$fl captures=$caps lockedSamples=$locked samples=$(wc -l < $O/lock.log | tr -d ' ') counted=$cnt" | tee -a $L
+  echo $((n + 1)) > $S; i=$((i + 1))
+  [ "$locked" = 0 ] || exit 3
+  [ $c -eq 0 ] || exit 2
+done
+exit 0

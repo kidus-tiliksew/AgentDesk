@@ -1,0 +1,12 @@
+17:28:09 CGSSessionScreenIsLocked 1 kCGSSessionOnConsoleKey 1 kCGSessionLoginDoneKey 1 displayAsleep 1 idle seconds 275.367563667 
+17:28:14 CGSSessionScreenIsLocked 1 kCGSSessionOnConsoleKey 1 kCGSessionLoginDoneKey 1 displayAsleep 1 idle seconds 280.419831709 
+17:28:19 CGSSessionScreenIsLocked 1 kCGSSessionOnConsoleKey 1 kCGSessionLoginDoneKey 1 displayAsleep 1 idle seconds 285.541957917 
+17:28:25 CGSSessionScreenIsLocked 1 kCGSSessionOnConsoleKey 1 kCGSessionLoginDoneKey 1 displayAsleep 1 idle seconds 290.593762 
+17:28:30 CGSSessionScreenIsLocked 1 kCGSSessionOnConsoleKey 1 kCGSessionLoginDoneKey 1 displayAsleep 1 idle seconds 295.64573125 
+17:28:35 CGSSessionScreenIsLocked 1 kCGSSessionOnConsoleKey 1 kCGSessionLoginDoneKey 1 displayAsleep 1 idle seconds 300.696714 
+17:28:40 CGSSessionScreenIsLocked 1 kCGSSessionOnConsoleKey 1 kCGSessionLoginDoneKey 1 displayAsleep 1 idle seconds 305.746131334 
+17:28:45 CGSSessionScreenIsLocked 1 kCGSSessionOnConsoleKey 1 kCGSessionLoginDoneKey 1 displayAsleep 1 idle seconds 310.801062 
+17:28:50 CGSSessionScreenIsLocked 1 kCGSSessionOnConsoleKey 1 kCGSessionLoginDoneKey 1 displayAsleep 1 idle seconds 315.849287792 
+17:28:55 CGSSessionScreenIsLocked 1 kCGSSessionOnConsoleKey 1 kCGSessionLoginDoneKey 1 displayAsleep 1 idle seconds 320.900992 
+17:29:00 CGSSessionScreenIsLocked 1 kCGSSessionOnConsoleKey 1 kCGSessionLoginDoneKey 1 displayAsleep 1 idle seconds 325.941579959 
+17:45:35 CGSSessionScreenIsLocked 1 kCGSSessionOnConsoleKey 1 kCGSessionLoginDoneKey 1 displayAsleep 1 idle seconds 330.981752834 

@@ -1295,3 +1295,806 @@ func linkedRecoveryEvidence(_ failures: inout [String]) {
   line("AppState delegates its list, panel, drafts, answers, and Undo to this object; its own wiring is compiled by the Xcode build and is not run here.")
   line("")
 }
+
+// MARK: The panel's height
+
+/// What the panel shows in the height check, as `AppState` publishes it.
+@MainActor
+@Observable
+private final class PanelHeightModel {
+  var agent: AgentDetailPresentation?
+  var decision: DetailPanelPresentation?
+}
+
+/// The shipped views in the shape of the app's `DetailPanelRoot`, which needs
+/// `AppState`: one group over both kinds with the key observer behind it.
+private struct PanelHeightRoot: View {
+  let model: PanelHeightModel
+  let maxHeight: CGFloat
+
+  var body: some View {
+    Group {
+      if let presentation = model.agent {
+        AgentDetailView(presentation: presentation, maxHeight: maxHeight)
+      } else if let presentation = model.decision {
+        DecisionDetailView(presentation: presentation, maxHeight: maxHeight)
+      }
+    }
+    .background(PopoverKeyObserver(controlsKeepArrows: true) { _, _ in false })
+  }
+}
+
+/// A SwiftUI button standing for a list row, so a target can change inside a
+/// SwiftUI action as a row's click changes it.
+@MainActor
+private final class PanelHeightRow {
+  var action: () -> Void = {}
+}
+
+private struct PanelHeightRowView: View {
+  let row: PanelHeightRow
+
+  var body: some View {
+    // The whole label is the button, so a posted click lands on it anywhere.
+    Button {
+      row.action()
+    } label: {
+      Color.clear
+        .frame(width: 340, height: 400)
+        .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+  }
+}
+
+/// One reading of the shipped panel's window and views. Every value comes from
+/// AppKit frames, and `preferredHeight` is reported only, so the checks never
+/// compare the window with the value the controller read.
+private struct PanelHeightSample: Equatable {
+  var windowHeight: CGFloat
+  var hostHeight: CGFloat
+  var preferredHeight: CGFloat
+  /// Window top to the top of the header's close control.
+  var headerTopGap: CGFloat
+  /// Top of the close control to the top of the scrolling body.
+  var headerBlock: CGFloat
+  /// Bottom of the scrolling body to the window's bottom.
+  var bottomGap: CGFloat
+  /// The scrolling body's document, its padding included.
+  var naturalBodyHeight: CGFloat
+  var viewportHeight: CGFloat
+  var clipOffset: CGFloat
+  var hasBody: Bool
+
+  var text: String {
+    func f(_ value: CGFloat) -> String { String(format: "%.1f", value) }
+    return "window \(f(windowHeight)), host \(f(hostHeight)), preferred \(f(preferredHeight)), header top \(f(headerTopGap)), header block \(f(headerBlock)), bottom \(f(bottomGap)), body \(f(naturalBodyHeight)), viewport \(f(viewportHeight)), clip \(f(clipOffset))"
+  }
+
+  /// The height the panel's parts add up to when nothing overflows: the gap
+  /// above the close control, the header block, and the document's height.
+  var contentHeight: CGFloat { headerTopGap + headerBlock + naturalBodyHeight }
+}
+
+@MainActor
+private func allSubviews(of view: NSView) -> [NSView] {
+  [view] + view.subviews.flatMap(allSubviews)
+}
+
+@MainActor
+private func panelBody(in window: NSWindow) -> NSScrollView? {
+  (window.contentView.map(allSubviews) ?? []).compactMap { $0 as? NSScrollView }.first
+}
+
+@MainActor
+private func panelHeightSample(_ window: NSWindow) -> PanelHeightSample {
+  let views = window.contentView.map(allSubviews) ?? []
+  let host = window.contentView?.subviews.first
+  let scroll = panelBody(in: window)
+  let close = views.compactMap { $0 as? NSButton }.first { $0.enclosingScrollView == nil }
+  let height = window.frame.height
+  let closeTop = close.map { $0.convert($0.bounds, to: nil).maxY } ?? 0
+  let scrollFrame = scroll.map { $0.convert($0.bounds, to: nil) } ?? .zero
+  return PanelHeightSample(
+    windowHeight: height, hostHeight: host?.frame.height ?? 0,
+    preferredHeight: (host?.nextResponder as? NSViewController)?.preferredContentSize.height ?? -1,
+    headerTopGap: height - closeTop, headerBlock: closeTop - scrollFrame.maxY, bottomGap: scrollFrame.minY,
+    naturalBodyHeight: scroll?.documentView?.frame.height ?? 0, viewportHeight: scrollFrame.height,
+    clipOffset: scroll?.contentView.bounds.minY ?? 0, hasBody: scroll != nil && close != nil)
+}
+
+/// Runs the event loop until the panel's readings hold still for `still`
+/// seconds, and returns each distinct reading on the way. `converged` is false
+/// when `limit` passes first.
+@MainActor
+private func settlePanel(
+  _ window: NSWindow, limit: TimeInterval = 2, still: TimeInterval = 0.3
+) -> (samples: [PanelHeightSample], converged: Bool) {
+  var samples = [panelHeightSample(window)]
+  let start = Date()
+  var lastChange = start
+  while Date().timeIntervalSince(start) < limit {
+    if let event = NSApp.nextEvent(
+      matching: .any, until: Date().addingTimeInterval(0.005), inMode: .default, dequeue: true)
+    {
+      NSApp.sendEvent(event)
+    }
+    let sample = panelHeightSample(window)
+    if sample != samples.last {
+      samples.append(sample)
+      lastChange = Date()
+    } else if Date().timeIntervalSince(lastChange) >= still {
+      return (samples, true)
+    }
+  }
+  return (samples, false)
+}
+
+/// The panel's height and header through one retained shipped
+/// `DetailPanelController` (component-mac-app §Detail panel; req-mac-app
+/// AC-11.1, AC-11.9). The windows are fully transparent and the app stays
+/// inactive, as in the paired-window section.
+@MainActor
+func panelHeightEvidence(_ failures: inout [String]) {
+  line("## The panel's height (one retained shipped DetailPanelController, its window and views read from AppKit frames)")
+  guard let screen = NSScreen.main else {
+    // A skipped check must not read as a pass.
+    line("FAIL not exercised: this session has no screen")
+    failures.append("panel height: this session has no screen")
+    return
+  }
+  // The header pads its close control 8 pt from its top, and the control sits
+  // up to 3 pt lower when a name's baseline aligns it. Ordinary frame rounding
+  // gets at most 1 pt. Layout gets 2 s to hold still for 0.3 s.
+  let headerTop: ClosedRange<CGFloat> = 7...12
+  let tolerance: CGFloat = 1
+  line("tolerances: frames within \(Int(tolerance)) pt; the close control's top \(Int(headerTop.lowerBound))...\(Int(headerTop.upperBound)) pt below the window's top; layout holds still for 0.3 s within 2 s")
+
+  let model = PanelHeightModel()
+  let panel = DetailPanelController { PanelHeightRoot(model: model, maxHeight: $0) }
+  panel.window.alphaValue = 0
+  let visible = screen.visibleFrame
+  let anchorSize = NSSize(width: 340, height: 400)
+  let anchorWindow = NSWindow(
+    contentRect: NSRect(origin: NSPoint(x: visible.minX + 40, y: visible.maxY - 420), size: anchorSize),
+    styleMask: [.borderless], backing: .buffered, defer: false)
+  anchorWindow.alphaValue = 0
+  anchorWindow.ignoresMouseEvents = true
+  anchorWindow.orderFrontRegardless()
+  let anchor = anchorWindow.contentView!
+
+  enum Shown {
+    case agent(AgentDetailPresentation)
+    case decision(DetailPanelPresentation)
+  }
+  func apply(_ shown: Shown) {
+    switch shown {
+    case .agent(let presentation):
+      model.decision = nil
+      model.agent = presentation
+    case .decision(let presentation):
+      model.agent = nil
+      model.decision = presentation
+    }
+  }
+  /// As `AppState` does on a new target: publishes it, then tells the controller.
+  func present(_ shown: Shown) {
+    apply(shown)
+    panel.present(beside: anchor, takesKeyFocus: false)
+  }
+
+  func check(_ name: String, _ passed: Bool, _ failures: inout [String]) {
+    line("\(passed ? "ok" : "FAIL") \(name)")
+    if !passed { failures.append("panel height: \(name)") }
+  }
+
+  /// Every reading on the way keeps the header at the window's top, the layout
+  /// holds still in time, and the last reading fits what the panel shows.
+  func verify(
+    _ name: String, overflows: Bool = false, expectsBody: Bool = true, _ failures: inout [String], _ change: () -> Void
+  ) {
+    change()
+    let (samples, converged) = settlePanel(panel.window)
+    // The 560 pt limit, or the space below the anchor's top on a smaller screen.
+    let cap = min(CGFloat(DetailPanelPlacement.maxHeight), min(anchorWindow.frame.maxY, visible.maxY) - visible.minY)
+    let last = samples.last!
+    line("\(name): \(samples.count) readings; settled \(last.text)")
+    check("\(name): layout holds still within 2 s", converged, &failures)
+    // Without the close control and the scrolling body, the checks below would
+    // compare zeros and pass.
+    if expectsBody { check("\(name): the close control and the scrolling body exist", last.hasBody, &failures) }
+    // A former target's height cannot move the window once it reaches this one's.
+    let arrived = samples.firstIndex { abs($0.windowHeight - last.windowHeight) <= tolerance } ?? 0
+    check("\(name): no later reading moves the window from its height", samples[arrived...].allSatisfy { abs($0.windowHeight - last.windowHeight) <= tolerance }, &failures)
+    let shifted = samples.filter { $0.hasBody && !headerTop.contains($0.headerTopGap) }
+    for sample in shifted { line("  header away from the top: \(sample.text)") }
+    check("\(name): the header stays at the window's top in every reading", shifted.isEmpty, &failures)
+    check("\(name): the body ends at the window's bottom", abs(last.bottomGap) <= tolerance, &failures)
+    check("\(name): the window is 400 pt wide", panel.window.frame.width == CGFloat(DetailPanelPlacement.width), &failures)
+    if overflows {
+      check("\(name): the body is taller than its viewport", last.naturalBodyHeight > last.viewportHeight + tolerance, &failures)
+      check("\(name): the window stops at the \(Int(cap)) pt limit", abs(last.windowHeight - cap) <= tolerance, &failures)
+      let scroller = panelBody(in: panel.window)?.verticalScroller
+      check("\(name): the overflowing body shows its scroller", scroller.map { !$0.isHidden && $0.knobProportion < 1 } ?? false, &failures)
+    } else {
+      check("\(name): the window's height matches header plus body", abs(last.windowHeight - last.contentHeight) <= tolerance, &failures)
+      check("\(name): the viewport holds the whole body", abs(last.viewportHeight - last.naturalBodyHeight) <= tolerance, &failures)
+    }
+    check("\(name): the body starts at its top", abs(last.clipOffset) <= tolerance, &failures)
+  }
+
+  /// Scrolls the shown body to its end, so a replacement has to reset it.
+  func scrollToEnd(_ name: String, _ failures: inout [String]) {
+    guard let scroll = panelBody(in: panel.window), let document = scroll.documentView else { return }
+    scroll.contentView.scroll(to: NSPoint(x: 0, y: document.frame.height - scroll.contentView.bounds.height))
+    scroll.reflectScrolledClipView(scroll.contentView)
+    drain(0.1)
+    check("\(name): the body has scrolled before its replacement", panelHeightSample(panel.window).clipOffset > tolerance, &failures)
+  }
+
+  let longDecisionTwo = decision([
+    "id": "dp_long2", "title": "A second long decision that replaces the first.", "agent_session_id": "ags_2",
+    "body": longBody, "recommendation": ["kind": "approve"],
+  ])
+  let longAgentTwo = session([
+    "id": "ags_8", "display_name": "Codex · a second long session", "topic": "web", "line": "A second long session.",
+  ])
+  let agentLoading = Shown.agent(AgentDetailPresentation(content: .loading(nil), refreshFailed: false, decisions: [], now: now))
+  let agentLoadingSeed = Shown.agent(AgentDetailPresentation(content: .loading(staleAgent), refreshFailed: false, decisions: [], now: now))
+  let agentShort = Shown.agent(agentPresentation(staleAgent, history: .available([])))
+  let agentOtherShort = Shown.agent(agentPresentation(noStatusAgent, history: .available([])))
+  let agentTall = Shown.agent(agentPresentation(longAgent, history: .available(longHistory)))
+  let agentTallTwo = Shown.agent(agentPresentation(longAgentTwo, history: .available(longHistory)))
+  // Shorter than the limit, as the session before the build 359 report was.
+  let agentMiddle = Shown.agent(agentPresentation(workingAgent, history: .available(Array(longHistory.prefix(3)))))
+  let decisionLoading = Shown.decision(DetailPanelPresentation(content: .loading))
+  let decisionShort = Shown.decision(presentation(panelDecisions[0].1))
+  let decisionOtherShort = Shown.decision(presentation(settledFixtures[3].1))
+  let decisionTall = Shown.decision(presentation(longDecision))
+  let decisionTallTwo = Shown.decision(presentation(longDecisionTwo))
+
+  // Loading to loaded, short and overflowing, in both kinds.
+  verify("agent opens loading", &failures) { present(agentLoading) }
+  verify("agent loading to short", &failures) { apply(agentShort) }
+  verify("agent replaced by a seeded loading", &failures) { present(agentLoadingSeed) }
+  verify("agent seeded loading to overflowing", overflows: true, &failures) { apply(agentTall) }
+  // A tall target replaced by a distinct short one.
+  verify("overflowing agent replaced by loading", &failures) { present(agentLoading) }
+  verify("that loading to short", &failures) { apply(agentOtherShort) }
+  verify("agent grows to overflowing", overflows: true, &failures) { apply(agentTall) }
+  verify("overflowing agent replaced by a seeded loading", &failures) { present(agentLoadingSeed) }
+  verify("that seeded loading to short", &failures) { apply(agentShort) }
+  verify("agent grows short of the limit", &failures) { apply(agentMiddle) }
+  verify("agent short of the limit replaced by a seeded loading", &failures) { present(agentLoadingSeed) }
+  verify("agent overflowing again", overflows: true, &failures) { apply(agentTall) }
+  scrollToEnd("agent", &failures)
+  verify("a scrolled agent replaced by another overflowing agent starts at its top", overflows: true, &failures) { present(agentTallTwo) }
+
+  // A tall target closed, and a short one opened in the same panel.
+  verify("agent closes", expectsBody: false, &failures) {
+    model.agent = nil
+    panel.hide()
+  }
+  verify("agent reopens loading after a tall one", &failures) { present(agentLoading) }
+  verify("agent grows again", overflows: true, &failures) { apply(agentTall) }
+
+  // The other kind replaces it, then the same transitions.
+  verify("overflowing agent replaced by a decision loading", &failures) { present(decisionLoading) }
+  verify("decision loading to short", &failures) { apply(decisionShort) }
+  verify("decision grows to overflowing", overflows: true, &failures) { apply(decisionTall) }
+  verify("overflowing decision replaced by loading", &failures) { present(decisionLoading) }
+  verify("decision loading to overflowing", overflows: true, &failures) { apply(decisionTall) }
+  scrollToEnd("decision", &failures)
+  verify("a scrolled decision replaced by another overflowing decision starts at its top", overflows: true, &failures) { present(decisionTallTwo) }
+  verify("overflowing decision replaced by a short one", &failures) { present(decisionOtherShort) }
+  verify("decision grows to overflowing again", overflows: true, &failures) { apply(decisionTall) }
+  verify("overflowing decision replaced by an agent loading", &failures) { present(agentLoading) }
+
+  // A change inside a SwiftUI action, as a row's click makes it. SwiftUI runs
+  // the panel's update after the action, so the controller's first placement
+  // reads the former target's height.
+  let row = PanelHeightRow()
+  let rowHost = NSHostingView(rootView: PanelHeightRowView(row: row))
+  rowHost.frame = anchor.bounds
+  anchor.addSubview(rowHost)
+  // Only for this section: a window this transparent passes the Mac user's own
+  // clicks through.
+  anchorWindow.ignoresMouseEvents = false
+  drain(0.2)
+  func clickRow() {
+    for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+      NSApp.postEvent(
+        NSEvent.mouseEvent(
+          with: type, location: NSPoint(x: anchorSize.width / 2, y: anchorSize.height / 2), modifierFlags: [],
+          timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: anchorWindow.windowNumber, context: nil,
+          eventNumber: 0, clickCount: 1, pressure: 1)!, atStart: false)
+    }
+  }
+  for (name, tall, short) in [("agent", agentMiddle, agentLoadingSeed), ("decision", decisionTall, decisionLoading)] {
+    verify("\(name) tall before a row's click", overflows: name == "decision", &failures) { present(tall) }
+    var inAction: PanelHeightSample?
+    row.action = {
+      present(short)
+      inAction = panelHeightSample(panel.window)
+    }
+    verify("\(name): a row's click replaces it with a short loading", &failures) { clickRow() }
+    if let inAction {
+      line("  inside the click, before SwiftUI's update: \(inAction.text)")
+      if inAction.hasBody {
+        check("\(name): the header stays at the window's top inside the click", headerTop.contains(inAction.headerTopGap), &failures)
+      }
+    }
+    check("\(name): the click reached the row", inAction != nil, &failures)
+  }
+
+  model.agent = nil
+  model.decision = nil
+  panel.hide()
+  drain(0.3)
+  var reopened: PanelHeightSample?
+  row.action = {
+    present(agentLoadingSeed)
+    reopened = panelHeightSample(panel.window)
+  }
+  verify("a row's click reopens the panel on a short loading", &failures) { clickRow() }
+  if let reopened {
+    line("  inside the click, before SwiftUI's update: \(reopened.text)")
+    if reopened.hasBody {
+      check("reopening: the header stays at the window's top inside the click", headerTop.contains(reopened.headerTopGap), &failures)
+    }
+  }
+  check("reopening: the click reached the row", reopened != nil, &failures)
+  anchorWindow.ignoresMouseEvents = true
+  rowHost.removeFromSuperview()
+
+  // A window taller than its content never centers the content: the operator's
+  // report. A constraint on the material, above the hosting view's own, holds the
+  // window 240 pt too tall, so the state lasts long enough to read before any placement runs.
+  for (name, loading, short) in [("agent", agentLoading, agentShort), ("decision", decisionLoading, decisionShort)] {
+    for (state, shown) in [("loading", loading), ("short", short)] {
+      verify("\(name) \(state) before an oversized window", &failures) { present(shown) }
+      let content = panel.window.frame.height
+      guard let material = panel.window.contentView else { continue }
+      let hold = material.heightAnchor.constraint(equalToConstant: content + 240)
+      hold.priority = NSLayoutConstraint.Priority(600)
+      hold.isActive = true
+      var frame = panel.window.frame
+      frame.origin.y -= 240
+      frame.size.height += 240
+      panel.window.setFrame(frame, display: false)
+      panel.window.layoutIfNeeded()
+      material.layoutSubtreeIfNeeded()
+      let oversized = panelHeightSample(panel.window)
+      line("\(name) \(state) held 240 pt too tall: \(oversized.text)")
+      check("\(name) \(state): the host is held taller than its content", oversized.hostHeight >= content + 240 - tolerance, &failures)
+      check("\(name) \(state): the header stays at the top of the oversized window", headerTop.contains(oversized.headerTopGap), &failures)
+      hold.isActive = false
+      verify("\(name) \(state) after the oversized window", &failures) { panel.place() }
+      check("\(name) \(state): the window returns to its content", abs(panel.window.frame.height - content) <= tolerance, &failures)
+    }
+  }
+
+  // Placement, in the same retained controller, moved by the anchor's own window.
+  func placementChecks(_ name: String, side: DetailPanelPlacement.Side, _ failures: inout [String]) {
+    let anchorFrame = anchorWindow.frame
+    let frame = panel.window.frame
+    line("\(name): anchor \(Int(anchorFrame.minX))...\(Int(anchorFrame.maxX)), top \(Int(anchorFrame.maxY)); panel \(Int(frame.minX))...\(Int(frame.maxX)), top \(Int(frame.maxY)), height \(Int(frame.height))")
+    let gap = side == .right ? frame.minX - anchorFrame.maxX : anchorFrame.minX - frame.maxX
+    check("\(name): 8 pt from the anchor on the \(side)", abs(gap - CGFloat(DetailPanelPlacement.gap)) <= tolerance, &failures)
+    check("\(name): the tops meet", abs(frame.maxY - anchorFrame.maxY) <= tolerance, &failures)
+    check("\(name): inside the visible frame", frame.minX >= visible.minX && frame.maxX <= visible.maxX && frame.minY >= visible.minY, &failures)
+  }
+  verify("short target at the left of the screen", &failures) { present(agentShort) }
+  placementChecks("left end", side: .right, &failures)
+  verify("short target at the right of the screen", &failures) {
+    anchorWindow.setFrameOrigin(NSPoint(x: visible.maxX - anchorSize.width - 40, y: anchorWindow.frame.minY))
+  }
+  placementChecks("right end", side: .left, &failures)
+  verify("overflowing target at the right of the screen", overflows: true, &failures) { apply(decisionTall) }
+  placementChecks("right end, overflowing", side: .left, &failures)
+  let reduced: CGFloat = 300
+  verify("overflowing target with \(Int(reduced)) pt below its top", overflows: true, &failures) {
+    anchorWindow.setFrameOrigin(NSPoint(x: visible.minX + 40, y: visible.minY + reduced - anchorSize.height))
+  }
+  placementChecks("reduced height", side: .right, &failures)
+  verify("short target with \(Int(reduced)) pt below its top", &failures) { present(agentLoading) }
+  placementChecks("reduced height, short", side: .right, &failures)
+  verify("that loading to short with \(Int(reduced)) pt below its top", &failures) { apply(agentOtherShort) }
+  placementChecks("reduced height, loaded short", side: .right, &failures)
+  anchorWindow.setFrameOrigin(NSPoint(x: visible.minX + 40, y: visible.maxY - 420))
+  drain(0.1)
+
+  // Supporting renders of the retained panel, after a tall target. The checks
+  // above are the assertions.
+  for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
+    panel.window.appearance = NSAppearance(named: appearance)
+    for (name, tall, short) in [("agent", agentTall, agentLoadingSeed), ("decision", decisionTall, decisionLoading)] {
+      present(tall)
+      _ = settlePanel(panel.window)
+      present(short)
+      _ = settlePanel(panel.window)
+      if let view = panel.window.contentView { save(snapshot(view), "panel-height-\(name)-loading-after-tall-\(mode).png") }
+    }
+  }
+  model.agent = nil
+  model.decision = nil
+  panel.hide()
+  anchorWindow.orderOut(nil)
+  drain(0.1)
+  check("the panel-height section never made this process the active app", !NSApp.isActive, &failures)
+  line("NOT EXERCISED, assigned to the operator's pre-release checks: the panel's height and header in the installed app, on real screens, beside a real status item's popover, with physical clicks. This section reads transparent windows while the app stays inactive, through a root with the shape of DetailPanelRoot.")
+  line("")
+}
+
+// MARK: The panel across later clicks
+
+/// A read that answers about as late as a real one.
+private struct SequenceReader: DecisionReader {
+  let records: [String: Decision]
+  func decision(id: String) async throws(APIError) -> Decision {
+    try? await Task.sleep(nanoseconds: 250_000_000)
+    guard let record = records[id] else { throw .transport("unused") }
+    return record
+  }
+}
+
+/// Nothing in this section waits for a refresh.
+private struct SequenceClock: SyncClock {
+  func sleep(seconds: TimeInterval) async throws { try await Task.sleep(nanoseconds: 3_600_000_000_000) }
+}
+
+/// The shipped coordinator behind the panel, as `AppState` holds it.
+@MainActor
+@Observable
+private final class PanelSequenceModel {
+  @ObservationIgnored let coordinator: DecisionCoordinator
+  @ObservationIgnored let reads = FixtureAgentReads()
+  var revision = 0
+
+  init(records: [String: Decision]) {
+    coordinator = DecisionCoordinator(
+      sender: UnusedSender(), reader: SequenceReader(records: records), clock: SequenceClock(), agentReads: reads)
+  }
+
+  var decisionPresentation: DetailPanelPresentation? {
+    guard let content = coordinator.detail.content, coordinator.detail.shownID != nil else { return nil }
+    switch content {
+    case .loading: return DetailPanelPresentation(content: .loading)
+    case .unavailable: return DetailPanelPresentation(content: .unavailable)
+    case .failed: return DetailPanelPresentation(content: .failed)
+    case .loaded(let decision): return presentation(decision)
+    }
+  }
+}
+
+/// The shipped views in the shape of the app's `DetailPanelRoot`.
+private struct PanelSequenceRoot: View {
+  let model: PanelSequenceModel
+  let maxHeight: CGFloat
+
+  var body: some View {
+    let _ = model.revision
+    Group {
+      if let content = model.coordinator.agent.content {
+        AgentDetailView(
+          presentation: AgentDetailPresentation(
+            content: content, refreshFailed: model.coordinator.agent.refreshFailed, decisions: agentPendingFixture, now: now),
+          maxHeight: maxHeight)
+      } else if let presentation = model.decisionPresentation {
+        DecisionDetailView(presentation: presentation, maxHeight: maxHeight)
+      }
+    }
+    .background(PopoverKeyObserver(controlsKeepArrows: true) { _, _ in false })
+  }
+}
+
+/// The row a click lands on: a SwiftUI button in the popover, so the target
+/// changes inside a SwiftUI action, as `AgentEntry` and `DecisionRow` change it.
+private struct PanelSequenceRow: View {
+  let row: PanelHeightRow
+
+  var body: some View {
+    Button {
+      row.action()
+    } label: {
+      Color.clear
+        .frame(width: 340, height: 300)
+        .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+  }
+}
+
+/// The identifier AppKit gives the height constraint it installs for a view
+/// controller's `preferredContentSize`.
+private let preferredHeightIdentifier = "NSViewController.preferredContentSize.height"
+/// The priority AppKit gives that constraint.
+private let preferredHeightPriority = NSLayoutConstraint.Priority(501)
+/// The priority the injected condition holds it at.
+private let heldHeightPriority = NSLayoutConstraint.Priority(1)
+/// How far the constraint's constant may sit from the hosting view's preferred
+/// height, for ordinary frame rounding.
+private let heightConstantTolerance: CGFloat = 1
+
+/// Every height constraint on `view` that could size it by itself, whatever its
+/// identifier, so a renamed constraint is still seen.
+@MainActor
+private func equalHeightConstraints(on view: NSView) -> [NSLayoutConstraint] {
+  view.constraints.filter {
+    ($0.firstItem as? NSView) === view && $0.firstAttribute == .height && $0.secondItem == nil && $0.relation == .equal
+  }
+}
+
+/// Why `view` does not hold AppKit's height constraint exactly as expected, or
+/// nil when it does. A missing, renamed, or altered constraint is a problem, so
+/// the injected case cannot pass without being exercised.
+@MainActor
+private func preferredHeightProblem(
+  on view: NSView, priority: NSLayoutConstraint.Priority, preferredHeight: CGFloat
+) -> String? {
+  let named = view.constraints.filter { $0.identifier == preferredHeightIdentifier }
+  guard named.count == 1, let constraint = named.first else {
+    return "\(named.count) constraints named \(preferredHeightIdentifier), \(equalHeightConstraints(on: view).count) equal height constraints"
+  }
+  guard (constraint.firstItem as? NSView) === view else { return "its first item is not the hosting view" }
+  guard constraint.firstAttribute == .height else { return "its first attribute is not height" }
+  guard constraint.secondItem == nil, constraint.secondAttribute == .notAnAttribute else { return "it has a second item" }
+  guard constraint.relation == .equal else { return "its relation is not equal" }
+  guard constraint.multiplier == 1 else { return "its multiplier is not 1" }
+  guard constraint.priority == priority else { return "its priority is \(constraint.priority.rawValue), not \(priority.rawValue)" }
+  guard abs(constraint.constant - preferredHeight) <= heightConstantTolerance else {
+    return "its constant is \(constraint.constant), more than \(heightConstantTolerance) pt from the preferred height \(preferredHeight)"
+  }
+  return nil
+}
+
+/// Why `view` holds a constraint that corrected source must not have, or nil.
+@MainActor
+private func heightConstraintPresence(on view: NSView) -> String? {
+  let named = view.constraints.filter { $0.identifier == preferredHeightIdentifier }
+  let equal = equalHeightConstraints(on: view)
+  return named.isEmpty && equal.isEmpty ? nil : "\(named.count) named, \(equal.count) equal height constraints"
+}
+
+/// The two checks above on views built here, so neither can pass by reading
+/// nothing: a missing or renamed constraint fails, and so does a present one.
+@MainActor
+private func heightConstraintSelfCheck(_ check: (String, Bool) -> Void) {
+  func view(_ identifier: String?, attribute: NSLayoutConstraint.Attribute = .height, priority: NSLayoutConstraint.Priority = preferredHeightPriority) -> NSView {
+    let view = NSView()
+    if let identifier {
+      let constraint = NSLayoutConstraint(
+        item: view, attribute: attribute, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1,
+        constant: 100)
+      constraint.identifier = identifier
+      constraint.priority = priority
+      view.addConstraint(constraint)
+    }
+    return view
+  }
+  func problem(_ view: NSView, preferred: CGFloat = 100) -> String? {
+    preferredHeightProblem(on: view, priority: preferredHeightPriority, preferredHeight: preferred)
+  }
+  check("the matcher accepts AppKit's constraint as expected", problem(view(preferredHeightIdentifier)) == nil)
+  check("the matcher accepts a constant within \(heightConstantTolerance) pt of the preferred height", problem(view(preferredHeightIdentifier), preferred: 100 + heightConstantTolerance) == nil)
+  check("the matcher fails a constant more than \(heightConstantTolerance) pt above the preferred height", problem(view(preferredHeightIdentifier), preferred: 100 - heightConstantTolerance - 0.5) != nil)
+  check("the matcher fails a constant more than \(heightConstantTolerance) pt below the preferred height", problem(view(preferredHeightIdentifier), preferred: 100 + heightConstantTolerance + 0.5) != nil)
+  check("the matcher fails a missing constraint", problem(view(nil)) != nil)
+  check("the matcher fails a renamed constraint", problem(view("renamed")) != nil)
+  check("the matcher fails a constraint on another attribute", problem(view(preferredHeightIdentifier, attribute: .width)) != nil)
+  check("the matcher fails a constraint at another priority", problem(view(preferredHeightIdentifier, priority: heldHeightPriority)) != nil)
+  check("the absence check accepts no constraint", heightConstraintPresence(on: view(nil)) == nil)
+  check("the absence check fails AppKit's constraint", heightConstraintPresence(on: view(preferredHeightIdentifier)) != nil)
+  check("the absence check fails a renamed constraint", heightConstraintPresence(on: view("renamed")) != nil)
+}
+
+/// A first click and later clicks on other targets, through the shipped
+/// `DecisionCoordinator`, a real `NSPopover`, and the shipped controller, with a
+/// read answering 250 ms after each click (req-mac-app AC-5.3, AC-11.1, AC-11.5;
+/// component-mac-app §Detail panel). The windows are fully transparent, ignore
+/// the Mac user's clicks, and the app stays inactive.
+///
+/// Each kind runs twice. The second run holds down the height constraint AppKit
+/// installs for `preferredContentSize`, because that constraint hides what the
+/// controller itself does: a later click's only placement reads the former
+/// target's height. With the constraint at work the window settles anyway in
+/// these transparent windows, and the operator's report on the installed app
+/// says it does not settle there. With the correction the constraint does not
+/// exist, so this run changes nothing.
+///
+/// `expectsUnfixedPanel` states which source this program was built with, so a
+/// missing constraint is never taken as proof of corrected source. On corrected
+/// source, which `run.sh` builds, each click asserts the constraint is absent. On
+/// base source, which only `--unfixed-panel` declares, each click asserts its
+/// identity and attributes, and that its constant stays within 1 pt of the hosting
+/// view's preferred height, and the held run asserts the injection was applied and
+/// persists.
+@MainActor
+func panelLaterClicksEvidence(expectsUnfixedPanel: Bool = false, _ failures: inout [String]) {
+  line("## The panel across later clicks (the shipped coordinator and controller, a real NSPopover, a click inside a SwiftUI action, a read after 250 ms)")
+  guard let screen = NSScreen.main else {
+    line("FAIL not exercised: this session has no screen")
+    failures.append("later clicks: this session has no screen")
+    return
+  }
+  let headerTop: ClosedRange<CGFloat> = 7...12
+  let tolerance: CGFloat = 1
+  line("tolerances: frames within \(Int(tolerance)) pt; the close control's top \(Int(headerTop.lowerBound))...\(Int(headerTop.upperBound)) pt below the window's top; layout holds still for 0.3 s within 2 s")
+  func check(_ name: String, _ passed: Bool, _ failures: inout [String]) {
+    line("\(passed ? "ok" : "FAIL") \(name)")
+    if !passed { failures.append("later clicks: \(name)") }
+  }
+
+  line("declared panel source: \(expectsUnfixedPanel ? "unfixed, by --unfixed-panel" : "corrected")")
+  heightConstraintSelfCheck { name, passed in check(name, passed, &failures) }
+
+  let longLine = String(repeating: "The migration rewrites every row of the events table. ", count: 3)
+  func agent(_ id: String, _ text: String, link: String? = nil) -> AgentSession {
+    session([
+      "id": id, "display_name": "Claude Code · \(id)", "topic": "sequence/\(id)", "line": text,
+      "link": link as Any? ?? NSNull(), "pending_decision_count": 0,
+    ])
+  }
+  // Short and tall in turn, each history shaped as its own read would return it.
+  let agents: [(AgentSession, [StatusHistoryEntry], Bool)] = [
+    (agent("s1", "First session, a short line"), Array(agentHistoryFixture.prefix(2)), false),
+    (agent("s2", longLine, link: "https://example.com/pull/1"), Array(longHistory.prefix(6)), true),
+    (agent("s3", "Third session, a short line"), [], false),
+    (agent("s4", longLine, link: "https://example.com/pull/2"), Array(longHistory.prefix(6)), true),
+    (agent("s5", "Fifth session, a short line", link: "https://example.com/pull/5"), Array(agentHistoryFixture.prefix(1)), false),
+    (agent("s6", "Sixth session"), Array(longHistory.prefix(2)), false),
+  ]
+  let decisionsInTurn: [(Decision, Bool)] = [
+    (panelDecisions[0].1, false),
+    (longDecision, true),
+    (settledFixtures[3].1, false),
+    (
+      decision([
+        "id": "dp_long3", "title": "A second long decision that replaces a short one.", "agent_session_id": "ags_2",
+        "body": longBody, "recommendation": ["kind": "approve"],
+      ]), true
+    ),
+    (panelDecisions[1].1, false),
+    (settledFixtures[4].1, false),
+  ]
+  let records = Dictionary(decisionsInTurn.map { ($0.0.id, $0.0) }, uniquingKeysWith: { first, _ in first })
+
+  for (kind, count) in [("agent", agents.count), ("decision", decisionsInTurn.count)] {
+    for held in [false, true] {
+      let pass = held ? "\(kind), AppKit's height constraint held down" : kind
+      let model = PanelSequenceModel(records: records)
+      let coordinator = model.coordinator
+      let panel = DetailPanelController { PanelSequenceRoot(model: model, maxHeight: $0) }
+      panel.window.alphaValue = 0
+      panel.window.ignoresMouseEvents = true
+      let row = PanelHeightRow()
+      let popover = NSPopover()
+      popover.behavior = .applicationDefined
+      let host = NSHostingController(rootView: PanelSequenceRow(row: row))
+      host.sizingOptions = [.preferredContentSize]
+      popover.contentViewController = host
+      let anchorWindow = NSWindow(
+        contentRect: NSRect(x: screen.visibleFrame.minX + 200, y: screen.visibleFrame.maxY - 20, width: 10, height: 10),
+        styleMask: [.borderless], backing: .buffered, defer: false)
+      anchorWindow.alphaValue = 0
+      anchorWindow.ignoresMouseEvents = true
+      anchorWindow.orderFrontRegardless()
+
+      // As `AppState.detailChanged` and `PopoverController.panelChanged` do.
+      var panelTarget: DetailPanelTarget?
+      coordinator.onDetailChange = {
+        model.revision += 1
+        let next = coordinator.panelTarget
+        guard next != panelTarget else { return }
+        panelTarget = next
+        if next == nil {
+          panel.hide()
+        } else if popover.isShown {
+          panel.present(beside: host.view, takesKeyFocus: false)
+        }
+      }
+      popover.show(relativeTo: anchorWindow.contentView!.bounds, of: anchorWindow.contentView!, preferredEdge: .minY)
+      host.view.window?.alphaValue = 0
+      host.view.window?.ignoresMouseEvents = true
+      drain(0.5)
+      guard let popoverWindow = host.view.window else {
+        check("\(pass): the popover has a window", false, &failures)
+        continue
+      }
+      let cap = min(CGFloat(DetailPanelPlacement.maxHeight), popoverWindow.frame.maxY - screen.visibleFrame.minY)
+
+      var heldConstraint: NSLayoutConstraint?
+      for index in 0..<count {
+        var fired = false
+        let overflows: Bool
+        let name: String
+        var answer: () -> Void = {}
+        if kind == "agent" {
+          let (session, history, tall) = agents[index]
+          overflows = tall
+          name = "\(pass), click \(index + 1), \(session.id)"
+          row.action = {
+            fired = true
+            coordinator.toggleAgent(session.id, known: session)
+          }
+          answer = {
+            guard let target = model.reads.last else { return }
+            coordinator.agent.apply(AgentDetailUpdate(target: target, outcome: .loaded(session, .available(history))))
+          }
+        } else {
+          let (record, tall) = decisionsInTurn[index]
+          overflows = tall
+          name = "\(pass), click \(index + 1), \(record.id)"
+          row.action = {
+            fired = true
+            coordinator.show(record.id)
+          }
+        }
+        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+          NSApp.postEvent(
+            NSEvent.mouseEvent(
+              with: type, location: NSPoint(x: 170, y: 150), modifierFlags: [],
+              timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: popoverWindow.windowNumber, context: nil,
+              eventNumber: 0, clickCount: 1, pressure: 1)!, atStart: false)
+        }
+        drain(0.25)
+        answer()
+        // A loaded target has its final content once the read has answered.
+        drain(0.15)
+        let (samples, converged) = settlePanel(panel.window)
+        let last = samples.last!
+        let insets = panel.window.contentView?.subviews.first?.safeAreaInsets ?? NSEdgeInsets()
+        line("\(name): \(last.text), safe area top \(Int(insets.top)) bottom \(Int(insets.bottom))")
+        check("\(name): the click reached the row", fired, &failures)
+        check("\(name): layout holds still within 2 s", converged, &failures)
+        check("\(name): the close control and the scrolling body exist", last.hasBody, &failures)
+        check("\(name): the header is at the window's top", headerTop.contains(last.headerTopGap), &failures)
+        check("\(name): the body ends at the window's bottom", abs(last.bottomGap) <= tolerance, &failures)
+        check("\(name): the hosting view has no safe-area inset", insets.top == 0 && insets.bottom == 0, &failures)
+        if overflows {
+          check("\(name): the window stops at the \(Int(cap)) pt limit", abs(last.windowHeight - cap) <= tolerance, &failures)
+        } else {
+          check("\(name): the window's height matches header plus body", abs(last.windowHeight - last.contentHeight) <= tolerance, &failures)
+        }
+        check("\(name): the body starts at its top", abs(last.clipOffset) <= tolerance, &failures)
+        guard let hostView = panel.window.contentView?.subviews.first else {
+          check("\(name): the hosting view exists", false, &failures)
+          continue
+        }
+        if expectsUnfixedPanel {
+          let expected = heldConstraint == nil ? preferredHeightPriority : heldHeightPriority
+          // The hosting view's own preferred height, read now, and never the window's height.
+          let preferred = (hostView.nextResponder as? NSViewController)?.preferredContentSize.height ?? -1
+          let problem = preferredHeightProblem(on: hostView, priority: expected, preferredHeight: preferred)
+          if let problem { line("  \(problem)") }
+          check("\(name): AppKit's height constraint has its identifier, height attribute, items, relation, multiplier, priority \(Int(expected.rawValue)), and a constant within \(heightConstantTolerance) pt of the preferred height", problem == nil, &failures)
+          let matched = hostView.constraints.first { $0.identifier == preferredHeightIdentifier }
+          if let matched { line("  \(preferredHeightIdentifier): constant \(matched.constant), priority \(matched.priority.rawValue), preferred \(preferred)") }
+          if let heldConstraint {
+            check("\(name): the held constraint is the same object and stays held", matched === heldConstraint && heldConstraint.priority == heldHeightPriority && heldConstraint.isActive, &failures)
+          } else if held, let matched {
+            // After the first click, because AppKit installs it with the first height.
+            matched.priority = heldHeightPriority
+            heldConstraint = matched
+            check("\(name): the injection is applied", matched.priority == heldHeightPriority, &failures)
+          }
+        } else {
+          let present = heightConstraintPresence(on: hostView)
+          if let present { line("  \(present)") }
+          check("\(name): corrected source has no height constraint from AppKit, so nothing is held", present == nil, &failures)
+          check("\(name): corrected source reports no preferred height", last.preferredHeight == 0, &failures)
+        }
+      }
+      if held && expectsUnfixedPanel {
+        check("\(pass): the injection was exercised", heldConstraint != nil, &failures)
+      }
+      popover.performClose(nil)
+      panel.hide()
+      anchorWindow.orderOut(nil)
+      drain(0.2)
+    }
+  }
+  check("the later-clicks section never made this process the active app", !NSApp.isActive, &failures)
+  line("Holding the constraint down is an injected condition. These transparent windows do not reproduce the operator's report without it, so this section does not show why the constraint does not settle the window in the installed app. NOT EXERCISED, assigned to the operator's pre-release checks: later clicks in the installed app, in a visible key window, with physical clicks and real reads.")
+  line("")
+}

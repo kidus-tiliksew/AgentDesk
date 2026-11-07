@@ -1,0 +1,722 @@
+# AgentDesk Mac evidence harness
+fixture clock: 2026-10-27T12:00:00Z
+
+## Popover layouts
+popover-agents-expanded-light.png: 340x390 pt
+popover-agents-collapsed-light.png: 340x299 pt
+popover-empty-light.png: 340x163 pt
+popover-undo-light.png: 340x239 pt
+popover-conflict-light.png: 340x243 pt
+popover-send-failed-light.png: 340x320 pt
+popover-markers-light.png: 340x548 pt
+popover-overflow-light.png: 340x560 pt
+popover-overflow-undo-light.png: 340x560 pt
+popover-agents-line-light.png: 340x299 pt
+popover-agents-quiet-hidden-light.png: 340x450 pt
+popover-agents-quiet-revealed-light.png: 340x459 pt
+popover-agents-states-light.png: 340x459 pt
+popover-agents-states-end-light.png: 340x459 pt
+popover-agents-overflow-light.png: 340x560 pt
+agents-entries-light.png: 340x330 pt
+popover-agents-expanded-dark.png: 340x390 pt
+popover-agents-collapsed-dark.png: 340x299 pt
+popover-empty-dark.png: 340x163 pt
+popover-undo-dark.png: 340x239 pt
+popover-conflict-dark.png: 340x243 pt
+popover-send-failed-dark.png: 340x320 pt
+popover-markers-dark.png: 340x548 pt
+popover-overflow-dark.png: 340x560 pt
+popover-overflow-undo-dark.png: 340x560 pt
+popover-agents-line-dark.png: 340x299 pt
+popover-agents-quiet-hidden-dark.png: 340x450 pt
+popover-agents-quiet-revealed-dark.png: 340x459 pt
+popover-agents-states-dark.png: 340x459 pt
+popover-agents-states-end-dark.png: 340x459 pt
+popover-agents-overflow-dark.png: 340x560 pt
+agents-entries-dark.png: 340x330 pt
+
+## Row and entry layout (rendered from the shipped DecisionRow and AgentEntry on a flat fill)
+light row: 61.0 pt tall; title line 16.0 pt, secondary line 15.0 pt
+ok light row: 13 pt above and below and 4 pt between the lines
+ok light row: the seen row has the same height
+ok light row: a seen row draws no color
+light new row dot: x 4.0, y 18.0, 6.0 x 6.0 pt, color #6061E3
+ok light row: the only color is a 6 pt dot
+ok light row: the dot sits in the leading margin
+ok light row: the dot is level with the title's first line
+ok light row: the dot is indigo
+light title left edge: new 14.5 pt, seen 14.5 pt
+ok light row: new and seen titles keep one left edge at 14 pt
+light s_work: migrations | working | dot green | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok light s_work: the dot is green
+ok light s_work: 7 pt above and below one line
+ok light s_work: color reaches only the 6 pt dot at the leading padding
+light s_wait: Release captain | waiting | dot amber | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok light s_wait: the dot is amber
+ok light s_wait: 7 pt above and below one line
+ok light s_wait: color reaches only the 6 pt dot at the leading padding
+light s_block: web | blocked | dot red | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok light s_block: the dot is red
+ok light s_block: 7 pt above and below one line
+ok light s_block: color reaches only the 6 pt dot at the leading padding
+light s_blockstale: secrets | blocked | dot red | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok light s_blockstale: the dot is red
+ok light s_blockstale: 7 pt above and below one line
+ok light s_blockstale: color reaches only the 6 pt dot at the leading padding
+light s_done: docs | done | dot neutral | 30.0 pt tall | colored box none
+ok light s_done: the dot is neutral
+ok light s_done: 7 pt above and below one line
+light s_none: search | no status | dot neutral | 30.0 pt tall | colored box none
+ok light s_none: the dot is neutral
+ok light s_none: 7 pt above and below one line
+light s_quiet1: billing | quiet 44m | dot neutral | 30.0 pt tall | colored box none
+ok light s_quiet1: the dot is neutral
+ok light s_quiet1: 7 pt above and below one line
+light s_quiet2: reviews | quiet 3h | dot neutral | 30.0 pt tall | colored box none
+ok light s_quiet2: the dot is neutral
+ok light s_quiet2: 7 pt above and below one line
+light s_quiet3: release | quiet 2d | dot neutral | 30.0 pt tall | colored box none
+ok light s_quiet3: the dot is neutral
+ok light s_quiet3: 7 pt above and below one line
+ok light entry: a long name keeps one line
+ok light entry: a long name leaves the right-aligned state whole
+light agents line: 34.0 pt tall; text 15.0 pt
+ok light agents line: 12 pt above and 7 pt below
+dark row: 61.0 pt tall; title line 16.0 pt, secondary line 15.0 pt
+ok dark row: 13 pt above and below and 4 pt between the lines
+ok dark row: the seen row has the same height
+ok dark row: a seen row draws no color
+dark new row dot: x 4.0, y 18.0, 6.0 x 6.0 pt, color #A9A8FA
+ok dark row: the only color is a 6 pt dot
+ok dark row: the dot sits in the leading margin
+ok dark row: the dot is level with the title's first line
+ok dark row: the dot is indigo
+dark title left edge: new 14.5 pt, seen 14.5 pt
+ok dark row: new and seen titles keep one left edge at 14 pt
+dark s_work: migrations | working | dot green | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok dark s_work: the dot is green
+ok dark s_work: 7 pt above and below one line
+ok dark s_work: color reaches only the 6 pt dot at the leading padding
+dark s_wait: Release captain | waiting | dot amber | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok dark s_wait: the dot is amber
+ok dark s_wait: 7 pt above and below one line
+ok dark s_wait: color reaches only the 6 pt dot at the leading padding
+dark s_block: web | blocked | dot red | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok dark s_block: the dot is red
+ok dark s_block: 7 pt above and below one line
+ok dark s_block: color reaches only the 6 pt dot at the leading padding
+dark s_blockstale: secrets | blocked | dot red | 30.0 pt tall | colored box x 14.0, 6.0 x 6.0 pt
+ok dark s_blockstale: the dot is red
+ok dark s_blockstale: 7 pt above and below one line
+ok dark s_blockstale: color reaches only the 6 pt dot at the leading padding
+dark s_done: docs | done | dot neutral | 30.0 pt tall | colored box none
+ok dark s_done: the dot is neutral
+ok dark s_done: 7 pt above and below one line
+dark s_none: search | no status | dot neutral | 30.0 pt tall | colored box none
+ok dark s_none: the dot is neutral
+ok dark s_none: 7 pt above and below one line
+dark s_quiet1: billing | quiet 44m | dot neutral | 30.0 pt tall | colored box none
+ok dark s_quiet1: the dot is neutral
+ok dark s_quiet1: 7 pt above and below one line
+dark s_quiet2: reviews | quiet 3h | dot neutral | 30.0 pt tall | colored box none
+ok dark s_quiet2: the dot is neutral
+ok dark s_quiet2: 7 pt above and below one line
+dark s_quiet3: release | quiet 2d | dot neutral | 30.0 pt tall | colored box none
+ok dark s_quiet3: the dot is neutral
+ok dark s_quiet3: 7 pt above and below one line
+ok dark entry: a long name keeps one line
+ok dark entry: a long name leaves the right-aligned state whole
+dark agents line: 34.0 pt tall; text 15.0 pt
+ok dark agents line: 12 pt above and 7 pt below
+
+## Rows (DecisionRowModel, as DecisionRow draws and labels them)
+- d1: leading 6 pt Ink.indigo dot, title semibold; agent web; marker Urgent (red); time left 4m left (red); no drawn suggestion
+  accessibility label: Ship the 2.4 release to production now that the staging soak passed?
+  accessibility value: Codex · web, 4m left, new, urgent, suggests Ship now
+- d2: no dot, title medium; agent api; marker none; time left 2h left; no drawn suggestion
+  accessibility label: Delete the stale preview databases?
+  accessibility value: Claude Code · api, 2h left
+- d3: leading 6 pt Ink.indigo dot, title semibold; agent Ended agent; marker none; time left none; no drawn suggestion
+  accessibility label: Which name should the new package use?
+  accessibility value: Ended agent, new, suggests agentdesk-core
+
+## Row markers (popover-markers)
+- k1: leading 6 pt Ink.indigo dot, title semibold; agent web; marker Urgent (red); time left 3h left (red); Suggests Reject
+  accessibility label: Roll back the payments deploy now that the error rate has passed the alert threshold?
+  accessibility value: Codex · web, 3h left, new, urgent, suggests Reject
+- k2: no dot, title medium; agent api; marker Urgent (red); time left none (red); Suggests Approve
+  accessibility label: Rotate the signing key today?
+  accessibility value: Claude Code · api, urgent, suggests Approve
+- k3: leading 6 pt Ink.indigo dot, title semibold; agent api; marker none; time left 3m left (red); no drawn suggestion
+  accessibility label: Run the vacuum on the events table during the maintenance window tonight or wait?
+  accessibility value: Claude Code · api, 3m left, new, suggests Tonight
+- k4: no dot, title medium; agent api; marker none; time left 2h left; Suggests Approve
+  accessibility label: Delete the stale preview databases?
+  accessibility value: Claude Code · api, 2h left, suggests Approve
+- k5: leading 6 pt Ink.indigo dot, title semibold; agent docs; marker none; time left none; no drawn suggestion
+  accessibility label: Which name should the new package use?
+  accessibility value: Cursor · docs, new, suggests agentdesk-core
+ok new urgent row with a distant deadline has the marker and a red time
+ok reject recommendation reads as a suggestion
+ok seen urgent row keeps the marker, has no dot, and has no time to color
+ok approve recommendation reads as a suggestion
+ok due-soon row has a red time and no marker
+ok seen row due later has neither red nor a marker
+ok new row without a deadline has the dot only
+ok VoiceOver reads new, urgent, and the suggestion
+ok a single-choice row draws no suggestion, and VoiceOver reads it
+ok a free-text row draws no suggestion, and VoiceOver reads it
+ok a row draws the short name, and VoiceOver reads the full one
+
+## Detail panel (the shipped DecisionDetailView, offscreen)
+panel-approve-reject-light.png: 400x301 pt
+panel-single-choice-light.png: 400x319 pt
+panel-multiple-choice-light.png: 400x338 pt
+panel-free-text-light.png: 400x304 pt
+panel-single-choice-or-text-light.png: 400x368 pt
+panel-settled-answered-light.png: 400x260 pt
+panel-settled-chat-light.png: 400x213 pt
+panel-settled-default-light.png: 400x211 pt
+panel-settled-expired-light.png: 400x173 pt
+panel-settled-cancelled-light.png: 400x154 pt
+panel-long-light.png: 400x560 pt
+ok the long panel (light) scrolls: 1761 pt of content in 528 pt
+ok the long panel (light) keeps a visible scroller
+panel-linked-light.png: 400x437 pt
+panel-send-failed-light.png: 400x342 pt
+panel-refresh-failed-light.png: 400x328 pt
+panel-answer-held-light.png: 400x262 pt
+panel-loading-light.png: 400x71 pt
+panel-unavailable-light.png: 400x71 pt
+panel-load-failed-light.png: 400x99 pt
+panel-beside-popover-light.png: 748x310 pt
+ok the popover (340 pt), the gap (8 pt), and the panel (400 pt) sit side by side (light)
+panel-approve-reject-dark.png: 400x301 pt
+panel-single-choice-dark.png: 400x319 pt
+panel-multiple-choice-dark.png: 400x338 pt
+panel-free-text-dark.png: 400x304 pt
+panel-single-choice-or-text-dark.png: 400x368 pt
+panel-settled-answered-dark.png: 400x260 pt
+panel-settled-chat-dark.png: 400x213 pt
+panel-settled-default-dark.png: 400x211 pt
+panel-settled-expired-dark.png: 400x173 pt
+panel-settled-cancelled-dark.png: 400x154 pt
+panel-long-dark.png: 400x560 pt
+ok the long panel (dark) scrolls: 1761 pt of content in 528 pt
+ok the long panel (dark) keeps a visible scroller
+panel-linked-dark.png: 400x437 pt
+panel-send-failed-dark.png: 400x342 pt
+panel-refresh-failed-dark.png: 400x328 pt
+panel-answer-held-dark.png: 400x262 pt
+panel-loading-dark.png: 400x71 pt
+panel-unavailable-dark.png: 400x71 pt
+panel-load-failed-dark.png: 400x99 pt
+panel-beside-popover-dark.png: 748x310 pt
+ok the popover (340 pt), the gap (8 pt), and the panel (400 pt) sit side by side (dark)
+
+### What each input type's untouched AnswerDraft submits
+- approve-reject: Send and ⌘↩ submit Approve
+  default: If nobody answers by 2:00 PM, the agent goes with Reject.
+  buttons, one neutral style: Reject, Approve (hint "Suggested by the agent")
+ok the note field is open, so a note reaches the answer (approve-reject)
+- single-choice: Send and ⌘↩ submit Ship now
+  default: No default
+  labelled Suggested: Ship now
+ok the note field is open, so a note reaches the answer (single-choice)
+- multiple-choice: Send and ⌘↩ submit Europe, United States
+  default: No default
+  labelled Suggested: Europe, United States
+ok the note field is open, so a note reaches the answer (multiple-choice)
+- free-text: Send and ⌘↩ submit agentdesk-core
+  default: No default
+  text placeholder: agentdesk-core
+ok the note field is open, so a note reaches the answer (free-text)
+- single-choice-or-text: Send and ⌘↩ submit Tonight at 02:00
+  default: If nobody answers by 1:00 PM, the agent goes with Tonight at 02:00.
+  labelled Suggested: Tonight at 02:00
+ok the note field is open, so a note reaches the answer (single-choice-or-text)
+
+### Settled decisions (the recorded outcome, and no controls)
+- settled-answered: Answered in the app: Approve
+  note: Keep pr-412 for the demo.
+ok settled-answered has an outcome
+ok settled-answered has no answer control: only the close control
+- settled-chat: Answered in chat: Wait for Monday
+  chat message, word for word: **wait** until monday, the team is out
+ok settled-chat has an outcome
+ok settled-chat has no answer control: only the close control
+- settled-default: Expired. The default applied: Tonight at 02:00
+ok settled-default has an outcome
+ok settled-default has no answer control: only the close control
+- settled-expired: Expired without an answer
+ok settled-expired has an outcome
+ok settled-expired has no answer control: only the close control
+- settled-cancelled: Cancelled. No answer was recorded.
+ok settled-cancelled has an outcome
+ok settled-cancelled has no answer control: only the close control
+
+### AppKit controls of each scene
+- panel-approve-reject: button; text field: Note for the agent (optional)
+- panel-single-choice: button; button; button; text field: Note for the agent (optional)
+- panel-multiple-choice: button; button; button; button; text field: Note for the agent (optional)
+- panel-free-text: button; text field: agentdesk-core; text field: Note for the agent (optional)
+- panel-single-choice-or-text: button; button; button; text field: Or type another answer; text field: Note for the agent (optional)
+- panel-settled-answered: button
+- panel-settled-chat: button
+- panel-settled-default: button
+- panel-settled-expired: button
+- panel-settled-cancelled: button
+- panel-linked: button; button; button; button; button; button; text field: Note for the agent (optional)
+- panel-send-failed: button; button; button; text field: Note for the agent (optional)
+- panel-refresh-failed: button; text field: Note for the agent (optional)
+- panel-answer-held: button
+- panel-loading: button
+- panel-unavailable: button
+- panel-load-failed: button
+ok each input type has a note field
+ok single choice has the close control and two radio buttons
+ok multiple choice has the close control and three checkboxes
+ok free text has its text field with the suggestion as placeholder
+ok single choice or text has its radio buttons and its text field
+ok the linked panel adds three links to the close control and two radio buttons
+ok an unavailable decision has only the close control
+ok a held answer has only the close control
+
+## Agent panel (the shipped AgentDetailView, offscreen)
+agent-working-light.png: 400x478 pt
+agent-stale-light.png: 400x408 pt
+agent-blocked-light.png: 400x447 pt
+agent-no-status-light.png: 400x271 pt
+agent-history-unavailable-light.png: 400x368 pt
+agent-invalid-link-light.png: 400x408 pt
+agent-relative-link-light.png: 400x408 pt
+agent-long-light.png: 400x560 pt
+ok the long agent panel (light) scrolls: 1623 pt of content in 528 pt
+ok the long agent panel (light) keeps a visible scroller
+agent-refresh-failed-light.png: 400x512 pt
+agent-loading-light.png: 400x71 pt
+agent-loading-seed-light.png: 400x239 pt
+agent-load-failed-light.png: 400x99 pt
+agent-load-failed-seed-light.png: 400x267 pt
+agent-pending-unread-light.png: 400x408 pt
+agent-gone-light.png: 400x71 pt
+agent-beside-popover-light.png: 748x478 pt
+ok the popover, the gap, and the agent panel sit side by side (light)
+agent-working-dark.png: 400x478 pt
+agent-stale-dark.png: 400x408 pt
+agent-blocked-dark.png: 400x447 pt
+agent-no-status-dark.png: 400x271 pt
+agent-history-unavailable-dark.png: 400x368 pt
+agent-invalid-link-dark.png: 400x408 pt
+agent-relative-link-dark.png: 400x408 pt
+agent-long-dark.png: 400x560 pt
+ok the long agent panel (dark) scrolls: 1623 pt of content in 528 pt
+ok the long agent panel (dark) keeps a visible scroller
+agent-refresh-failed-dark.png: 400x512 pt
+agent-loading-dark.png: 400x71 pt
+agent-loading-seed-dark.png: 400x239 pt
+agent-load-failed-dark.png: 400x99 pt
+agent-load-failed-seed-dark.png: 400x267 pt
+agent-pending-unread-dark.png: 400x408 pt
+agent-gone-dark.png: 400x71 pt
+agent-beside-popover-dark.png: 748x478 pt
+ok the popover, the gap, and the agent panel sit side by side (dark)
+
+### What each session's panel holds (AgentDetailModel)
+- agent-working: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history 3 | link https://example.com/pull/412
+- agent-stale: Waiting, 45m ago, Stale | line: Waiting for review | Cursor · docs | docs | 0 pending decisions | listed [] | history 3 | link none
+- agent-blocked: Blocked, 10m ago | line: Needs a decision on the release before it can go on | Codex · web | web | 1 pending decision | listed ["ap_2"] | history 3 | link none
+- agent-no-status: No status yet, No update yet | line: none | Claude Code · new | new | 0 pending decisions | listed [] | history 0 | link none
+- agent-history-unavailable: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history unavailable | link https://example.com/pull/412
+- agent-invalid-link: Working, 1m ago | line: Holds a link no browser should open | Claude Code · link | links | 0 pending decisions | listed [] | history 3 | link none
+- agent-relative-link: Working, 1m ago | line: Holds a relative link | Claude Code · link | links | 0 pending decisions | listed [] | history 3 | link none
+- agent-long: Working, 1m ago | line: The migration rewrites every row of the events table. The migration rewrites every row of the events table. The migration rewrites every row of the events table. The migration rewrites every row of th | Claude Code · a session whose display name runs well past the panel's header | api/migrations/events/a-topic-that-is-long-enough-to-wrap-inside-the-fact-column | 2 pending decisions | listed ["ap_3", "ap_4"] | history 20 | link https://example.com/pull/412
+- agent-refresh-failed: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history 3 | link https://example.com/pull/412
+- agent-loading: no session to show
+- agent-loading-seed: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history not read | link https://example.com/pull/412
+- agent-load-failed: no session to show
+- agent-load-failed-seed: Working, 2m ago | line: Running the migration tests | Claude Code · api | api/migrations | 1 pending decision | listed ["ap_1"] | history not read | link https://example.com/pull/412
+- agent-pending-unread: Blocked, 10m ago | line: Needs a decision on the release before it can go on | Codex · web | web | 1 pending decision | listed [] | history 3 | link none
+- agent-gone: no session to show
+
+ok a working session reads Working, its update age, and its link
+ok a stale session carries the text marker Stale
+ok a blocked session reads Blocked in words
+ok a session with no status invents none
+ok Waiting on you holds only this session's pending decisions
+ok history keeps the server's order
+ok a 200-character status line is not cut
+ok the long history keeps every entry
+ok a javascript link offers no control
+ok a relative link offers no control
+ok unavailable history is its own state and holds no rows
+ok an empty history stays apart from unavailable history
+ok a session not read yet stays apart from both
+ok unavailable history keeps the session's facts
+
+### AppKit controls of each agent scene
+- agent-working: button
+- agent-stale: button
+- agent-blocked: button
+- agent-no-status: button
+- agent-history-unavailable: button
+- agent-invalid-link: button
+- agent-relative-link: button
+- agent-refresh-failed: button
+- agent-loading: button
+- agent-loading-seed: button
+- agent-load-failed: button
+- agent-load-failed-seed: button
+- agent-pending-unread: button
+- agent-gone: button
+ok no agent scene holds a text field: nothing here sends a message to an agent
+Plain and default SwiftUI buttons are not NSButton views, so this list does not count them. access.txt counts every control through the Accessibility API.
+
+DIAG paired section start 2026-11-06 18:59:18 +0000
+## Paired windows (a real NSPopover, the shipped panel, lifetime, and key observer; posted events)
+screen visible frame: 1728x1084 pt; app active: false
+DIAG left end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=1 didClose=0 lifetime=true frame=(383.0, 732.0, 400.0, 319.0) elapsed=0.4474070072174072
+ok left end of the screen: the panel has not taken key focus
+left end of the screen: popover x 35...375, panel x 383...783, panel 400x319 pt
+ok left end of the screen: the panel is 400 pt wide with the popover still showing
+ok left end of the screen: the panel sits right of the popover, 8 pt away
+ok left end of the screen: the tops meet
+DIAG right end of the screen: open shown=true window=true afterShow panelVisible=true; end shown=true panelVisible=true target=a willShow=2 didClose=1 lifetime=true frame=(955.0, 732.0, 400.0, 319.0) elapsed=0.42902708053588867
+ok right end of the screen: the panel has not taken key focus
+right end of the screen: popover x 1363...1703, panel x 955...1355, panel 400x319 pt
+ok right end of the screen: the panel is 400 pt wide with the popover still showing
+ok right end of the screen: the panel sits left of the popover, 8 pt away
+ok right end of the screen: the tops meet
+ok the lifetime runs while the popover shows
+ok a click in the panel keeps both
+ok a click in the popover keeps both
+ok a click on the menu bar item's window leaves both to the item's action
+ok a click while a menu tracks keeps both
+ok losing key status alone closes nothing
+ok a click in another window closes both
+ok the popover's close event ran once
+ok the lifetime stopped with it
+ok the app's deactivation (posted) closes both
+DIAG always NSWorkspaceActiveSpaceDidChangeNotification 2026-11-06 18:59:21 +0000 -
+ok a Space change (posted) closes both
+ok closing only the panel keeps the popover open
+ok closing only the panel runs no popover close event
+ok three more openings run three will-show and three did-close events
+ok ↓ selects the first row
+ok ↓ moves to the next row
+ok ↑ moves back
+ok ↩ opens the selected row's panel
+ok ↩ from the panel closes it and the popover stays
+ok ↓ from the panel moves the selection and the panel stays
+ok ↩ on another selected row replaces the panel's target
+ok ⌘↩ sends the shown decision
+ok ⌘↩ prefers the shown decision over the selected row
+ok ⌘↩ sends nothing for a settled target, and no row in its place
+ok a text field in the panel takes the field editor
+ok a text field keeps ↓
+ok a text field keeps ↩
+ok ⌘↩ still sends from a text field
+ok Escape from a text field closes the panel
+ok Escape closes the panel first and the popover stays
+ok Escape again closes the popover
+ok a focused control in the panel keeps ↓
+macOS Keyboard navigation setting on: false
+Tab stops from the panel's start: Note for the agent (optional)
+ok Tab reaches the panel's note field
+ok the panel is excluded from the Windows menu
+ok the panel ignores window cycling
+ok the panel can take key focus
+ok this process never became the active app, so the user's focus never moved
+
+## Agent panel in the paired windows (a real NSPopover, the shipped panel, coordinator, lifetime, and key observer; posted events)
+ok clicking an entry opens the panel beside the popover
+ok the agent panel is 400 pt wide, 8 pt from the popover
+ok the tops meet
+ok the panel has not taken key focus
+ok the read's pair shows
+ok no browser opened from an entry
+ok a click in the agent panel keeps both
+ok a click in the agent panel opens nothing
+ok a click in the popover keeps both
+ok another entry replaces the session in the same panel
+ok a pending decision replaces the session, and the panel never hides
+ok showing a decision ends the session's target
+ok a session replaces the decision, and the panel never hides
+ok showing a session ends the decision's target
+ok opening the shown session closes the panel and the popover stays
+ok ⌘↩ from the panel sends nothing on a session, and no row in its place
+ok ⌘↩ from the popover sends nothing on a session, and no row in its place
+ok ⌘↩ leaves the session shown
+ok ↓ from the agent panel leaves the selection at its end and the panel open
+ok ↩ on a selected row replaces the session with that row
+ok ↩ with no row selected closes the session's panel and the popover stays
+ok Escape closes the agent panel first and the popover stays
+ok Escape again closes the popover
+ok a click in another window closes both
+ok closing the popover ends the session's target
+ok the app's deactivation (posted) closes both
+ok the panel opened no browser in this section
+ok this process never became the active app, so the user's focus never moved
+
+## Linked recovery (the shipped DecisionCoordinator with a fixture sender, reader, and clock)
+ok a pending decision absent from the list loads in the panel
+ok answering closes the panel and hides the row
+popover-linked-held-light.png: 340x187 pt
+popover-linked-held-dark.png: 340x187 pt
+ok Undo restores the row
+ok Undo reopens the panel from the held record
+ok Undo keeps the draft and note
+ok Undo reads nothing and sends nothing
+ok a failed send restores the row at once
+ok a failed send keeps the failure message
+ok a failed send keeps the draft and note
+ok a retained-snapshot publish prunes nothing
+ok a new read with a failed direct read prunes nothing
+popover-linked-send-failed-light.png: 340x242 pt
+popover-linked-send-failed-dark.png: 340x242 pt
+ok the restored row opens the retained record
+panel-linked-send-failed-light.png: 400x327 pt
+panel-linked-send-failed-dark.png: 400x327 pt
+ok the retry posts once
+ok a landed retry leaves no record, draft, or message
+ok sign-out leaves nothing
+AppState delegates its list, panel, drafts, answers, and Undo to this object; its own wiring is compiled by the Xcode build and is not run here.
+
+## Strips
+undo: Approve · Delete the stale preview databases? [Undo]
+conflict: Already answered in chat: Reject
+conflict, outcome unread: Settled elsewhere. Couldn't read the outcome.
+send failed, under the row: Couldn't send. Try again.
+
+## Agents line and list (popover-agents-*)
+agents line: 2 active · 3 quiet · 2 blocked
+accessibility: 2 active, 3 quiet, 2 blocked
+no sessions: 0 active
+  entry: draws red dot, web, blocked; reads Codex · web, blocked, Needs a decision on the release
+  entry: draws red dot, infra, blocked; reads Claude Code · infra, blocked, Blocked on a credential
+  entry: draws green dot, migrations, working; reads Claude Code · api/migrations, working, Running the migration tests
+  entry: draws amber dot, Release captain, waiting; reads Release captain, waiting, Waiting on the build
+  control: Show 3 quiet, then Hide quiet
+  revealed: draws neutral dot, docs, quiet 44m; reads Cursor · docs, quiet 44m, Waiting for review
+  revealed: draws neutral dot, search, quiet 3h; reads OpenCode · search, quiet 3h, Reindexing
+  revealed: draws neutral dot, billing, quiet 2d; reads Codex · billing, quiet 2d, Reading the invoice tests
+every state (popover-agents-states, agents-entries):
+  s_block: draws red dot, web, blocked; reads Codex · web, blocked, Needs a decision on the release
+  s_blockstale: draws red dot, secrets, blocked; reads Claude Code · infra/secrets, blocked, Blocked on a credential
+  s_work: draws green dot, migrations, working; reads Claude Code · api/migrations, working, Running the migration tests
+  s_wait: draws amber dot, Release captain, waiting; reads Release captain, waiting, Waiting on the build
+  s_done: draws neutral dot, docs, done; reads Cursor · docs, done, Published the guide
+  s_none: draws neutral dot, search, no status; reads OpenCode · search, no status
+  s_longcustom: draws green dot, Nightly dependency upgrade and regression triage across every service, working; reads Nightly dependency upgrade and regression triage across every service, working, Reading the changelogs
+  s_longtopic: draws amber dot, a-final-topic-segment-long-enough-to-truncate-at-its-tail, waiting; reads Claude Code · platform/a-final-topic-segment-long-enough-to-truncate-at-its-tail, waiting, Waiting on the review
+  s_quiet1: draws neutral dot, billing, quiet 44m; reads Codex · billing, quiet 44m, Reading the invoice tests
+  s_quiet2: draws neutral dot, reviews, quiet 3h; reads Cursor · reviews, quiet 3h, Waiting for review
+  s_quiet3: draws neutral dot, release, quiet 2d; reads Claude Code · release, quiet 2d, Tagged the build
+18 sessions: 3 active · 15 quiet; listed first: Agent 5 · active, Agent 10 · active, Agent 15 · active
+ok working and not stale is green
+ok waiting and not stale is amber
+ok blocked is red, stale or not
+ok done, no state, and quiet are neutral
+ok a default name draws the topic's last segment
+ok a custom name draws in full
+ok VoiceOver reads the full name and the status line
+ok line reads active, quiet, and blocked
+ok each session is in one group
+ok list shows blocked then active in API order
+ok quiet is most recent first in minutes, hours, and days
+ok a stale blocked session reads blocked
+ok a zero group is left out except active
+
+## List scrolling (a retained hosting controller moved between offscreen windows)
+system preferred scroller style: overlay
+first opening: clip offset 0 pt
+ok the first opening shows the first row
+reopened after scrolling 500 pt, no reset: clip offset 500 pt
+ok the cause: a retained hosting controller keeps its clip offset
+will-show requested the top before the content had a window: clip offset 0 pt
+did-show repeated the request: clip offset 0 pt
+ok reopening after scrolling shows the first row
+an urgent row arrived above a kept 30 pt offset, no reset: clip offset 30 pt
+ok the cause: the new first row's title is out of view
+the same arrival with the requests: clip offset 0 pt
+ok the new urgent row's title shows at the top
+ok a read that lands at the top stays at the top
+with the Undo strip: popover 560 pt, list 460 pt
+ok the Undo strip shortens the list and the popover stays within 560 pt
+ok the strip leaves the first row at the top of the list
+strip gone: list 488 pt, 460 pt with it
+ok the list grows back when the strip leaves
+agents expanded: popover 560 pt, list 328 pt
+ok the expanded agents list stays within 560 pt
+ok agents and the strip together stay within 560 pt
+opened with a notification's row: clip offset 864 pt
+ok a notification's row wins over the top reset
+the same row requested again: clip offset 864 pt
+ok a repeated row target scrolls again
+ok an ordinary opening returns to the top after a row target
+a selection change after opening: clip offset 1384 pt
+ok a selection change after opening scrolls to its row
+overflowing list: style legacy, hidden no, width 13 pt, content width 327 pt, knob pixels 2360
+ok an overflowing list keeps a visible scroller
+ok the scroller returns after the Show scroll bars setting changes
+ok a list that fits shows no scroller
+agents list: 160 pt shown of 571 pt
+ok the overflowing agents list stays at 160 pt
+ok the overflowing agents list keeps a visible scroller
+
+## Menu bar style
+unset: count; stored dot: dot
+default label with 3 waiting: AgentDesk, 3 waiting, new, urgent, width 31 pt, template=true
+
+## Contrast, rendered (40 pt swatches; strongest text pixel against the background)
+### light-vibrant
+title (.primary)  6.14:1  text #5B5B5B on #F4F4F4  (floor 4.5:1)
+Ink.secondary  6.35:1  text #595959 on #F4F4F4  (floor 4.5:1)
+Ink.tertiary  4.69:1  text #6D6D6D on #F4F4F4  (floor 4.5:1)
+Ink.red  5.43:1  text #AC3F2D on #F4F4F4  (floor 4.5:1)
+Ink.green  4.36:1  text #407F50 on #F4F4F4  (floor 3.0:1)
+Ink.amber  4.29:1  text #9A6A23 on #F4F4F4  (floor 3.0:1)
+Ink.indigo  4.40:1  text #6161E3 on #F4F4F4  (floor 3.0:1)
+system .secondary  3.35:1  text #858585 on #F4F4F4  (not gated)
+system .tertiary  1.68:1  text #BFBFBF on #F4F4F4  (not gated)
+system red  3.13:1  text #E95B4D on #F4F4F4  (not gated)
+### light-plain
+title (.primary) 11.94:1  text #313131 on #F5F5F5  (floor 4.5:1)
+Ink.secondary  6.44:1  text #595959 on #F5F5F5  (floor 4.5:1)
+Ink.tertiary  4.75:1  text #6D6D6D on #F5F5F5  (floor 4.5:1)
+Ink.red  5.50:1  text #AC3F2D on #F5F5F5  (floor 4.5:1)
+Ink.green  4.42:1  text #407F50 on #F5F5F5  (floor 3.0:1)
+Ink.amber  4.35:1  text #9A6A23 on #F5F5F5  (floor 3.0:1)
+Ink.indigo  4.46:1  text #6161E3 on #F5F5F5  (floor 3.0:1)
+system .secondary  3.07:1  text #8D8D8D on #F5F5F5  (not gated)
+system .tertiary  1.66:1  text #C1C1C1 on #F5F5F5  (not gated)
+system red  2.88:1  text #F16457 on #F5F5F5  (not gated)
+### dark-vibrant
+title (.primary) 11.54:1  text #EDEDED on #2F2F2F  (floor 4.5:1)
+Ink.secondary  8.62:1  text #CFCFCF on #2F2F2F  (floor 4.5:1)
+Ink.tertiary  7.02:1  text #BBBBBB on #2F2F2F  (floor 4.5:1)
+Ink.red  6.85:1  text #F5A599 on #2F2F2F  (floor 4.5:1)
+Ink.green  6.70:1  text #74C986 on #2F2F2F  (floor 3.0:1)
+Ink.amber  8.26:1  text #F7C269 on #2F2F2F  (floor 3.0:1)
+Ink.indigo  6.18:1  text #A9A8FA on #2F2F2F  (floor 3.0:1)
+system .secondary  6.12:1  text #AFAFAF on #2F2F2F  (not gated)
+system .tertiary  3.02:1  text #777777 on #2F2F2F  (not gated)
+system red  4.57:1  text #F16E61 on #2F2F2F  (not gated)
+### dark-plain
+title (.primary)  8.72:1  text #E5E5E5 on #3C3C3C  (floor 4.5:1)
+Ink.secondary  7.02:1  text #CFCFCF on #3C3C3C  (floor 4.5:1)
+Ink.tertiary  5.71:1  text #BBBBBB on #3C3C3C  (floor 4.5:1)
+Ink.red  5.58:1  text #F5A599 on #3C3C3C  (floor 4.5:1)
+Ink.green  5.46:1  text #74C986 on #3C3C3C  (floor 3.0:1)
+Ink.amber  6.72:1  text #F7C269 on #3C3C3C  (floor 3.0:1)
+Ink.indigo  5.03:1  text #A9A8FA on #3C3C3C  (floor 3.0:1)
+system .secondary  5.08:1  text #B1B1B1 on #3C3C3C  (not gated)
+system .tertiary  2.39:1  text #757575 on #3C3C3C  (not gated)
+system red  3.66:1  text #F16B60 on #3C3C3C  (not gated)
+
+## Contrast, computed from the shipped Ink values (floor 4.5:1 for text inks, 3.0:1 for dot inks)
+Ink.secondary light #474747: worst 8.37:1 (#F3F3F3 8.37, #FFFFFF 9.29)
+Ink.secondary dark #C4C4C4: worst 6.32:1 (#2E2E2E 7.79, #3C3C3C 6.32, #000000 12.04)
+Ink.secondary light Increase Contrast #2B2B2B: worst 12.76:1 (#F3F3F3 12.76, #FFFFFF 14.16)
+Ink.secondary dark Increase Contrast #E0E0E0: worst 8.36:1 (#2E2E2E 10.29, #3C3C3C 8.36, #000000 15.91)
+Ink.tertiary light #5A5A5A: worst 6.22:1 (#F3F3F3 6.22, #FFFFFF 6.90)
+Ink.tertiary dark #ADADAD: worst 4.92:1 (#2E2E2E 6.05, #3C3C3C 4.92, #000000 9.36)
+Ink.tertiary light Increase Contrast #3A3A3A: worst 10.25:1 (#F3F3F3 10.25, #FFFFFF 11.37)
+Ink.tertiary dark Increase Contrast #D0D0D0: worst 7.15:1 (#2E2E2E 8.80, #3C3C3C 7.15, #000000 13.62)
+Ink.red light #A81F18: worst 6.58:1 (#F3F3F3 6.58, #FFFFFF 7.31)
+Ink.red dark #FF8C83: worst 4.90:1 (#2E2E2E 6.03, #3C3C3C 4.90, #000000 9.33)
+Ink.red light Increase Contrast #96140E: worst 7.88:1 (#F3F3F3 7.88, #FFFFFF 8.74)
+Ink.red dark Increase Contrast #FF9A92: worst 5.40:1 (#2E2E2E 6.65, #3C3C3C 5.40, #000000 10.29)
+Ink.green light #12703A: worst 5.56:1 (#F3F3F3 5.56, #FFFFFF 6.17)
+Ink.green dark #34C46A: worst 4.86:1 (#2E2E2E 5.98, #3C3C3C 4.86, #000000 9.25)
+Ink.green light Increase Contrast #0C5A2C: worst 7.53:1 (#F3F3F3 7.53, #FFFFFF 8.35)
+Ink.green dark Increase Contrast #4CD982: worst 6.07:1 (#2E2E2E 7.47, #3C3C3C 6.07, #000000 11.55)
+Ink.amber light #8F5400: worst 5.51:1 (#F3F3F3 5.51, #FFFFFF 6.11)
+Ink.amber dark #FFB340: worst 6.18:1 (#2E2E2E 7.61, #3C3C3C 6.18, #000000 11.77)
+Ink.amber light Increase Contrast #6E4100: worst 7.82:1 (#F3F3F3 7.82, #FFFFFF 8.68)
+Ink.amber dark Increase Contrast #FFC566: worst 7.05:1 (#2E2E2E 8.68, #3C3C3C 7.05, #000000 13.43)
+Ink.indigo light #4F46E5: worst 5.67:1 (#F3F3F3 5.67, #FFFFFF 6.29)
+Ink.indigo dark #9993FF: worst 4.19:1 (#2E2E2E 5.16, #3C3C3C 4.19, #000000 7.97)
+Ink.indigo light Increase Contrast #3730A3: worst 8.95:1 (#F3F3F3 8.95, #FFFFFF 9.93)
+Ink.indigo dark Increase Contrast #B3AFFF: worst 5.51:1 (#2E2E2E 6.79, #3C3C3C 5.51, #000000 10.49)
+NSAppearance(named: .accessibilityHighContrastAqua) offscreen: NSAppearanceNameAqua; Increase Contrast is not rendered offscreen, so its values are computed only
+
+## Known fills read back through the harness's bitmap path (reported, not gated)
+fill #F3F3F3 reads back as #F5F5F5
+fill #2E2E2E reads back as #3C3C3C
+fill #12703A reads back as #417F50
+fill #8F5400 reads back as #9A6A23
+fill #4F46E5 reads back as #6061E3
+fill #34C46A reads back as #74C986
+fill #FFB340 reads back as #F7C269
+fill #9993FF reads back as #A9A8FA
+
+## Menu bar label images
+glyph: template=true size=18x18 pt description="AgentDesk, 0 waiting"
+dot-frame-3of7: template=true size=18x18 pt description="AgentDesk, 1 waiting, new"
+dot: template=true size=18x18 pt description="AgentDesk, 3 waiting, new, urgent"
+count-3: template=true size=31x18 pt description="AgentDesk, 3 waiting"
+count-12: template=true size=36x18 pt description="AgentDesk, 12 waiting"
+
+## Dot timeline (DotPresence decides; fade frames are PromptGlyph images)
+read 1, only seen calm decisions: dot=false change=none opacity: no redraw
+read 2, a new decision arrives: dot=true change=fadeIn opacity: 0.14 0.29 0.43 0.57 0.71 0.86 1.00
+read 3, same decisions refreshed: dot=true change=none opacity: no redraw
+read 4, same decisions refreshed: dot=true change=none opacity: no redraw
+popover closes, new decision marked seen: dot=false change=hide opacity: 0.00 at once
+Reduce Motion, a new decision arrives: dot=true change=appear opacity: 1.00 at once
+Reduce Motion, refreshed: dot=true change=none opacity: no redraw
+label-dot-fade-frames.png: opacity 0/7 to 7/7 over 0.35 s
+
+## Paused header (NotificationPauseLine)
+popover-paused-header-light.png: 340x57 pt
+popover-paused-header-dark.png: 340x57 pt
+text: Notifications paused until 4:00 PM (Ink.secondary, measured above)
+text on another day: Notifications paused until Wed 4:00 PM
+
+## Notifications
+### Content (NotificationController.content(for:))
+- identifier dec_ship: title "Ship the release?", body "Claude Code · api · 29m left", sound default, category "decision.approve_reject", userInfo keys 0
+- identifier dec_pick: title "Which region first?", body "Claude Code · api", sound default, category "", userInfo keys 0
+category decision.approve_reject: actions reject "Reject", approve "Approve"
+
+### Notifier timeline (fixture center and clock)
+- sign-in: requestAuthorization (asked once; user grants)
+- t+30s a pushed approve-or-reject decision arrives: add dec_ship: "Ship the release?" / "Claude Code · api · 29m left"
+- t+45s the next read lists it again: nothing
+- t+60s a digest and a muted decision arrive: nothing
+- t+119s an interactive decision at 1m 59s: nothing
+- t+120s the interactive decision at 2m: add dec_chat: "Use the staging database?" / "Claude Code · api"
+- t+150s a decision created 11 minutes ago, read at start: nothing
+- t+165s the popover is open when dec_open arrives: nothing
+- t+180s the popover closed again: nothing
+- t+195s paused when dec_paused arrives: nothing
+- t+210s off: nothing
+- t+225s on again: add dec_paused: "Approve?" / "Claude Code · api"
+- t+240s dec_slow's post is in flight while two more reads land: remove delivered ["dec_paused"]; add dec_slow in flight; add dec_slow: "Approve?" / "Claude Code · api"
+- t+255s dec_retry's post is refused: remove delivered ["dec_slow"]; add dec_retry refused by the center
+- t+270s the next read retries it: add dec_retry: "Approve?" / "Claude Code · api"
+- t+285s dec_ship answered, dec_chat cancelled, the rest expired: remove delivered ["dec_chat", "dec_retry", "dec_ship"]
+- t+300s sign-out while dec_late's post is in flight: add dec_late in flight; remove all delivered; add dec_late: "Approve?" / "Claude Code · api"; remove delivered ["dec_late"]; delivered now []
+
+### Notification answers (PendingAnswers.sendNow)
+- Approve on dec_ship: accepted true; a repeated action accepted false; posts ["dec_pick option(id: \"eu\")", "dec_ship approve"]
+  the popover's held answer for dec_pick was sent only by the quit flush that ends this step, never by the notification action
+- Approve on dec_taken answers 409 while the popover is closed: outcome kept for the next opening: "Already answered in the app: Reject"
+
+### Notification click (NotificationFocus)
+- click on a listed decision: open("dec_ship")
+- click during a refresh: wait
+  the read in flight finished before the click: wait
+  the read after the click: open("dec_new")
+- click on a settled decision, after the next read: drop
+
+## Not available in this harness
+NOT EXERCISED, assigned to the operator's pre-release checks: the real status item position and panel side, physical clicks and keys in both windows, a real click on the desktop or in another app, real deactivation, live Tab and Shift-Tab with Keyboard navigation on, and VoiceOver speech and focus. Everything below in this report is non-live.
+The installed app's own menu bar item, popover, and panel are not exercised: the harness never launches a build, and it shows only fully transparent windows while its app stays inactive. The paired-window section above drives a real NSPopover with the shipped panel, lifetime, and key observer through events posted to this process, with no pointer or keyboard involved; PopoverController, AppState, and physical input are not part of it. The scroll section above drives the shipped list in a retained hosting controller moved between offscreen windows, and calls the requests AppState makes on those events.
+The scroller under a live change of the Show scroll bars setting is not captured; the scroll section above posts the change notification instead.
+AXIsProcessTrusted=true: live VoiceOver output and the live NSPopover open and close are not captured; row accessibility strings above come from DecisionRowModel, which DecisionRow applies as its summary element's label and value, with Reject and Approve as separate elements. The panel's controls above are read from its AppKit views, and access.txt reads its accessibility tree through the Accessibility API; VoiceOver's speech is not captured.
+Keys from a physical keyboard are not captured. The paired-window section above posts key events to the shipped observers, and PopoverKeysTests covers the key-to-action mapping; Escape with no panel open closes the popover.
+Live notifications are not captured: UNUserNotificationCenter needs the app bundle and the user's permission. The permission prompt, a delivered banner, a click opening the popover, the Reject and Approve buttons, and removal from Notification Center are checked on a Mac before each release; the content, category, and Notifier timeline above use the shipped code with a fixture center.
+
+RESULT: PASS

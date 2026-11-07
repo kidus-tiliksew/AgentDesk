@@ -1,0 +1,176 @@
+import sys
+d,kind=sys.argv[1],sys.argv[2]
+def rep(s,a,b,n=1):
+    assert a in s, a
+    return s.replace(a,b,n)
+# --- the panel window file
+p=d+'/DetailPanelWindow.swift'; s=open(p).read()
+s=rep(s,'import AppKit\n','''import AppKit
+@MainActor var diagTraceLines: [String] = []
+@MainActor func diagT(_ text: String) {
+  diagTraceLines.append(String(format: "%.3f ", Date().timeIntervalSince1970.truncatingRemainder(dividingBy: 3600)) + text)
+}
+''')
+s=rep(s,'func present(beside anchor: NSView, takesKeyFocus: Bool = true) {\n','func present(beside anchor: NSView, takesKeyFocus: Bool = true) {\n    diagT("present anchorWindow=\\(anchor.window != nil) panelVisible=\\(window.isVisible)")\n')
+s=rep(s,'  func hide() {\n','  func hide() {\n    diagT("hide")\n')
+s=rep(s,'  func place() {\n','  func place() {\n    diagT("place enter anchor=\\(anchor != nil) anchorWindow=\\(anchor?.window != nil)")\n')
+s=rep(s,'    window.setFrame(\n      NSRect(x: frame.x','    diagT("place setFrame x=\\(frame.x) y=\\(frame.y) height=\\(frame.height) wasHeight=\\(window.frame.height)")\n    window.setFrame(\n      NSRect(x: frame.x')
+s=rep(s,'  private func apply(_ click: PopoverDismissal.Click) {\n','  private func apply(_ click: PopoverDismissal.Click) {\n    diagT("lifetime apply \\(click) menuTracking=\\(menuIsTracking)")\n')
+s=rep(s,'        guard let self else { return }\n        action(self)\n','        guard let self else { return }\n        diagT("lifetime note \\(name.rawValue)")\n        action(self)\n')
+if kind=='fixed':
+    s=rep(s,'      self.contentHeight = height\n','      diagT("relay height=\\(height) was=\\(self.contentHeight)")\n      self.contentHeight = height\n')
+else:
+    s=rep(s,'Task { @MainActor in self?.place() }','Task { @MainActor in diagT("preferred kvo"); self?.place() }')
+open(p,'w').write(s)
+# --- the harness
+p=d+'/PanelEvidence.swift'; s=open(p).read()
+s=rep(s,'  func popoverWillShow(_ notification: Notification) {\n    willShow += 1\n','  func popoverWillShow(_ notification: Notification) {\n    diagT("popover willShow")\n    willShow += 1\n')
+s=rep(s,'  func popoverDidShow(_ notification: Notification) { didShow += 1 }','  func popoverDidShow(_ notification: Notification) { diagT("popover didShow"); didShow += 1 }')
+s=rep(s,'  func popoverWillClose(_ notification: Notification) { onWillClose() }','  func popoverWillClose(_ notification: Notification) { diagT("popover willClose"); onWillClose() }')
+s=rep(s,'  func popoverDidClose(_ notification: Notification) {\n','  func popoverDidClose(_ notification: Notification) {\n    diagT("popover didClose")\n')
+s=rep(s,'if !passed { failures.append("paired windows: \\(name)") }','if !passed { failures.append("paired windows: \\(name)"); diagOnFail?(name) }')
+s=rep(s,'if !passed { failures.append("agent paired windows: \\(name)") }','if !passed { failures.append("agent paired windows: \\(name)"); diagOnFail?(name) }')
+s=rep(s,'  detail.onChange = {\n','  detail.onChange = {\n    diagT("onChange shownID=\\(detail.shownID ?? "nil") target=\\(target ?? "nil") popoverShown=\\(popover.isShown)")\n')
+s=rep(s,'''    popoverWindow?.alphaValue = 0
+    drain()
+  }
+  func pair() -> Bool { popover.isShown && panel.isVisible }
+
+  line("screen visible frame''','''    popoverWindow?.alphaValue = 0
+    diagT("open after show isShown=\\(popover.isShown) window=\\(popoverWindow != nil)")
+    drain()
+    diagT("open after drain isShown=\\(popover.isShown) window=\\(popoverWindow != nil)")
+  }
+  func pair() -> Bool { popover.isShown && panel.isVisible }
+
+  diagTraceLines = []
+  diagOnFail = { name in
+    diagCapture(
+      name, section: "paired", isShown: { popover.isShown }, panelVisible: { panel.isVisible },
+      panelFrame: { panel.window.frame }, popoverVisible: { popoverWindow?.isVisible ?? false },
+      popoverFrame: { popoverWindow?.convertToScreen(host.view.convert(host.view.bounds, to: nil)) ?? .zero },
+      target: { target ?? "nil" })
+  }
+  line("screen visible frame''')
+s=rep(s,'''    let anchor = anchorWindow(atX: x)
+    open(beside: anchor)
+    detail.show("a", known: record)
+    drain(0.3)
+''','''    let anchor = anchorWindow(atX: x)
+    open(beside: anchor)
+    let force = ProcessInfo.processInfo.environment["DIAG_FORCE"]
+    if force == "A", side == .right {
+      diagT("FORCED shape A: the popover closes before the target")
+      popover.close()
+      drain(0.05)
+    }
+    detail.show("a", known: record)
+    if force == "B", side == .left {
+      drain(0.1)
+      diagT("FORCED shape B: a Space change posted after placement")
+      NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+    }
+    drain(0.3)
+    diagT("after drain(0.3) \\(name): isShown=\\(popover.isShown) panelVisible=\\(panel.isVisible) frame=\\(panel.window.frame)")
+''')
+s=rep(s,'''    anchor.orderOut(nil)
+  }
+
+  // What a click does (AC-11.8).''','''    anchor.orderOut(nil)
+  }
+  diagEmit("OPENINGS TRACE")
+  for traced in diagTraceLines { diagEmit("  " + traced) }
+
+  // What a click does (AC-11.8).''')
+s=rep(s,'''  open()
+  coordinator.toggleAgent("ags_1", known: workingAgent)
+''','''  diagTraceLines = []
+  diagOnFail = { name in
+    diagCapture(
+      name, section: "agent paired", isShown: { popover.isShown }, panelVisible: { panel.isVisible },
+      panelFrame: { panel.window.frame }, popoverVisible: { popoverWindow?.isVisible ?? false },
+      popoverFrame: { popoverWindow?.convertToScreen(host.view.convert(host.view.bounds, to: nil)) ?? .zero },
+      target: { "\\(String(describing: shownTarget))" })
+  }
+  open()
+  coordinator.toggleAgent("ags_1", known: workingAgent)
+''')
+s+='''
+
+// MARK: Scratch diagnostics, not in the retained harness
+
+@MainActor var diagOnFail: ((String) -> Void)?
+@MainActor var diagExtended: Set<String> = []
+
+@MainActor
+func diagEmit(_ text: String) {
+  print("DIAG \\(text)")
+  guard let path = ProcessInfo.processInfo.environment["DIAG_CAPTURE_FILE"],
+    let data = (text + "\\n").data(using: .utf8)
+  else { return }
+  if !FileManager.default.fileExists(atPath: path) { FileManager.default.createFile(atPath: path, contents: nil) }
+  if let handle = FileHandle(forWritingAtPath: path) {
+    handle.seekToEndOfFile()
+    handle.write(data)
+    try? handle.close()
+  }
+}
+
+@MainActor
+func diagSession() -> String {
+  let session = (CGSessionCopyCurrentDictionary() as? [String: Any]) ?? [:]
+  let locked = session["CGSSessionScreenIsLocked"].map { "\\($0)" } ?? "absent"
+  func idle(_ type: CGEventType) -> String {
+    String(format: "%.1f", CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: type))
+  }
+  return "locked=\\(locked) displayAsleep=\\(CGDisplayIsAsleep(CGMainDisplayID())) idleAny=\\(idle(CGEventType(rawValue: ~0)!)) idleClick=\\(idle(.leftMouseDown)) idleKey=\\(idle(.keyDown)) idleMove=\\(idle(.mouseMoved)) idleScroll=\\(idle(.scrollWheel)) appActive=\\(NSApp.isActive) activations=\\(ActivationWatch.shared.count) frontmost=\\(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil")"
+}
+
+@MainActor
+func diagCapture(
+  _ name: String, section: String, isShown: () -> Bool, panelVisible: () -> Bool, panelFrame: () -> NSRect,
+  popoverVisible: () -> Bool, popoverFrame: () -> NSRect, target: () -> String
+) {
+  func state() -> String {
+    "popover.isShown=\\(isShown()) popoverWindowVisible=\\(popoverVisible()) panel.isVisible=\\(panelVisible()) panelFrame=\\(panelFrame()) popoverFrame=\\(popoverFrame()) target=\\(target())"
+  }
+  diagEmit("CAPTURE [\\(section)] \\(name) at \\(Date())")
+  diagEmit("  now: \\(state())")
+  diagEmit("  session: \\(diagSession())")
+  let opening = String(name.split(separator: ":").first ?? "")
+  guard !diagExtended.contains(opening) else { return }
+  diagExtended.insert(opening)
+  diagEmit("  trace before the capture:")
+  for traced in diagTraceLines.suffix(40) { diagEmit("    " + traced) }
+  let seen = diagTraceLines.count
+  let start = Date()
+  for wait in [0.5, 1, 2, 3, 5, 8] {
+    drain(max(0, wait - Date().timeIntervalSince(start)))
+    diagEmit("  later +\\(wait) s: \\(state())")
+  }
+  diagEmit("  trace during the longer drain:")
+  for traced in diagTraceLines.dropFirst(seen) { diagEmit("    " + traced) }
+  diagEmit("  session after: \\(diagSession())")
+}
+'''
+open(p,'w').write(s)
+p=d+'/main.swift'; s=open(p).read()
+s=rep(s,'''  NSApp.setActivationPolicy(.prohibited)
+  var failures: [String] = []
+''','''  NSApp.setActivationPolicy(.prohibited)
+  var failures: [String] = []
+  for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didActivateApplicationNotification] {
+    NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) { note in
+      let app = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier ?? "-"
+      let raw = note.name.rawValue
+      MainActor.assumeIsolated { diagT("workspace \\(raw) \\(app)") }
+    }
+  }
+  if CommandLine.arguments.contains("--diag-paired-only") {
+    pairedWindowEvidence(&failures)
+    print("DIAGRESULT \\(failures.count) failures")
+    for failure in failures { print("DIAGRESULT   \\(failure)") }
+    exit(failures.isEmpty ? 0 : 1)
+  }
+''')
+open(p,'w').write(s)

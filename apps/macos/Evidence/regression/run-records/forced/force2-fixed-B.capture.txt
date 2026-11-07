@@ -1,0 +1,83 @@
+CAPTURE [paired] right end of the screen: the panel is 400 pt wide with the popover still showing at 2026-11-07 07:11:18 +0000
+  now: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+  session: locked=absent displayAsleep=0 idleAny=0.0 idleClick=4.0 idleKey=0.3 idleMove=5.3 idleScroll=23.4 appActive=false activations=0 frontmost=<app>
+  last popover close: 678.284 locked=absent displayAsleep=0 idleAny=0.1 idleClick=3.7 idleKey=0.4 idleMove=5.0 idleScroll=23.1 appActive=false activations=0 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20PairedWindowLifetimeC5startyyFyACYbScMYccfU1_ | evidence $s8evidence20PairedWindowLifetimeC7observe33_49BD17FA88214C74A2D42EE1FF860443LLyySo20NSNot | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence $s8evidence20PairedWindowLifetimeC7observe33_49BD17FA88214C74A2D42EE1FF860443LLyySo20NSNot | evidence $s10Foundation12NotificationVIeghn_So14NSNotificationCIeyBhy_TR | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+  activation log: 
+  trace before the capture:
+    677.515 popover willShow
+    677.518 popover didShow
+    677.518 open after show isShown=true window=true
+    677.552 relay height=33.0 was=1.0
+    677.554 relay height=319.0 was=33.0
+    677.601 place enter anchor=false anchorWindow=false
+    677.601 place enter anchor=false anchorWindow=false
+    677.622 open after drain isShown=true window=true
+    677.622 onChange shownID=a target=nil popoverShown=true
+    677.622 present anchorWindow=true panelVisible=false
+    677.622 place enter anchor=true anchorWindow=true
+    677.622 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=120.0
+    677.931 after drain(0.3) left end of the screen: isShown=true panelVisible=true frame=(383.0, 732.0, 400.0, 319.0)
+    677.933 popover willClose appActive=false activations=0
+    677.933 onChange shownID=nil target=a popoverShown=true
+    677.933 hide
+    677.935 popover didClose
+    678.052 popover willShow
+    678.053 popover didShow
+    678.053 open after show isShown=true window=true
+    678.161 open after drain isShown=true window=true
+    678.161 onChange shownID=a target=nil popoverShown=true
+    678.161 present anchorWindow=true panelVisible=false
+    678.161 place enter anchor=true anchorWindow=true
+    678.161 place setFrame x=955.0 y=732.0 height=319.0 wasHeight=319.0
+    678.283 FORCED shape B: a Space change posted after placement
+    678.283 workspace NSWorkspaceActiveSpaceDidChangeNotification -
+    678.283 lifetime note NSWorkspaceActiveSpaceDidChangeNotification
+    678.285 popover willClose appActive=false activations=0
+    678.285 onChange shownID=nil target=a popoverShown=true
+    678.285 hide
+    678.287 popover didClose
+    678.591 after drain(0.3) right end of the screen: isShown=false panelVisible=false frame=(955.0, 732.0, 400.0, 319.0)
+  later +0.5 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+  later +1.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+  later +2.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+  later +3.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+  later +5.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+  later +8.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(955.0, 732.0, 400.0, 319.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=nil
+  trace during the longer drain:
+    678.616 workspace NSWorkspaceDidActivateApplicationNotification <app>
+  session after: locked=absent displayAsleep=0 idleAny=2.8 idleClick=6.1 idleKey=8.0 idleMove=2.8 idleScroll=31.5 appActive=false activations=0 frontmost=<app>
+OPENINGS TRACE
+  677.515 popover willShow
+  677.518 popover didShow
+  677.518 open after show isShown=true window=true
+  677.552 relay height=33.0 was=1.0
+  677.554 relay height=319.0 was=33.0
+  677.601 place enter anchor=false anchorWindow=false
+  677.601 place enter anchor=false anchorWindow=false
+  677.622 open after drain isShown=true window=true
+  677.622 onChange shownID=a target=nil popoverShown=true
+  677.622 present anchorWindow=true panelVisible=false
+  677.622 place enter anchor=true anchorWindow=true
+  677.622 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=120.0
+  677.931 after drain(0.3) left end of the screen: isShown=true panelVisible=true frame=(383.0, 732.0, 400.0, 319.0)
+  677.933 popover willClose appActive=false activations=0
+  677.933 onChange shownID=nil target=a popoverShown=true
+  677.933 hide
+  677.935 popover didClose
+  678.052 popover willShow
+  678.053 popover didShow
+  678.053 open after show isShown=true window=true
+  678.161 open after drain isShown=true window=true
+  678.161 onChange shownID=a target=nil popoverShown=true
+  678.161 present anchorWindow=true panelVisible=false
+  678.161 place enter anchor=true anchorWindow=true
+  678.161 place setFrame x=955.0 y=732.0 height=319.0 wasHeight=319.0
+  678.283 FORCED shape B: a Space change posted after placement
+  678.283 workspace NSWorkspaceActiveSpaceDidChangeNotification -
+  678.283 lifetime note NSWorkspaceActiveSpaceDidChangeNotification
+  678.285 popover willClose appActive=false activations=0
+  678.285 onChange shownID=nil target=a popoverShown=true
+  678.285 hide
+  678.287 popover didClose
+  678.591 after drain(0.3) right end of the screen: isShown=false panelVisible=false frame=(955.0, 732.0, 400.0, 319.0)
+  678.616 workspace NSWorkspaceDidActivateApplicationNotification <app>

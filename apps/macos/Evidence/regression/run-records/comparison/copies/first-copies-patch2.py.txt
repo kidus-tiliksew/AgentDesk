@@ -1,0 +1,18 @@
+import sys
+p=sys.argv[1]+'/main.swift'
+s=open(p).read()
+a='''  if CommandLine.arguments.contains("--paired-loop") {
+'''
+assert a in s
+s=s.replace(a,'''  for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didActivateApplicationNotification] {
+    NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) { n in print("DIAG always \\(n.name.rawValue) \\(Date()) \\(n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier ?? "")") }
+  }
+'''.replace('as? NSRunningApplication)?.bundleIdentifier ?? "")")','as? NSRunningApplication)?.bundleIdentifier ?? "")") }').replace('") }") }','") }')+a,1)
+open(p,'w').write(s)
+p=sys.argv[1]+'/PanelEvidence.swift'
+s=open(p).read()
+a='''  line("## Paired windows (a real NSPopover'''
+assert a in s
+s=s.replace(a,'''  print("DIAG paired section start \\(Date())")
+'''+a,1)
+open(p,'w').write(s)

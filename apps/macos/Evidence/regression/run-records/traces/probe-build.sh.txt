@@ -1,0 +1,24 @@
+#!/bin/sh
+# $1 name, $2 panel source commit or 'head'. Scratch only.
+M="<worktree>/apps/macos"; W="<worktree>"; RP="<scratch>/rep"; D="$RP/$1"; mkdir -p "$D/src" "$D/out"
+cp "$M"/AgentDeskKit/Sources/AgentDeskKit/*.swift "$M"/AgentDeskKit/Sources/AgentDeskKit/Models/*.swift "$D/src/"
+for f in DecisionRow AnswerControls DecisionDetailView AgentDetailView DetailPanelWindow PopoverKeyObserver AgentsView ScrollSupport Ink MenuBarLabel NotificationController NotificationPauseLine; do sed '/^import AgentDeskKit$/d' "$M/AgentDesk/$f.swift" > "$D/src/$f.swift"; done
+[ "$2" = head ] || git -C "$W" show "$2:apps/macos/AgentDesk/DetailPanelWindow.swift" | sed '/^import AgentDeskKit$/d' > "$D/src/DetailPanelWindow.swift"
+cp "$M"/Evidence/Harness/*.swift "$D/src/"
+cat "$RP/probe.swift" >> "$D/src/PanelEvidence.swift"
+python3 -I - "$D/src/main.swift" <<'PY'
+import sys
+p=sys.argv[1]; s=open(p).read()
+a='''  NSApp.setActivationPolicy(.prohibited)
+  var failures: [String] = []
+'''
+assert a in s
+s=s.replace(a,a+'''  if CommandLine.arguments.contains("--replace-probe") {
+    replacementProbe()
+    exit(0)
+  }
+''',1)
+open(p,'w').write(s)
+PY
+[ -z "$3" ] || python3 -I "$3" "$D/src"
+swiftc -swift-version 6 -O -o "$D/evidence" "$D"/src/*.swift > "$D/build.log" 2>&1; c=$?; echo "$1 build=$c"; grep -m6 'error:' "$D/build.log" | cut -c1-220; exit $c

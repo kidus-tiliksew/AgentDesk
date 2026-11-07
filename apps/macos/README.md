@@ -29,7 +29,7 @@ xcodebuild build -project apps/macos/AgentDesk.xcodeproj -scheme AgentDesk \
 
 The tests never touch the login Keychain or the network. They use an in-memory credential store and a `URLProtocol` stub.
 
-`Evidence/run.sh` renders the menu bar label and the popover from fixtures, including row markers, the agents line, the answer strips, and the paused header, renders the detail panel for each input type and state and for working, stale, and blocked agent sessions, drives a real popover beside the shipped panel with posted events, drives the list's scrolling across openings, audits the built bundle's icon, walks notification planning through a fixture notification center, and records contrast, layout, and freshness evidence with a manifest; see `Evidence/README.md`.
+`Evidence/run.sh` renders the menu bar label and the popover from fixtures, including row markers, the agents line, the answer strips, and the paused header, renders the detail panel for each input type and state and for working, stale, and blocked agent sessions, drives a real popover beside the shipped panel with posted events, measures the panel's height and header through one retained controller, drives the list's scrolling across openings, audits the built bundle's icon, walks notification planning through a fixture notification center, and records contrast, layout, and freshness evidence with a manifest; see `Evidence/README.md`.
 
 ## Server
 

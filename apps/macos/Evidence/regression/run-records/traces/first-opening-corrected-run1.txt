@@ -1,0 +1,20 @@
+FIRST OPENING, not in a click
+  339.570 present anchorWindow=true panelVisible=false
+  339.570 place enter anchor=true anchorWindow=true
+  339.590 relay height=27.5 was=1.0
+  339.592 relay height=70.5 was=27.5
+  339.593 place setFrame x=388.0 y=993.5 height=70.5 wasHeight=120.0
+  339.635 place enter anchor=true anchorWindow=true
+  339.635 place setFrame x=388.0 y=993.5 height=70.5 wasHeight=71.0
+  339.635 place enter anchor=true anchorWindow=true
+  339.635 place setFrame x=388.0 y=993.5 height=70.5 wasHeight=71.0
+REOPENING IN A CLICK
+  350.279 present anchorWindow=true panelVisible=false
+  350.279 place enter anchor=true anchorWindow=true
+  350.291 place setFrame x=388.0 y=1063.0 height=1.0 wasHeight=71.0
+  350.293 relay height=33.0 was=0.0
+  350.293 relay height=192.0 was=33.0
+  350.296 place enter anchor=true anchorWindow=true
+  350.296 place setFrame x=388.0 y=872.0 height=192.0 wasHeight=1.0
+  350.297 place enter anchor=true anchorWindow=true
+  350.297 place setFrame x=388.0 y=872.0 height=192.0 wasHeight=192.0

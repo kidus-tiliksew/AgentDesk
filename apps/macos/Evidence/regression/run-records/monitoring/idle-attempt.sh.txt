@@ -1,0 +1,38 @@
+#!/bin/sh
+# Waits for an unlocked session idle at least 180 s, then runs run.sh under caffeinate -d -i for that run only,
+# sampling every 3 s. Input or a lock stops the run at once and restores Evidence/output.
+# $1 attempt directory name. WAIT: seconds to wait for the condition.
+# Exit 0: run finished, read the verdict. 5: condition not met in WAIT. 6: tree dirty. 7: stopped on input or lock.
+SP="<scratch>"; W="<worktree>"; A="$SP/final-attempts/$1"; mkdir -p "$A"; L="$A/lock.log"; V="$A/verdict.txt"; : > "$L"
+read_state() { "$SP/sess/s" | awk '/ScreenIsLocked/{l=$2} /displayAsleep/{d=$2} /idle seconds/{i=$3} END{print l, d, i}'; }
+start=$(date +%s)
+while :; do
+  set -- $(read_state); now=$(date +%s)
+  if [ "$1" = absent ] && [ "$2" = 0 ] && awk "BEGIN{exit !($3 >= 180)}"; then break; fi
+  if [ $((now - start)) -ge "$WAIT" ]; then echo "condition not met at $(date -u +%H:%M:%S): lock=$1 asleep=$2 idle=$3" >> "$A/wait.log"; exit 5; fi
+  sleep 5
+done
+cd "$W"; test -z "$(git status --porcelain)" || { echo "DIRTY at $(date -u +%H:%M:%S)" >> "$A/wait.log"; exit 6; }
+echo "condition met at $(date -u +%H:%M:%S): lock=$1 asleep=$2 idle=$3; head $(git rev-parse HEAD)" >> "$A/wait.log"
+prev=$3
+perl -e 'setpgrp(0,0); exec @ARGV' caffeinate -d -i apps/macos/Evidence/run.sh > "$A/stdout" 2>&1 &
+R=$!
+stopped=""
+while kill -0 $R 2>/dev/null; do
+  set -- $(read_state); ts=$(date -u +%H:%M:%S); echo "$ts $1 $2 $3" >> "$L"
+  if [ "$1" != absent ] || [ "$2" != 0 ]; then stopped="lock or sleep at $ts: lock=$1 asleep=$2 idle=$3"; break; fi
+  if awk "BEGIN{exit !($3 < $prev)}"; then stopped="input at $ts: idle $3 after $prev"; break; fi
+  prev=$3
+  sleep 3
+done
+if [ -n "$stopped" ]; then
+  kill -TERM -$R 2>/dev/null; sleep 3; kill -KILL -$R 2>/dev/null; wait $R 2>/dev/null
+  git checkout -- apps/macos/Evidence/output; c1=$?; git clean -fdq apps/macos/Evidence/output; c2=$?
+  echo "STOPPED $stopped; restored checkout=$c1 clean=$c2; dirty=$(git status --porcelain | wc -l | tr -d ' ')" | tee "$V"
+  exit 7
+fi
+wait $R; c=$?
+set -- $(read_state); ts=$(date -u +%H:%M:%S); echo "$ts $1 $2 $3" >> "$L"
+reset=no; awk "BEGIN{exit !($3 < $prev)}" && reset=yes
+echo "FINISHED run.sh exit=$c at $ts finalState=$1/$2/$3 inputAfterLastSample=$reset" | tee "$V"
+exit 0

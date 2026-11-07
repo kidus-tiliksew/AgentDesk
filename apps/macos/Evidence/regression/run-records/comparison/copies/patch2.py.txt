@@ -1,0 +1,65 @@
+import sys
+d,kind=sys.argv[1],sys.argv[2]
+def rep(s,a,b,n=1):
+    assert a in s, a
+    return s.replace(a,b,n)
+p=d+'/PanelEvidence.swift'; s=open(p).read()
+s=rep(s,'diagT("popover willClose"); onWillClose()','diagCloseNote(); onWillClose()')
+s=rep(s,'for traced in diagTraceLines.suffix(40) {','for traced in diagTraceLines.suffix(80) {')
+s=rep(s,'''  diagEmit("  session: \\(diagSession())")
+''','''  diagEmit("  session: \\(diagSession())")
+  diagEmit("  last popover close: \\(diagLastClose)")
+  diagEmit("  activation log: \\(diagActivationLog.joined(separator: "; "))")
+''')
+s+='''
+
+@MainActor var diagLastClose = "none in this process"
+@MainActor var diagActivationLog: [String] = []
+
+/// What was true just before the popover closed, and who asked.
+@MainActor
+func diagCloseNote() {
+  let frames = Thread.callStackSymbols.dropFirst(1).prefix(40).map { frame -> String in
+    let fields = frame.split(separator: " ", omittingEmptySubsequences: true)
+    guard fields.count > 3 else { return frame }
+    return fields[1] + " " + fields[3...].prefix(1).joined().prefix(90)
+  }
+  let stack = frames.filter { $0.hasPrefix("evidence") || $0.contains("performClose") || $0.contains("close") || $0.contains("Close") }
+  let time = String(format: "%.3f", Date().timeIntervalSince1970.truncatingRemainder(dividingBy: 3600))
+  diagLastClose = "\\(time) \\(diagSession()) stack=\\(stack.prefix(14).joined(separator: " | "))"
+  diagT("popover willClose appActive=\\(NSApp.isActive) activations=\\(ActivationWatch.shared.count)")
+}
+'''
+if kind=='fixed':
+    s=rep(s,'''    if !passed { failures.append("panel height: \\(name)") }
+''','''    if !passed { failures.append("panel height: \\(name)"); diagOnFail?(name) }
+''')
+    s=rep(s,'''  let model = PanelHeightModel()
+  let panel = DetailPanelController { PanelHeightRoot(model: model, maxHeight: $0) }
+  panel.window.alphaValue = 0
+''','''  let model = PanelHeightModel()
+  let panel = DetailPanelController { PanelHeightRoot(model: model, maxHeight: $0) }
+  panel.window.alphaValue = 0
+  diagTraceLines = []
+  diagOnFail = { name in
+    diagCapture(
+      name, section: "panel height", isShown: { false }, panelVisible: { panel.isVisible },
+      panelFrame: { panel.window.frame }, popoverVisible: { false }, popoverFrame: { .zero }, target: { "-" })
+  }
+''')
+open(p,'w').write(s)
+p=d+'/main.swift'; s=open(p).read()
+s=rep(s,'''  if CommandLine.arguments.contains("--diag-paired-only") {
+''','''  for name in [NSApplication.didBecomeActiveNotification, NSApplication.didResignActiveNotification] {
+    NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { note in
+      let raw = note.name.rawValue
+      MainActor.assumeIsolated {
+        let entry = "\\(raw) isActive=\\(NSApp.isActive) at \\(Date()) \\(diagSession())"
+        diagActivationLog.append(entry)
+        diagT("app \\(raw) isActive=\\(NSApp.isActive)")
+      }
+    }
+  }
+  if CommandLine.arguments.contains("--diag-paired-only") {
+''')
+open(p,'w').write(s)

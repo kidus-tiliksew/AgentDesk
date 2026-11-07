@@ -1,0 +1,102 @@
+CAPTURE [paired] left end of the screen: the panel is 400 pt wide with the popover still showing at 2026-11-07 07:10:52 +0000
+  now: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+  session: locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.5 idleKey=32.4 idleMove=0.0 idleScroll=0.3 appActive=false activations=0 frontmost=<app>
+  last popover close: 652.609 locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.1 idleKey=32.0 idleMove=2.1 idleScroll=0.0 appActive=false activations=0 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+  activation log: 
+  trace before the capture:
+    652.487 popover willShow
+    652.490 popover didShow
+    652.490 open after show isShown=true window=true
+    652.527 relay height=33.0 was=1.0
+    652.528 relay height=319.0 was=33.0
+    652.566 place enter anchor=false anchorWindow=false
+    652.566 place enter anchor=false anchorWindow=false
+    652.607 open after drain isShown=true window=true
+    652.607 FORCED shape A: the popover closes before the target
+    652.610 popover willClose appActive=false activations=0
+    652.611 popover didClose
+    652.675 onChange shownID=a target=nil popoverShown=false
+    652.980 after drain(0.3) left end of the screen: isShown=false panelVisible=false frame=(0.0, 0.0, 400.0, 120.0)
+  later +0.5 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+  later +1.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+  later +2.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+  later +3.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+  later +5.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+  later +8.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+  trace during the longer drain:
+  session after: locked=absent displayAsleep=0 idleAny=0.4 idleClick=0.5 idleKey=40.4 idleMove=0.5 idleScroll=5.8 appActive=false activations=0 frontmost=<app>
+CAPTURE [paired] left end of the screen: the panel sits right of the popover, 8 pt away at 2026-11-07 07:11:01 +0000
+  now: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+  session: locked=absent displayAsleep=0 idleAny=0.4 idleClick=0.5 idleKey=40.4 idleMove=0.6 idleScroll=5.9 appActive=false activations=0 frontmost=<app>
+  last popover close: 652.609 locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.1 idleKey=32.0 idleMove=2.1 idleScroll=0.0 appActive=false activations=0 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+  activation log: 
+CAPTURE [paired] left end of the screen: the tops meet at 2026-11-07 07:11:01 +0000
+  now: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=a
+  session: locked=absent displayAsleep=0 idleAny=0.4 idleClick=0.5 idleKey=40.4 idleMove=0.6 idleScroll=5.9 appActive=false activations=0 frontmost=<app>
+  last popover close: 652.609 locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.1 idleKey=32.0 idleMove=2.1 idleScroll=0.0 appActive=false activations=0 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+  activation log: 
+CAPTURE [paired] right end of the screen: the panel is 400 pt wide with the popover still showing at 2026-11-07 07:11:01 +0000
+  now: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+  session: locked=absent displayAsleep=0 idleAny=0.2 idleClick=1.1 idleKey=40.9 idleMove=0.2 idleScroll=6.4 appActive=false activations=0 frontmost=<app>
+  last popover close: 652.609 locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.1 idleKey=32.0 idleMove=2.1 idleScroll=0.0 appActive=false activations=0 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+  activation log: 
+  trace before the capture:
+    652.487 popover willShow
+    652.490 popover didShow
+    652.490 open after show isShown=true window=true
+    652.527 relay height=33.0 was=1.0
+    652.528 relay height=319.0 was=33.0
+    652.566 place enter anchor=false anchorWindow=false
+    652.566 place enter anchor=false anchorWindow=false
+    652.607 open after drain isShown=true window=true
+    652.607 FORCED shape A: the popover closes before the target
+    652.610 popover willClose appActive=false activations=0
+    652.611 popover didClose
+    652.675 onChange shownID=a target=nil popoverShown=false
+    652.980 after drain(0.3) left end of the screen: isShown=false panelVisible=false frame=(0.0, 0.0, 400.0, 120.0)
+    661.143 popover willShow
+    661.145 popover didShow
+    661.145 open after show isShown=true window=true
+    661.260 open after drain isShown=true window=true
+    661.568 after drain(0.3) right end of the screen: isShown=true panelVisible=false frame=(0.0, 0.0, 400.0, 120.0)
+  later +0.5 s: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+  later +1.0 s: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+  later +2.0 s: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+  later +3.0 s: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+  later +5.0 s: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+  later +8.0 s: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+  trace during the longer drain:
+  session after: locked=absent displayAsleep=0 idleAny=0.0 idleClick=6.9 idleKey=3.3 idleMove=0.0 idleScroll=14.4 appActive=false activations=0 frontmost=<app>
+CAPTURE [paired] right end of the screen: the panel sits left of the popover, 8 pt away at 2026-11-07 07:11:09 +0000
+  now: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+  session: locked=absent displayAsleep=0 idleAny=0.0 idleClick=6.9 idleKey=3.3 idleMove=0.0 idleScroll=14.4 appActive=false activations=0 frontmost=<app>
+  last popover close: 652.609 locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.1 idleKey=32.0 idleMove=2.1 idleScroll=0.0 appActive=false activations=0 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+  activation log: 
+CAPTURE [paired] right end of the screen: the tops meet at 2026-11-07 07:11:09 +0000
+  now: popover.isShown=true popoverWindowVisible=true panel.isVisible=false panelFrame=(0.0, 0.0, 400.0, 120.0) popoverFrame=(1363.0, 752.0, 340.0, 299.0) target=a
+  session: locked=absent displayAsleep=0 idleAny=0.0 idleClick=6.9 idleKey=3.3 idleMove=0.0 idleScroll=14.4 appActive=false activations=0 frontmost=<app>
+  last popover close: 652.609 locked=absent displayAsleep=0 idleAny=0.0 idleClick=2.1 idleKey=32.0 idleMove=2.1 idleScroll=0.0 appActive=false activations=0 frontmost=<app> stack=evidence $s8evidence13PopoverEvents33_C6CC43CC2148205B7ABA456D3EEA8E75LLC16popoverWillCloseyy10Foun | AppKit _NSPopoverSendWillCloseNotification | AppKit _NSPopoverCloseAndAnimate | evidence $s8evidence20pairedWindowEvidenceyySaySSGzF | evidence $s8evidenceyyScMYcXEfU2_ | evidence $sScM14assumeIsolated_4file4linexxyKScMYcXE_s12StaticStringVSutKs8SendableRzlFZyt_Tg5 | evidence main
+  activation log: 
+OPENINGS TRACE
+  652.487 popover willShow
+  652.490 popover didShow
+  652.490 open after show isShown=true window=true
+  652.527 relay height=33.0 was=1.0
+  652.528 relay height=319.0 was=33.0
+  652.566 place enter anchor=false anchorWindow=false
+  652.566 place enter anchor=false anchorWindow=false
+  652.607 open after drain isShown=true window=true
+  652.607 FORCED shape A: the popover closes before the target
+  652.610 popover willClose appActive=false activations=0
+  652.611 popover didClose
+  652.675 onChange shownID=a target=nil popoverShown=false
+  652.980 after drain(0.3) left end of the screen: isShown=false panelVisible=false frame=(0.0, 0.0, 400.0, 120.0)
+  661.143 popover willShow
+  661.145 popover didShow
+  661.145 open after show isShown=true window=true
+  661.260 open after drain isShown=true window=true
+  661.568 after drain(0.3) right end of the screen: isShown=true panelVisible=false frame=(0.0, 0.0, 400.0, 120.0)
+  669.599 popover willClose appActive=false activations=0
+  669.599 onChange shownID=nil target=a popoverShown=true
+  669.599 hide
+  669.602 popover didClose

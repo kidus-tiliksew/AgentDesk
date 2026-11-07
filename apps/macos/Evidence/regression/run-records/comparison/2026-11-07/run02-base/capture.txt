@@ -1,0 +1,82 @@
+OPENINGS TRACE
+  155.828 popover willShow
+  155.831 popover didShow
+  155.831 open after show isShown=true window=true
+  155.937 open after drain isShown=true window=true
+  155.937 onChange shownID=a target=nil popoverShown=true
+  155.937 present anchorWindow=true panelVisible=false
+  155.938 place enter anchor=true anchorWindow=true
+  155.938 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+  156.265 after drain(0.3) left end of the screen: isShown=true panelVisible=true frame=(383.0, 732.0, 400.0, 319.0)
+  156.265 popover willClose
+  156.265 onChange shownID=nil target=a popoverShown=true
+  156.265 hide
+  156.266 popover didClose
+  156.386 popover willShow
+  156.387 popover didShow
+  156.388 open after show isShown=true window=true
+  156.498 open after drain isShown=true window=true
+  156.499 onChange shownID=a target=nil popoverShown=true
+  156.499 present anchorWindow=true panelVisible=false
+  156.499 place enter anchor=true anchorWindow=true
+  156.499 place setFrame x=955.0 y=732.0 height=319.0 wasHeight=319.0
+  156.816 after drain(0.3) right end of the screen: isShown=true panelVisible=true frame=(955.0, 732.0, 400.0, 319.0)
+  156.816 popover willClose
+  156.816 onChange shownID=nil target=a popoverShown=true
+  156.816 hide
+  156.819 popover didClose
+CAPTURE [paired] this process never became the active app, so the user's focus never moved at 2026-11-07 07:02:44 +0000
+  now: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  session: locked=absent displayAsleep=0 idleAny=1.4 idleClick=3.0 idleKey=148.5 idleMove=1.5 idleScroll=20.3 appActive=true activations=2 frontmost=<app>
+  trace before the capture:
+    161.308 lifetime apply ownedWindow menuTracking=false
+    161.471 onChange shownID=b target=a popoverShown=true
+    161.471 present anchorWindow=true panelVisible=true
+    161.471 place enter anchor=true anchorWindow=true
+    161.471 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+    161.474 onChange shownID=b target=b popoverShown=true
+    162.382 onChange shownID=nil target=b popoverShown=true
+    162.382 hide
+    162.486 onChange shownID=b target=nil popoverShown=true
+    162.486 present anchorWindow=true panelVisible=false
+    162.486 place enter anchor=true anchorWindow=true
+    162.490 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+    162.700 onChange shownID=nil target=b popoverShown=true
+    162.700 hide
+    162.805 popover willClose
+    162.807 popover didClose
+    163.038 popover willShow
+    163.039 popover didShow
+    163.039 open after show isShown=true window=true
+    163.149 open after drain isShown=true window=true
+    163.149 onChange shownID=b target=nil popoverShown=true
+    163.149 present anchorWindow=true panelVisible=false
+    163.149 place enter anchor=true anchorWindow=true
+    163.150 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+    163.492 onChange shownID=nil target=b popoverShown=true
+    163.492 hide
+    163.610 popover willClose
+    163.613 popover didClose
+    163.729 popover willShow
+    163.730 popover didShow
+    163.730 open after show isShown=true window=true
+    163.841 open after drain isShown=true window=true
+    163.841 onChange shownID=b target=nil popoverShown=true
+    163.841 present anchorWindow=true panelVisible=false
+    163.841 place enter anchor=true anchorWindow=true
+    163.841 place setFrame x=383.0 y=732.0 height=319.0 wasHeight=319.0
+    164.113 onChange shownID=nil target=b popoverShown=true
+    164.113 hide
+    164.229 popover willClose
+    164.231 popover didClose
+  later +0.5 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  later +1.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  later +2.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  later +3.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  later +5.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  later +8.0 s: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 732.0, 400.0, 319.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  trace during the longer drain:
+  session after: locked=absent displayAsleep=0 idleAny=1.1 idleClick=1.3 idleKey=156.6 idleMove=2.1 idleScroll=28.3 appActive=true activations=2 frontmost=<app>
+CAPTURE [agent paired] this process never became the active app, so the user's focus never moved at 2026-11-07 07:02:56 +0000
+  now: popover.isShown=false popoverWindowVisible=false panel.isVisible=false panelFrame=(383.0, 812.0, 400.0, 239.0) popoverFrame=(35.0, 752.0, 340.0, 299.0) target=nil
+  session: locked=absent displayAsleep=0 idleAny=1.9 idleClick=5.7 idleKey=161.0 idleMove=2.0 idleScroll=32.7 appActive=false activations=2 frontmost=<app>

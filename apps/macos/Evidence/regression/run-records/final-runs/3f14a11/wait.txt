@@ -1,0 +1,1 @@
+condition met at 08:20:28: lock=absent asleep=0 idle=242.926572541; head 3f14a114ae57cef3acf1fa8db92ffa5dc87d9901
