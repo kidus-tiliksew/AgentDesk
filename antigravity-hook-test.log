@@ -23,7 +23,7 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ✓ |installer| test/resume/antigravity-hook.test.ts > Antigravity transcript > names nothing for a result with another key 0ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > Antigravity transcript > names nothing for a result with a nested ask result 0ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > Antigravity transcript > names nothing for a result with an ask result followed by another object 0ms
- ✓ |installer| test/resume/antigravity-hook.test.ts > Antigravity transcript > refuses a transcript that is a directory or a FIFO 3ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > Antigravity transcript > refuses a transcript that is a directory or a FIFO 4ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > Antigravity transcript > rejects at once with an aborted signal 0ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > Antigravity transcript > reads the hook input and never requires continuationActive or executionNum 0ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > is dispatched by the hook command 12ms
@@ -37,19 +37,19 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} for a missing terminationReason with no wait 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} for a terminationReason that is not a string with no wait 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} for a missing conversationId with no wait 1ms
- ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} for an unsafe conversationId with no wait 0ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} for an unsafe conversationId with no wait 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} for a missing transcriptPath with no wait 1ms
- ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} for a relative transcriptPath with no wait 0ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} for a relative transcriptPath with no wait 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} for a missing transcript with no wait 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} for a transcript that is a directory with no wait 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} at once for a transcript with no ask result 1ms
- ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > opens no wait for unrelated text that follows an ask with no result 1ms
- ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > waits only on the fixture's two ask results 3ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > opens no wait for unrelated text that follows an ask with no result 2ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > waits only on the fixture's two ask results 2ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} when AgentDesk is not installed for Antigravity 1ms
- ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > continues once with the resume message for a phone answer after holding while it was pending 2ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > continues once with the resume message for a phone answer after holding while it was pending 3ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > continues for an expiry with the default applied 2ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > holds while continuationActive is true, which it never reads 2ms
- ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} on a chat settlement with no claim 1ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} on a chat settlement with no claim 2ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} on a cancel with no claim 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} on an expiry without a default with no claim 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} with no claim for a decision with answered_via omitted 1ms
@@ -58,26 +58,32 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} with no claim for a decision with answered_via an unknown surface 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} with no claim for a decision with answered_via in another case 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} with no claim for a decision with applied_by_default omitted 1ms
- ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} with no claim for a decision with applied_by_default a string 2ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} with no claim for a decision with applied_by_default a string 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} with no claim for a decision with applied_by_default a number 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} with no claim for a decision with applied_by_default null 1ms
- ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} with no claim for a decision with an unknown state 1ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} with no claim for a decision with an unknown state 5ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} with no claim for a decision with state omitted 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} with no claim for a decision with a numeric id 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} when Antigravity's connection is revoked 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > delivers a decision that settles while another stays pending 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > a decision that settles without resuming does not end the hold for another 1ms
- ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} 50 minutes after the hook starts and stops its requests and timers 8ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > prints {} 50 minutes after the hook starts and stops its requests and timers 7ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > counts the 50 minutes from the hook's start, through a late input 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > lets no settlement that arrives after the limit claim or resume 1ms
- ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > does not hold for a resumed decision when it runs again over the same transcript 2ms
- ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > two concurrent holds over one transcript continue once per decision 3ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > does not hold for a resumed decision when it runs again over the same transcript 3ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > two concurrent holds over one transcript continue once per decision 2ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > a waiter on a decision the hold resumed stays silent 2ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > does not wait on a decision whose claim exists before the hold 1ms
  ✓ |installer| test/resume/antigravity-hook.test.ts > agentdesk hook stop --harness antigravity > drops a decision whose claim another waiter wins during the hold 2ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > long Antigravity transcripts > splits lines across pieces, keeps multibyte text whole, and drops CR and the last newline 0ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > long Antigravity transcripts > reads past a line longer than the limit and yields undefined for it 0ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > long Antigravity transcripts > a transcript longer than 256 MiB > finds an ask and its result after the first 256 MiB 157ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > long Antigravity transcripts > a transcript longer than 256 MiB > holds on that decision and continues for a phone answer 145ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > long Antigravity transcripts > a transcript longer than 256 MiB > stops reading at once when the hold's limit aborts the scan 0ms
+ ✓ |installer| test/resume/antigravity-hook.test.ts > long Antigravity transcripts > reads past a line over 16 MiB and still finds a later ask 6ms
 
  Test Files  1 passed (1)
-      Tests  67 passed (67)
-   Start at  19:07:10
-   Duration  308ms (transform 127ms, setup 0ms, import 160ms, tests 85ms, environment 0ms)
+      Tests  73 passed (73)
+   Start at  19:27:24
+   Duration  707ms (transform 141ms, setup 0ms, import 173ms, tests 474ms, environment 0ms)
 
