@@ -194,7 +194,7 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/codex-trust.test.ts > trust carried by uninstall > restores hooks.json when the trust write fails, and a retry still carries the trust
  ↓ |installer| test/codex-trust.test.ts > trust carried by uninstall > warns that later hooks may need trusting again when app-server is unavailable
  ↓ |installer| test/codex-trust.test.ts > trust carried by uninstall > does not start app-server when no later hook moves, and removes both recorded tables
- × |installer| test/hooks.test.ts > hooks written by install > refuses an unreadable hook file before sign-in 186ms
+ × |installer| test/hooks.test.ts > hooks written by install > refuses an unreadable hook file before sign-in 142ms
    → expected +0 to be 1 // Object.is equality
  ↓ |installer| test/hooks.test.ts > hooks in status > reports a hook removed by hand and an unreadable hook file
  ↓ |installer| test/hooks.test.ts > hooks in status > reports each resume hook beside the session-start hook, missing or unreadable
@@ -241,7 +241,7 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/uninstall-safety.test.ts > Antigravity skill folders > refuses an Antigravity skill folder under a redirected parent
  ↓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record and revokes nothing when ~/.claude.json is malformed and the CLI is absent
  ↓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record when ~/.claude.json is malformed and the CLI is present
- × |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record when ~/.claude.json cannot be read 56ms
+ × |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record when ~/.claude.json cannot be read 36ms
    → expected +0 to be 1 // Object.is equality
  ↓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > removes the entry from the file when claude mcp remove exits nonzero and leaves it
  ↓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > fails and keeps the record when claude mcp remove exits nonzero and leaves the file unreadable
@@ -330,6 +330,138 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > refuses an approved result with an unrequested harness and prints no token
  ↓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > reports a failed start by status without the response body
  ↓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > never prints a device secret or a token
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the mcp file as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the mcp file as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the mcp file as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the mcp backup as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the mcp backup as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the mcp backup as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the mcp temporary as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the mcp temporary as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the mcp temporary as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the hooks file as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the hooks file as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the hooks file as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the hooks backup as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the hooks backup as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the hooks backup as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the hooks temporary as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the hooks temporary as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the hooks temporary as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the skill file as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the skill file as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the skill file as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the skill backup as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the skill backup as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the skill backup as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the skill temporary as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the skill temporary as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > install with the skill temporary as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the hooks file as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the hooks file as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the hooks file as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the hooks backup as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the hooks backup as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the hooks backup as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the hooks temporary as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the hooks temporary as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the hooks temporary as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the skill file as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the skill file as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the skill file as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the skill backup as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the skill backup as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the skill backup as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the skill temporary as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the skill temporary as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > skill install with the skill temporary as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the mcp file as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the mcp file as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the mcp file as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the mcp backup as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the mcp backup as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the mcp backup as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the mcp temporary as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the mcp temporary as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the mcp temporary as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the hooks file as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the hooks file as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the hooks file as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the hooks backup as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the hooks backup as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the hooks backup as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the hooks temporary as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the hooks temporary as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the hooks temporary as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the skill file as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the skill file as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the skill file as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the skill backup as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the skill backup as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the skill backup as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the skill temporary as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the skill temporary as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > status after install with the skill temporary as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the mcp file as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the mcp file as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the mcp file as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the mcp backup as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the mcp backup as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the mcp backup as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the mcp temporary as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the mcp temporary as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the mcp temporary as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the hooks file as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the hooks file as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the hooks file as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the hooks backup as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the hooks backup as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the hooks backup as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the hooks temporary as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the hooks temporary as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the hooks temporary as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the skill file as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the skill file as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the skill file as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the skill backup as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the skill backup as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the skill backup as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the skill temporary as a link
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the skill temporary as a fifo
+ ↓ |installer| test/antigravity-paths.test.ts > every Antigravity path refuses a link, a FIFO, or a directory > uninstall after install with the skill temporary as a directory
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity folders that are not directories > refuses install before sign-in when ~/.gemini/config is a regular file
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity folders that are not directories > refuses install before sign-in when ~/.gemini is a regular file
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity folders that are not directories > refuses the skill when its folder is a fifo, and reads nothing there
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity folders that are not directories > refuses the skill when its folder is a file, and reads nothing there
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses a handler with a timeout given as a string before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses a handler with another timeout before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses a handler with no timeout before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses a handler with a timeout of null before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses a handler with no type before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses a handler with another type before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses a handler with an extra matcher before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses a handler with an extra enabled flag before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses a handler with extra command arguments before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses a handler with a command that is not a string before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses a handler with a null handler before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses a handler with a list handler before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses an event the installer does not write, even empty before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > install refuses an event value that is an object before sign-in
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses a handler with a timeout given as a string and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses a handler with another timeout and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses a handler with no timeout and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses a handler with a timeout of null and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses a handler with no type and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses a handler with another type and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses a handler with an extra matcher and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses a handler with an extra enabled flag and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses a handler with extra command arguments and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses a handler with a command that is not a string and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses a handler with a null handler and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses a handler with a list handler and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses an event the installer does not write, even empty and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > uninstall refuses an event value that is an object and leaves the file unchanged
+ ↓ |installer| test/antigravity-paths.test.ts > Antigravity handlers that differ from the installer's exact handler > owns the exact handler from an older executable path and replaces it
  ↓ |installer| test/skill.test.ts > skill version > reads metadata.version from the published skill
  ↓ |installer| test/skill.test.ts > skill version > returns undefined without frontmatter or version
  ↓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes the Claude Code and Codex skills and no Cursor skill when both are installed
@@ -370,57 +502,49 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/config.test.ts > MCP entries written by install > refuses an Antigravity mcp_config.json holding an mcpServers list before sign-in
  ↓ |installer| test/config.test.ts > MCP entries written by install > creates a new Antigravity mcp_config.json with mode 0600 and no backup
  ↓ |installer| test/config.test.ts > MCP entries written by install > creates new configuration files with mode 0600 and no backup holds a token from the run
- ↓ |installer| test/resume/codex-hook.test.ts > transcript scan > yields completed agentdesk ask results only, deduplicated in order
- ↓ |installer| test/resume/codex-hook.test.ts > transcript scan > ignores other tools, other servers, failed and unfinished calls, and bad lines
- ↓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > refuses a FIFO, a link to one, a device, and a directory without opening a stalled read
- ↓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > follows a link to a regular transcript
- ↓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > rejects at once with an aborted signal, and closes the reader when aborted mid-scan
- ↓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > rejects with HookCancelledError when aborted while the transcript is being opened
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts one detached waiter per decision, records its process id, and prints {}
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts the running executable: Node with the bundle, or the binary itself
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts no second waiter while one is live, and replaces a dead one
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > two Stop hooks at once start one waiter per decision
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > records nothing for a waiter that could not start, so the next Stop retries
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on no input without starting a waiter
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on input that is not JSON without starting a waiter
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on a JSON array without starting a waiter
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on a missing session_id without starting a waiter
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on an unsafe session_id without starting a waiter
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on a relative transcript_path without starting a waiter
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on a missing transcript without starting a waiter
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on a transcript that is a directory without starting a waiter
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} within its budget when the input never arrives
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts no waiter after the budget expires while a start is in flight, closes the input read, and asks the process to exit
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts nothing when the budget expires before the input arrives
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > does not ask the process to exit when it finishes within the budget
- ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > returns at once for a transcript with no ask result
- ↓ |installer| test/resume/codex-hook.test.ts > detached waiter start > starts a real detached process with closed standard streams that outlives the call
- ↓ |installer| test/resume/codex-hook.test.ts > detached waiter start > rejects when the executable cannot start
- ↓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused before its SKILL.md is read, and the MCP entry and hook are still written
- ↓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused on skill install before its SKILL.md is read
- ↓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused when a parent of the skill folder is redirected, with nothing written there
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a linked mcp_config.json before sign-in, and never reads or writes the profile
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a linked hooks.json before sign-in, and never reads or writes the profile
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a redirected ~/.gemini/config before sign-in
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a redirected ~/.gemini before sign-in
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a hook file later replaced by a link on uninstall, keeping the record
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses an MCP file later replaced by a link on uninstall, revoking nothing
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > keeps writing through a linked Cursor mcp.json, as before
- ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked SKILL.md in a real folder before reading or writing it
- ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a SKILL.md replaced by a link after install, on a re-run and in status
- ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > does not read the version through a skill folder replaced by a link after install
- ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked mcp_config.json backup before sign-in, leaving the outside file unchanged
- ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked hooks.json backup before sign-in, leaving the outside file unchanged
- ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked mcp_config.json backup on uninstall, keeping the record and the outside file
- ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked hooks.json backup on uninstall, keeping the record and the outside file
- ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > replaces an earlier regular backup file with a new copy
- ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked mcp_config.json temporary file before sign-in, leaving the outside file unchanged
- ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked hooks.json temporary file before sign-in, leaving the outside file unchanged
- ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked SKILL.md temporary file, leaving the outside file unchanged
- ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > keeps copying a Cursor backup through a linked backup path, as before
- ↓ |installer| test/antigravity-links.test.ts > Antigravity handlers without the command type > refuses a handler with no type before sign-in and changes nothing
- ↓ |installer| test/antigravity-links.test.ts > Antigravity handlers without the command type > refuses a handler with another type before sign-in and changes nothing
- ↓ |installer| test/antigravity-links.test.ts > Antigravity handlers without the command type > refuses removal when the installer's handler lost its type, and keeps the record
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records the decision from the first content item of result_json and prints {}
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > accepts result_json given as an object
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for another tool and prints {}
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for another server and prints {}
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for no input and prints {}
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for input that is not JSON and prints {}
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for result_json that is not JSON and prints {}
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for no content and prints {}
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for a first item that is not JSON and prints {}
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for an unsafe conversation id and prints {}
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for an unsafe decision id and prints {}
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} at once without records
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} at once for status aborted
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} at once for status error
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} at once for status undefined
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} for no input
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} for input that is not JSON
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} for an unsafe conversation id
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > returns one followup_message for a phone answer after holding while it was pending
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > returns a followup_message for an expiry with the default applied
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} on a chat settlement and keeps the record
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} on a cancel and keeps the record
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via omitted
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via a number
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via an object
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via an unknown surface
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via in another case
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default omitted
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default a string
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default a number
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default null
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with an unknown state
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with state omitted
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with a numeric id
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > a malformed decision does not stop another recorded decision from delivering
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for an answer with no recorded surface
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} when the decision's claim exists
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} 50 minutes after the hold starts and stops its requests and timers
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > delivers a settled decision while another recorded decision stays pending
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > two concurrent holds on one conversation deliver once
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > an overtaken hold and the newer hold share the claim, and a waiter on the same decision stays silent
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > deletes records older than 7 days and prints {} when none remain
+ ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} when Cursor's connection is revoked
  ↓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered in the app resumes: { state: 'answered', answered_via: 'app' }
  ↓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered from a notification resumes: { state: 'answered', answered_via: 'notification' }
  ↓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered through the API resumes: { state: 'answered', answered_via: 'api' }
@@ -477,49 +601,32 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > a waiter that finds the claim taken exits 0 with no output
  ↓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > uses 0700 directories and 0600 files under XDG_CONFIG_HOME and holds no token
  ↓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > each waiter run deletes claims older than 30 days and keeps newer ones
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records the decision from the first content item of result_json and prints {}
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > accepts result_json given as an object
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for another tool and prints {}
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for another server and prints {}
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for no input and prints {}
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for input that is not JSON and prints {}
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for result_json that is not JSON and prints {}
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for no content and prints {}
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for a first item that is not JSON and prints {}
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for an unsafe conversation id and prints {}
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for an unsafe decision id and prints {}
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} at once without records
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} at once for status aborted
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} at once for status error
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} at once for status undefined
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} for no input
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} for input that is not JSON
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} for an unsafe conversation id
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > returns one followup_message for a phone answer after holding while it was pending
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > returns a followup_message for an expiry with the default applied
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} on a chat settlement and keeps the record
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} on a cancel and keeps the record
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via omitted
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via a number
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via an object
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via an unknown surface
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via in another case
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default omitted
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default a string
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default a number
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default null
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with an unknown state
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with state omitted
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with a numeric id
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > a malformed decision does not stop another recorded decision from delivering
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for an answer with no recorded surface
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} when the decision's claim exists
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} 50 minutes after the hold starts and stops its requests and timers
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > delivers a settled decision while another recorded decision stays pending
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > two concurrent holds on one conversation deliver once
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > an overtaken hold and the newer hold share the claim, and a waiter on the same decision stays silent
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > deletes records older than 7 days and prints {} when none remain
- ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} when Cursor's connection is revoked
+ ↓ |installer| test/resume/codex-hook.test.ts > transcript scan > yields completed agentdesk ask results only, deduplicated in order
+ ↓ |installer| test/resume/codex-hook.test.ts > transcript scan > ignores other tools, other servers, failed and unfinished calls, and bad lines
+ ↓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > refuses a FIFO, a link to one, a device, and a directory without opening a stalled read
+ ↓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > follows a link to a regular transcript
+ ↓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > rejects at once with an aborted signal, and closes the reader when aborted mid-scan
+ ↓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > rejects with HookCancelledError when aborted while the transcript is being opened
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts one detached waiter per decision, records its process id, and prints {}
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts the running executable: Node with the bundle, or the binary itself
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts no second waiter while one is live, and replaces a dead one
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > two Stop hooks at once start one waiter per decision
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > records nothing for a waiter that could not start, so the next Stop retries
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on no input without starting a waiter
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on input that is not JSON without starting a waiter
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on a JSON array without starting a waiter
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on a missing session_id without starting a waiter
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on an unsafe session_id without starting a waiter
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on a relative transcript_path without starting a waiter
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on a missing transcript without starting a waiter
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on a transcript that is a directory without starting a waiter
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} within its budget when the input never arrives
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts no waiter after the budget expires while a start is in flight, closes the input read, and asks the process to exit
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts nothing when the budget expires before the input arrives
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > does not ask the process to exit when it finishes within the budget
+ ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > returns at once for a transcript with no ask result
+ ↓ |installer| test/resume/codex-hook.test.ts > detached waiter start > starts a real detached process with closed standard streams that outlives the call
+ ↓ |installer| test/resume/codex-hook.test.ts > detached waiter start > rejects when the executable cannot start
  ↓ |installer| test/guidance.test.ts > agentdesk context > prints GUIDANCE.md as plain text for claude-code
  ↓ |installer| test/guidance.test.ts > agentdesk context > prints GUIDANCE.md as plain text for codex
  ↓ |installer| test/guidance.test.ts > agentdesk context > prints one additional_context JSON object for cursor
@@ -566,22 +673,31 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/guidance.test.ts > agentdesk context in a child session > fails the same way for a build without guidance when the variable is undefined
  ↓ |installer| test/guidance.test.ts > agentdesk context in a child session > fails the same way for a build without guidance when the variable is ""
  ↓ |installer| test/guidance.test.ts > agentdesk context in a child session > fails the same way for a build without guidance when the variable is "parent"
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects nothing in an empty home with an empty PATH
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Claude Code by the claude executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Claude Code by ~/.claude.json
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by the codex executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by ~/.codex
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by CODEX_HOME instead of ~/.codex
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the cursor-agent executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the agent executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the cursor executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by ~/.cursor
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Antigravity by the agy executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Antigravity by ~/.gemini/antigravity-cli
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > does not detect Antigravity by ~/.gemini/config alone
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > ignores a file on PATH that is not executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects all four harnesses together in registry order
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > fails install when no harness is detected
+ ↓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused before its SKILL.md is read, and the MCP entry and hook are still written
+ ↓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused on skill install before its SKILL.md is read
+ ↓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused when a parent of the skill folder is redirected, with nothing written there
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a linked mcp_config.json before sign-in, and never reads or writes the profile
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a linked hooks.json before sign-in, and never reads or writes the profile
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a redirected ~/.gemini/config before sign-in
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a redirected ~/.gemini before sign-in
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a hook file later replaced by a link on uninstall, keeping the record
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses an MCP file later replaced by a link on uninstall, revoking nothing
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > keeps writing through a linked Cursor mcp.json, as before
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked SKILL.md in a real folder before reading or writing it
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a SKILL.md replaced by a link after install, on a re-run and in status
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > does not read the version through a skill folder replaced by a link after install
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked mcp_config.json backup before sign-in, leaving the outside file unchanged
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked hooks.json backup before sign-in, leaving the outside file unchanged
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked mcp_config.json backup on uninstall, keeping the record and the outside file
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked hooks.json backup on uninstall, keeping the record and the outside file
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > replaces an earlier regular backup file with a new copy
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked mcp_config.json temporary file before sign-in, leaving the outside file unchanged
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked hooks.json temporary file before sign-in, leaving the outside file unchanged
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked SKILL.md temporary file, leaving the outside file unchanged
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > keeps copying a Cursor backup through a linked backup path, as before
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity handlers without the command type > refuses a handler with no type before sign-in and changes nothing
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity handlers without the command type > refuses a handler with another type before sign-in and changes nothing
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity handlers without the command type > refuses removal when the installer's handler lost its type, and keeps the record
  ↓ |installer| test/resume/commands.test.ts > command line for wait and hook > lists both commands in the help text
  ↓ |installer| test/resume/commands.test.ts > command line for wait and hook > parses wait with and without a Codex thread
  ↓ |installer| test/resume/commands.test.ts > command line for wait and hook > parses each supported hook
@@ -608,6 +724,22 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/resume/sse.test.ts > SseParser > joins data lines, defaults the event name, and ignores unknown fields
  ↓ |installer| test/resume/sse.test.ts > SseParser > drops an event left without its blank line when the stream ends
  ↓ |installer| test/resume/sse.test.ts > SseParser > refuses an event larger than the waiter accepts
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects nothing in an empty home with an empty PATH
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Claude Code by the claude executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Claude Code by ~/.claude.json
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by the codex executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by ~/.codex
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by CODEX_HOME instead of ~/.codex
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the cursor-agent executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the agent executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the cursor executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by ~/.cursor
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Antigravity by the agy executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Antigravity by ~/.gemini/antigravity-cli
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > does not detect Antigravity by ~/.gemini/config alone
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > ignores a file on PATH that is not executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects all four harnesses together in registry order
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > fails install when no harness is detected
  ↓ |installer| test/prompt.test.ts > askQuestion > returns the typed answer and leaves no listener on the input
  ↓ |installer| test/prompt.test.ts > askQuestion > rejects with TerminalReadError when the input fails while the question waits
  ↓ |installer| test/prompt.test.ts > askQuestion > rejects with TerminalReadError when the input is already failing as the question starts
@@ -660,9 +792,9 @@ AssertionError: expected +0 to be 1 // Object.is equality
 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
 
 
- Test Files  2 failed | 20 skipped (22)
-      Tests  2 failed | 605 skipped (607)
-   Start at  12:43:38
-   Duration  1.63s (transform 816ms, setup 0ms, import 2.23s, tests 246ms, environment 2ms)
+ Test Files  2 failed | 21 skipped (23)
+      Tests  2 failed | 737 skipped (739)
+   Start at  13:01:31
+   Duration  1.42s (transform 805ms, setup 0ms, import 1.99s, tests 181ms, environment 1ms)
 
 vitest exit status: 1
