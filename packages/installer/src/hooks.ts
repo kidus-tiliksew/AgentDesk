@@ -157,10 +157,27 @@ export function currentHookCommand(
 }
 
 /**
+ * The executable names whose hooks the installer owns for each harness. The
+ * hook runs `<executable>`: the compiled binary, which install.sh installs as
+ * `agentdesk`, or the bundle file when Node runs it, which `scripts/build.mjs`
+ * writes as `agentdesk.mjs` (component-installer §Standing guidance and §Build
+ * and distribution). Antigravity owns both, so a hook its bundle wrote is
+ * recognized on a re-run, in `status`, and on uninstall. The other harnesses
+ * keep the ownership rule they had before Antigravity: `agentdesk` only.
+ */
+const OWNED_EXECUTABLE_NAMES: Readonly<Record<HarnessId, readonly string[]>> = {
+  "claude-code": ["agentdesk"],
+  codex: ["agentdesk"],
+  cursor: ["agentdesk"],
+  antigravity: ["agentdesk", "agentdesk.mjs"],
+};
+
+/**
  * Whether `command` is the installer's hook `event` for `harness`:
- * `<absolute path ending in /agentdesk> context --harness <id>` for the
- * session-start hook and `<absolute path ending in /agentdesk> hook <event>
- * --harness <id>` for a resume hook.
+ * `<absolute path ending in /<name>> context --harness <id>` for the
+ * session-start hook and `<absolute path ending in /<name>> hook <event>
+ * --harness <id>` for a resume hook, where `<name>` is one of the harness's
+ * owned executable names.
  */
 export function isInstallerCommand(
   command: string,
@@ -170,7 +187,8 @@ export function isInstallerCommand(
   const suffix = ` ${commandArguments(harness, event)}`;
   if (!command.endsWith(suffix)) return false;
   const path = shellUnquote(command.slice(0, -suffix.length));
-  return Boolean(path?.startsWith("/") && path.endsWith("/agentdesk"));
+  if (!path?.startsWith("/")) return false;
+  return OWNED_EXECUTABLE_NAMES[harness].some((name) => path.endsWith(`/${name}`));
 }
 
 interface HookDocument {

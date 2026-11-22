@@ -201,6 +201,35 @@ describe("hook command", () => {
     expect(isInstallerCommand("echo /opt/agentdesk context --harness codex", "codex")).toBe(false);
   });
 
+  // component-installer §Standing guidance and §Build and distribution: the
+  // hook runs the compiled binary (`agentdesk`) or the Node bundle
+  // (`agentdesk.mjs`). Antigravity owns both; the other harnesses keep their
+  // rule, `agentdesk` only.
+  it("recognizes the Node bundle's agentdesk.mjs for Antigravity alone", () => {
+    const owns = (command: string, id: Parameters<typeof isInstallerCommand>[1]) =>
+      isInstallerCommand(command, id);
+    expect(owns("/opt/agentdesk context --harness antigravity", "antigravity")).toBe(true);
+    expect(owns("/opt/dist/agentdesk.mjs context --harness antigravity", "antigravity")).toBe(true);
+    expect(owns("'/my dist/agentdesk.mjs' context --harness antigravity", "antigravity")).toBe(
+      true,
+    );
+    for (const path of [
+      "agentdesk.mjs",
+      "./agentdesk.mjs",
+      "/opt/agentdesk.js",
+      "/opt/agentdesk.mjs.bak",
+      "/opt/my-agentdesk.mjs",
+      "/opt/agentdesk-linux-x64",
+    ]) {
+      expect(owns(`${path} context --harness antigravity`, "antigravity"), path).toBe(false);
+    }
+    expect(owns("/opt/agentdesk.mjs context --harness cursor", "antigravity")).toBe(false);
+    for (const id of ["claude-code", "codex", "cursor"] as const) {
+      expect(owns(`/opt/agentdesk context --harness ${id}`, id)).toBe(true);
+      expect(owns(`/opt/dist/agentdesk.mjs context --harness ${id}`, id)).toBe(false);
+    }
+  });
+
   it("names the resume hook commands, quoted like the session-start hook", () => {
     expect(hookCommand("/home/me/.local/bin/agentdesk", "codex", "stop")).toBe(
       "/home/me/.local/bin/agentdesk hook stop --harness codex",
@@ -1134,6 +1163,68 @@ describe("Antigravity's named hook", () => {
       mine: { SessionStart: [{ command: "echo mine" }] },
     });
     expect(existsSync(statePath(h.ctx))).toBe(false);
+  });
+
+  // Review round 6: a Node bundle keeps the filename scripts/build.mjs gives
+  // it, agentdesk.mjs, so the hook it writes names that file.
+  it("owns the hook a Node bundle named agentdesk.mjs writes, across re-run, status, and uninstall", async () => {
+    const { sandbox, file, mcp, skill, clock, gateway } = agySetup(json(OTHER_HOOKS));
+    const executable = join(sandbox.root, "dist", "agentdesk.mjs");
+    const run = (argv: string[]) => {
+      const h = makeContext(sandbox, { gateway, clock, executable });
+      return h.run(argv).then((code) => ({ code, h }));
+    };
+
+    const first = await run(["install", "--yes"]);
+    expect(first.code).toBe(0);
+    const written = json({ ...OTHER_HOOKS, agentdesk: owned(sandbox, executable) });
+    expect(read(file)).toBe(written);
+    expect(read(file)).toContain(`${executable} context --harness antigravity`);
+
+    const rerun = await run(["install", "--yes"]);
+    expect(rerun.code).toBe(0);
+    expect(rerun.h.out).toContain(`Antigravity: session-start hook unchanged in ${file}`);
+    expect(read(file)).toBe(written);
+    expect(gateway.startRequests()).toHaveLength(1);
+
+    const refresh = await run(["skill", "install"]);
+    expect(refresh.code).toBe(0);
+    expect(read(file)).toBe(written);
+
+    const status = await run(["status"]);
+    expect(status.code).toBe(0);
+    expect(status.h.out.find((l) => l.startsWith("Antigravity:"))).toMatch(
+      new RegExp(`; session-start hook in ${file}$`),
+    );
+
+    const removal = await run(["uninstall"]);
+    expect(removal.code).toBe(0);
+    expect(removal.h.out).toContain(`Antigravity: removing the session-start hook from ${file}`);
+    expect(read(file)).toBe(json(OTHER_HOOKS));
+    expect(existsSync(join(skill, ".."))).toBe(false);
+    expect(readJson(mcp)).toEqual({ mcpServers: {} });
+    expect(existsSync(statePath(removal.h.ctx))).toBe(false);
+  });
+
+  it("still refuses a foreign handler that names another bundle file", async () => {
+    const { sandbox, file, clock, gateway } = agySetup();
+    const text = json({
+      agentdesk: {
+        SessionStart: [
+          {
+            type: "command",
+            command: "/opt/agentdesk.js context --harness antigravity",
+            timeout: 30,
+          },
+        ],
+      },
+    });
+    write(file, text);
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes"])).toBe(1);
+    expect(h.err.join("\n")).toContain("is not exactly the handler AgentDesk writes");
+    expect(gateway.requests).toEqual([]);
+    expect(read(file)).toBe(text);
   });
 
   it("plans the removal of the agentdesk object only", () => {
