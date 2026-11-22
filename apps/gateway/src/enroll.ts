@@ -102,7 +102,7 @@ async function enroll(request: Request, env: Env, svc: ServiceCall): Promise<Res
     return failure(
       400,
       "invalid",
-      "harnesses must be a non-empty list of distinct values from claude-code, codex, and cursor",
+      "harnesses must be a non-empty list of distinct values from claude-code, codex, cursor, and antigravity",
       "harnesses",
     );
   }

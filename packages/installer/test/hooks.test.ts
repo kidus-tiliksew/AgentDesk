@@ -879,3 +879,273 @@ describe("removal plan", () => {
     });
   });
 });
+
+// component-installer §Standing guidance; DEC-24(1)-(2): Antigravity's
+// hooks.json holds named hook objects at its top level, and the installer owns
+// the object `agentdesk`, whose SessionStart holds one handler with a 30-second
+// timeout. Antigravity runs the hook with no trust step.
+describe("Antigravity's named hook", () => {
+  const OTHER_HOOKS = {
+    "lint-on-stop": { Stop: [{ type: "command", command: "echo lint", timeout: 5 }] },
+    audit: { PreToolUse: [{ type: "command", command: "echo audit" }] },
+  };
+  /**
+   * Instruction files no run may change (AC-10.4), Antigravity's own
+   * GEMINI.md among them; none sits under ~/.codex, which would detect Codex.
+   */
+  const AGY_INSTRUCTIONS = {
+    ".claude/CLAUDE.md": "# My Claude rules\n",
+    "AGENTS.md": "# Home agents\n",
+    ".gemini/GEMINI.md": "# My Gemini rules\n",
+  };
+
+  function agySetup(hooks?: string) {
+    const sandbox = makeSandbox();
+    stubExecutable(sandbox, "agy");
+    const config = join(sandbox.home, ".gemini", "config");
+    const file = join(config, "hooks.json");
+    const mcp = join(config, "mcp_config.json");
+    const skill = join(config, "skills", "agentdesk", "SKILL.md");
+    if (hooks !== undefined) write(file, hooks);
+    for (const [path, content] of Object.entries(AGY_INSTRUCTIONS))
+      write(join(sandbox.home, path), content);
+    const clock = new FakeClock();
+    return { sandbox, file, mcp, skill, clock, gateway: new FakeGateway(clock) };
+  }
+
+  function owned(sandbox: Sandbox, executable = sandbox.executable) {
+    return {
+      SessionStart: [
+        { type: "command", command: commandFor(sandbox, "antigravity", executable), timeout: 30 },
+      ],
+    };
+  }
+
+  function instructionsUnchanged(sandbox: Sandbox) {
+    for (const [path, content] of Object.entries(AGY_INSTRUCTIONS)) {
+      expect(read(join(sandbox.home, path))).toBe(content);
+    }
+  }
+
+  it("writes the agentdesk object beside other named hooks and keeps them", async () => {
+    const { sandbox, file, clock, gateway } = agySetup(json(OTHER_HOOKS));
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes"])).toBe(0);
+    expect(read(file)).toBe(json({ ...OTHER_HOOKS, agentdesk: owned(sandbox) }));
+    expect(read(`${file}.agentdesk-backup`)).toBe(json(OTHER_HOOKS));
+    expect(h.out).toContain(`Antigravity: session-start hook written to ${file}`);
+    // No trust step: nothing names /hooks or trust for Antigravity.
+    expect(h.output()).not.toMatch(/Antigravity:.*trust/);
+    expect(read(file)).not.toContain(gateway.tokenFor("antigravity"));
+    const state = readJson(statePath(h.ctx)).harnesses as Record<string, Record<string, string>>;
+    expect(state.antigravity?.hookPath).toBe(file);
+    expect(Object.keys(state.antigravity ?? {})).not.toContain("codexTrustKey");
+    instructionsUnchanged(sandbox);
+  });
+
+  it.each([
+    ["is absent", undefined],
+    ["is empty", ""],
+  ])("creates the agentdesk object when hooks.json %s", async (_label, text) => {
+    const { sandbox, file, clock, gateway } = agySetup(text);
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    expect(read(file)).toBe(json({ agentdesk: owned(sandbox) }));
+  });
+
+  it("writes the exact command with a quoted executable path", async () => {
+    const { sandbox, file, clock, gateway } = agySetup();
+    const executable = join(sandbox.root, "my apps", "agentdesk");
+    const h = makeContext(sandbox, { gateway, clock, executable });
+    expect(await h.run(["install", "--yes"])).toBe(0);
+    const command = `'${executable}' context --harness antigravity`;
+    expect(readJson(file)).toEqual({
+      agentdesk: { SessionStart: [{ type: "command", command, timeout: 30 }] },
+    });
+    expect(isInstallerCommand(command, "antigravity")).toBe(true);
+    expect(isInstallerCommand(command, "cursor")).toBe(false);
+  });
+
+  it("reports the hook and skill unchanged on a re-run and leaves the files untouched", async () => {
+    const { sandbox, file, mcp, skill, clock, gateway } = agySetup(json(OTHER_HOOKS));
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const before = { hooks: read(file), mcp: read(mcp), skill: read(skill) };
+    write(`${file}.agentdesk-backup`, "earlier backup\n");
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes"])).toBe(0);
+    expect(h.out).toContain("Antigravity: connection works; keeping it.");
+    expect(h.out).toContain(`Antigravity: session-start hook unchanged in ${file}`);
+    expect(h.out).toContain(`Antigravity: skill 1.0.0 unchanged in ${join(skill, "..")}`);
+    expect(gateway.startRequests()).toHaveLength(1);
+    expect({ hooks: read(file), mcp: read(mcp), skill: read(skill) }).toEqual(before);
+    expect(read(`${file}.agentdesk-backup`)).toBe("earlier backup\n");
+  });
+
+  it("replaces an older command in place on a re-run and on skill install, with no duplicate", async () => {
+    const { sandbox, file, clock, gateway } = agySetup();
+    const older = "/opt/old/agentdesk";
+    write(
+      file,
+      json({ first: OTHER_HOOKS.audit, agentdesk: owned(sandbox, older), last: OTHER_HOOKS.audit }),
+    );
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes"])).toBe(0);
+    expect(h.out).toContain(`Antigravity: session-start hook written to ${file}`);
+    const expected = json({
+      first: OTHER_HOOKS.audit,
+      agentdesk: owned(sandbox),
+      last: OTHER_HOOKS.audit,
+    });
+    expect(read(file)).toBe(expected);
+
+    // skill install rewrites it again with the running executable.
+    write(
+      file,
+      json({ first: OTHER_HOOKS.audit, agentdesk: owned(sandbox, older), last: OTHER_HOOKS.audit }),
+    );
+    const skill = makeContext(sandbox, { gateway, clock });
+    expect(await skill.run(["skill", "install"])).toBe(0);
+    expect(read(file)).toBe(expected);
+  });
+
+  const agyRefusals: [string, string][] = [
+    ["malformed JSON", "{ not json"],
+    ["a top-level list", "[]\n"],
+    ["an agentdesk value that is not an object", '{"agentdesk": []}\n'],
+    ["an agentdesk value of null", '{"agentdesk": null}\n'],
+    ["an agentdesk event value that is not a list", '{"agentdesk": {"SessionStart": {}}}\n'],
+    [
+      "a foreign handler in agentdesk's SessionStart",
+      json({ agentdesk: { SessionStart: [{ type: "command", command: "echo mine" }] } }),
+    ],
+    [
+      "a foreign handler under another event in agentdesk",
+      json({ agentdesk: { Stop: [{ type: "command", command: "echo mine" }] } }),
+    ],
+    [
+      "another harness's command in agentdesk",
+      json({
+        agentdesk: {
+          SessionStart: [
+            { type: "command", command: "/usr/bin/agentdesk context --harness cursor" },
+          ],
+        },
+      }),
+    ],
+    ["a handler that is not an object", '{"agentdesk": {"SessionStart": ["echo"]}}\n'],
+  ];
+
+  it.each(agyRefusals)("refuses %s before sign-in and changes nothing", async (_name, text) => {
+    const { sandbox, file, mcp, skill, clock, gateway } = agySetup(text);
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes"])).toBe(1);
+    expect(h.err.join("\n")).toContain(file);
+    expect(gateway.requests).toEqual([]);
+    expect(read(file)).toBe(text);
+    expect(existsSync(`${file}.agentdesk-backup`)).toBe(false);
+    expect(existsSync(mcp)).toBe(false);
+    expect(existsSync(statePath(h.ctx))).toBe(false);
+
+    const again = makeContext(sandbox, { gateway, clock });
+    expect(await again.run(["skill", "install"])).toBe(1);
+    expect(read(file)).toBe(text);
+    expect(existsSync(skill)).toBe(false);
+  });
+
+  it("names the foreign handler's fix in the refusal", async () => {
+    const text = json({ agentdesk: { SessionStart: [{ type: "command", command: "echo mine" }] } });
+    const { sandbox, file, clock, gateway } = agySetup(text);
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes"])).toBe(1);
+    expect(h.err.join("\n")).toContain(
+      `${file} has a handler in its agentdesk hook that AgentDesk did not write; it was not changed.`,
+    );
+  });
+
+  it("reports the hook in status with no trust, and a hook removed by hand", async () => {
+    const { sandbox, file, clock, gateway } = agySetup(json(OTHER_HOOKS));
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["status"])).toBe(0);
+    const skillDir = join(sandbox.home, ".gemini", "config", "skills", "agentdesk");
+    expect(h.out.find((l) => l.startsWith("Antigravity:"))).toMatch(
+      new RegExp(
+        `^Antigravity: connected; skill \\S+ at ${skillDir}; session-start hook in ${file}$`,
+      ),
+    );
+
+    write(file, json(OTHER_HOOKS));
+    const after = makeContext(sandbox, { gateway, clock });
+    expect(await after.run(["status"])).toBe(0);
+    expect(after.out.find((l) => l.startsWith("Antigravity:"))).toMatch(
+      new RegExp(`; no AgentDesk session-start hook in ${file}$`),
+    );
+  });
+
+  it("uninstall removes the agentdesk object whole and keeps other named hooks", async () => {
+    const { sandbox, file, mcp, skill, clock, gateway } = agySetup(json(OTHER_HOOKS));
+    write(mcp, json({ mcpServers: { linear: { serverUrl: "https://linear" } } }));
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const token = gateway.tokenFor("antigravity");
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["uninstall"])).toBe(0);
+    expect(h.out).toContain(`Antigravity: removing the session-start hook from ${file}`);
+    expect(gateway.revoked).toEqual([token]);
+    expect(read(file)).toBe(json(OTHER_HOOKS));
+    expect(readJson(mcp)).toEqual({ mcpServers: { linear: { serverUrl: "https://linear" } } });
+    expect(existsSync(join(skill, ".."))).toBe(false);
+    expect(existsSync(statePath(h.ctx))).toBe(false);
+    instructionsUnchanged(sandbox);
+  });
+
+  it("uninstall removes an agentdesk object that holds no handler", async () => {
+    const { sandbox, file, clock, gateway } = agySetup(json(OTHER_HOOKS));
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    write(file, json({ ...OTHER_HOOKS, agentdesk: { SessionStart: [] } }));
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["uninstall"])).toBe(0);
+    expect(h.out).toContain(`Antigravity: removing the AgentDesk hooks from ${file}`);
+    expect(read(file)).toBe(json(OTHER_HOOKS));
+  });
+
+  it("refuses to remove an agentdesk object that gained a foreign handler, and keeps the record", async () => {
+    const { sandbox, file, clock, gateway } = agySetup(json(OTHER_HOOKS));
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const ownedNow = owned(sandbox);
+    const tampered = json({
+      ...OTHER_HOOKS,
+      agentdesk: {
+        SessionStart: [...ownedNow.SessionStart, { type: "command", command: "echo mine" }],
+      },
+    });
+    write(file, tampered);
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["uninstall"])).toBe(1);
+    expect(h.err.join("\n")).toContain(
+      `Antigravity: its hooks were not removed: ${file} has a handler in its agentdesk hook that AgentDesk did not write`,
+    );
+    expect(read(file)).toBe(tampered);
+    const state = readJson(statePath(h.ctx)).harnesses as Record<string, Record<string, string>>;
+    expect(state.antigravity?.hookPath).toBe(file);
+    // Once the handler moves to its own named hook, a later uninstall finishes.
+    write(file, json({ ...OTHER_HOOKS, mine: { SessionStart: [{ command: "echo mine" }] } }));
+    expect(await makeContext(sandbox, { gateway, clock }).run(["uninstall"])).toBe(0);
+    expect(readJson(file)).toEqual({
+      ...OTHER_HOOKS,
+      mine: { SessionStart: [{ command: "echo mine" }] },
+    });
+    expect(existsSync(statePath(h.ctx))).toBe(false);
+  });
+
+  it("plans the removal of the agentdesk object only", () => {
+    const { sandbox, file } = agySetup();
+    write(file, json({ ...OTHER_HOOKS, agentdesk: owned(sandbox) }));
+    const { ctx } = makeContext(sandbox);
+    const harness = harnessById(ctx, "antigravity");
+    const removal = planHookRemoval(ctx, harness, hookEvents(harness));
+    expect(removal?.removed).toEqual(["session-start"]);
+    expect(removal?.moved.size).toBe(0);
+    expect(removal?.text).toBe(json(OTHER_HOOKS));
+    write(file, json(OTHER_HOOKS));
+    expect(planHookRemoval(ctx, harness, hookEvents(harness))).toBeUndefined();
+  });
+});

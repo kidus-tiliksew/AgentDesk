@@ -33,10 +33,10 @@ export const USAGE = `Usage: agentdesk <command>
 
 Commands:
   install [--server <url>] [--only <harnesses>] [--yes] [--key-file <path>]
-                     Detect Claude Code, Codex, and Cursor, sign each in with a
-                     short code approved in the AgentDesk app, or with an
-                     install key, and install the MCP connection, the skill,
-                     the session-start hook, and the resume hooks.
+                     Detect Claude Code, Codex, Cursor, and Antigravity, sign
+                     each in with a short code approved in the AgentDesk app,
+                     or with an install key, and install the MCP connection,
+                     the skill, the session-start hook, and the resume hooks.
   skill install      Install or update only the skill, the session-start hook,
                      and the resume hooks for every detected harness.
   context --harness <id>

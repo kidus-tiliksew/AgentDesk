@@ -2,7 +2,7 @@
   "name": "agentdesk",
   "version": "0.1.7",
   "private": true,
-  "description": "The agentdesk command: connects Claude Code, Codex, and Cursor to AgentDesk and installs the skill and the session-start guidance. Distributed as release binaries through install.sh.",
+  "description": "The agentdesk command: connects Claude Code, Codex, Cursor, and Antigravity to AgentDesk and installs the skill and the session-start guidance. Distributed as release binaries through install.sh.",
   "license": "MIT",
   "type": "module",
   "repository": {

@@ -65,6 +65,25 @@ describe("harness detection (AC-9.1)", () => {
     expect(detected(sandbox)).toEqual([{ id: "cursor", via: join(sandbox.home, ".cursor") }]);
   });
 
+  it("detects Antigravity by the agy executable", () => {
+    const sandbox = makeSandbox();
+    stubExecutable(sandbox, "agy");
+    expect(detected(sandbox)).toEqual([{ id: "antigravity", via: "agy on PATH" }]);
+  });
+
+  it("detects Antigravity by ~/.gemini/antigravity-cli", () => {
+    const sandbox = makeSandbox();
+    const path = join(sandbox.home, ".gemini", "antigravity-cli");
+    mkdirSync(path, { recursive: true });
+    expect(detected(sandbox)).toEqual([{ id: "antigravity", via: path }]);
+  });
+
+  it("does not detect Antigravity by ~/.gemini/config alone", () => {
+    const sandbox = makeSandbox();
+    mkdirSync(join(sandbox.home, ".gemini", "config"), { recursive: true });
+    expect(detected(sandbox)).toEqual([]);
+  });
+
   it("ignores a file on PATH that is not executable", () => {
     const sandbox = makeSandbox();
     const path = join(sandbox.bin, "codex");
@@ -73,12 +92,18 @@ describe("harness detection (AC-9.1)", () => {
     expect(detected(sandbox)).toEqual([]);
   });
 
-  it("detects all three harnesses together in registry order", () => {
+  it("detects all four harnesses together in registry order", () => {
     const sandbox = makeSandbox();
+    stubExecutable(sandbox, "agy");
     stubExecutable(sandbox, "cursor-agent");
     stubExecutable(sandbox, "codex");
     stubExecutable(sandbox, "claude");
-    expect(detected(sandbox).map((d) => d.id)).toEqual(["claude-code", "codex", "cursor"]);
+    expect(detected(sandbox).map((d) => d.id)).toEqual([
+      "claude-code",
+      "codex",
+      "cursor",
+      "antigravity",
+    ]);
   });
 
   it("fails install when no harness is detected", async () => {

@@ -124,6 +124,15 @@ function isDanglingLink(path: string): boolean {
   }
 }
 
+/** The text of the folder's SKILL.md, or undefined when it cannot be read. */
+export function skillFileText(dir: string): string | undefined {
+  try {
+    return readFileSync(join(dir, SKILL_FILE), "utf8");
+  } catch {
+    return undefined;
+  }
+}
+
 export function installedSkillVersion(dir: string): string | undefined {
   try {
     return skillVersionOf(readFileSync(join(dir, SKILL_FILE), "utf8"));

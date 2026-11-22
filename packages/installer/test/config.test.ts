@@ -292,6 +292,96 @@ describe("MCP entries written by install", () => {
     expect(existsSync(`${file}.agentdesk-backup`)).toBe(false);
   });
 
+  // component-installer §Harnesses; DEC-24(1): `agy` creates mcp_config.json
+  // empty, and an empty file counts as an object with no entries.
+  it.each([
+    ["an empty", ""],
+    ["a whitespace-only", "\n  \n"],
+  ])("writes the Antigravity entry into %s mcp_config.json", async (_label, text) => {
+    const sandbox = makeSandbox();
+    stubExecutable(sandbox, "agy");
+    const file = join(sandbox.home, ".gemini", "config", "mcp_config.json");
+    write(file, text);
+    const h = makeContext(sandbox);
+    expect(await h.run(["install", "--yes"])).toBe(0);
+    const token = h.gateway.tokenFor("antigravity");
+    expect(read(file)).toBe(
+      `${JSON.stringify(
+        {
+          mcpServers: {
+            agentdesk: { url: `${SERVER}/mcp`, headers: { Authorization: `Bearer ${token}` } },
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    // The backup holds the file as `agy` left it, with no token from the run.
+    expect(read(`${file}.agentdesk-backup`)).toBe(text);
+    expect(writingInvocations(sandbox)).toEqual([]);
+    expect(h.output()).not.toContain(token);
+  });
+
+  it("merges a populated Antigravity mcp_config.json and keeps unrelated servers", async () => {
+    const sandbox = makeSandbox();
+    stubExecutable(sandbox, "agy");
+    const file = join(sandbox.home, ".gemini", "config", "mcp_config.json");
+    const before = JSON.stringify(
+      { theme: "dark", mcpServers: { linear: { serverUrl: "https://linear" } } },
+      null,
+      4,
+    );
+    write(file, before);
+    const h = makeContext(sandbox);
+    expect(await h.run(["install", "--yes"])).toBe(0);
+    const token = h.gateway.tokenFor("antigravity");
+    expect(readJson(file)).toEqual({
+      theme: "dark",
+      mcpServers: {
+        linear: { serverUrl: "https://linear" },
+        agentdesk: { url: `${SERVER}/mcp`, headers: { Authorization: `Bearer ${token}` } },
+      },
+    });
+    expect(read(file)).toContain('\n    "theme"');
+    expect(read(`${file}.agentdesk-backup`)).toBe(before);
+  });
+
+  it.each([
+    ["invalid JSON", "{ broken", "is not valid JSON"],
+    ["a JSON list", "[]", "does not hold a JSON object"],
+    ["an mcpServers list", '{"mcpServers": []}', "mcpServers value that is not an object"],
+  ])(
+    "refuses an Antigravity mcp_config.json holding %s before sign-in",
+    async (_label, text, why) => {
+      const sandbox = makeSandbox();
+      stubExecutable(sandbox, "agy");
+      const file = join(sandbox.home, ".gemini", "config", "mcp_config.json");
+      write(file, text);
+      const h = makeContext(sandbox);
+      expect(await h.run(["install", "--yes"])).toBe(1);
+      expect(read(file)).toBe(text);
+      expect(h.err.join("\n")).toContain(why);
+      expect(h.gateway.requests).toEqual([]);
+      expect(existsSync(`${file}.agentdesk-backup`)).toBe(false);
+      expect(existsSync(join(sandbox.home, ".gemini", "config", "hooks.json"))).toBe(false);
+    },
+  );
+
+  it("creates a new Antigravity mcp_config.json with mode 0600 and no backup", async () => {
+    const sandbox = makeSandbox();
+    stubExecutable(sandbox, "agy");
+    const h = makeContext(sandbox);
+    expect(await h.run(["install", "--yes"])).toBe(0);
+    const file = join(sandbox.home, ".gemini", "config", "mcp_config.json");
+    expect(statSync(file).mode & 0o777).toBe(0o600);
+    expect(existsSync(`${file}.agentdesk-backup`)).toBe(false);
+    // The token sits only in the MCP entry: not in the hook, state, or output.
+    const token = h.gateway.tokenFor("antigravity");
+    const holding = allFiles(sandbox.root).filter((f) => readFileSync(f, "utf8").includes(token));
+    expect(holding).toEqual([file]);
+    expect(h.output()).not.toContain(token);
+  });
+
   it("creates new configuration files with mode 0600 and no backup holds a token from the run", async () => {
     const sandbox = makeSandbox();
     stubExecutable(sandbox, "codex");

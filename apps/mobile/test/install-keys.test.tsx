@@ -134,11 +134,17 @@ describe("create form bounds", () => {
     expect(validateDraft(draft({ label: "a" }))).toMatchObject({ ok: true, args: { label: "a" } });
   });
 
-  test("at least one harness from Claude Code, Codex, and Cursor, in that order", () => {
+  test("at least one harness from Claude Code, Codex, Cursor, and Antigravity, in that order", () => {
     expect(errorsOf({ harnesses: [] })).toEqual({ harnesses: MESSAGES.harnesses });
     expect(validateDraft(draft({ harnesses: ["cursor", "claude-code"] }))).toMatchObject({
       ok: true,
       args: { harnesses: ["claude-code", "cursor"] },
+    });
+    expect(
+      validateDraft(draft({ harnesses: ["antigravity", "cursor", "codex", "claude-code"] })),
+    ).toMatchObject({
+      ok: true,
+      args: { harnesses: ["claude-code", "codex", "cursor", "antigravity"] },
     });
   });
 
@@ -292,6 +298,30 @@ describe("creating an install key", () => {
       harnesses: ["claude-code", "codex"],
       expiresInDays: 90,
       machineLimit: 100,
+      ephemeral: false,
+    });
+  });
+
+  // req-install-keys AC-1.2: the form lists Antigravity after the other harnesses.
+  test("shows one checkbox per harness in list order and sends Antigravity when checked", async () => {
+    createInstallKey.mockResolvedValue({ installKeyId: "k_new", secret: SECRET });
+    await openInstallKeys();
+
+    expect(screen.getAllByRole("checkbox").map((box) => box.props.accessibilityLabel)).toEqual([
+      "Claude Code",
+      "Codex",
+      "Cursor",
+      "Antigravity",
+    ]);
+    type("Label", "Antigravity hosts");
+    check("Antigravity");
+    await pressCreate();
+
+    expect(createInstallKey).toHaveBeenCalledWith({
+      label: "Antigravity hosts",
+      harnesses: ["antigravity"],
+      expiresInDays: 30,
+      machineLimit: 10,
       ephemeral: false,
     });
   });

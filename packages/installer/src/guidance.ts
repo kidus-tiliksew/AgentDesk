@@ -52,8 +52,10 @@ export function isChildSession(env: Context["env"]): boolean {
 /**
  * `agentdesk context --harness <id>`: prints the standing guidance compiled
  * into the build, or the child guidance when `AGENTDESK_PARENT_SESSION` marks
- * a child session, as plain text for Claude Code and Codex and as
- * `{"additional_context": ...}` for Cursor. Besides its embedded inputs it
+ * a child session, as plain text for Claude Code and Codex, as
+ * `{"additional_context": ...}` for Cursor, and as
+ * `{"injectSteps": [{"systemMessage": {"systemMessage": ...}}]}` for
+ * Antigravity (DEC-24(2); AC-10.5). Besides its embedded inputs it
  * reads only that variable from the process environment: it reads no state
  * file or other persisted configuration, writes no file, and makes no network
  * call.
@@ -69,6 +71,8 @@ export function printContext(ctx: Context, harness: Harness): number {
   const text = isChildSession(ctx.env) ? CHILD_GUIDANCE : guidanceFor(ctx.guidance, harness);
   if (harness.hookFormat === "cursor") {
     ctx.io.out(JSON.stringify({ additional_context: text }));
+  } else if (harness.hookFormat === "named-hook") {
+    ctx.io.out(JSON.stringify({ injectSteps: [{ systemMessage: { systemMessage: text } }] }));
   } else {
     ctx.io.out(text.replace(/\n$/, ""));
   }

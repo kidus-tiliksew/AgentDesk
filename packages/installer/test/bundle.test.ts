@@ -136,12 +136,16 @@ describe("bundle dist/agentdesk.mjs", () => {
     expect(plain.stdout).toBe(read(GUIDANCE_FILE));
     const cursor = await runBundle(["context", "--harness", "cursor"], env);
     expect(JSON.parse(cursor.stdout)).toEqual({ additional_context: read(GUIDANCE_FILE) });
+    const antigravity = await runBundle(["context", "--harness", "antigravity"], env);
+    expect(JSON.parse(antigravity.stdout)).toEqual({
+      injectSteps: [{ systemMessage: { systemMessage: read(GUIDANCE_FILE) } }],
+    });
     expect(existsSync(join(sandbox.root, "no-home"))).toBe(false);
   });
 
   // component-installer §`agentdesk context` (AC-10.5): the built bundle reads
   // AGENTDESK_PARENT_SESSION from an explicit environment and an isolated HOME.
-  it.each(["claude-code", "codex", "cursor"])(
+  it.each(["claude-code", "codex", "cursor", "antigravity"])(
     "prints the standing or child guidance from context for %s by AGENTDESK_PARENT_SESSION",
     async (id) => {
       const home = join(sandbox.root, `child-home-${id}`);
@@ -162,6 +166,10 @@ describe("bundle dist/agentdesk.mjs", () => {
         expect(result.stderr).toBe("");
         if (id === "cursor") {
           expect(result.stdout).toBe(`${JSON.stringify({ additional_context: text })}\n`);
+        } else if (id === "antigravity") {
+          expect(result.stdout).toBe(
+            `${JSON.stringify({ injectSteps: [{ systemMessage: { systemMessage: text } }] })}\n`,
+          );
         } else {
           expect(result.stdout).toBe(text === standing ? standing : `${text}\n`);
         }

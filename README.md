@@ -23,7 +23,7 @@ On macOS or Linux:
 curl -fsSL https://agentdesk.kidus.sh/install | sh
 ```
 
-The script downloads and verifies the `agentdesk` binary, then sets up whichever of Claude Code, Codex, and Cursor it finds, for every repository on the machine. To sign in, it shows a short code that you approve in the AgentDesk app, so it works over SSH too. When it finishes, start a new agent session.
+The script downloads and verifies the `agentdesk` binary, then sets up whichever of Claude Code, Codex, Cursor, and Antigravity it finds, for every repository on the machine. To sign in, it shows a short code that you approve in the AgentDesk app, so it works over SSH too. When it finishes, start a new agent session.
 
 To set up only some of them, pass `--only`:
 

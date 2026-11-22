@@ -106,6 +106,42 @@ describe("POST /device/enroll", () => {
     expectNoSecret();
   });
 
+  // req-install-keys AC-1.2: Antigravity is one of the harnesses a key connects.
+  it("sends identity every harness id, Antigravity included", async () => {
+    const convex = enrollConvex();
+    const harnesses = ["antigravity", "cursor", "codex", "claude-code"];
+
+    const response = await handle(
+      enrollRequest({ ...ENROLL, harnesses }),
+      withLimiter(),
+      convex.svc,
+    );
+
+    expect(response.status).toBe(200);
+    expect(convex.calls[0]?.body.harnesses).toEqual(harnesses);
+  });
+
+  it("names every harness id when it refuses the harnesses", async () => {
+    const convex = enrollConvex();
+
+    const response = await handle(
+      enrollRequest({ ...ENROLL, harnesses: ["agy"] }),
+      withLimiter(),
+      convex.svc,
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "invalid",
+        message:
+          "harnesses must be a non-empty list of distinct values from claude-code, codex, cursor, and antigravity",
+        field: "harnesses",
+      },
+    });
+    expect(convex.calls).toEqual([]);
+  });
+
   it.each([
     [{ status: "unknown" }],
     [{ status: "revoked" }],

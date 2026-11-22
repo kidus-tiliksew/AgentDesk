@@ -6,21 +6,27 @@ import type { Context } from "./context.js";
  * Harness ids shared with `/device/start` and the identity vocabulary
  * (component-identity §Harnesses).
  */
-export const HARNESS_IDS = ["claude-code", "codex", "cursor"] as const;
+export const HARNESS_IDS = ["claude-code", "codex", "cursor", "antigravity"] as const;
 export type HarnessId = (typeof HARNESS_IDS)[number];
 
 export function isHarnessId(value: string): value is HarnessId {
   return (HARNESS_IDS as readonly string[]).includes(value);
 }
 
-export type ConfigFormat = "claude" | "codex-toml" | "cursor-json";
+/**
+ * Shape of the MCP entry: the Claude Code CLI or its JSON, the Codex TOML
+ * table, or `mcpServers.agentdesk` `{url, headers}` in a JSON file for Cursor
+ * and Antigravity (component-installer §Harnesses).
+ */
+export type ConfigFormat = "claude" | "codex-toml" | "url-headers-json";
 
 /**
  * Shape of the session-start hook file: `hooks.SessionStart` groups for
- * Claude Code and Codex, `hooks.sessionStart` entries for Cursor
+ * Claude Code and Codex, `hooks.sessionStart` entries for Cursor, and the
+ * top-level named hook object `agentdesk` for Antigravity
  * (component-installer §Standing guidance).
  */
-export type HookFormat = "session-start-groups" | "cursor";
+export type HookFormat = "session-start-groups" | "cursor" | "named-hook";
 
 export interface Harness {
   id: HarnessId;
@@ -83,13 +89,28 @@ export const HARNESSES: readonly Harness[] = [
     displayName: "Cursor",
     supportsSkills: true,
     executables: ["cursor-agent", "agent", "cursor"],
-    configFormat: "cursor-json",
+    configFormat: "url-headers-json",
     detectionPath: (ctx) => join(ctx.home, ".cursor"),
     configPath: (ctx) => join(ctx.home, ".cursor", "mcp.json"),
     skillDir: (ctx) => join(ctx.home, ".cursor", "skills", "agentdesk"),
     skillAnchor: (ctx) => ctx.home,
     hookFormat: "cursor",
     hookPath: (ctx) => join(ctx.home, ".cursor", "hooks.json"),
+  },
+  {
+    // DEC-24(1): only the user-level configuration under ~/.gemini/config;
+    // ~/.gemini/antigravity-cli serves detection alone.
+    id: "antigravity",
+    displayName: "Antigravity",
+    supportsSkills: true,
+    executables: ["agy"],
+    configFormat: "url-headers-json",
+    detectionPath: (ctx) => join(ctx.home, ".gemini", "antigravity-cli"),
+    configPath: (ctx) => join(ctx.home, ".gemini", "config", "mcp_config.json"),
+    skillDir: (ctx) => join(ctx.home, ".gemini", "config", "skills", "agentdesk"),
+    skillAnchor: (ctx) => ctx.home,
+    hookFormat: "named-hook",
+    hookPath: (ctx) => join(ctx.home, ".gemini", "config", "hooks.json"),
   },
 ];
 

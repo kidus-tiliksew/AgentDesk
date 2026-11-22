@@ -7,6 +7,7 @@ export const HARNESSES = [
   { id: "claude-code", name: "Claude Code" },
   { id: "codex", name: "Codex" },
   { id: "cursor", name: "Cursor" },
+  { id: "antigravity", name: "Antigravity" },
 ] as const;
 
 export type HarnessId = (typeof HARNESSES)[number]["id"];

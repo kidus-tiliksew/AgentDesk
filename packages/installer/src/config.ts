@@ -597,7 +597,7 @@ export async function writeMcpEntry(
     case "codex-toml":
       setCodexEntry(file, server, token, backups);
       return;
-    case "cursor-json":
+    case "url-headers-json":
       setJsonMcpServer(
         file,
         { url: mcpUrl(server), headers: { Authorization: bearer(token) } },
@@ -659,7 +659,7 @@ export async function removeMcpEntry(
     }
     case "codex-toml":
       return removeCodexEntry(file, backups);
-    case "cursor-json":
+    case "url-headers-json":
       return removeJsonMcpServer(file, backups);
   }
 }

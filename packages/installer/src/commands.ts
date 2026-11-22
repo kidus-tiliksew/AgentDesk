@@ -52,6 +52,7 @@ import {
   installedSkillVersion,
   planSkills,
   removeSkillDir,
+  skillFileText,
   writeSkill,
 } from "./skill.js";
 import {
@@ -178,10 +179,17 @@ function installSkills(ctx: Context, harnesses: readonly Harness[], state: State
     const record: HarnessRecord = state.harnesses[harness.id] ?? {};
     if (plan.dir) {
       try {
+        // A re-run names Antigravity's skill unchanged when its bytes match.
+        const unchanged =
+          harness.hookFormat === "named-hook" && skillFileText(plan.dir) === ctx.skill.content;
         record.skillRealPath = writeSkill(plan.dir, ctx.skill.content);
         record.skillPath = plan.dir;
         record.skillVersion = ctx.skill.version;
-        ctx.io.out(`${harness.displayName}: skill ${ctx.skill.version} written to ${plan.dir}`);
+        ctx.io.out(
+          unchanged
+            ? `${harness.displayName}: skill ${ctx.skill.version} unchanged in ${plan.dir}`
+            : `${harness.displayName}: skill ${ctx.skill.version} written to ${plan.dir}`,
+        );
       } catch (error) {
         failures.push(`${harness.displayName}: the skill was not written: ${message(error)}`);
       }
@@ -300,17 +308,21 @@ async function installGuidance(
     const commands = new Map(
       events.map((event) => [event.id, currentHookCommand(ctx, harness.id, event.id)]),
     );
+    let changed: boolean;
     try {
-      writeHooks(ctx, harness, (event) => commands.get(event.id) as string, backups);
+      changed = writeHooks(ctx, harness, (event) => commands.get(event.id) as string, backups);
     } catch (error) {
       failures.push(
         `${harness.displayName}: its hooks in ${file} were not written: ${message(error)}`,
       );
       continue;
     }
+    // A re-run names Antigravity's hook unchanged when its bytes match; the
+    // other harnesses keep their messages.
+    const verb = !changed && harness.hookFormat === "named-hook" ? "unchanged in" : "written to";
     for (const event of events) {
       record[HOOK_PATH_FIELDS[event.id]] = file;
-      ctx.io.out(`${harness.displayName}: ${event.label} written to ${file}`);
+      ctx.io.out(`${harness.displayName}: ${event.label} ${verb} ${file}`);
     }
     if (harness.id === "codex") {
       failures.push(...(await trustCodexHooks(ctx, harness, record, events, commands, backups)));
@@ -386,6 +398,10 @@ async function removeGuidance(
       if (removal.removed.includes(event.id)) {
         ctx.io.out(`${harness.displayName}: removing the ${event.label} from ${file}`);
       }
+    }
+    if (removal.removed.length === 0) {
+      // An Antigravity `agentdesk` object that holds no handler goes too.
+      ctx.io.out(`${harness.displayName}: removing the AgentDesk hooks from ${file}`);
     }
     backups.backupOnce(file);
     writeFileAtomic(file, removal.text);
@@ -505,7 +521,7 @@ async function installWith(
   const detected = detectHarnesses(ctx);
   if (detected.length === 0) {
     throw new InstallerError(
-      "No supported harness was found. Install Claude Code, Codex, or Cursor first.",
+      "No supported harness was found. Install Claude Code, Codex, Cursor, or Antigravity first.",
     );
   }
   const selected = await select(ctx, detected, options);
@@ -750,7 +766,7 @@ export async function skillInstall(ctx: Context): Promise<number> {
   const detected = detectHarnesses(ctx);
   if (detected.length === 0) {
     throw new InstallerError(
-      "No supported harness was found. Install Claude Code, Codex, or Cursor first.",
+      "No supported harness was found. Install Claude Code, Codex, Cursor, or Antigravity first.",
     );
   }
   const harnesses = detected.map((d) => d.harness);

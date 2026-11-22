@@ -13,6 +13,7 @@ import type { Harness, HarnessId } from "./harnesses.js";
 // component-installer §Standing guidance and §Resume hooks: each harness's
 // session-start hook runs `<executable> context --harness <id>`, and the
 // Codex and Cursor resume hooks run `<executable> hook <event> --harness <id>`.
+// Antigravity's hooks live in the named hook object `agentdesk` (DEC-24(1)).
 // No hook holds a token.
 
 /**
@@ -26,6 +27,8 @@ const EVENTS_BY_HARNESS: Readonly<Record<HarnessId, readonly HookEventId[]>> = {
   "claude-code": ["session-start"],
   codex: ["session-start", "stop"],
   cursor: ["session-start", "after-mcp", "stop"],
+  // DEC-24(2): the session-start hook only; resume is separate work.
+  antigravity: ["session-start"],
 };
 
 /** The hook events the installer writes for the harness `id`. */
@@ -61,6 +64,18 @@ export function hookEvent(harness: Harness, id: HookEventId): HookEvent {
   const cursor = harness.hookFormat === "cursor";
   switch (id) {
     case "session-start":
+      // Antigravity runs the handler under a 30-second timeout and keys no
+      // hook, so it records no trust (DEC-24(2)).
+      if (harness.hookFormat === "named-hook") {
+        return {
+          id,
+          name: "SessionStart",
+          keyName: undefined,
+          label: "session-start hook",
+          fields: { timeout: 30 },
+          matcher: undefined,
+        };
+      }
       return {
         id,
         name: cursor ? "sessionStart" : "SessionStart",
@@ -239,6 +254,10 @@ function serialize(doc: HookDocument, changed: ReadonlyMap<HookEvent, unknown[]>
  * it, would be refused; used before sign-in and before any hook is written.
  */
 export function checkHookFile(ctx: Context, harness: Harness): void {
+  if (harness.hookFormat === "named-hook") {
+    readNamedHook(ctx, harness);
+    return;
+  }
   readEvents(ctx, harness, hookEvents(harness));
 }
 
@@ -299,6 +318,7 @@ export function writeHooks(
   commandFor: (event: HookEvent) => string,
   backups: BackupRegistry,
 ): boolean {
+  if (harness.hookFormat === "named-hook") return writeNamedHook(ctx, harness, commandFor, backups);
   const { doc, arrays } = readEvents(ctx, harness, hookEvents(harness));
   const changed = new Map<HookEvent, unknown[]>();
   for (const [event, current] of arrays) {
@@ -327,6 +347,7 @@ export function findHooks(
   harness: Harness,
   events: readonly HookEvent[],
 ): Map<HookEventId, HookLookup> {
+  if (harness.hookFormat === "named-hook") return findNamedHooks(ctx, harness, events);
   const doc = readHookDocument(harness.hookPath(ctx), harness);
   const found = new Map<HookEventId, HookLookup>();
   for (const event of events) {
@@ -378,6 +399,7 @@ export function planHookRemoval(
   harness: Harness,
   events: readonly HookEvent[],
 ): HookRemoval | undefined {
+  if (harness.hookFormat === "named-hook") return planNamedHookRemoval(ctx, harness, events);
   const { doc, arrays } = readEvents(ctx, harness, events);
   if (doc.text === undefined) return undefined;
   const moved = new Map<string, string>();
@@ -423,4 +445,143 @@ export function planHookRemoval(
   }
   if (removed.length === 0) return undefined;
   return { text: serialize(doc, changed), original: doc.text, removed, moved };
+}
+
+// ---------------------------------------------------------------------------
+// Antigravity: `~/.gemini/config/hooks.json` holds named hook objects at its
+// top level. The installer owns the object `agentdesk`, whose `SessionStart`
+// holds one handler (component-installer §Standing guidance; DEC-24(1)-(2)).
+
+/** The top-level key of the named hook object the installer owns. */
+export const NAMED_HOOK = "agentdesk";
+
+interface NamedHookDocument {
+  file: string;
+  /** The parsed file, or a new document when the file does not exist. */
+  data: JsonObject;
+  indent: string;
+  /** The file's text, or undefined when it does not exist. */
+  text: string | undefined;
+  /** The `agentdesk` object, or undefined when the file holds none. */
+  owned: JsonObject | undefined;
+}
+
+/**
+ * Reads the named hook file and checks the `agentdesk` object. The file is
+ * refused, and the caller changes nothing, when it cannot be read or parsed,
+ * when its top-level value or its `agentdesk` value is not an object, when an
+ * event value in `agentdesk` is not a list, or when `agentdesk` holds a
+ * handler other than the installer's own command for that event. An absent
+ * `agentdesk` key is free for the installer to write; an empty file counts as
+ * an object with no hooks.
+ */
+function readNamedHook(ctx: Context, harness: Harness): NamedHookDocument {
+  const file = harness.hookPath(ctx);
+  const current = readJsonFile(file);
+  const data: JsonObject = current?.data ?? {};
+  const doc: NamedHookDocument = {
+    file,
+    data,
+    indent: current?.indent ?? "  ",
+    text: current?.text,
+    owned: undefined,
+  };
+  if (!(NAMED_HOOK in data)) return doc;
+  const owned = data[NAMED_HOOK];
+  if (!isPlainObject(owned)) {
+    throw new InstallerError(
+      `${file} has an ${NAMED_HOOK} hook that is not an object; it was not changed.`,
+    );
+  }
+  const events = hookEvents(harness);
+  for (const [name, handlers] of Object.entries(owned)) {
+    if (!Array.isArray(handlers)) {
+      throw new InstallerError(
+        `${file} has an ${NAMED_HOOK}.${name} value that is not a list; it was not changed.`,
+      );
+    }
+    const event = events.find((e) => e.name === name);
+    for (const handler of handlers) {
+      if (event === undefined || !isOwned(handler, harness, event)) {
+        throw new InstallerError(
+          `${file} has a handler in its ${NAMED_HOOK} hook that AgentDesk did not write; it was not changed. Move that handler to a hook with another name, then run again.`,
+        );
+      }
+    }
+  }
+  doc.owned = owned;
+  return doc;
+}
+
+function serializeNamed(doc: NamedHookDocument, owned: JsonObject | undefined): string {
+  const data: JsonObject = { ...doc.data };
+  if (owned === undefined) delete data[NAMED_HOOK];
+  else data[NAMED_HOOK] = owned;
+  return `${JSON.stringify(data, null, doc.indent)}\n`;
+}
+
+/**
+ * Writes the `agentdesk` object with one handler per event the installer
+ * writes. An existing object is replaced at its key, so it keeps its
+ * position; every other named hook and key is kept. Returns whether the file
+ * changed.
+ */
+function writeNamedHook(
+  ctx: Context,
+  harness: Harness,
+  commandFor: (event: HookEvent) => string,
+  backups: BackupRegistry,
+): boolean {
+  const doc = readNamedHook(ctx, harness);
+  const owned: JsonObject = {};
+  for (const event of hookEvents(harness)) {
+    owned[event.name] = [{ type: "command", command: commandFor(event), ...event.fields }];
+  }
+  const text = serializeNamed(doc, owned);
+  if (text === doc.text) return false;
+  backups.backupOnce(doc.file);
+  writeFileAtomic(doc.file, text);
+  return true;
+}
+
+function ownedHandler(
+  doc: NamedHookDocument,
+  harness: Harness,
+  event: HookEvent,
+): string | undefined {
+  const handlers = doc.owned?.[event.name];
+  if (!Array.isArray(handlers)) return undefined;
+  return commandOf(handlers.find((handler) => isOwned(handler, harness, event)));
+}
+
+function findNamedHooks(
+  ctx: Context,
+  harness: Harness,
+  events: readonly HookEvent[],
+): Map<HookEventId, HookLookup> {
+  const doc = readNamedHook(ctx, harness);
+  const found = new Map<HookEventId, HookLookup>();
+  for (const event of events) {
+    const command = ownedHandler(doc, harness, event);
+    found.set(event.id, command === undefined ? { kind: "missing" } : { kind: "found", command });
+  }
+  return found;
+}
+
+/**
+ * Plans the removal of the whole `agentdesk` object. Returns undefined when
+ * the file holds no such object. No other hook moves, because Antigravity
+ * keys no hook by position.
+ */
+function planNamedHookRemoval(
+  ctx: Context,
+  harness: Harness,
+  events: readonly HookEvent[],
+): HookRemoval | undefined {
+  const doc = readNamedHook(ctx, harness);
+  if (doc.text === undefined || doc.owned === undefined) return undefined;
+  const removed = events
+    .filter((event) => ownedHandler(doc, harness, event) !== undefined)
+    .map((event) => event.id);
+  return { text: serializeNamed(doc, undefined), original: doc.text, removed, moved: new Map() };
 }
