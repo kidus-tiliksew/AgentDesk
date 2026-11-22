@@ -9,164 +9,164 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
 
  RUN  v4.1.11 /home/user/conveyor-worktrees/agentdesk-task-261122-b46c01
 
- ✓ |installer| test/bundle.test.ts > package agentdesk (DEC-10) > is private and has no prepack, so it is never published to npm 3ms
- ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > is one file that imports only Node built-ins, with every build constant replaced 2ms
- ✓ |installer| test/state.test.ts > state file (component-installer §State, re-run, and uninstall) > records server, connection ids, configuration, skill, and hook paths, and the Codex trust key with mode 0600 and no secret 128ms
- ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > prints its version and an empty status outside the workspace 57ms
- ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > prints the embedded guidance from context 84ms
- ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > prints the standing or child guidance from context for claude-code by AGENTDESK_PARENT_SESSION 98ms
- ✓ |installer| test/state.test.ts > state file (component-installer §State, re-run, and uninstall) > writes state under XDG_CONFIG_HOME when it is set 99ms
- ✓ |installer| test/state.test.ts > re-run (AC-9.4) > keeps every working connection, shows no code, and rewrites the skill at the current version 101ms
- ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > prints the standing or child guidance from context for codex by AGENTDESK_PARENT_SESSION 101ms
- ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > prints the standing or child guidance from context for cursor by AGENTDESK_PARENT_SESSION 98ms
- ✓ |installer| test/state.test.ts > re-run (AC-9.4) > restores a skill file that was edited by hand 124ms
- ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > prints the standing or child guidance from context for antigravity by AGENTDESK_PARENT_SESSION 96ms
- ✓ |installer| test/state.test.ts > re-run (AC-9.4) > signs in only the harness whose connection check fails 105ms
- ✓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Codex Stop hook returns {} at once and its detached waiter queues the resume 643ms
- ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > installs the embedded skill byte for byte with the hook 85ms
- ✓ |installer| test/state.test.ts > re-run (AC-9.4) > signs every harness in again at a new --server and revokes the old connections 162ms
- ✓ |installer| test/state.test.ts > re-run (AC-9.4) > keeps the recorded server on a re-run without --server 154ms
- ✓ |installer| test/state.test.ts > state from an installer without hooks > reads a record without hook fields, and a re-run adds the hook and Codex trust 122ms
- ✓ |installer| test/state.test.ts > state from an installer without resume hooks > reads a record with only the session-start hook, and a re-run adds the resume hooks 167ms
+ ✓ |installer| test/bundle.test.ts > package agentdesk (DEC-10) > is private and has no prepack, so it is never published to npm 1ms
+ ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > is one file that imports only Node built-ins, with every build constant replaced 1ms
+ ✓ |installer| test/state.test.ts > state file (component-installer §State, re-run, and uninstall) > records server, connection ids, configuration, skill, and hook paths, and the Codex trust key with mode 0600 and no secret 136ms
+ ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > prints its version and an empty status outside the workspace 72ms
+ ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > prints the embedded guidance from context 98ms
+ ✓ |installer| test/state.test.ts > state file (component-installer §State, re-run, and uninstall) > writes state under XDG_CONFIG_HOME when it is set 126ms
+ ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > prints the standing or child guidance from context for claude-code by AGENTDESK_PARENT_SESSION 111ms
+ ✓ |installer| test/state.test.ts > re-run (AC-9.4) > keeps every working connection, shows no code, and rewrites the skill at the current version 139ms
+ ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > prints the standing or child guidance from context for codex by AGENTDESK_PARENT_SESSION 106ms
+ ✓ |installer| test/state.test.ts > re-run (AC-9.4) > restores a skill file that was edited by hand 117ms
+ ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > prints the standing or child guidance from context for cursor by AGENTDESK_PARENT_SESSION 130ms
+ ✓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Codex Stop hook returns {} at once and its detached waiter queues the resume 650ms
+ ✓ |installer| test/state.test.ts > re-run (AC-9.4) > signs in only the harness whose connection check fails 149ms
+ ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > prints the standing or child guidance from context for antigravity by AGENTDESK_PARENT_SESSION 118ms
+ ✓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Cursor hooks record the ask result and return its followup_message 104ms
+ ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > installs the embedded skill byte for byte with the hook 115ms
+ ✓ |installer| test/state.test.ts > re-run (AC-9.4) > signs every harness in again at a new --server and revokes the old connections 211ms
+ ✓ |installer| test/state.test.ts > re-run (AC-9.4) > keeps the recorded server on a re-run without --server 127ms
+ ✓ |installer| test/state.test.ts > state from an installer without hooks > reads a record without hook fields, and a re-run adds the hook and Codex trust 126ms
+ ✓ |installer| test/state.test.ts > state from an installer without resume hooks > reads a record with only the session-start hook, and a re-run adds the resume hooks 142ms
  ✓ |installer| test/state.test.ts > state from an installer without resume hooks > round-trips every resume hook field through readState and writeState 1ms
- ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose stopHookPath is 7, changing nothing 83ms
- ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose stopHookPath is "", changing nothing 83ms
- ✓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Cursor hooks record the ask result and return its followup_message 83ms
- ✓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Codex Stop hook exits promptly with {} for a transcript that would stall a read 582ms
- ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose codexStopTrustKey is ["x"], changing nothing 87ms
- ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose codexStopTrustKey is "", changing nothing 88ms
- ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a cursor record whose afterMcpHookPath is null, changing nothing 76ms
- ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a cursor record whose stopHookPath is {"path":"x"}, changing nothing 80ms
- ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a claude-code record whose stopHookPath is "/h/.claude/settings.json", changing nothing 74ms
- ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a claude-code record whose afterMcpHookPath is "/h/.claude/settings.json", changing nothing 74ms
- ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose afterMcpHookPath is "/h/.codex/hooks.json", changing nothing 76ms
- ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a cursor record whose codexStopTrustKey is "/h/.cursor/hooks.json:stop:0:0", changing nothing 74ms
- ✓ |installer| test/state.test.ts > status > prints each recorded harness, its connection check, its skill version, and its hook 99ms
- ✓ |installer| test/state.test.ts > status > says when nothing is installed 0ms
- ✓ |installer| test/state.test.ts > uninstall (AC-9.6) > revokes each connection, removes entries and owned skills, keeps other content, and deletes state 103ms
- ✓ |installer| test/state.test.ts > uninstall (AC-9.6) > removes the Claude entry from ~/.claude.json when the CLI is absent 2ms
- ✓ |installer| test/state.test.ts > uninstall (AC-9.6) > keeps a harness whose revocation fails and reports it 105ms
- ✓ |installer| test/state.test.ts > uninstall (AC-9.6) > refuses to remove a recorded path that is not the installer's location 75ms
- ✓ |installer| test/state.test.ts > uninstall (AC-9.6) > reports nothing to do without state 0ms
- ✓ |installer| test/state.test.ts > uninstall (AC-9.6) > leaves the state directory private 73ms
- ✓ |installer| test/install-key.test.ts > --key-file input > enrolls Antigravity with the key and writes its entry, skill, and hook 14ms
- ✓ |installer| test/install-key.test.ts > --key-file input > enrolls every selected harness with one request and shows no code (AC-2.1, AC-2.4) 80ms
- ✓ |installer| test/install-key.test.ts > --key-file input > reads the key from standard input for -, and never prompts on it 76ms
- ✓ |installer| test/install-key.test.ts > --key-file input > keeps the selection prompt when the key comes from a file 50ms
- ✓ |installer| test/install-key.test.ts > --key-file input > passes --only and --server through to the enrollment 30ms
- ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > signs in against the build's default server and writes the connection and the hook 2137ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a missing file' with status 1 before any output or request, with harnesses already connected 82ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a directory' with status 1 before any output or request, with harnesses already connected 77ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'the key given as the path' with status 1 before any output or request, with harnesses already connected 81ms
+ ✓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Codex Stop hook exits promptly with {} for a transcript that would stall a read 593ms
+ ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose stopHookPath is 7, changing nothing 105ms
+ ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose stopHookPath is "", changing nothing 106ms
+ ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose codexStopTrustKey is ["x"], changing nothing 83ms
+ ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose codexStopTrustKey is "", changing nothing 105ms
+ ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a cursor record whose afterMcpHookPath is null, changing nothing 85ms
+ ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a cursor record whose stopHookPath is {"path":"x"}, changing nothing 94ms
+ ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a claude-code record whose stopHookPath is "/h/.claude/settings.json", changing nothing 87ms
+ ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a claude-code record whose afterMcpHookPath is "/h/.claude/settings.json", changing nothing 100ms
+ ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose afterMcpHookPath is "/h/.codex/hooks.json", changing nothing 90ms
+ ✓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a cursor record whose codexStopTrustKey is "/h/.cursor/hooks.json:stop:0:0", changing nothing 95ms
+ ✓ |installer| test/state.test.ts > status > prints each recorded harness, its connection check, its skill version, and its hook 145ms
+ ✓ |installer| test/state.test.ts > status > says when nothing is installed 1ms
+ ✓ |installer| test/state.test.ts > uninstall (AC-9.6) > revokes each connection, removes entries and owned skills, keeps other content, and deletes state 147ms
+ ✓ |installer| test/state.test.ts > uninstall (AC-9.6) > removes the Claude entry from ~/.claude.json when the CLI is absent 3ms
+ ✓ |installer| test/state.test.ts > uninstall (AC-9.6) > keeps a harness whose revocation fails and reports it 122ms
+ ✓ |installer| test/state.test.ts > uninstall (AC-9.6) > refuses to remove a recorded path that is not the installer's location 87ms
+ ✓ |installer| test/state.test.ts > uninstall (AC-9.6) > reports nothing to do without state 1ms
+ ✓ |installer| test/state.test.ts > uninstall (AC-9.6) > leaves the state directory private 80ms
+ ✓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > signs in against the build's default server and writes the connection and the hook 2160ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > enrolls Antigravity with the key and writes its entry, skill, and hook 18ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > enrolls every selected harness with one request and shows no code (AC-2.1, AC-2.4) 110ms
  ✓ |installer| test/hooks.test.ts > hook command > names the executable unquoted when every character is safe 1ms
- ✓ |installer| test/hooks.test.ts > hook command > single-quotes a path with other characters, and the shell reads it back 2ms
+ ✓ |installer| test/hooks.test.ts > hook command > single-quotes a path with other characters, and the shell reads it back 3ms
  ✓ |installer| test/hooks.test.ts > hook command > recognizes only an absolute path ending in /agentdesk with this harness's id 0ms
  ✓ |installer| test/hooks.test.ts > hook command > names the resume hook commands, quoted like the session-start hook 0ms
  ✓ |installer| test/hooks.test.ts > hook command > tells the context, stop, and after-mcp commands and each harness apart 0ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > adds one hook per harness and keeps every other key, group, and hook 111ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > creates missing hook files, Cursor's with version 1 62ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'an empty path' with status 1 before any output or request, with harnesses already connected 94ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > reads the key from standard input for -, and never prompts on it 96ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > keeps the selection prompt when the key comes from a file 64ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > passes --only and --server through to the enrollment 32ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > adds one hook per harness and keeps every other key, group, and hook 120ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > creates missing hook files, Cursor's with version 1 61ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a missing file' with status 1 before any output or request, with harnesses already connected 99ms
  ✓ |installer| test/hooks.test.ts > hooks written by install > creates Codex's hooks.json with the session-start group and a Stop group without a matcher 38ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > writes the exact command with a quoted executable path 38ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'an empty file' with status 1 before any output or request, with harnesses already connected 113ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'only whitespace' with status 1 before any output or request, with harnesses already connected 102ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a truncated key' with status 1 before any output or request, with harnesses already connected 91ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > replaces its hook in place on a re-run and on skill install, keeping its group's position 183ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a key with one extra character' with status 1 before any output or request, with harnesses already connected 79ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > replaces the resume hooks in place on a re-run and on skill install, restoring their timeouts 139ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a connection token prefix' with status 1 before any output or request, with harnesses already connected 77ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'an uppercase prefix' with status 1 before any output or request, with harnesses already connected 84ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > leaves an unchanged hook file untouched on a re-run 108ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses malformed Claude Code settings before sign-in and changes nothing 2ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > writes the exact command with a quoted executable path 42ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a directory' with status 1 before any output or request, with harnesses already connected 101ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'the key given as the path' with status 1 before any output or request, with harnesses already connected 91ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'an empty path' with status 1 before any output or request, with harnesses already connected 87ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > replaces its hook in place on a re-run and on skill install, keeping its group's position 162ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'an empty file' with status 1 before any output or request, with harnesses already connected 93ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > replaces the resume hooks in place on a re-run and on skill install, restoring their timeouts 180ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'only whitespace' with status 1 before any output or request, with harnesses already connected 100ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > leaves an unchanged hook file untouched on a re-run 147ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses malformed Claude Code settings before sign-in and changes nothing 3ms
  ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Claude Code hooks value that is not an object before sign-in and changes nothing 2ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Codex SessionStart value that is not a list before sign-in and changes nothing 1ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor sessionStart value that is not a list before sign-in and changes nothing 1ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Claude Code hooks value of null before sign-in and changes nothing 1ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Claude Code SessionStart value of null before sign-in and changes nothing 11ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Codex SessionStart value that is not a list before sign-in and changes nothing 2ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor sessionStart value that is not a list before sign-in and changes nothing 2ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Claude Code hooks value of null before sign-in and changes nothing 2ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Claude Code SessionStart value of null before sign-in and changes nothing 2ms
  ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Codex hooks value of null before sign-in and changes nothing 2ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Codex SessionStart value of null before sign-in and changes nothing 1ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor hooks value of null before sign-in and changes nothing 1ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor sessionStart value of null before sign-in and changes nothing 1ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Codex SessionStart value of null before sign-in and changes nothing 2ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor hooks value of null before sign-in and changes nothing 2ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor sessionStart value of null before sign-in and changes nothing 2ms
  ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Codex Stop value that is not a list before sign-in and changes nothing 1ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Codex Stop value of null before sign-in and changes nothing 1ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor stop value that is not a list before sign-in and changes nothing 1ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor stop value of null before sign-in and changes nothing 1ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor afterMCPExecution value that is not a list before sign-in and changes nothing 1ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor afterMCPExecution value of null before sign-in and changes nothing 1ms
- ✓ |installer| test/hooks.test.ts > hooks written by install > refuses an unreadable hook file before sign-in 1ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a padding character' with status 1 before any output or request, with harnesses already connected 86ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'whitespace inside the key' with status 1 before any output or request, with harnesses already connected 87ms
- ✓ |installer| test/hooks.test.ts > hooks in status > reports a hook removed by hand and an unreadable hook file 112ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'two keys on two lines' with status 1 before any output or request, with harnesses already connected 85ms
- ✓ |installer| test/hooks.test.ts > hooks in status > reports each resume hook beside the session-start hook, missing or unreadable 138ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a variable assignment' with status 1 before any output or request, with harnesses already connected 80ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'an endless device' with status 1 before any output or request, with harnesses already connected 84ms
- ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > removes each hook and its emptied group, and the recorded trust, keeping everything else 174ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'an oversized file' with status 1 before any output or request, with harnesses already connected 82ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Codex Stop value of null before sign-in and changes nothing 2ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor stop value that is not a list before sign-in and changes nothing 2ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor stop value of null before sign-in and changes nothing 2ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor afterMCPExecution value that is not a list before sign-in and changes nothing 2ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor afterMCPExecution value of null before sign-in and changes nothing 2ms
+ ✓ |installer| test/hooks.test.ts > hooks written by install > refuses an unreadable hook file before sign-in 2ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a truncated key' with status 1 before any output or request, with harnesses already connected 110ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a key with one extra character' with status 1 before any output or request, with harnesses already connected 90ms
+ ✓ |installer| test/hooks.test.ts > hooks in status > reports a hook removed by hand and an unreadable hook file 124ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a connection token prefix' with status 1 before any output or request, with harnesses already connected 102ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'an uppercase prefix' with status 1 before any output or request, with harnesses already connected 95ms
+ ✓ |installer| test/hooks.test.ts > hooks in status > reports each resume hook beside the session-start hook, missing or unreadable 171ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a padding character' with status 1 before any output or request, with harnesses already connected 118ms
+ ✓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Codex Stop hook exits promptly with {} when its input never ends 3040ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'whitespace inside the key' with status 1 before any output or request, with harnesses already connected 89ms
+ ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > removes each hook and its emptied group, and the recorded trust, keeping everything else 225ms
+ ✓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the hooks print {} on bad input, and wait answers usage errors with status 2 127ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'two keys on two lines' with status 1 before any output or request, with harnesses already connected 111ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'a variable assignment' with status 1 before any output or request, with harnesses already connected 106ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'an endless device' with status 1 before any output or request, with harnesses already connected 93ms
+ ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > removes the resume hooks' emptied groups and keeps a group that still holds another hook 242ms
+ ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > keeps a group that still holds another hook 119ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses 'an oversized file' with status 1 before any output or request, with harnesses already connected 112ms
  ✓ |installer| test/install-key.test.ts > --key-file input > refuses standard input with 'no standard input reader' before any request 1ms
- ✓ |installer| test/install-key.test.ts > --key-file input > refuses standard input with 'a read error carrying the key' before any request 0ms
+ ✓ |installer| test/install-key.test.ts > --key-file input > refuses standard input with 'a read error carrying the key' before any request 1ms
  ✓ |installer| test/install-key.test.ts > --key-file input > refuses standard input with 'a malformed key' before any request 1ms
  ✓ |installer| test/install-key.test.ts > --key-file input > keeps status 2 for --key-file without a value 1ms
  ✓ |installer| test/install-key.test.ts > --key-file input > lists --key-file in the help 0ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses 'unknown' with its message, status 1, and nothing connected 1ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses 'unknown' with its message, status 1, and nothing connected 2ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses 'revoked' with its message, status 1, and nothing connected 1ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses 'expired' with its message, status 1, and nothing connected 1ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses 'limit_reached' with its message, status 1, and nothing connected 1ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses { status: 'harness_not_allowed', …(1) } with its message, status 1, and nothing connected 1ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses { status: 'harness_not_allowed', …(1) } with its message, status 1, and nothing connected 1ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses { status: 'harness_not_allowed', …(1) } with its message, status 1, and nothing connected 2ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses { status: 'harness_not_allowed', …(1) } with its message, status 1, and nothing connected 2ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses { status: 'harness_not_allowed', …(1) } with its message, status 1, and nothing connected 1ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses { status: 'harness_not_allowed' } with its message, status 1, and nothing connected 1ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > leaves a previous installation unchanged when the key is refused 85ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses 'an unexpected status' without retrying 1ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses 'a body that is not JSON' without retrying 1ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses 'a JSON array' without retrying 1ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses 'a body without a status' without retrying 1ms
+ ✓ |installer| test/unrevoked.test.ts > install keeps connections it cannot revoke > records the old connection when --server replaces it and its DELETE fails 134ms
+ ✓ |installer| test/unrevoked.test.ts > install keeps connections it cannot revoke > records the old connection when a reinstall replaces one whose local token was lost 6ms
+ ✓ |installer| test/unrevoked.test.ts > install keeps connections it cannot revoke > records a new connection whose configuration write failed and whose cleanup DELETE failed 74ms
+ ✓ |installer| test/unrevoked.test.ts > install keeps connections it cannot revoke > records nothing when every replaced connection is revoked 67ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > leaves a previous installation unchanged when the key is refused 129ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses 'an unexpected status' without retrying 2ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses 'a body that is not JSON' without retrying 2ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses 'a JSON array' without retrying 2ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses 'a body without a status' without retrying 3ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a 400 answer at once without retrying 1ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a 401 answer at once without retrying 1ms
- ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > removes the resume hooks' emptied groups and keeps a group that still holds another hook 168ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a 403 answer at once without retrying 1ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a 404 answer at once without retrying 1ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a 409 answer at once without retrying 1ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a 413 answer at once without retrying 1ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a result missing a harness and revokes what it issued 1ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a result with 'a shared token' and writes no configuration 2ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a result with 'a shared connection id' and writes no configuration 1ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a result missing a harness and revokes what it issued 2ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a result with 'a shared token' and writes no configuration 4ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a result with 'a shared connection id' and writes no configuration 2ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a result with 'a duplicated harness' and writes no configuration 1ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a result with 'a harness that was not requested' and writes no configuration 1ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a result with 'an extra connection' and writes no configuration 1ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a result with 'a token with whitespace' and writes no configuration 1ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a result with 'a token with whitespace' and writes no configuration 2ms
  ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a result with 'connections that are not a list' and writes no configuration 1ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > keeps a recovery record when an issued connection of a refused result cannot be revoked 1ms
- ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a connection token equal to the install key and never sends or stores it 1ms
- ✓ |installer| test/install-key.test.ts > retries on the fake clock > retries a network failure, 429, and 5xx every 2 seconds until enrolled 28ms
- ✓ |installer| test/install-key.test.ts > retries on the fake clock > stops at the 2-minute boundary and starts no attempt after it 3ms
- ✓ |installer| test/install-key.test.ts > retries on the fake clock > succeeds on the last attempt before the boundary 28ms
- ✓ |installer| test/install-key.test.ts > retries on the fake clock > aborts a request that does not answer (hang) after 30 seconds and retries it 27ms
- ✓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Codex Stop hook exits promptly with {} when its input never ends 3031ms
- ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > keeps a group that still holds another hook 77ms
- ✓ |installer| test/install-key.test.ts > retries on the fake clock > aborts a request that does not answer (hang-body) after 30 seconds and retries it 30ms
- ✓ |installer| test/install-key.test.ts > retries on the fake clock > gives up on requests that never answer within the 2 minutes 6ms
- ✓ |installer| test/install-key.test.ts > retries on the fake clock > gives up after network failures without printing the failure's text 1ms
- ✓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the hooks print {} on bad input, and wait answers usage errors with status 2 99ms
- ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > keeps the record and exits 1 when a hook file cannot be parsed 113ms
- ✓ |installer| test/install-key.test.ts > re-runs through the existing pipeline > sends no enrollment when every selected harness is already connected 107ms
- ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > keeps the record and changes nothing when a resume hook's event cannot be read 118ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > keeps a recovery record when an issued connection of a refused result cannot be revoked 2ms
+ ✓ |installer| test/install-key.test.ts > enrollment answers (AC-2.2) > refuses a connection token equal to the install key and never sends or stores it 2ms
+ ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > keeps the record and exits 1 when a hook file cannot be parsed 163ms
+ ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > keeps the record and changes nothing when a resume hook's event cannot be read 142ms
  ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > removes only the session-start hook a record from before the resume hooks names 3ms
  ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > refuses a recorded stopHookPath for cursor that is not the harness's own 2ms
- ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > refuses a recorded afterMcpHookPath for cursor that is not the harness's own 2ms
- ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > refuses a recorded stopHookPath for codex that is not the harness's own 29ms
- ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > refuses a recorded hook path that is not the harness's own 4ms
+ ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > refuses a recorded afterMcpHookPath for cursor that is not the harness's own 3ms
+ ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > refuses a recorded stopHookPath for codex that is not the harness's own 36ms
+ ✓ |installer| test/hooks.test.ts > hooks removed by uninstall (AC-9.6) > refuses a recorded hook path that is not the harness's own 5ms
  ✓ |installer| test/hooks.test.ts > removal plan > keys each moved hook by its event, so the same positions in SessionStart and Stop stay apart 1ms
  ✓ |installer| test/hooks.test.ts > removal plan > plans only the events it is given, and leaves an absent event absent 1ms
- ✓ |installer| test/hooks.test.ts > Antigravity's named hook > writes the agentdesk object beside other named hooks and keeps them 3ms
+ ✓ |installer| test/hooks.test.ts > Antigravity's named hook > writes the agentdesk object beside other named hooks and keeps them 4ms
  ✓ |installer| test/hooks.test.ts > Antigravity's named hook > creates the agentdesk object when hooks.json is absent 2ms
+ ✓ |installer| test/install-key.test.ts > retries on the fake clock > retries a network failure, 429, and 5xx every 2 seconds until enrolled 46ms
+ ✓ |installer| test/install-key.test.ts > retries on the fake clock > stops at the 2-minute boundary and starts no attempt after it 7ms
+ ✓ |installer| test/install-key.test.ts > retries on the fake clock > succeeds on the last attempt before the boundary 36ms
+ ✓ |installer| test/install-key.test.ts > retries on the fake clock > aborts a request that does not answer (hang) after 30 seconds and retries it 35ms
  ✓ |installer| test/hooks.test.ts > Antigravity's named hook > creates the agentdesk object when hooks.json is empty 2ms
  ✓ |installer| test/hooks.test.ts > Antigravity's named hook > writes the exact command with a quoted executable path 2ms
- ✓ |installer| test/hooks.test.ts > Antigravity's named hook > reports the hook and skill unchanged on a re-run and leaves the files untouched 4ms
+ ✓ |installer| test/hooks.test.ts > Antigravity's named hook > reports the hook and skill unchanged on a re-run and leaves the files untouched 5ms
  ✓ |installer| test/hooks.test.ts > Antigravity's named hook > replaces an older command in place on a re-run and on skill install, with no duplicate 4ms
- ✓ |installer| test/hooks.test.ts > Antigravity's named hook > refuses malformed JSON before sign-in and changes nothing 1ms
+ ✓ |installer| test/hooks.test.ts > Antigravity's named hook > refuses malformed JSON before sign-in and changes nothing 2ms
  ✓ |installer| test/hooks.test.ts > Antigravity's named hook > refuses a top-level list before sign-in and changes nothing 1ms
- ✓ |installer| test/hooks.test.ts > Antigravity's named hook > refuses an agentdesk value that is not an object before sign-in and changes nothing 1ms
+ ✓ |installer| test/hooks.test.ts > Antigravity's named hook > refuses an agentdesk value that is not an object before sign-in and changes nothing 2ms
  ✓ |installer| test/hooks.test.ts > Antigravity's named hook > refuses an agentdesk value of null before sign-in and changes nothing 1ms
  ✓ |installer| test/hooks.test.ts > Antigravity's named hook > refuses an agentdesk event value that is not a list before sign-in and changes nothing 1ms
  ✓ |installer| test/hooks.test.ts > Antigravity's named hook > refuses a foreign handler in agentdesk's SessionStart before sign-in and changes nothing 1ms
@@ -174,55 +174,52 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ✓ |installer| test/hooks.test.ts > Antigravity's named hook > refuses another harness's command in agentdesk before sign-in and changes nothing 1ms
  ✓ |installer| test/hooks.test.ts > Antigravity's named hook > refuses a handler that is not an object before sign-in and changes nothing 1ms
  ✓ |installer| test/hooks.test.ts > Antigravity's named hook > names the foreign handler's fix in the refusal 1ms
- ✓ |installer| test/hooks.test.ts > Antigravity's named hook > reports the hook in status with no trust, and a hook removed by hand 2ms
+ ✓ |installer| test/hooks.test.ts > Antigravity's named hook > reports the hook in status with no trust, and a hook removed by hand 4ms
  ✓ |installer| test/hooks.test.ts > Antigravity's named hook > uninstall removes the agentdesk object whole and keeps other named hooks 4ms
- ✓ |installer| test/hooks.test.ts > Antigravity's named hook > uninstall removes an agentdesk object that holds no handler 2ms
- ✓ |installer| test/hooks.test.ts > Antigravity's named hook > refuses to remove an agentdesk object that gained a foreign handler, and keeps the record 3ms
+ ✓ |installer| test/hooks.test.ts > Antigravity's named hook > uninstall removes an agentdesk object that holds no handler 3ms
+ ✓ |installer| test/hooks.test.ts > Antigravity's named hook > refuses to remove an agentdesk object that gained a foreign handler, and keeps the record 5ms
  ✓ |installer| test/hooks.test.ts > Antigravity's named hook > plans the removal of the agentdesk object only 1ms
- ✓ |installer| test/install-key.test.ts > re-runs through the existing pipeline > enrolls only the harness whose connection was refused and revokes the one it replaces 114ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > writes the reported key and hash of both hooks and keeps every other byte of config.toml 75ms
- ✓ |installer| test/install-key.test.ts > re-runs through the existing pipeline > replaces short-code connections with enrolled ones after a --server change 177ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > uses CODEX_HOME for hooks.json and config.toml 27ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > replaces the recorded tables when both hooks' keys change 68ms
- ✓ |installer| test/install-key.test.ts > re-runs through the existing pipeline > revokes an enrolled connection whose configuration write failed 55ms
- ✓ |installer| test/install-key.test.ts > secrecy of the key (AC-2.3) > keeps the key out of configurations, backups, state, and output, and each token in its own configuration 35ms
- ✓ |installer| test/install-key.test.ts > secrecy of the key (AC-2.3) > keeps the key out of output when an error body echoes it 3ms
- ✓ |installer| test/install-key.test.ts > secrecy of the key (AC-2.3) > redacts the key and the raw input from any later output line 32ms
+ ✓ |installer| test/install-key.test.ts > retries on the fake clock > aborts a request that does not answer (hang-body) after 30 seconds and retries it 40ms
+ ✓ |installer| test/install-key.test.ts > retries on the fake clock > gives up on requests that never answer within the 2 minutes 6ms
+ ✓ |installer| test/install-key.test.ts > retries on the fake clock > gives up after network failures without printing the failure's text 2ms
+ ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > agentdesk forget removes one record and keeps the installation 263ms
+ ✓ |installer| test/install-key.test.ts > re-runs through the existing pipeline > sends no enrollment when every selected harness is already connected 134ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > writes the reported key and hash of both hooks and keeps every other byte of config.toml 90ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > uses CODEX_HOME for hooks.json and config.toml 39ms
+ ✓ |installer| test/install-key.test.ts > re-runs through the existing pipeline > enrolls only the harness whose connection was refused and revokes the one it replaces 166ms
+ ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > agentdesk forget refuses an id that is not recorded and a missing id 224ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > replaces the recorded tables when both hooks' keys change 79ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > replaces only the Stop table when only the Stop hook's key changes 75ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > refreshes both hashes when the executable moves 112ms
+ ✓ |installer| test/install-key.test.ts > re-runs through the existing pipeline > replaces short-code connections with enrolled ones after a --server change 256ms
+ ✓ |installer| test/install-key.test.ts > re-runs through the existing pipeline > revokes an enrolled connection whose configuration write failed 65ms
+ ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > a later install that resolves nothing keeps the record, reminds the person, and exits 0 255ms
+ ✓ |installer| test/install-key.test.ts > secrecy of the key (AC-2.3) > keeps the key out of configurations, backups, state, and output, and each token in its own configuration 44ms
+ ✓ |installer| test/install-key.test.ts > secrecy of the key (AC-2.3) > keeps the key out of output when an error body echoes it 2ms
+ ✓ |installer| test/install-key.test.ts > secrecy of the key (AC-2.3) > redacts the key and the raw input from any later output line 37ms
  ✓ |installer| test/install-key.test.ts > readStream > reads every chunk of the stream as UTF-8 1ms
- ✓ |installer| test/install-key.test.ts > readStream > rejects on a read error 5ms
+ ✓ |installer| test/install-key.test.ts > readStream > rejects on a read error 8ms
  ✓ |installer| test/install-key.test.ts > readStream > stops reading once the input exceeds the limit 0ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > replaces only the Stop table when only the Stop hook's key changes 56ms
- ✓ |installer| test/unrevoked.test.ts > install keeps connections it cannot revoke > records the old connection when --server replaces it and its DELETE fails 114ms
- ✓ |installer| test/unrevoked.test.ts > install keeps connections it cannot revoke > records the old connection when a reinstall replaces one whose local token was lost 10ms
- ✓ |installer| test/unrevoked.test.ts > install keeps connections it cannot revoke > records a new connection whose configuration write failed and whose cleanup DELETE failed 62ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > refreshes both hashes when the executable moves 107ms
- ✓ |installer| test/unrevoked.test.ts > install keeps connections it cannot revoke > records nothing when every replaced connection is revoked 70ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > reports each hook's trustStatus in status 149ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > prints the /hooks step for both hooks and exits 0 when codex is not on PATH 3ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > prints the /hooks step for both hooks and exits 0 when app-server exits nonzero 31ms
- ✓ |installer| test/uninstall-safety.test.ts > redirected skill folders (P1) > refuses a skill folder that is a symbolic link and keeps the record 101ms
- ✓ |installer| test/uninstall-safety.test.ts > redirected skill folders (P1) > refuses a skill folder whose parent was redirected to another directory 93ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > prints the /hooks step for both hooks and exits 0 when app-server answers hooks/list with an error 33ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when the session-start hook is missing from the list 31ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when the Stop hook is missing from the list 31ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when both hooks are missing from the list 33ms
- ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > agentdesk forget removes one record and keeps the installation 210ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when every hook's currentHash is malformed 28ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when every hook comes from a source other than the user 32ms
- ✓ |installer| test/uninstall-safety.test.ts > redirected skill folders (P1) > refuses a Codex skill folder under a redirected parent 39ms
- ✓ |installer| test/uninstall-safety.test.ts > redirected skill folders (P1) > refuses a Cursor skill folder whose ~/.cursor was redirected 4ms
- ✓ |installer| test/uninstall-safety.test.ts > redirected skill folders (P1) > refuses to remove an owned Cursor folder through a redirected parent during install 70ms
- ✓ |installer| test/uninstall-safety.test.ts > Antigravity skill folders > refuses to write through a pre-existing link, writes the MCP entry and hook, and leaves the link 4ms
- ✓ |installer| test/uninstall-safety.test.ts > Antigravity skill folders > refuses an owned folder later replaced by a link and keeps the record for a retry 3ms
- ✓ |installer| test/uninstall-safety.test.ts > Antigravity skill folders > refuses an Antigravity skill folder under a redirected parent 3ms
- ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record and revokes nothing when ~/.claude.json is malformed and the CLI is absent 2ms
- ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > agentdesk forget refuses an id that is not recorded and a missing id 170ms
- ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record when ~/.claude.json is malformed and the CLI is present 56ms
- ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record when ~/.claude.json cannot be read 2ms
- ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > removes the entry from the file when claude mcp remove exits nonzero and leaves it 87ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > gives up after 10 seconds on the fake clock, stops app-server, and exits 0 105ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > refuses a hooks.state definition lines cannot replace for the session-start hook, keeping it, and exits 1 32ms
- ✓ |installer| test/codex-trust.test.ts > trust recorded by install > refuses a hooks.state definition lines cannot replace for the Stop hook, keeping it, and exits 1 29ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > reports each hook's trustStatus in status 183ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > prints the /hooks step for both hooks and exits 0 when codex is not on PATH 5ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > prints the /hooks step for both hooks and exits 0 when app-server exits nonzero 34ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > prints the /hooks step for both hooks and exits 0 when app-server answers hooks/list with an error 38ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when the session-start hook is missing from the list 39ms
+ ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > skill install keeps the records 249ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when the Stop hook is missing from the list 44ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when both hooks are missing from the list 42ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when every hook's currentHash is malformed 34ms
+ ✓ |installer| test/uninstall-safety.test.ts > redirected skill folders (P1) > refuses a skill folder that is a symbolic link and keeps the record 128ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when every hook comes from a source other than the user 30ms
+ ✓ |installer| test/uninstall-safety.test.ts > redirected skill folders (P1) > refuses a skill folder whose parent was redirected to another directory 99ms
+ ✓ |installer| test/uninstall-safety.test.ts > redirected skill folders (P1) > refuses a Codex skill folder under a redirected parent 48ms
+ ✓ |installer| test/uninstall-safety.test.ts > redirected skill folders (P1) > refuses a Cursor skill folder whose ~/.cursor was redirected 5ms
+ ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > status lists the records after an uninstall that removed everything else 249ms
+ ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > records connections from a rejected sign-in result that cannot be revoked 2ms
+ ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > revokes connections from a rejected sign-in result when it can, and records none 1ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > gives up after 10 seconds on the fake clock, stops app-server, and exits 0 107ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > refuses a hooks.state definition lines cannot replace for the session-start hook, keeping it, and exits 1 39ms
+ ✓ |installer| test/codex-trust.test.ts > trust recorded by install > refuses a hooks.state definition lines cannot replace for the Stop hook, keeping it, and exits 1 32ms
  ✓ |installer| test/codex-trust.test.ts > editCodexTrust > replaces only the target table's lines, in place, keeping comments and CRLF 0ms
  ✓ |installer| test/codex-trust.test.ts > editCodexTrust > matches the header in any quoting and spacing 0ms
  ✓ |installer| test/codex-trust.test.ts > editCodexTrust > removes a table with the blank line the installer added, and keeps other tables 0ms
@@ -231,131 +228,193 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ✓ |installer| test/codex-trust.test.ts > editCodexTrust > refuses an inline table 0ms
  ✓ |installer| test/codex-trust.test.ts > editCodexTrust > refuses a dotted key 0ms
  ✓ |installer| test/codex-trust.test.ts > editCodexTrust > refuses text that is not TOML 0ms
- ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > fails and keeps the record when claude mcp remove exits nonzero and leaves the file unreadable 109ms
- ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > a later install that resolves nothing keeps the record, reminds the person, and exits 0 197ms
- ✓ |installer| test/codex-trust.test.ts > trust carried by uninstall > carries trust in both events to the new key of a later hook trusted with an unchanged hash only 120ms
- ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record when Codex config.toml is malformed 34ms
- ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > status reports an unreadable configuration instead of a missing entry 4ms
- ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > refuses install before sign-in when a recorded configuration is malformed 36ms
- ✓ |installer| test/uninstall-safety.test.ts > redirected harness bases (round 2 P1) > refuses removal when ~/.codex itself was redirected after install 35ms
- ✓ |installer| test/uninstall-safety.test.ts > redirected harness bases (round 2 P1) > refuses removal when a custom CODEX_HOME base was redirected after install 5ms
- ✓ |installer| test/uninstall-safety.test.ts > redirected harness bases (round 2 P1) > refuses removal when a directory above the Codex base was redirected after install 4ms
- ✓ |installer| test/uninstall-safety.test.ts > redirected harness bases (round 2 P1) > refuses Claude Code skill removal when the home directory was redirected after install 87ms
- ✓ |installer| test/uninstall-safety.test.ts > missing local token (round 2 P2) > keeps the connection record and exits 1 when the MCP entry is gone 3ms
- ✓ |installer| test/uninstall-safety.test.ts > missing local token (round 2 P2) > keeps the connection record and exits 1 when the Authorization header is missing 2ms
- ✓ |installer| test/codex-trust.test.ts > trust carried by uninstall > never carries trust from one event to the same position in the other 125ms
- ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > skill install keeps the records 210ms
- ✓ |installer| test/uninstall-safety.test.ts > missing local token (round 2 P2) > keeps the connection record and exits 1 when the Authorization header cannot be parsed 32ms
- ✓ |installer| test/uninstall-safety.test.ts > missing local token (round 2 P2) > forgets an unresolved record only with --forget-unrevoked, and says so 4ms
- ✓ |installer| test/uninstall-safety.test.ts > missing local token (round 2 P2) > keeps a recovery record on install for a recorded connection without a local token 3ms
- ✓ |installer| test/uninstall-safety.test.ts > missing local token (round 2 P2) > does not forget a connection whose revocation failed at the server, even with --forget-unrevoked 31ms
- ✓ |installer| test/uninstall-safety.test.ts > the resume directory > is removed with its contents, printed first, keeping its siblings 33ms
- ✓ |installer| test/uninstall-safety.test.ts > the resume directory > is found under XDG_CONFIG_HOME 2ms
- ✓ |installer| test/uninstall-safety.test.ts > the resume directory > is not followed through a symbolic link inside it 2ms
- ✓ |installer| test/uninstall-safety.test.ts > the resume directory > refuses a resume directory that is a symbolic link, keeping the state for a retry 3ms
- ✓ |installer| test/uninstall-safety.test.ts > the resume directory > refuses a resume directory under a redirected agentdesk directory 2ms
- ✓ |installer| test/uninstall-safety.test.ts > the resume directory > is left in place, with the state, while a harness is kept for a retry 30ms
- ✓ |installer| test/uninstall-safety.test.ts > the resume directory > keeps the state and exits 1 when the resume directory cannot be removed 3ms
- ✓ |installer| test/uninstall-safety.test.ts > the resume directory > refuses a resume directory under a redirected ~/.config, keeping the state for a retry 5ms
- ✓ |installer| test/uninstall-safety.test.ts > the resume directory > refuses a resume directory under a redirected XDG_CONFIG_HOME, keeping the state for a retry 3ms
- ✓ |installer| test/uninstall-safety.test.ts > the resume directory > refuses a resume directory when a directory above a custom base was redirected, keeping the state for a retry 4ms
- ✓ |installer| test/codex-trust.test.ts > trust carried by uninstall > restores hooks.json when the trust write fails, and a retry still carries the trust 187ms
- ✓ |installer| test/codex-trust.test.ts > trust carried by uninstall > warns that later hooks may need trusting again when app-server is unavailable 75ms
- ✓ |installer| test/codex-trust.test.ts > trust carried by uninstall > does not start app-server when no later hook moves, and removes both recorded tables 32ms
- ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > status lists the records after an uninstall that removed everything else 222ms
- ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > records connections from a rejected sign-in result that cannot be revoked 2ms
- ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > revokes connections from a rejected sign-in result when it can, and records none 1ms
- ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > refuses a state file whose records it cannot read instead of dropping them 178ms
- ✓ |installer| test/install-script.test.ts > install.sh > carries exactly one server-origin placeholder 1ms
+ ✓ |installer| test/uninstall-safety.test.ts > redirected skill folders (P1) > refuses to remove an owned Cursor folder through a redirected parent during install 102ms
+ ✓ |installer| test/uninstall-safety.test.ts > Antigravity skill folders > refuses to write through a pre-existing link, writes the MCP entry and hook, and leaves the link 10ms
+ ✓ |installer| test/uninstall-safety.test.ts > Antigravity skill folders > refuses an owned folder later replaced by a link and keeps the record for a retry 7ms
+ ✓ |installer| test/uninstall-safety.test.ts > Antigravity skill folders > refuses an Antigravity skill folder under a redirected parent 6ms
+ ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record and revokes nothing when ~/.claude.json is malformed and the CLI is absent 5ms
+ ✓ |installer| test/unrevoked.test.ts > recovery records stay until the person forgets them > refuses a state file whose records it cannot read instead of dropping them 259ms
+ ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record when ~/.claude.json is malformed and the CLI is present 73ms
+ ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record when ~/.claude.json cannot be read 3ms
+ ✓ |installer| test/codex-trust.test.ts > trust carried by uninstall > carries trust in both events to the new key of a later hook trusted with an unchanged hash only 155ms
+ ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > removes the entry from the file when claude mcp remove exits nonzero and leaves it 115ms
+ ✓ |installer| test/codex-trust.test.ts > trust carried by uninstall > never carries trust from one event to the same position in the other 138ms
+ ✓ |installer| test/install-script.test.ts > install.sh > carries exactly one server-origin placeholder 2ms
  ✓ |installer| test/install-script.test.ts > install.sh > downloads from the latest GitHub Release by default 0ms
- ✓ |installer| test/install-script.test.ts > install.sh > installs the verified ["Darwin","arm64"] binary agentdesk-darwin-arm64 to ~/.local/bin 30ms
- ✓ |installer| test/install-script.test.ts > install.sh > installs the verified ["Darwin","x86_64"] binary agentdesk-darwin-x64 to ~/.local/bin 26ms
- ✓ |installer| test/install-script.test.ts > install.sh > installs the verified ["Linux","x86_64"] binary agentdesk-linux-x64 to ~/.local/bin 23ms
- ✓ |installer| test/cli.test.ts > selection (AC-9.1) > lists every detected harness as selected and --yes keeps all without a prompt 123ms
- ✓ |installer| test/install-script.test.ts > install.sh > installs the verified ["Linux","aarch64"] binary agentdesk-linux-arm64 to ~/.local/bin 25ms
- ✓ |installer| test/install-script.test.ts > install.sh > passes its own arguments on after install --server <origin> 29ms
- ✓ |installer| test/install-script.test.ts > install.sh > gives the installer /dev/null as standard input without a terminal, so it never reads the piped script 31ms
- ✓ |installer| test/cli.test.ts > selection (AC-9.1) > installs for every harness when the user presses Enter 96ms
- ✓ |installer| test/cli.test.ts > selection (AC-9.1) > leaves out a harness the user deselects 75ms
+ ✓ |installer| test/install-script.test.ts > install.sh > installs the verified ["Darwin","arm64"] binary agentdesk-darwin-arm64 to ~/.local/bin 32ms
+ ✓ |installer| test/install-script.test.ts > install.sh > installs the verified ["Darwin","x86_64"] binary agentdesk-darwin-x64 to ~/.local/bin 24ms
+ ✓ |installer| test/install-script.test.ts > install.sh > installs the verified ["Linux","x86_64"] binary agentdesk-linux-x64 to ~/.local/bin 31ms
+ ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > fails and keeps the record when claude mcp remove exits nonzero and leaves the file unreadable 141ms
+ ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record when Codex config.toml is malformed 34ms
+ ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > status reports an unreadable configuration instead of a missing entry 3ms
+ ✓ |installer| test/install-script.test.ts > install.sh > installs the verified ["Linux","aarch64"] binary agentdesk-linux-arm64 to ~/.local/bin 31ms
+ ✓ |installer| test/install-script.test.ts > install.sh > passes its own arguments on after install --server <origin> 30ms
+ ✓ |installer| test/install-script.test.ts > install.sh > gives the installer /dev/null as standard input without a terminal, so it never reads the piped script 32ms
+ ✓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > refuses install before sign-in when a recorded configuration is malformed 39ms
+ ✓ |installer| test/uninstall-safety.test.ts > redirected harness bases (round 2 P1) > refuses removal when ~/.codex itself was redirected after install 49ms
+ ✓ |installer| test/uninstall-safety.test.ts > redirected harness bases (round 2 P1) > refuses removal when a custom CODEX_HOME base was redirected after install 4ms
+ ✓ |installer| test/uninstall-safety.test.ts > redirected harness bases (round 2 P1) > refuses removal when a directory above the Codex base was redirected after install 2ms
+ ✓ |installer| test/codex-trust.test.ts > trust carried by uninstall > restores hooks.json when the trust write fails, and a retry still carries the trust 206ms
+ ✓ |installer| test/codex-trust.test.ts > trust carried by uninstall > warns that later hooks may need trusting again when app-server is unavailable 72ms
+ ✓ |installer| test/codex-trust.test.ts > trust carried by uninstall > does not start app-server when no later hook moves, and removes both recorded tables 35ms
+ ✓ |installer| test/install-script.test.ts > install.sh > gives the installer the controlling terminal's own device, not /dev/tty 45ms
+ ✓ |installer| test/install-script.test.ts > install.sh > opens the device ps names ("zero", the bare name) before /dev/tty 25ms
+ ✓ |installer| test/install-script.test.ts > install.sh > opens the device ps names ("  zero  \n", padding) before /dev/tty 22ms
+ ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "" with status 0 (prints nothing) 31ms
+ ✓ |installer| test/uninstall-safety.test.ts > redirected harness bases (round 2 P1) > refuses Claude Code skill removal when the home directory was redirected after install 106ms
+ ✓ |installer| test/uninstall-safety.test.ts > missing local token (round 2 P2) > keeps the connection record and exits 1 when the MCP entry is gone 4ms
+ ✓ |installer| test/uninstall-safety.test.ts > missing local token (round 2 P2) > keeps the connection record and exits 1 when the Authorization header is missing 3ms
+ ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "?" with status 0 (prints ? (Linux, no terminal)) 25ms
+ ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "??" with status 0 (prints ?? (macOS, no terminal)) 23ms
+ ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "zero" with status 1 (fails) 20ms
+ ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "zero null" with status 0 (prints two fields) 28ms
+ ✓ |installer| test/uninstall-safety.test.ts > missing local token (round 2 P2) > keeps the connection record and exits 1 when the Authorization header cannot be parsed 36ms
+ ✓ |installer| test/uninstall-safety.test.ts > missing local token (round 2 P2) > forgets an unresolved record only with --forget-unrevoked, and says so 12ms
+ ✓ |installer| test/uninstall-safety.test.ts > missing local token (round 2 P2) > keeps a recovery record on install for a recorded connection without a local token 6ms
+ ✓ |installer| test/uninstall-safety.test.ts > missing local token (round 2 P2) > does not forget a connection whose revocation failed at the server, even with --forget-unrevoked 35ms
+ ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "zero\nzero\n" with status 0 (prints two lines) 26ms
+ ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "/dev/zero" with status 0 (prints an absolute path) 28ms
+ ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "../dev/zero" with status 0 (prints a path outside /dev) 28ms
+ ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "ttys-agentdesk-missing" with status 0 (names a device that does not exist) 25ms
+ ✓ |installer| test/uninstall-safety.test.ts > the resume directory > is removed with its contents, printed first, keeping its siblings 51ms
+ ✓ |installer| test/uninstall-safety.test.ts > the resume directory > is found under XDG_CONFIG_HOME 5ms
+ ✓ |installer| test/uninstall-safety.test.ts > the resume directory > is not followed through a symbolic link inside it 6ms
+ ✓ |installer| test/uninstall-safety.test.ts > the resume directory > refuses a resume directory that is a symbolic link, keeping the state for a retry 4ms
+ ✓ |installer| test/uninstall-safety.test.ts > the resume directory > refuses a resume directory under a redirected agentdesk directory 3ms
+ ✓ |installer| test/uninstall-safety.test.ts > the resume directory > is left in place, with the state, while a harness is kept for a retry 41ms
+ ✓ |installer| test/uninstall-safety.test.ts > the resume directory > keeps the state and exits 1 when the resume directory cannot be removed 4ms
+ ✓ |installer| test/uninstall-safety.test.ts > the resume directory > refuses a resume directory under a redirected ~/.config, keeping the state for a retry 4ms
+ ✓ |installer| test/uninstall-safety.test.ts > the resume directory > refuses a resume directory under a redirected XDG_CONFIG_HOME, keeping the state for a retry 4ms
+ ✓ |installer| test/uninstall-safety.test.ts > the resume directory > refuses a resume directory when a directory above a custom base was redirected, keeping the state for a retry 4ms
+ ✓ |installer| test/install-script.test.ts > install.sh > exits with the installer's status 29ms
+ ✓ |installer| test/install-script.test.ts > install.sh > prints a PATH hint when ~/.local/bin is not on PATH 32ms
+ ✓ |installer| test/install-script.test.ts > install.sh > prints no PATH hint when ~/.local/bin is on PATH 33ms
+ ✓ |installer| test/install-script.test.ts > install.sh > refuses a binary whose checksum does not match and installs nothing 13ms
+ ✓ |installer| test/install-script.test.ts > install.sh > refuses an unsupported platform 4ms
+ ✓ |installer| test/cli.test.ts > selection (AC-9.1) > lists every detected harness as selected and --yes keeps all without a prompt 133ms
+ ✓ |installer| test/install-script.test.ts > install.sh > names no server when run unsubstituted 27ms
+ ✓ |installer| test/cli.test.ts > selection (AC-9.1) > installs for every harness when the user presses Enter 112ms
+ ✓ |installer| test/cli.test.ts > selection (AC-9.1) > leaves out a harness the user deselects 85ms
  ✓ |installer| test/cli.test.ts > selection (AC-9.1) > writes nothing when the user deselects every harness 1ms
- ✓ |installer| test/install-script.test.ts > install.sh > gives the installer the controlling terminal's own device, not /dev/tty 47ms
- ✓ |installer| test/install-script.test.ts > install.sh > opens the device ps names ("zero", the bare name) before /dev/tty 19ms
- ✓ |installer| test/install-script.test.ts > install.sh > opens the device ps names ("  zero  \n", padding) before /dev/tty 20ms
- ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "" with status 0 (prints nothing) 18ms
- ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "?" with status 0 (prints ? (Linux, no terminal)) 23ms
- ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > sends the host name and harness ids, prints the code, and writes one token per harness (AC-6.1, AC-6.3, AC-6.4) 108ms
- ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > polls every 2 seconds on the clock while the request is pending 34ms
- ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > keeps polling through a transient server error 39ms
- ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > exits with status 1 and the decline message when the user declines (AC-6.6) 2ms
- ✓ |installer| test/cli.test.ts > selection (AC-9.1) > keeps every detected harness when the prompt cannot read the terminal 102ms
+ ✓ |installer| test/install-script.test.ts > scripts/build-binaries.mjs > compiles the four Bun targets to the release asset names and writes SHA256SUMS 94ms
+ ✓ |installer| test/install-script.test.ts > scripts/build-binaries.mjs > refuses to build without AGENTDESK_SERVER_ORIGIN 48ms
+ ✓ |installer| test/cli.test.ts > selection (AC-9.1) > keeps every detected harness when the prompt cannot read the terminal 108ms
  ✓ |installer| test/cli.test.ts > selection (AC-9.1) > stops without installing when the prompt rejects for another reason, such as Ctrl+C 1ms
  ✓ |installer| test/cli.test.ts > selection (AC-9.1) > refuses an answer that is not a listed number 1ms
- ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "??" with status 0 (prints ?? (macOS, no terminal)) 20ms
- ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "zero" with status 1 (fails) 16ms
- ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "zero null" with status 0 (prints two fields) 21ms
- ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "zero\nzero\n" with status 0 (prints two lines) 23ms
- ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "/dev/zero" with status 0 (prints an absolute path) 24ms
- ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > offers a new code after expiry and continues with it 35ms
- ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > stops when the user declines a new code after expiry 1ms
- ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > requests a new code without asking again when the prompt cannot read the terminal 37ms
- ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > stops after three codes in total when the prompt cannot read the terminal 1ms
- ✓ |installer| test/cli.test.ts > selection (AC-9.1) > --only selects the named harnesses without a prompt 41ms
- ✓ |installer| test/cli.test.ts > selection (AC-9.1) > --only reports a harness that is not detected and skips it 44ms
- ✓ |installer| test/cli.test.ts > selection (AC-9.1) > --only refuses an unknown harness id before any write 2ms
- ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "../dev/zero" with status 0 (prints a path outside /dev) 20ms
- ✓ |installer| test/install-script.test.ts > install.sh > falls back to /dev/tty, then /dev/null, when ps output is "ttys-agentdesk-missing" with status 0 (names a device that does not exist) 20ms
- ✓ |installer| test/install-script.test.ts > install.sh > exits with the installer's status 27ms
- ✓ |installer| test/install-script.test.ts > install.sh > prints a PATH hint when ~/.local/bin is not on PATH 25ms
- ✓ |installer| test/install-script.test.ts > install.sh > prints no PATH hint when ~/.local/bin is on PATH 25ms
- ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > requests new codes automatically without a terminal, up to three codes 53ms
- ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > treats a code as expired when its lifetime passes while pending 40ms
+ ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > sends the host name and harness ids, prints the code, and writes one token per harness (AC-6.1, AC-6.3, AC-6.4) 151ms
+ ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > polls every 2 seconds on the clock while the request is pending 41ms
+ ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > keeps polling through a transient server error 41ms
+ ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > exits with status 1 and the decline message when the user declines (AC-6.6) 2ms
+ ✓ |installer| test/cli.test.ts > selection (AC-9.1) > --only selects the named harnesses without a prompt 42ms
+ ✓ |installer| test/cli.test.ts > selection (AC-9.1) > --only reports a harness that is not detected and skips it 42ms
+ ✓ |installer| test/cli.test.ts > selection (AC-9.1) > --only refuses an unknown harness id before any write 1ms
+ ✓ |installer| test/skill.test.ts > skill version > reads metadata.version from the published skill 1ms
+ ✓ |installer| test/skill.test.ts > skill version > returns undefined without frontmatter or version 0ms
+ ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > offers a new code after expiry and continues with it 36ms
+ ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > stops when the user declines a new code after expiry 2ms
+ ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > requests a new code without asking again when the prompt cannot read the terminal 38ms
+ ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > stops after three codes in total when the prompt cannot read the terminal 2ms
+ ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > requests new codes automatically without a terminal, up to three codes 34ms
+ ✓ |installer| test/cli.test.ts > selection (AC-9.1) > selects every detected harness when no terminal can answer 93ms
+ ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes the Claude Code and Codex skills and no Cursor skill when both are installed 127ms
+ ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes no Cursor skill when the run installs the Claude Code skill only 65ms
+ ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > treats a code as expired when its lifetime passes while pending 44ms
  ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > refuses an approved result with a missing harness and prints no token 2ms
- ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > refuses an approved result with a duplicate token and prints no token 1ms
+ ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > refuses an approved result with a duplicate token and prints no token 2ms
  ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > refuses an approved result with a duplicate connection id and prints no token 1ms
  ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > refuses an approved result with an unrequested harness and prints no token 1ms
  ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > reports a failed start by status without the response body 1ms
- ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > never prints a device secret or a token 89ms
- ✓ |installer| test/cli.test.ts > selection (AC-9.1) > selects every detected harness when no terminal can answer 97ms
- ✓ |installer| test/install-script.test.ts > install.sh > refuses a binary whose checksum does not match and installs nothing 15ms
- ✓ |installer| test/install-script.test.ts > install.sh > refuses an unsupported platform 3ms
- ✓ |installer| test/install-script.test.ts > install.sh > names no server when run unsubstituted 28ms
- ✓ |installer| test/cli.test.ts > --server (AC-9.5) > configures every harness for the given server and stores it in state 105ms
- ✓ |installer| test/cli.test.ts > --server (AC-9.5) > uses the build's default server when --server is absent 30ms
+ ✓ |installer| test/signin.test.ts > short-code sign-in (component-installer §Sign-in) > never prints a device secret or a token 101ms
+ ✓ |installer| test/cli.test.ts > --server (AC-9.5) > configures every harness for the given server and stores it in state 96ms
+ ✓ |installer| test/cli.test.ts > --server (AC-9.5) > uses the build's default server when --server is absent 41ms
  ✓ |installer| test/cli.test.ts > --server (AC-9.5) > fails before any write without --server when the build has no default 1ms
  ✓ |installer| test/cli.test.ts > --server (AC-9.5) > refuses a server URL that is not http or https 1ms
  ✓ |installer| test/cli.test.ts > command line > prints usage for help and fails for an unknown command or option 1ms
  ✓ |installer| test/cli.test.ts > command line > prints the version 0ms
- ✓ |installer| test/cli.test.ts > Antigravity lifecycle > installs, re-runs unchanged, reports status, and uninstalls with --only antigravity 7ms
- ✓ |installer| test/install-script.test.ts > scripts/build-binaries.mjs > compiles the four Bun targets to the release asset names and writes SHA256SUMS 85ms
- ✓ |installer| test/install-script.test.ts > scripts/build-binaries.mjs > refuses to build without AGENTDESK_SERVER_ORIGIN 46ms
- ✓ |installer| test/skill.test.ts > skill version > reads metadata.version from the published skill 1ms
- ✓ |installer| test/skill.test.ts > skill version > returns undefined without frontmatter or version 0ms
- ✓ |installer| test/config.test.ts > Codex config.toml > replaces only the agentdesk table and keeps every other byte 2ms
- ✓ |installer| test/config.test.ts > Codex config.toml > replaces the table's subtables too 0ms
- ✓ |installer| test/config.test.ts > Codex config.toml > appends the table after a blank line when it is absent 2ms
+ ✓ |installer| test/cli.test.ts > Antigravity lifecycle > installs, re-runs unchanged, reports status, and uninstalls with --only antigravity 10ms
+ ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes no Cursor skill when the run installs the Codex skill only 33ms
+ ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes the Cursor skill when the run installs neither the Claude Code nor the Codex skill 3ms
+ ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > removes the Cursor skill it owned once a later run installs the Claude Code skill 75ms
+ ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes the MCP entry and reports no skill for a harness without skills (AC-9.2) 3ms
+ ✓ |installer| test/skill.test.ts > agentdesk skill install (REQ-3) > installs the skill and the hooks for every detected harness without signing in 40ms
+ ✓ |installer| test/skill.test.ts > agentdesk skill install (REQ-3) > writes the Cursor skill when Cursor is the only detected harness 2ms
+ ✓ |installer| test/config.test.ts > Codex config.toml > replaces only the agentdesk table and keeps every other byte 3ms
+ ✓ |installer| test/config.test.ts > Codex config.toml > replaces the table's subtables too 1ms
+ ✓ |installer| test/config.test.ts > Codex config.toml > appends the table after a blank line when it is absent 0ms
  ✓ |installer| test/config.test.ts > Codex config.toml > keeps CRLF line endings 0ms
  ✓ |installer| test/config.test.ts > Codex config.toml > does not mistake a header-like line inside a multi-line string for a table 0ms
- ✓ |installer| test/config.test.ts > Codex config.toml > refuses invalid TOML 2ms
+ ✓ |installer| test/config.test.ts > Codex config.toml > refuses invalid TOML 0ms
  ✓ |installer| test/config.test.ts > Codex config.toml > refuses an agentdesk definition it cannot replace by lines 1ms
- ✓ |installer| test/config.test.ts > JSON configuration > merges mcpServers.agentdesk and keeps unrelated entries 7ms
+ ✓ |installer| test/config.test.ts > JSON configuration > merges mcpServers.agentdesk and keeps unrelated entries 3ms
  ✓ |installer| test/config.test.ts > JSON configuration > refuses malformed JSON and leaves the file unchanged 1ms
  ✓ |installer| test/config.test.ts > backups > copies a file once per run, before its first edit 2ms
  ✓ |installer| test/config.test.ts > backups > makes no backup of a file that did not exist 1ms
- ✓ |installer| test/resume/codex-hook.test.ts > transcript scan > yields completed agentdesk ask results only, deduplicated in order 7ms
+ ✓ |installer| test/config.test.ts > writes and backups that do not follow links > refuses a backup path that is a link, and copies nothing 1ms
+ ✓ |installer| test/config.test.ts > writes and backups that do not follow links > refuses a file that is a link, and writes nothing 1ms
+ ✓ |installer| test/config.test.ts > writes and backups that do not follow links > refuses an existing temporary path, a link included, and writes nothing 1ms
+ ✓ |installer| test/config.test.ts > writes and backups that do not follow links > writes a regular file in place and keeps its mode 1ms
+ ✓ |installer| test/resume/codex-hook.test.ts > transcript scan > yields completed agentdesk ask results only, deduplicated in order 5ms
  ✓ |installer| test/resume/codex-hook.test.ts > transcript scan > ignores other tools, other servers, failed and unfinished calls, and bad lines 0ms
- ✓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > refuses a FIFO, a link to one, a device, and a directory without opening a stalled read 6ms
- ✓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > follows a link to a regular transcript 2ms
- ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes the Claude Code and Codex skills and no Cursor skill when both are installed 125ms
- ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes no Cursor skill when the run installs the Claude Code skill only 77ms
- ✓ |installer| test/config.test.ts > MCP entries written by install > calls claude mcp remove, then claude mcp add with the header, at user scope 91ms
- ✓ |installer| test/config.test.ts > MCP entries written by install > reports a failed claude mcp add without its output or arguments 63ms
+ ✓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > refuses a FIFO, a link to one, a device, and a directory without opening a stalled read 5ms
+ ✓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > follows a link to a regular transcript 4ms
+ ✓ |installer| test/config.test.ts > MCP entries written by install > calls claude mcp remove, then claude mcp add with the header, at user scope 97ms
+ ✓ |installer| test/config.test.ts > MCP entries written by install > reports a failed claude mcp add without its output or arguments 76ms
  ✓ |installer| test/config.test.ts > MCP entries written by install > writes mcpServers.agentdesk into ~/.claude.json when the claude CLI is absent 3ms
- ✓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > rejects at once with an aborted signal, and closes the reader when aborted mid-scan 104ms
+ ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered in the app resumes: { state: 'answered', answered_via: 'app' } 1ms
+ ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered from a notification resumes: { state: 'answered', answered_via: 'notification' } 0ms
+ ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered through the API resumes: { state: 'answered', answered_via: 'api' } 0ms
+ ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered by default resumes: { state: 'answered', answered_via: 'default' } 0ms
+ ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered in chat resumes: { state: 'answered', answered_via: 'chat' } 0ms
+ ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > expired with the default applied resumes: { state: 'expired', applied_by_default: true } 0ms
+ ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > expired without a default resumes: { state: 'expired', applied_by_default: false } 0ms
+ ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > cancelled resumes: { state: 'cancelled' } 0ms
+ ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > pending resumes: { state: 'pending' } 0ms
+ ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered with no recorded surface resumes: { state: 'answered', answered_via: null } 0ms
+ ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > the message names only the decision 0ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > prints the resume message once for a settlement from app 20ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > prints the resume message once for a settlement from notification 4ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > prints the resume message once for a settlement from api 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > prints the resume message once for a settlement from default expiry 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > exits 0 with no output and no claim for a chat answer 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > exits 0 with no output and no claim for a cancel 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > exits 0 with no output and no claim for an expiry with no default 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > calls POST /device/wait with the harness token and timeout_seconds 600, repeating pending answers 4ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > uses the server recorded for the harness 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > retries after 15 seconds on a network failure 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > retries after 15 seconds on a 5xx answer 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > retries after 15 seconds on a 500 answer 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > retries after 15 seconds on a stream that ends without its event 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > retries after 15 seconds on an unavailable event 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > parses an event stream split into small chunks with CRLF line endings 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > abandons a request that stays open past its bound and retries it 3ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > prints that the connection was revoked and exits 1 on a 401, without the token 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > exits 0 with no output on not_found 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1 and no resume on a 400 answer 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1 and no resume on an unreadable event 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1 and no resume on another error event 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with answered_via omitted 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with answered_via a number 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with answered_via an object 3ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with answered_via an unknown surface 5ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with answered_via in another case 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with applied_by_default omitted 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with applied_by_default a string 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with applied_by_default a number 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with applied_by_default null 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with an unknown state 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with state omitted 2ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with a numeric id 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > exits 0 with no claim and no resume for an answer with no recorded surface 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > refuses a malformed pending decision instead of waiting on it 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > refuses a decision answered for another id 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > fails without a request when the harness is not installed or has no token 1ms
+ ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > leaves the harness configuration and state unchanged 1ms
+ ✓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > rejects at once with an aborted signal, and closes the reader when aborted mid-scan 106ms
  ✓ |installer| test/resume/codex-hook.test.ts > transcript checks and cancellation > rejects with HookCancelledError when aborted while the transcript is being opened 1ms
- ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts one detached waiter per decision, records its process id, and prints {} 4ms
- ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts the running executable: Node with the bundle, or the binary itself 3ms
+ ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts one detached waiter per decision, records its process id, and prints {} 7ms
+ ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts the running executable: Node with the bundle, or the binary itself 5ms
  ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts no second waiter while one is live, and replaces a dead one 6ms
- ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > two Stop hooks at once start one waiter per decision 23ms
+ ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > two Stop hooks at once start one waiter per decision 24ms
  ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > records nothing for a waiter that could not start, so the next Stop retries 3ms
  ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on no input without starting a waiter 1ms
  ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on input that is not JSON without starting a waiter 1ms
@@ -366,139 +425,145 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on a missing transcript without starting a waiter 1ms
  ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} and exits 0 on a transcript that is a directory without starting a waiter 1ms
  ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > prints {} within its budget when the input never arrives 1ms
- ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts no waiter after the budget expires while a start is in flight, closes the input read, and asks the process to exit 3ms
+ ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts no waiter after the budget expires while a start is in flight, closes the input read, and asks the process to exit 2ms
  ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > starts nothing when the budget expires before the input arrives 1ms
  ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > does not ask the process to exit when it finishes within the budget 1ms
  ✓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > returns at once for a transcript with no ask result 1ms
- ✓ |installer| test/resume/codex-hook.test.ts > detached waiter start > starts a real detached process with closed standard streams that outlives the call 64ms
- ✓ |installer| test/resume/codex-hook.test.ts > detached waiter start > rejects when the executable cannot start 2ms
- ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes no Cursor skill when the run installs the Codex skill only 33ms
- ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes the Cursor skill when the run installs neither the Claude Code nor the Codex skill 3ms
- ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > removes the Cursor skill it owned once a later run installs the Claude Code skill 70ms
- ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes the MCP entry and reports no skill for a harness without skills (AC-9.2) 5ms
- ✓ |installer| test/skill.test.ts > agentdesk skill install (REQ-3) > installs the skill and the hooks for every detected harness without signing in 38ms
- ✓ |installer| test/skill.test.ts > agentdesk skill install (REQ-3) > writes the Cursor skill when Cursor is the only detected harness 2ms
- ✓ |installer| test/config.test.ts > MCP entries written by install > writes the Codex table and keeps the rest of config.toml 41ms
- ✓ |installer| test/config.test.ts > MCP entries written by install > writes CODEX_HOME/config.toml when CODEX_HOME is set 4ms
+ ✓ |installer| test/resume/codex-hook.test.ts > detached waiter start > starts a real detached process with closed standard streams that outlives the call 62ms
+ ✓ |installer| test/resume/codex-hook.test.ts > detached waiter start > rejects when the executable cannot start 3ms
+ ✓ |installer| test/resume/waiter.test.ts > Codex delivery (DEC-15(4)) > runs codex queue --thread <thread> --message <message> and keeps its output private 25ms
+ ✓ |installer| test/resume/waiter.test.ts > Codex delivery (DEC-15(4)) > exits with codex queue's status and does not queue twice 25ms
+ ✓ |installer| test/resume/waiter.test.ts > Codex delivery (DEC-15(4)) > exits 1 when codex cannot be started 4ms
+ ✓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > two waiters racing on one decision resume once 5ms
+ ✓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > a waiter that finds the claim taken exits 0 with no output 2ms
+ ✓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > uses 0700 directories and 0600 files under XDG_CONFIG_HOME and holds no token 2ms
+ ✓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > each waiter run deletes claims older than 30 days and keeps newer ones 1ms
+ ✓ |installer| test/config.test.ts > MCP entries written by install > writes the Codex table and keeps the rest of config.toml 48ms
+ ✓ |installer| test/config.test.ts > MCP entries written by install > writes CODEX_HOME/config.toml when CODEX_HOME is set 3ms
  ✓ |installer| test/config.test.ts > MCP entries written by install > merges ~/.cursor/mcp.json and keeps unrelated servers 5ms
- ✓ |installer| test/config.test.ts > MCP entries written by install > refuses a malformed Cursor mcp.json before sign-in and leaves it unchanged 1ms
- ✓ |installer| test/config.test.ts > MCP entries written by install > writes the Antigravity entry into an empty mcp_config.json 3ms
- ✓ |installer| test/config.test.ts > MCP entries written by install > writes the Antigravity entry into a whitespace-only mcp_config.json 3ms
- ✓ |installer| test/config.test.ts > MCP entries written by install > merges a populated Antigravity mcp_config.json and keeps unrelated servers 3ms
- ✓ |installer| test/config.test.ts > MCP entries written by install > refuses an Antigravity mcp_config.json holding invalid JSON before sign-in 2ms
+ ✓ |installer| test/config.test.ts > MCP entries written by install > refuses a malformed Cursor mcp.json before sign-in and leaves it unchanged 2ms
+ ✓ |installer| test/config.test.ts > MCP entries written by install > writes the Antigravity entry into an empty mcp_config.json 5ms
+ ✓ |installer| test/config.test.ts > MCP entries written by install > writes the Antigravity entry into a whitespace-only mcp_config.json 4ms
+ ✓ |installer| test/config.test.ts > MCP entries written by install > merges a populated Antigravity mcp_config.json and keeps unrelated servers 5ms
+ ✓ |installer| test/config.test.ts > MCP entries written by install > refuses an Antigravity mcp_config.json holding invalid JSON before sign-in 1ms
  ✓ |installer| test/config.test.ts > MCP entries written by install > refuses an Antigravity mcp_config.json holding a JSON list before sign-in 1ms
  ✓ |installer| test/config.test.ts > MCP entries written by install > refuses an Antigravity mcp_config.json holding an mcpServers list before sign-in 1ms
  ✓ |installer| test/config.test.ts > MCP entries written by install > creates a new Antigravity mcp_config.json with mode 0600 and no backup 3ms
- ✓ |installer| test/config.test.ts > MCP entries written by install > creates new configuration files with mode 0600 and no backup holds a token from the run 47ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records the decision from the first content item of result_json and prints {} 4ms
+ ✓ |installer| test/config.test.ts > MCP entries written by install > creates new configuration files with mode 0600 and no backup holds a token from the run 39ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context > prints GUIDANCE.md as plain text for claude-code 3ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context > prints GUIDANCE.md as plain text for codex 3ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context > prints one additional_context JSON object for cursor 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context > prints one injectSteps JSON object for antigravity 3ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context > omits the last line, which points to the skill, for a harness without skills 4ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context > is a usage error with status 2 for [] 2ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context > is a usage error with status 2 for ["--harness"] 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context > is a usage error with status 2 for ["--harness","vim"] 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context > is a usage error with status 2 for ["--harness","codex","extra"] 2ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context > is a usage error with status 2 for ["--harness","codex","--yes"] 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > has the confirmed child guidance text 0ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints the standing guidance byte for byte with the variable unset 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints the standing guidance byte for byte with the variable empty 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints only the child guidance when the variable is "0" 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints only the child guidance when the variable is "false" 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints only the child guidance when the variable is " " 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints only the child guidance when the variable is "conveyor-session 7f3a" 2ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints the same child guidance for a harness without skills 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints the standing guidance byte for byte with the variable unset 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints the standing guidance byte for byte with the variable empty 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints only the child guidance when the variable is "0" 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints only the child guidance when the variable is "false" 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints only the child guidance when the variable is " " 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints only the child guidance when the variable is "conveyor-session 7f3a" 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints the same child guidance for a harness without skills 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints the standing guidance byte for byte with the variable unset 0ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints the standing guidance byte for byte with the variable empty 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints only the child guidance when the variable is "0" 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints only the child guidance when the variable is "false" 3ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints only the child guidance when the variable is " " 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints only the child guidance when the variable is "conveyor-session 7f3a" 2ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints the same child guidance for a harness without skills 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints the standing guidance byte for byte with the variable unset 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints the standing guidance byte for byte with the variable empty 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints only the child guidance when the variable is "0" 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints only the child guidance when the variable is "false" 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints only the child guidance when the variable is " " 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints only the child guidance when the variable is "conveyor-session 7f3a" 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints the same child guidance for a harness without skills 2ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > keeps usage errors at status 2 with the variable set, for [] 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > keeps usage errors at status 2 with the variable set, for ["--harness"] 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > keeps usage errors at status 2 with the variable set, for ["--harness","vim"] 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > keeps usage errors at status 2 with the variable set, for ["--harness","codex","extra"] 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > fails the same way for a build without guidance when the variable is undefined 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > fails the same way for a build without guidance when the variable is "" 1ms
+ ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > fails the same way for a build without guidance when the variable is "parent" 1ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records the decision from the first content item of result_json and prints {} 5ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > accepts result_json given as an object 0ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for another tool and prints {} 1ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for another tool and prints {} 2ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for another server and prints {} 1ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for no input and prints {} 1ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for input that is not JSON and prints {} 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for result_json that is not JSON and prints {} 0ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for no content and prints {} 0ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for result_json that is not JSON and prints {} 1ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for no content and prints {} 1ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for a first item that is not JSON and prints {} 1ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for an unsafe conversation id and prints {} 1ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for an unsafe decision id and prints {} 1ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} at once without records 2ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} at once for status aborted 2ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} at once for status aborted 3ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} at once for status error 1ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} at once for status undefined 1ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} for no input 1ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} for input that is not JSON 1ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} for an unsafe conversation id 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > returns one followup_message for a phone answer after holding while it was pending 12ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > returns a followup_message for an expiry with the default applied 1ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > returns one followup_message for a phone answer after holding while it was pending 19ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > returns a followup_message for an expiry with the default applied 2ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} on a chat settlement and keeps the record 2ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} on a cancel and keeps the record 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via omitted 3ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via a number 3ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via an object 2ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via an unknown surface 2ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via in another case 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default omitted 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default a string 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default a number 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default null 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with an unknown state 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with state omitted 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with a numeric id 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > a malformed decision does not stop another recorded decision from delivering 1ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} on a cancel and keeps the record 2ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via omitted 4ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via a number 2ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via an object 1ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via an unknown surface 4ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with answered_via in another case 3ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default omitted 3ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default a string 3ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default a number 3ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with applied_by_default null 2ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with an unknown state 2ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with state omitted 2ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for a decision with a numeric id 2ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > a malformed decision does not stop another recorded decision from delivering 2ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} with no claim for an answer with no recorded surface 1ms
  ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} when the decision's claim exists 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} 50 minutes after the hold starts and stops its requests and timers 10ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > delivers a settled decision while another recorded decision stays pending 2ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > two concurrent holds on one conversation deliver once 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > an overtaken hold and the newer hold share the claim, and a waiter on the same decision stays silent 2ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > deletes records older than 7 days and prints {} when none remain 1ms
- ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} when Cursor's connection is revoked 1ms
- ✓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused before its SKILL.md is read, and the MCP entry and hook are still written 74ms
- ✓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused on skill install before its SKILL.md is read 3ms
- ✓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused when a parent of the skill folder is redirected, with nothing written there 4ms
- ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a linked mcp_config.json before sign-in, and never reads or writes the profile 3ms
- ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a linked hooks.json before sign-in, and never reads or writes the profile 2ms
- ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a redirected ~/.gemini/config before sign-in 2ms
- ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a redirected ~/.gemini before sign-in 2ms
- ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a hook file later replaced by a link on uninstall, keeping the record 4ms
- ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses an MCP file later replaced by a link on uninstall, revoking nothing 4ms
- ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > keeps writing through a linked Cursor mcp.json, as before 5ms
- ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered in the app resumes: { state: 'answered', answered_via: 'app' } 1ms
- ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered from a notification resumes: { state: 'answered', answered_via: 'notification' } 0ms
- ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered through the API resumes: { state: 'answered', answered_via: 'api' } 0ms
- ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered by default resumes: { state: 'answered', answered_via: 'default' } 0ms
- ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered in chat resumes: { state: 'answered', answered_via: 'chat' } 0ms
- ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > expired with the default applied resumes: { state: 'expired', applied_by_default: true } 0ms
- ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > expired without a default resumes: { state: 'expired', applied_by_default: false } 0ms
- ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > cancelled resumes: { state: 'cancelled' } 0ms
- ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > pending resumes: { state: 'pending' } 0ms
- ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered with no recorded surface resumes: { state: 'answered', answered_via: null } 1ms
- ✓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > the message names only the decision 0ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > prints the resume message once for a settlement from app 20ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > prints the resume message once for a settlement from notification 3ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > prints the resume message once for a settlement from api 2ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > prints the resume message once for a settlement from default expiry 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > exits 0 with no output and no claim for a chat answer 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > exits 0 with no output and no claim for a cancel 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > exits 0 with no output and no claim for an expiry with no default 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > calls POST /device/wait with the harness token and timeout_seconds 600, repeating pending answers 3ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > uses the server recorded for the harness 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > retries after 15 seconds on a network failure 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > retries after 15 seconds on a 5xx answer 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > retries after 15 seconds on a 500 answer 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > retries after 15 seconds on a stream that ends without its event 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > retries after 15 seconds on an unavailable event 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > parses an event stream split into small chunks with CRLF line endings 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > abandons a request that stays open past its bound and retries it 2ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > prints that the connection was revoked and exits 1 on a 401, without the token 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > exits 0 with no output on not_found 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1 and no resume on a 400 answer 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1 and no resume on an unreadable event 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1 and no resume on another error event 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with answered_via omitted 2ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with answered_via a number 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with answered_via an object 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with answered_via an unknown surface 2ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with answered_via in another case 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with applied_by_default omitted 2ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with applied_by_default a string 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with applied_by_default a number 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with applied_by_default null 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with an unknown state 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with state omitted 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > stops with status 1, no claim, and no resume for a decision with a numeric id 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > exits 0 with no claim and no resume for an answer with no recorded surface 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > refuses a malformed pending decision instead of waiting on it 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > refuses a decision answered for another id 1ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > fails without a request when the harness is not installed or has no token 21ms
- ✓ |installer| test/resume/waiter.test.ts > agentdesk wait > leaves the harness configuration and state unchanged 2ms
- ✓ |installer| test/resume/waiter.test.ts > Codex delivery (DEC-15(4)) > runs codex queue --thread <thread> --message <message> and keeps its output private 42ms
- ✓ |installer| test/resume/waiter.test.ts > Codex delivery (DEC-15(4)) > exits with codex queue's status and does not queue twice 36ms
- ✓ |installer| test/resume/waiter.test.ts > Codex delivery (DEC-15(4)) > exits 1 when codex cannot be started 9ms
- ✓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > two waiters racing on one decision resume once 2ms
- ✓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > a waiter that finds the claim taken exits 0 with no output 2ms
- ✓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > uses 0700 directories and 0600 files under XDG_CONFIG_HOME and holds no token 2ms
- ✓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > each waiter run deletes claims older than 30 days and keeps newer ones 2ms
+ ✓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused before its SKILL.md is read, and the MCP entry and hook are still written 26ms
+ ✓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused on skill install before its SKILL.md is read 5ms
+ ✓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused when a parent of the skill folder is redirected, with nothing written there 7ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a linked mcp_config.json before sign-in, and never reads or writes the profile 4ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a linked hooks.json before sign-in, and never reads or writes the profile 5ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a redirected ~/.gemini/config before sign-in 3ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a redirected ~/.gemini before sign-in 3ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a hook file later replaced by a link on uninstall, keeping the record 10ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses an MCP file later replaced by a link on uninstall, revoking nothing 17ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > keeps writing through a linked Cursor mcp.json, as before 6ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked SKILL.md in a real folder before reading or writing it 3ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a SKILL.md replaced by a link after install, on a re-run and in status 5ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > does not read the version through a skill folder replaced by a link after install 5ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked mcp_config.json backup before sign-in, leaving the outside file unchanged 2ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} 50 minutes after the hold starts and stops its requests and timers 19ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > delivers a settled decision while another recorded decision stays pending 3ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > two concurrent holds on one conversation deliver once 4ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > an overtaken hold and the newer hold share the claim, and a waiter on the same decision stays silent 5ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > deletes records older than 7 days and prints {} when none remain 2ms
+ ✓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook stop --harness cursor > prints {} when Cursor's connection is revoked 2ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked hooks.json backup before sign-in, leaving the outside file unchanged 1ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked mcp_config.json backup on uninstall, keeping the record and the outside file 5ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked hooks.json backup on uninstall, keeping the record and the outside file 4ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > replaces an earlier regular backup file with a new copy 3ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked mcp_config.json temporary file before sign-in, leaving the outside file unchanged 1ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked hooks.json temporary file before sign-in, leaving the outside file unchanged 3ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked SKILL.md temporary file, leaving the outside file unchanged 3ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > keeps copying a Cursor backup through a linked backup path, as before 2ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity handlers without the command type > refuses a handler with no type before sign-in and changes nothing 1ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity handlers without the command type > refuses a handler with another type before sign-in and changes nothing 1ms
+ ✓ |installer| test/antigravity-links.test.ts > Antigravity handlers without the command type > refuses removal when the installer's handler lost its type, and keeps the record 3ms
  ✓ |installer| test/resume/commands.test.ts > command line for wait and hook > lists both commands in the help text 1ms
  ✓ |installer| test/resume/commands.test.ts > command line for wait and hook > parses wait with and without a Codex thread 1ms
  ✓ |installer| test/resume/commands.test.ts > command line for wait and hook > parses each supported hook 0ms
@@ -519,88 +584,42 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ✓ |installer| test/resume/commands.test.ts > command line for wait and hook > hook stop for Claude Code is a usage error with status 2 and no request 1ms
  ✓ |installer| test/resume/commands.test.ts > command line for wait and hook > hook with an extra argument is a usage error with status 2 and no request 1ms
  ✓ |installer| test/resume/commands.test.ts > command line for wait and hook > hook with an unknown option is a usage error with status 2 and no request 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context > prints GUIDANCE.md as plain text for claude-code 6ms
- ✓ |installer| test/guidance.test.ts > agentdesk context > prints GUIDANCE.md as plain text for codex 6ms
- ✓ |installer| test/guidance.test.ts > agentdesk context > prints one additional_context JSON object for cursor 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context > prints one injectSteps JSON object for antigravity 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context > omits the last line, which points to the skill, for a harness without skills 2ms
- ✓ |installer| test/guidance.test.ts > agentdesk context > is a usage error with status 2 for [] 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context > is a usage error with status 2 for ["--harness"] 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context > is a usage error with status 2 for ["--harness","vim"] 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context > is a usage error with status 2 for ["--harness","codex","extra"] 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context > is a usage error with status 2 for ["--harness","codex","--yes"] 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > has the confirmed child guidance text 0ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints the standing guidance byte for byte with the variable unset 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints the standing guidance byte for byte with the variable empty 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints only the child guidance when the variable is "0" 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints only the child guidance when the variable is "false" 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints only the child guidance when the variable is " " 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints only the child guidance when the variable is "conveyor-session 7f3a" 2ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for claude-code > prints the same child guidance for a harness without skills 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints the standing guidance byte for byte with the variable unset 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints the standing guidance byte for byte with the variable empty 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints only the child guidance when the variable is "0" 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints only the child guidance when the variable is "false" 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints only the child guidance when the variable is " " 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints only the child guidance when the variable is "conveyor-session 7f3a" 2ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for codex > prints the same child guidance for a harness without skills 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints the standing guidance byte for byte with the variable unset 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints the standing guidance byte for byte with the variable empty 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints only the child guidance when the variable is "0" 2ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints only the child guidance when the variable is "false" 2ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints only the child guidance when the variable is " " 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints only the child guidance when the variable is "conveyor-session 7f3a" 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for cursor > prints the same child guidance for a harness without skills 2ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints the standing guidance byte for byte with the variable unset 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints the standing guidance byte for byte with the variable empty 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints only the child guidance when the variable is "0" 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints only the child guidance when the variable is "false" 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints only the child guidance when the variable is " " 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints only the child guidance when the variable is "conveyor-session 7f3a" 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > for antigravity > prints the same child guidance for a harness without skills 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > keeps usage errors at status 2 with the variable set, for [] 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > keeps usage errors at status 2 with the variable set, for ["--harness"] 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > keeps usage errors at status 2 with the variable set, for ["--harness","vim"] 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > keeps usage errors at status 2 with the variable set, for ["--harness","codex","extra"] 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > fails the same way for a build without guidance when the variable is undefined 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > fails the same way for a build without guidance when the variable is "" 1ms
- ✓ |installer| test/guidance.test.ts > agentdesk context in a child session > fails the same way for a build without guidance when the variable is "parent" 0ms
- ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects nothing in an empty home with an empty PATH 2ms
+ ✓ |installer| test/prompt.test.ts > askQuestion > returns the typed answer and leaves no listener on the input 2ms
+ ✓ |installer| test/prompt.test.ts > askQuestion > rejects with TerminalReadError when the input fails while the question waits 1ms
+ ✓ |installer| test/prompt.test.ts > askQuestion > rejects with TerminalReadError when the input is already failing as the question starts 3ms
+ ✓ |installer| test/prompt.test.ts > askQuestion > settles once when the input fails twice 1ms
+ ✓ |installer| test/prompt.test.ts > askQuestion > passes Ctrl+C through unchanged rather than as a read error 2ms
+ ✓ |installer| test/prompt.test.ts > askQuestion > undoes readline's listeners and raw mode when its construction throws 1ms
+ ✓ |installer| test/prompt.test.ts > askQuestion > rejects once and undoes construction when the input fails while readline is constructed 0ms
+ ✓ |installer| test/prompt.test.ts > askQuestion > passes a question that fails to start through unchanged and closes the interface 0ms
+ ✓ |installer| test/prompt.test.ts > terminalPrompt > rejects every later prompt without touching the input after a read error 1ms
+ ✓ |installer| test/prompt.test.ts > terminalPrompt > keeps prompting after an answer 0ms
+ ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects nothing in an empty home with an empty PATH 3ms
  ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Claude Code by the claude executable 1ms
  ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Claude Code by ~/.claude.json 1ms
  ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by the codex executable 1ms
  ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by ~/.codex 1ms
- ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by CODEX_HOME instead of ~/.codex 1ms
+ ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by CODEX_HOME instead of ~/.codex 2ms
  ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the cursor-agent executable 1ms
  ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the agent executable 1ms
  ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the cursor executable 1ms
  ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by ~/.cursor 1ms
  ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Antigravity by the agy executable 1ms
  ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Antigravity by ~/.gemini/antigravity-cli 1ms
- ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > does not detect Antigravity by ~/.gemini/config alone 0ms
+ ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > does not detect Antigravity by ~/.gemini/config alone 1ms
  ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > ignores a file on PATH that is not executable 1ms
  ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects all four harnesses together in registry order 1ms
  ✓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > fails install when no harness is detected 2ms
- ✓ |installer| test/prompt.test.ts > askQuestion > returns the typed answer and leaves no listener on the input 3ms
- ✓ |installer| test/prompt.test.ts > askQuestion > rejects with TerminalReadError when the input fails while the question waits 1ms
- ✓ |installer| test/prompt.test.ts > askQuestion > rejects with TerminalReadError when the input is already failing as the question starts 3ms
- ✓ |installer| test/prompt.test.ts > askQuestion > settles once when the input fails twice 1ms
- ✓ |installer| test/prompt.test.ts > askQuestion > passes Ctrl+C through unchanged rather than as a read error 1ms
- ✓ |installer| test/prompt.test.ts > askQuestion > undoes readline's listeners and raw mode when its construction throws 1ms
- ✓ |installer| test/prompt.test.ts > askQuestion > rejects once and undoes construction when the input fails while readline is constructed 0ms
- ✓ |installer| test/prompt.test.ts > askQuestion > passes a question that fails to start through unchanged and closes the interface 0ms
- ✓ |installer| test/prompt.test.ts > terminalPrompt > rejects every later prompt without touching the input after a read error 1ms
- ✓ |installer| test/prompt.test.ts > terminalPrompt > keeps prompting after an answer 0ms
- ✓ |installer| test/resume/sse.test.ts > SseParser > skips keepalive comments and returns the message event 2ms
+ ✓ |installer| test/resume/sse.test.ts > SseParser > skips keepalive comments and returns the message event 1ms
  ✓ |installer| test/resume/sse.test.ts > SseParser > returns the same event however the bytes are split, including inside UTF-8 sequences 1ms
  ✓ |installer| test/resume/sse.test.ts > SseParser > accepts CRLF and CR line endings, with CRLF split across chunks 1ms
  ✓ |installer| test/resume/sse.test.ts > SseParser > joins data lines, defaults the event name, and ignores unknown fields 0ms
  ✓ |installer| test/resume/sse.test.ts > SseParser > drops an event left without its blank line when the stream ends 0ms
- ✓ |installer| test/resume/sse.test.ts > SseParser > refuses an event larger than the waiter accepts 3ms
+ ✓ |installer| test/resume/sse.test.ts > SseParser > refuses an event larger than the waiter accepts 4ms
 
  Test Files  22 passed (22)
-      Tests  588 passed (588)
-   Start at  12:06:31
-   Duration  8.11s (transform 647ms, setup 0ms, import 1.60s, tests 20.91s, environment 1ms)
+      Tests  607 passed (607)
+   Start at  12:43:27
+   Duration  9.17s (transform 735ms, setup 0ms, import 1.84s, tests 23.61s, environment 1ms)
 
 vitest exit status: 0

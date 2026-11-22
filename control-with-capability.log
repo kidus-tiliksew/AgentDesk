@@ -19,39 +19,6 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > prints the standing or child guidance from context for antigravity by AGENTDESK_PARENT_SESSION
  ↓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > installs the embedded skill byte for byte with the hook
  ↓ |installer| test/bundle.test.ts > bundle dist/agentdesk.mjs > signs in against the build's default server and writes the connection and the hook
- ↓ |installer| test/state.test.ts > state file (component-installer §State, re-run, and uninstall) > records server, connection ids, configuration, skill, and hook paths, and the Codex trust key with mode 0600 and no secret
- ↓ |installer| test/state.test.ts > state file (component-installer §State, re-run, and uninstall) > writes state under XDG_CONFIG_HOME when it is set
- ↓ |installer| test/state.test.ts > re-run (AC-9.4) > keeps every working connection, shows no code, and rewrites the skill at the current version
- ↓ |installer| test/state.test.ts > re-run (AC-9.4) > restores a skill file that was edited by hand
- ↓ |installer| test/state.test.ts > re-run (AC-9.4) > signs in only the harness whose connection check fails
- ↓ |installer| test/state.test.ts > re-run (AC-9.4) > signs every harness in again at a new --server and revokes the old connections
- ↓ |installer| test/state.test.ts > re-run (AC-9.4) > keeps the recorded server on a re-run without --server
- ↓ |installer| test/state.test.ts > state from an installer without hooks > reads a record without hook fields, and a re-run adds the hook and Codex trust
- ↓ |installer| test/state.test.ts > state from an installer without resume hooks > reads a record with only the session-start hook, and a re-run adds the resume hooks
- ↓ |installer| test/state.test.ts > state from an installer without resume hooks > round-trips every resume hook field through readState and writeState
- ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose stopHookPath is 7, changing nothing
- ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose stopHookPath is "", changing nothing
- ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose codexStopTrustKey is ["x"], changing nothing
- ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose codexStopTrustKey is "", changing nothing
- ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a cursor record whose afterMcpHookPath is null, changing nothing
- ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a cursor record whose stopHookPath is {"path":"x"}, changing nothing
- ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a claude-code record whose stopHookPath is "/h/.claude/settings.json", changing nothing
- ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a claude-code record whose afterMcpHookPath is "/h/.claude/settings.json", changing nothing
- ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose afterMcpHookPath is "/h/.codex/hooks.json", changing nothing
- ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a cursor record whose codexStopTrustKey is "/h/.cursor/hooks.json:stop:0:0", changing nothing
- ↓ |installer| test/state.test.ts > status > prints each recorded harness, its connection check, its skill version, and its hook
- ↓ |installer| test/state.test.ts > status > says when nothing is installed
- ↓ |installer| test/state.test.ts > uninstall (AC-9.6) > revokes each connection, removes entries and owned skills, keeps other content, and deletes state
- ↓ |installer| test/state.test.ts > uninstall (AC-9.6) > removes the Claude entry from ~/.claude.json when the CLI is absent
- ↓ |installer| test/state.test.ts > uninstall (AC-9.6) > keeps a harness whose revocation fails and reports it
- ↓ |installer| test/state.test.ts > uninstall (AC-9.6) > refuses to remove a recorded path that is not the installer's location
- ↓ |installer| test/state.test.ts > uninstall (AC-9.6) > reports nothing to do without state
- ↓ |installer| test/state.test.ts > uninstall (AC-9.6) > leaves the state directory private
- ↓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Codex Stop hook returns {} at once and its detached waiter queues the resume
- ↓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Cursor hooks record the ask result and return its followup_message
- ↓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Codex Stop hook exits promptly with {} for a transcript that would stall a read
- ↓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Codex Stop hook exits promptly with {} when its input never ends
- ↓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the hooks print {} on bad input, and wait answers usage errors with status 2
  ↓ |installer| test/install-key.test.ts > --key-file input > enrolls Antigravity with the key and writes its entry, skill, and hook
  ↓ |installer| test/install-key.test.ts > --key-file input > enrolls every selected harness with one request and shows no code (AC-2.1, AC-2.4)
  ↓ |installer| test/install-key.test.ts > --key-file input > reads the key from standard input for -, and never prompts on it
@@ -124,6 +91,39 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/install-key.test.ts > readStream > reads every chunk of the stream as UTF-8
  ↓ |installer| test/install-key.test.ts > readStream > rejects on a read error
  ↓ |installer| test/install-key.test.ts > readStream > stops reading once the input exceeds the limit
+ ↓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Codex Stop hook returns {} at once and its detached waiter queues the resume
+ ↓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Cursor hooks record the ask result and return its followup_message
+ ↓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Codex Stop hook exits promptly with {} for a transcript that would stall a read
+ ↓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the Codex Stop hook exits promptly with {} when its input never ends
+ ↓ |installer| test/resume/bundle.test.ts > resume commands in the bundle > the hooks print {} on bad input, and wait answers usage errors with status 2
+ ↓ |installer| test/state.test.ts > state file (component-installer §State, re-run, and uninstall) > records server, connection ids, configuration, skill, and hook paths, and the Codex trust key with mode 0600 and no secret
+ ↓ |installer| test/state.test.ts > state file (component-installer §State, re-run, and uninstall) > writes state under XDG_CONFIG_HOME when it is set
+ ↓ |installer| test/state.test.ts > re-run (AC-9.4) > keeps every working connection, shows no code, and rewrites the skill at the current version
+ ↓ |installer| test/state.test.ts > re-run (AC-9.4) > restores a skill file that was edited by hand
+ ↓ |installer| test/state.test.ts > re-run (AC-9.4) > signs in only the harness whose connection check fails
+ ↓ |installer| test/state.test.ts > re-run (AC-9.4) > signs every harness in again at a new --server and revokes the old connections
+ ↓ |installer| test/state.test.ts > re-run (AC-9.4) > keeps the recorded server on a re-run without --server
+ ↓ |installer| test/state.test.ts > state from an installer without hooks > reads a record without hook fields, and a re-run adds the hook and Codex trust
+ ↓ |installer| test/state.test.ts > state from an installer without resume hooks > reads a record with only the session-start hook, and a re-run adds the resume hooks
+ ↓ |installer| test/state.test.ts > state from an installer without resume hooks > round-trips every resume hook field through readState and writeState
+ ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose stopHookPath is 7, changing nothing
+ ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose stopHookPath is "", changing nothing
+ ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose codexStopTrustKey is ["x"], changing nothing
+ ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose codexStopTrustKey is "", changing nothing
+ ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a cursor record whose afterMcpHookPath is null, changing nothing
+ ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a cursor record whose stopHookPath is {"path":"x"}, changing nothing
+ ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a claude-code record whose stopHookPath is "/h/.claude/settings.json", changing nothing
+ ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a claude-code record whose afterMcpHookPath is "/h/.claude/settings.json", changing nothing
+ ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a codex record whose afterMcpHookPath is "/h/.codex/hooks.json", changing nothing
+ ↓ |installer| test/state.test.ts > state from an installer without resume hooks > refuses a cursor record whose codexStopTrustKey is "/h/.cursor/hooks.json:stop:0:0", changing nothing
+ ↓ |installer| test/state.test.ts > status > prints each recorded harness, its connection check, its skill version, and its hook
+ ↓ |installer| test/state.test.ts > status > says when nothing is installed
+ ↓ |installer| test/state.test.ts > uninstall (AC-9.6) > revokes each connection, removes entries and owned skills, keeps other content, and deletes state
+ ↓ |installer| test/state.test.ts > uninstall (AC-9.6) > removes the Claude entry from ~/.claude.json when the CLI is absent
+ ↓ |installer| test/state.test.ts > uninstall (AC-9.6) > keeps a harness whose revocation fails and reports it
+ ↓ |installer| test/state.test.ts > uninstall (AC-9.6) > refuses to remove a recorded path that is not the installer's location
+ ↓ |installer| test/state.test.ts > uninstall (AC-9.6) > reports nothing to do without state
+ ↓ |installer| test/state.test.ts > uninstall (AC-9.6) > leaves the state directory private
  ↓ |installer| test/unrevoked.test.ts > install keeps connections it cannot revoke > records the old connection when --server replaces it and its DELETE fails
  ↓ |installer| test/unrevoked.test.ts > install keeps connections it cannot revoke > records the old connection when a reinstall replaces one whose local token was lost
  ↓ |installer| test/unrevoked.test.ts > install keeps connections it cannot revoke > records a new connection whose configuration write failed and whose cleanup DELETE failed
@@ -164,7 +164,37 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor stop value of null before sign-in and changes nothing
  ↓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor afterMCPExecution value that is not a list before sign-in and changes nothing
  ↓ |installer| test/hooks.test.ts > hooks written by install > refuses a Cursor afterMCPExecution value of null before sign-in and changes nothing
- × |installer| test/hooks.test.ts > hooks written by install > refuses an unreadable hook file before sign-in 123ms
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > writes the reported key and hash of both hooks and keeps every other byte of config.toml
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > uses CODEX_HOME for hooks.json and config.toml
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > replaces the recorded tables when both hooks' keys change
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > replaces only the Stop table when only the Stop hook's key changes
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > refreshes both hashes when the executable moves
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > reports each hook's trustStatus in status
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > prints the /hooks step for both hooks and exits 0 when codex is not on PATH
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > prints the /hooks step for both hooks and exits 0 when app-server exits nonzero
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > prints the /hooks step for both hooks and exits 0 when app-server answers hooks/list with an error
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when the session-start hook is missing from the list
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when the Stop hook is missing from the list
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when both hooks are missing from the list
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when every hook's currentHash is malformed
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when every hook comes from a source other than the user
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > gives up after 10 seconds on the fake clock, stops app-server, and exits 0
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > refuses a hooks.state definition lines cannot replace for the session-start hook, keeping it, and exits 1
+ ↓ |installer| test/codex-trust.test.ts > trust recorded by install > refuses a hooks.state definition lines cannot replace for the Stop hook, keeping it, and exits 1
+ ↓ |installer| test/codex-trust.test.ts > editCodexTrust > replaces only the target table's lines, in place, keeping comments and CRLF
+ ↓ |installer| test/codex-trust.test.ts > editCodexTrust > matches the header in any quoting and spacing
+ ↓ |installer| test/codex-trust.test.ts > editCodexTrust > removes a table with the blank line the installer added, and keeps other tables
+ ↓ |installer| test/codex-trust.test.ts > editCodexTrust > removes several appended tables with their blank lines, in any order given
+ ↓ |installer| test/codex-trust.test.ts > editCodexTrust > sets one key and removes another in one edit
+ ↓ |installer| test/codex-trust.test.ts > editCodexTrust > refuses an inline table
+ ↓ |installer| test/codex-trust.test.ts > editCodexTrust > refuses a dotted key
+ ↓ |installer| test/codex-trust.test.ts > editCodexTrust > refuses text that is not TOML
+ ↓ |installer| test/codex-trust.test.ts > trust carried by uninstall > carries trust in both events to the new key of a later hook trusted with an unchanged hash only
+ ↓ |installer| test/codex-trust.test.ts > trust carried by uninstall > never carries trust from one event to the same position in the other
+ ↓ |installer| test/codex-trust.test.ts > trust carried by uninstall > restores hooks.json when the trust write fails, and a retry still carries the trust
+ ↓ |installer| test/codex-trust.test.ts > trust carried by uninstall > warns that later hooks may need trusting again when app-server is unavailable
+ ↓ |installer| test/codex-trust.test.ts > trust carried by uninstall > does not start app-server when no later hook moves, and removes both recorded tables
+ × |installer| test/hooks.test.ts > hooks written by install > refuses an unreadable hook file before sign-in 186ms
    → expected +0 to be 1 // Object.is equality
  ↓ |installer| test/hooks.test.ts > hooks in status > reports a hook removed by hand and an unreadable hook file
  ↓ |installer| test/hooks.test.ts > hooks in status > reports each resume hook beside the session-start hook, missing or unreadable
@@ -201,36 +231,6 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/hooks.test.ts > Antigravity's named hook > uninstall removes an agentdesk object that holds no handler
  ↓ |installer| test/hooks.test.ts > Antigravity's named hook > refuses to remove an agentdesk object that gained a foreign handler, and keeps the record
  ↓ |installer| test/hooks.test.ts > Antigravity's named hook > plans the removal of the agentdesk object only
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > writes the reported key and hash of both hooks and keeps every other byte of config.toml
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > uses CODEX_HOME for hooks.json and config.toml
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > replaces the recorded tables when both hooks' keys change
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > replaces only the Stop table when only the Stop hook's key changes
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > refreshes both hashes when the executable moves
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > reports each hook's trustStatus in status
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > prints the /hooks step for both hooks and exits 0 when codex is not on PATH
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > prints the /hooks step for both hooks and exits 0 when app-server exits nonzero
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > prints the /hooks step for both hooks and exits 0 when app-server answers hooks/list with an error
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when the session-start hook is missing from the list
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when the Stop hook is missing from the list
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when both hooks are missing from the list
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when every hook's currentHash is malformed
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > writes no invented trust and prints the step for each hook it cannot use when every hook comes from a source other than the user
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > gives up after 10 seconds on the fake clock, stops app-server, and exits 0
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > refuses a hooks.state definition lines cannot replace for the session-start hook, keeping it, and exits 1
- ↓ |installer| test/codex-trust.test.ts > trust recorded by install > refuses a hooks.state definition lines cannot replace for the Stop hook, keeping it, and exits 1
- ↓ |installer| test/codex-trust.test.ts > editCodexTrust > replaces only the target table's lines, in place, keeping comments and CRLF
- ↓ |installer| test/codex-trust.test.ts > editCodexTrust > matches the header in any quoting and spacing
- ↓ |installer| test/codex-trust.test.ts > editCodexTrust > removes a table with the blank line the installer added, and keeps other tables
- ↓ |installer| test/codex-trust.test.ts > editCodexTrust > removes several appended tables with their blank lines, in any order given
- ↓ |installer| test/codex-trust.test.ts > editCodexTrust > sets one key and removes another in one edit
- ↓ |installer| test/codex-trust.test.ts > editCodexTrust > refuses an inline table
- ↓ |installer| test/codex-trust.test.ts > editCodexTrust > refuses a dotted key
- ↓ |installer| test/codex-trust.test.ts > editCodexTrust > refuses text that is not TOML
- ↓ |installer| test/codex-trust.test.ts > trust carried by uninstall > carries trust in both events to the new key of a later hook trusted with an unchanged hash only
- ↓ |installer| test/codex-trust.test.ts > trust carried by uninstall > never carries trust from one event to the same position in the other
- ↓ |installer| test/codex-trust.test.ts > trust carried by uninstall > restores hooks.json when the trust write fails, and a retry still carries the trust
- ↓ |installer| test/codex-trust.test.ts > trust carried by uninstall > warns that later hooks may need trusting again when app-server is unavailable
- ↓ |installer| test/codex-trust.test.ts > trust carried by uninstall > does not start app-server when no later hook moves, and removes both recorded tables
  ↓ |installer| test/uninstall-safety.test.ts > redirected skill folders (P1) > refuses a skill folder that is a symbolic link and keeps the record
  ↓ |installer| test/uninstall-safety.test.ts > redirected skill folders (P1) > refuses a skill folder whose parent was redirected to another directory
  ↓ |installer| test/uninstall-safety.test.ts > redirected skill folders (P1) > refuses a Codex skill folder under a redirected parent
@@ -241,7 +241,7 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/uninstall-safety.test.ts > Antigravity skill folders > refuses an Antigravity skill folder under a redirected parent
  ↓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record and revokes nothing when ~/.claude.json is malformed and the CLI is absent
  ↓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record when ~/.claude.json is malformed and the CLI is present
- × |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record when ~/.claude.json cannot be read 22ms
+ × |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > keeps the record when ~/.claude.json cannot be read 56ms
    → expected +0 to be 1 // Object.is equality
  ↓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > removes the entry from the file when claude mcp remove exits nonzero and leaves it
  ↓ |installer| test/uninstall-safety.test.ts > unreadable configuration and failed removal (P2) > fails and keeps the record when claude mcp remove exits nonzero and leaves the file unreadable
@@ -351,6 +351,10 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/config.test.ts > JSON configuration > refuses malformed JSON and leaves the file unchanged
  ↓ |installer| test/config.test.ts > backups > copies a file once per run, before its first edit
  ↓ |installer| test/config.test.ts > backups > makes no backup of a file that did not exist
+ ↓ |installer| test/config.test.ts > writes and backups that do not follow links > refuses a backup path that is a link, and copies nothing
+ ↓ |installer| test/config.test.ts > writes and backups that do not follow links > refuses a file that is a link, and writes nothing
+ ↓ |installer| test/config.test.ts > writes and backups that do not follow links > refuses an existing temporary path, a link included, and writes nothing
+ ↓ |installer| test/config.test.ts > writes and backups that do not follow links > writes a regular file in place and keeps its mode
  ↓ |installer| test/config.test.ts > MCP entries written by install > calls claude mcp remove, then claude mcp add with the header, at user scope
  ↓ |installer| test/config.test.ts > MCP entries written by install > reports a failed claude mcp add without its output or arguments
  ↓ |installer| test/config.test.ts > MCP entries written by install > writes mcpServers.agentdesk into ~/.claude.json when the claude CLI is absent
@@ -392,6 +396,31 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/resume/codex-hook.test.ts > agentdesk hook stop --harness codex > returns at once for a transcript with no ask result
  ↓ |installer| test/resume/codex-hook.test.ts > detached waiter start > starts a real detached process with closed standard streams that outlives the call
  ↓ |installer| test/resume/codex-hook.test.ts > detached waiter start > rejects when the executable cannot start
+ ↓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused before its SKILL.md is read, and the MCP entry and hook are still written
+ ↓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused on skill install before its SKILL.md is read
+ ↓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused when a parent of the skill folder is redirected, with nothing written there
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a linked mcp_config.json before sign-in, and never reads or writes the profile
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a linked hooks.json before sign-in, and never reads or writes the profile
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a redirected ~/.gemini/config before sign-in
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a redirected ~/.gemini before sign-in
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a hook file later replaced by a link on uninstall, keeping the record
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses an MCP file later replaced by a link on uninstall, revoking nothing
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > keeps writing through a linked Cursor mcp.json, as before
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked SKILL.md in a real folder before reading or writing it
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a SKILL.md replaced by a link after install, on a re-run and in status
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > does not read the version through a skill folder replaced by a link after install
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked mcp_config.json backup before sign-in, leaving the outside file unchanged
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked hooks.json backup before sign-in, leaving the outside file unchanged
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked mcp_config.json backup on uninstall, keeping the record and the outside file
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked hooks.json backup on uninstall, keeping the record and the outside file
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > replaces an earlier regular backup file with a new copy
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked mcp_config.json temporary file before sign-in, leaving the outside file unchanged
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked hooks.json temporary file before sign-in, leaving the outside file unchanged
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > refuses a linked SKILL.md temporary file, leaving the outside file unchanged
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity skill files, backups, and temporary files behind links > keeps copying a Cursor backup through a linked backup path, as before
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity handlers without the command type > refuses a handler with no type before sign-in and changes nothing
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity handlers without the command type > refuses a handler with another type before sign-in and changes nothing
+ ↓ |installer| test/antigravity-links.test.ts > Antigravity handlers without the command type > refuses removal when the installer's handler lost its type, and keeps the record
  ↓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered in the app resumes: { state: 'answered', answered_via: 'app' }
  ↓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered from a notification resumes: { state: 'answered', answered_via: 'notification' }
  ↓ |installer| test/resume/waiter.test.ts > the resume rule (DEC-15(6)) > answered through the API resumes: { state: 'answered', answered_via: 'api' }
@@ -448,16 +477,6 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > a waiter that finds the claim taken exits 0 with no output
  ↓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > uses 0700 directories and 0600 files under XDG_CONFIG_HOME and holds no token
  ↓ |installer| test/resume/waiter.test.ts > claims (§Claims; AC-12.4) > each waiter run deletes claims older than 30 days and keeps newer ones
- ↓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused before its SKILL.md is read, and the MCP entry and hook are still written
- ↓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused on skill install before its SKILL.md is read
- ↓ |installer| test/antigravity-links.test.ts > a symbolic link at the Antigravity skill folder > is refused when a parent of the skill folder is redirected, with nothing written there
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a linked mcp_config.json before sign-in, and never reads or writes the profile
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a linked hooks.json before sign-in, and never reads or writes the profile
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a redirected ~/.gemini/config before sign-in
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a redirected ~/.gemini before sign-in
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses a hook file later replaced by a link on uninstall, keeping the record
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > refuses an MCP file later replaced by a link on uninstall, revoking nothing
- ↓ |installer| test/antigravity-links.test.ts > Antigravity configuration paths that leave ~/.gemini/config > keeps writing through a linked Cursor mcp.json, as before
  ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records the decision from the first content item of result_json and prints {}
  ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > accepts result_json given as an object
  ↓ |installer| test/resume/cursor-hook.test.ts > agentdesk hook after-mcp --harness cursor > records nothing for another tool and prints {}
@@ -547,6 +566,22 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/guidance.test.ts > agentdesk context in a child session > fails the same way for a build without guidance when the variable is undefined
  ↓ |installer| test/guidance.test.ts > agentdesk context in a child session > fails the same way for a build without guidance when the variable is ""
  ↓ |installer| test/guidance.test.ts > agentdesk context in a child session > fails the same way for a build without guidance when the variable is "parent"
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects nothing in an empty home with an empty PATH
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Claude Code by the claude executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Claude Code by ~/.claude.json
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by the codex executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by ~/.codex
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by CODEX_HOME instead of ~/.codex
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the cursor-agent executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the agent executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the cursor executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by ~/.cursor
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Antigravity by the agy executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Antigravity by ~/.gemini/antigravity-cli
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > does not detect Antigravity by ~/.gemini/config alone
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > ignores a file on PATH that is not executable
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects all four harnesses together in registry order
+ ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > fails install when no harness is detected
  ↓ |installer| test/resume/commands.test.ts > command line for wait and hook > lists both commands in the help text
  ↓ |installer| test/resume/commands.test.ts > command line for wait and hook > parses wait with and without a Codex thread
  ↓ |installer| test/resume/commands.test.ts > command line for wait and hook > parses each supported hook
@@ -567,22 +602,12 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/resume/commands.test.ts > command line for wait and hook > hook stop for Claude Code is a usage error with status 2 and no request
  ↓ |installer| test/resume/commands.test.ts > command line for wait and hook > hook with an extra argument is a usage error with status 2 and no request
  ↓ |installer| test/resume/commands.test.ts > command line for wait and hook > hook with an unknown option is a usage error with status 2 and no request
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects nothing in an empty home with an empty PATH
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Claude Code by the claude executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Claude Code by ~/.claude.json
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by the codex executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by ~/.codex
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Codex by CODEX_HOME instead of ~/.codex
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the cursor-agent executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the agent executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by the cursor executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Cursor by ~/.cursor
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Antigravity by the agy executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects Antigravity by ~/.gemini/antigravity-cli
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > does not detect Antigravity by ~/.gemini/config alone
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > ignores a file on PATH that is not executable
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > detects all four harnesses together in registry order
- ↓ |installer| test/harnesses.test.ts > harness detection (AC-9.1) > fails install when no harness is detected
+ ↓ |installer| test/resume/sse.test.ts > SseParser > skips keepalive comments and returns the message event
+ ↓ |installer| test/resume/sse.test.ts > SseParser > returns the same event however the bytes are split, including inside UTF-8 sequences
+ ↓ |installer| test/resume/sse.test.ts > SseParser > accepts CRLF and CR line endings, with CRLF split across chunks
+ ↓ |installer| test/resume/sse.test.ts > SseParser > joins data lines, defaults the event name, and ignores unknown fields
+ ↓ |installer| test/resume/sse.test.ts > SseParser > drops an event left without its blank line when the stream ends
+ ↓ |installer| test/resume/sse.test.ts > SseParser > refuses an event larger than the waiter accepts
  ↓ |installer| test/prompt.test.ts > askQuestion > returns the typed answer and leaves no listener on the input
  ↓ |installer| test/prompt.test.ts > askQuestion > rejects with TerminalReadError when the input fails while the question waits
  ↓ |installer| test/prompt.test.ts > askQuestion > rejects with TerminalReadError when the input is already failing as the question starts
@@ -593,12 +618,6 @@ Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
  ↓ |installer| test/prompt.test.ts > askQuestion > passes a question that fails to start through unchanged and closes the interface
  ↓ |installer| test/prompt.test.ts > terminalPrompt > rejects every later prompt without touching the input after a read error
  ↓ |installer| test/prompt.test.ts > terminalPrompt > keeps prompting after an answer
- ↓ |installer| test/resume/sse.test.ts > SseParser > skips keepalive comments and returns the message event
- ↓ |installer| test/resume/sse.test.ts > SseParser > returns the same event however the bytes are split, including inside UTF-8 sequences
- ↓ |installer| test/resume/sse.test.ts > SseParser > accepts CRLF and CR line endings, with CRLF split across chunks
- ↓ |installer| test/resume/sse.test.ts > SseParser > joins data lines, defaults the event name, and ignores unknown fields
- ↓ |installer| test/resume/sse.test.ts > SseParser > drops an event left without its blank line when the stream ends
- ↓ |installer| test/resume/sse.test.ts > SseParser > refuses an event larger than the waiter accepts
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
 
@@ -642,8 +661,8 @@ AssertionError: expected +0 to be 1 // Object.is equality
 
 
  Test Files  2 failed | 20 skipped (22)
-      Tests  2 failed | 586 skipped (588)
-   Start at  12:06:48
-   Duration  1.12s (transform 646ms, setup 0ms, import 1.51s, tests 149ms, environment 1ms)
+      Tests  2 failed | 605 skipped (607)
+   Start at  12:43:38
+   Duration  1.63s (transform 816ms, setup 0ms, import 2.23s, tests 246ms, environment 2ms)
 
 vitest exit status: 1
