@@ -281,7 +281,7 @@ function follows(callIndex: number | undefined, resultIndex: number | undefined)
 export async function antigravityHold(
   ctx: Context,
   adapters: HookAdapters,
-): Promise<{ message: string | undefined; expired: boolean }> {
+): Promise<{ message: string | undefined; cancelled: boolean }> {
   // The 50-minute bound counts from the hook's start and covers reading the
   // input and the transcript, retries, and requests in flight.
   const limit = startTimer(ctx, ANTIGRAVITY_HOLD_LIMIT_MS);
@@ -304,7 +304,8 @@ export async function antigravityHold(
   }
   return {
     message: result.winner === undefined ? undefined : resumeMessage(result.winner),
-    expired,
+    // The limit and a winning claim each abort waits that may still be open.
+    cancelled: expired || result.winner !== undefined,
   };
 }
 
@@ -330,13 +331,20 @@ async function holdWork(
 
   // Each decision is watched on its own, so a pending one never delays
   // another's settlement. The first that resumes and wins its claim ends the
-  // hold and stops the others. A decision that settles without resuming, or
-  // whose claim another waiter or hold won, is dropped.
+  // hold at once and aborts the others: the hold does not wait for them to
+  // close, so a request that ignores its abort cannot delay the continuation.
+  // A decision that settles without resuming, or whose claim another waiter
+  // or hold won, is dropped. When none resumes, the hold ends once every
+  // watch has ended.
   const local = new AbortController();
   const onAbort = () => local.abort();
   signal.addEventListener("abort", onAbort);
+  let won: () => void = () => {};
+  const winning = new Promise<void>((resolve) => {
+    won = resolve;
+  });
   try {
-    await Promise.all(
+    const watches = Promise.all(
       decisionIds.map(async (decisionId) => {
         try {
           const outcome = await watchDecision(ctx, { server, token, decisionId }, local.signal);
@@ -346,11 +354,13 @@ async function holdWork(
           if (!store.claim(decisionId)) return;
           result.winner = decisionId;
           local.abort();
+          won();
         } catch {
           // This decision ends without a continuation; the others continue.
         }
       }),
     );
+    await Promise.race([watches, winning]);
   } finally {
     signal.removeEventListener("abort", onAbort);
     local.abort();
@@ -360,21 +370,23 @@ async function holdWork(
 /**
  * `agentdesk hook stop --harness antigravity`. Prints
  * `{"decision": "continue", "reason": <message>}` for a decision that
- * resumes, otherwise `{}`, and returns 0 on every path. When the limit
- * expires, the process exits once the output is written, so a request the
- * runtime cannot cancel does not hold Antigravity's loop until its timeout.
+ * resumes, otherwise `{}`, and returns 0 on every path. When the hold ends at
+ * its limit or with a winning claim, it has aborted waits that may still be
+ * open, so the process exits once the output is written: a request the
+ * runtime cannot cancel does not keep the process, or Antigravity's loop,
+ * waiting.
  */
 export async function runAntigravityStop(ctx: Context, adapters: HookAdapters): Promise<number> {
   let message: string | undefined;
-  let expired = false;
+  let cancelled = false;
   try {
-    ({ message, expired } = await antigravityHold(ctx, adapters));
+    ({ message, cancelled } = await antigravityHold(ctx, adapters));
   } catch {
     message = undefined;
   }
   ctx.io.out(
     JSON.stringify(message === undefined ? {} : { decision: "continue", reason: message }),
   );
-  if (expired) adapters.exitAfterOutput?.(0);
+  if (cancelled) adapters.exitAfterOutput?.(0);
   return 0;
 }

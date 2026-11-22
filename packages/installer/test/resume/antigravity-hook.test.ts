@@ -392,7 +392,9 @@ describe("agentdesk hook stop --harness antigravity", () => {
     await flush();
     expect(h.waits.open).toBe(0);
     expect(h.clock.pendingTimers).toBe(0);
-    expect(exited).toBeUndefined();
+    // The winning claim aborted the other wait, so the process exits once
+    // the output is written.
+    expect(exited).toBe(0);
   });
 
   it("continues for an expiry with the default applied", async () => {
@@ -431,10 +433,18 @@ describe("agentdesk hook stop --harness antigravity", () => {
     const h = resumeContext(sandbox);
     h.waits.script("dec_phone1", ["pending", { decision: decision("dec_phone1", fields) }]);
     h.waits.script("dec_phone2", ["pending", { decision: decision("dec_phone2", fields) }]);
-    const run = runAntigravityStop(h.ctx, fakeAdapters(stopInput()));
-    const { value } = await afterScan(h, run, 2, { stepMs: 10_000 });
+    const adapters = fakeAdapters(stopInput());
+    let exited: number | undefined;
+    adapters.exitAfterOutput = (code) => {
+      exited = code;
+    };
+    const run = runAntigravityStop(h.ctx, adapters);
+    const { value, elapsed } = await afterScan(h, run, 2, { stepMs: 10_000 });
     expect(value).toBe(0);
     expect(h.out).toEqual(["{}"]);
+    // The hold ends once both watches have ended, with nothing left open.
+    expect(elapsed).toBe(600_000);
+    expect(exited).toBeUndefined();
     expect(claimed(sandbox, "dec_phone1")).toBe(false);
     expect(claimed(sandbox, "dec_phone2")).toBe(false);
     expect(h.clock.pendingTimers).toBe(0);
@@ -796,5 +806,122 @@ describe("long Antigravity transcripts", () => {
     }
     expect(statSync(transcript).size).toBe(longEnd + tail.length);
     expect(await scanAntigravityTranscript(transcript)).toEqual(["dec_after_long_line"]);
+  });
+});
+
+// Review round 3: after a winning claim the hold aborted the other watches
+// but then waited for every one of them to end. A request that ignores its
+// abort, such as a connection the runtime cannot close, delayed the
+// continuation until the 50-minute limit. The winning claim now ends the hold
+// at once, and the process exits once its output is written (AC-12.1).
+describe("waits that ignore their abort", () => {
+  /**
+   * Replaces the context's fetch so that each request for `stalled` never
+   * ends and ignores its abort signal: with `mode` "request" the fetch never
+   * resolves, and with "stream" it answers 200 with an event stream that
+   * stays open. Returns the number of stalled requests started.
+   */
+  function stall(
+    h: ReturnType<typeof resumeContext>,
+    stalled: readonly string[],
+    mode: "request" | "stream",
+  ): { started: number; aborted: number } {
+    const counts = { started: 0, aborted: 0 };
+    const fetch = h.ctx.fetch;
+    h.ctx.fetch = async (input, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { decision_id?: string };
+      if (!stalled.includes(String(body.decision_id))) return fetch(input, init);
+      counts.started++;
+      init?.signal?.addEventListener("abort", () => {
+        counts.aborted++;
+      });
+      if (mode === "request") return new Promise<Response>(() => {});
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(": keepalive\n\n"));
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      });
+    };
+    return counts;
+  }
+
+  function exits(adapters: ReturnType<typeof fakeAdapters>): number[] {
+    const codes: number[] = [];
+    adapters.exitAfterOutput = (code) => {
+      codes.push(code);
+    };
+    return codes;
+  }
+
+  it.each([
+    ["a request that never resolves", "request"],
+    ["an event stream that stays open", "stream"],
+  ] as const)(
+    "continues at once after a winning claim while the losing wait is %s",
+    async (_label, mode) => {
+      const sandbox = installSandbox(["antigravity"]);
+      const h = resumeContext(sandbox);
+      h.waits.script("dec_phone1", [{ decision: decision("dec_phone1", {}) }]);
+      const loser = stall(h, ["dec_phone2"], mode);
+      const adapters = fakeAdapters(stopInput());
+      const codes = exits(adapters);
+      const { value, elapsed } = await afterScan(h, runAntigravityStop(h.ctx, adapters), 1, {
+        stepMs: 1000,
+      });
+      expect(value).toBe(0);
+      expect(h.out).toEqual([continued("dec_phone1")]);
+      // No time passed: the stalled wait did not hold the continuation.
+      expect(elapsed).toBe(0);
+      expect(codes).toEqual([0]);
+      // The losing wait was started and told to abort, and it is still open.
+      expect(loser.started).toBe(1);
+      expect(loser.aborted).toBe(1);
+      // The exclusive claim is the winner's alone.
+      expect(claimed(sandbox, "dec_phone1")).toBe(true);
+      expect(claimed(sandbox, "dec_phone2")).toBe(false);
+      // The hold's limit timer is cancelled. The one timer left is the
+      // stalled request's own bound in the shared waiter, which a real
+      // process would wait on; the exit after the output ends the process.
+      expect(h.clock.pendingTimers).toBe(1);
+    },
+  );
+
+  it("prints {} at the limit and exits when every wait ignores its abort", async () => {
+    const sandbox = installSandbox(["antigravity"]);
+    const h = resumeContext(sandbox);
+    const stalled = stall(h, ["dec_phone1", "dec_phone2"], "request");
+    const adapters = fakeAdapters(stopInput());
+    const codes = exits(adapters);
+    const run = runAntigravityStop(h.ctx, adapters);
+    while (stalled.started < 2) await flush(1);
+    const { value, elapsed } = await pump(h.clock, run, { stepMs: 60_000 });
+    expect(value).toBe(0);
+    expect(h.out).toEqual(["{}"]);
+    expect(elapsed).toBe(ANTIGRAVITY_HOLD_LIMIT_MS);
+    expect(codes).toEqual([0]);
+    expect(stalled.aborted).toBe(2);
+    expect(claimed(sandbox, "dec_phone1")).toBe(false);
+    expect(claimed(sandbox, "dec_phone2")).toBe(false);
+  });
+
+  it("keeps holding while a stalled wait may still resume after the other settles without resuming", async () => {
+    const sandbox = installSandbox(["antigravity"]);
+    const h = resumeContext(sandbox);
+    h.waits.script("dec_phone1", [{ decision: decision("dec_phone1", { answered_via: "chat" }) }]);
+    const stalled = stall(h, ["dec_phone2"], "stream");
+    const adapters = fakeAdapters(stopInput());
+    const codes = exits(adapters);
+    const run = runAntigravityStop(h.ctx, adapters);
+    while (stalled.started < 1) await flush(1);
+    const { elapsed } = await afterScan(h, run, 1, { stepMs: 60_000 });
+    // dec_phone2 has not settled, so only the limit ends the hold.
+    expect(h.out).toEqual(["{}"]);
+    expect(elapsed).toBe(ANTIGRAVITY_HOLD_LIMIT_MS);
+    expect(codes).toEqual([0]);
+    expect(claimed(sandbox, "dec_phone1")).toBe(false);
   });
 });
