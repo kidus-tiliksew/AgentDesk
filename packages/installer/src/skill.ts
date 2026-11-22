@@ -40,7 +40,8 @@ export function planSkills(ctx: Context, harnesses: readonly Harness[]): SkillPl
   });
 }
 
-function refuseLink(dir: string): void {
+/** Refuses a skill folder that is a symbolic link, before anything reads or writes through it. */
+export function refuseLink(dir: string): void {
   if (existsSync(dir) && lstatSync(dir).isSymbolicLink()) {
     throw new InstallerError(`${dir} is a symbolic link; the installer does not write through it.`);
   }
@@ -48,12 +49,13 @@ function refuseLink(dir: string): void {
 
 /**
  * Writes SKILL.md at the current version (AC-9.4) and returns the folder's
- * resolved path, which the state records for removal.
+ * resolved path, which the state records for removal. `noFollow` writes it
+ * without following a link (`writeFileAtomic`).
  */
-export function writeSkill(dir: string, content: string): string {
+export function writeSkill(dir: string, content: string, noFollow = false): string {
   refuseLink(dir);
   mkdirSync(dir, { recursive: true });
-  writeFileAtomic(join(dir, SKILL_FILE), content, 0o644);
+  writeFileAtomic(join(dir, SKILL_FILE), content, 0o644, noFollow);
   return realpathSync(dir);
 }
 
@@ -121,6 +123,15 @@ function isDanglingLink(path: string): boolean {
     return lstatSync(path).isSymbolicLink();
   } catch {
     return false;
+  }
+}
+
+/** The text of the folder's SKILL.md, or undefined when it cannot be read. */
+export function skillFileText(dir: string): string | undefined {
+  try {
+    return readFileSync(join(dir, SKILL_FILE), "utf8");
+  } catch {
+    return undefined;
   }
 }
 

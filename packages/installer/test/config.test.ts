@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  symlinkSync,
+} from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -6,8 +15,10 @@ import {
   removeCodexTableText,
   replaceCodexTable,
   setJsonMcpServer,
+  writeFileAtomic,
 } from "../src/config.js";
 import { InstallerError } from "../src/context.js";
+import { tempPath } from "../src/defaults.js";
 import {
   allFiles,
   cleanupSandboxes,
@@ -147,6 +158,81 @@ describe("backups", () => {
     const file = join(sandbox.home, "new.json");
     setJsonMcpServer(file, { url: "u" }, new BackupRegistry());
     expect(existsSync(`${file}.agentdesk-backup`)).toBe(false);
+  });
+});
+
+// The no-follow layer for Antigravity (DEC-24(1)): even past the preflight
+// checks, a backup or write never goes through a symbolic link.
+describe("writes and backups that do not follow links", () => {
+  function linked(sandbox: ReturnType<typeof makeSandbox>) {
+    const outside = join(sandbox.root, "outside.md");
+    write(outside, "outside\n");
+    const file = join(sandbox.home, "config", "hooks.json");
+    write(file, "{}\n");
+    return { outside, file };
+  }
+
+  it("refuses a backup path that is a link, and copies nothing", () => {
+    const sandbox = makeSandbox();
+    const { outside, file } = linked(sandbox);
+    symlinkSync(outside, `${file}.agentdesk-backup`);
+    expect(() => new BackupRegistry().backupOnce(file, true)).toThrow(/is a symbolic link/);
+    expect(read(outside)).toBe("outside\n");
+    // Without noFollow, the other harnesses keep copying through it.
+    new BackupRegistry().backupOnce(file);
+    expect(read(outside)).toBe("{}\n");
+  });
+
+  it("refuses a file that is a link, and writes nothing", () => {
+    const sandbox = makeSandbox();
+    const { outside } = linked(sandbox);
+    const file = join(sandbox.home, "config", "mcp_config.json");
+    symlinkSync(outside, file);
+    expect(() => writeFileAtomic(file, "new\n", 0o600, true)).toThrow(/is a symbolic link/);
+    expect(read(outside)).toBe("outside\n");
+    expect(lstatSync(file).isSymbolicLink()).toBe(true);
+  });
+
+  it("refuses an existing temporary path, a link included, and writes nothing", () => {
+    const sandbox = makeSandbox();
+    const { outside, file } = linked(sandbox);
+    symlinkSync(outside, tempPath(file));
+    expect(() => writeFileAtomic(file, "new\n", 0o600, true)).toThrow(/already exists/);
+    expect(read(outside)).toBe("outside\n");
+    expect(read(file)).toBe("{}\n");
+    expect(lstatSync(tempPath(file)).isSymbolicLink()).toBe(true);
+  });
+
+  it("writes a regular file in place and keeps its mode", () => {
+    const sandbox = makeSandbox();
+    const { file } = linked(sandbox);
+    chmodSync(file, 0o640);
+    writeFileAtomic(file, "new\n", 0o600, true);
+    expect(read(file)).toBe("new\n");
+    expect(statSync(file).mode & 0o777).toBe(0o640);
+    expect(existsSync(tempPath(file))).toBe(false);
+  });
+
+  // The temporary file is created under the process umask. With umask 077, a
+  // 0640 file must keep its mode when the write replaces it.
+  it("keeps a replaced file's mode under umask 077, and gives a new file 0600", () => {
+    const sandbox = makeSandbox();
+    const { file } = linked(sandbox);
+    chmodSync(file, 0o640);
+    const created = join(sandbox.home, "config", "new.json");
+    const previous = process.umask(0o077);
+    try {
+      expect(process.umask()).toBe(0o077);
+      writeFileAtomic(file, "new\n", 0o600, true);
+      writeFileAtomic(created, "{}\n", 0o644, true);
+    } finally {
+      process.umask(previous);
+    }
+    expect(read(file)).toBe("new\n");
+    expect(statSync(file).mode & 0o777).toBe(0o640);
+    // A new file takes the requested mode less the umask, as before.
+    expect(statSync(created).mode & 0o777).toBe(0o600);
+    expect(existsSync(tempPath(file))).toBe(false);
   });
 });
 
@@ -290,6 +376,96 @@ describe("MCP entries written by install", () => {
     expect(h.err.join("\n")).toContain("is not valid JSON");
     expect(h.gateway.requests).toEqual([]);
     expect(existsSync(`${file}.agentdesk-backup`)).toBe(false);
+  });
+
+  // component-installer §Harnesses; DEC-24(1): `agy` creates mcp_config.json
+  // empty, and an empty file counts as an object with no entries.
+  it.each([
+    ["an empty", ""],
+    ["a whitespace-only", "\n  \n"],
+  ])("writes the Antigravity entry into %s mcp_config.json", async (_label, text) => {
+    const sandbox = makeSandbox();
+    stubExecutable(sandbox, "agy");
+    const file = join(sandbox.home, ".gemini", "config", "mcp_config.json");
+    write(file, text);
+    const h = makeContext(sandbox);
+    expect(await h.run(["install", "--yes"])).toBe(0);
+    const token = h.gateway.tokenFor("antigravity");
+    expect(read(file)).toBe(
+      `${JSON.stringify(
+        {
+          mcpServers: {
+            agentdesk: { url: `${SERVER}/mcp`, headers: { Authorization: `Bearer ${token}` } },
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    // The backup holds the file as `agy` left it, with no token from the run.
+    expect(read(`${file}.agentdesk-backup`)).toBe(text);
+    expect(writingInvocations(sandbox)).toEqual([]);
+    expect(h.output()).not.toContain(token);
+  });
+
+  it("merges a populated Antigravity mcp_config.json and keeps unrelated servers", async () => {
+    const sandbox = makeSandbox();
+    stubExecutable(sandbox, "agy");
+    const file = join(sandbox.home, ".gemini", "config", "mcp_config.json");
+    const before = JSON.stringify(
+      { theme: "dark", mcpServers: { linear: { serverUrl: "https://linear" } } },
+      null,
+      4,
+    );
+    write(file, before);
+    const h = makeContext(sandbox);
+    expect(await h.run(["install", "--yes"])).toBe(0);
+    const token = h.gateway.tokenFor("antigravity");
+    expect(readJson(file)).toEqual({
+      theme: "dark",
+      mcpServers: {
+        linear: { serverUrl: "https://linear" },
+        agentdesk: { url: `${SERVER}/mcp`, headers: { Authorization: `Bearer ${token}` } },
+      },
+    });
+    expect(read(file)).toContain('\n    "theme"');
+    expect(read(`${file}.agentdesk-backup`)).toBe(before);
+  });
+
+  it.each([
+    ["invalid JSON", "{ broken", "is not valid JSON"],
+    ["a JSON list", "[]", "does not hold a JSON object"],
+    ["an mcpServers list", '{"mcpServers": []}', "mcpServers value that is not an object"],
+  ])(
+    "refuses an Antigravity mcp_config.json holding %s before sign-in",
+    async (_label, text, why) => {
+      const sandbox = makeSandbox();
+      stubExecutable(sandbox, "agy");
+      const file = join(sandbox.home, ".gemini", "config", "mcp_config.json");
+      write(file, text);
+      const h = makeContext(sandbox);
+      expect(await h.run(["install", "--yes"])).toBe(1);
+      expect(read(file)).toBe(text);
+      expect(h.err.join("\n")).toContain(why);
+      expect(h.gateway.requests).toEqual([]);
+      expect(existsSync(`${file}.agentdesk-backup`)).toBe(false);
+      expect(existsSync(join(sandbox.home, ".gemini", "config", "hooks.json"))).toBe(false);
+    },
+  );
+
+  it("creates a new Antigravity mcp_config.json with mode 0600 and no backup", async () => {
+    const sandbox = makeSandbox();
+    stubExecutable(sandbox, "agy");
+    const h = makeContext(sandbox);
+    expect(await h.run(["install", "--yes"])).toBe(0);
+    const file = join(sandbox.home, ".gemini", "config", "mcp_config.json");
+    expect(statSync(file).mode & 0o777).toBe(0o600);
+    expect(existsSync(`${file}.agentdesk-backup`)).toBe(false);
+    // The token sits only in the MCP entry: not in the hook, state, or output.
+    const token = h.gateway.tokenFor("antigravity");
+    const holding = allFiles(sandbox.root).filter((f) => readFileSync(f, "utf8").includes(token));
+    expect(holding).toEqual([file]);
+    expect(h.output()).not.toContain(token);
   });
 
   it("creates new configuration files with mode 0600 and no backup holds a token from the run", async () => {

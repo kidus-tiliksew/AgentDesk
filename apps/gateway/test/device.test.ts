@@ -194,7 +194,7 @@ describe("POST /device/start", () => {
       error: {
         code: "invalid",
         message:
-          "harnesses must be a non-empty list of distinct values from claude-code, codex, and cursor",
+          "harnesses must be a non-empty list of distinct values from claude-code, codex, cursor, and antigravity",
         field: "harnesses",
       },
     });
@@ -205,13 +205,21 @@ describe("POST /device/start", () => {
     const convex = startConvex();
 
     const response = await handle(
-      startRequest({ machine_name: "devbox", harnesses: ["cursor", "codex", "claude-code"] }),
+      startRequest({
+        machine_name: "devbox",
+        harnesses: ["antigravity", "cursor", "codex", "claude-code"],
+      }),
       withLimiter(),
       convex.svc,
     );
 
     expect(response.status).toBe(200);
-    expect(convex.calls[0]?.body.harnesses).toEqual(["cursor", "codex", "claude-code"]);
+    expect(convex.calls[0]?.body.harnesses).toEqual([
+      "antigravity",
+      "cursor",
+      "codex",
+      "claude-code",
+    ]);
   });
 
   // req-mac-app AC-2.1

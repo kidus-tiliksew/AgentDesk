@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { dirname, join } from "node:path";
@@ -19,7 +19,9 @@ import {
 // scripts/build.mjs, as scripts/build-binaries.mjs does before compiling it,
 // and runs it outside the workspace against a local HTTP fake gateway. The
 // bundle sits at <outside>/bin/agentdesk, the name the release binary installs
-// under, so the hooks it writes name an executable ending in /agentdesk.
+// under, so the hooks it writes name an executable ending in /agentdesk. A
+// copy keeps the name scripts/build.mjs gives the bundle, agentdesk.mjs, for
+// the Antigravity lifecycle at the end.
 
 const TOKEN = "adc_bundledtoken0000000000000000000000";
 let server: Server;
@@ -28,13 +30,17 @@ let sandbox: Sandbox;
 let bundle: string;
 const requests: { method: string; url: string; body: string }[] = [];
 
-/** Runs the bundle with Node asynchronously so the in-process HTTP gateway keeps serving. */
+/**
+ * Runs the bundle at `file`, by default the one named `agentdesk`, with Node
+ * asynchronously so the in-process HTTP gateway keeps serving.
+ */
 function runBundle(
   args: string[],
   env: NodeJS.ProcessEnv,
+  file = bundle,
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [bundle, ...args], { cwd: sandbox.root, env });
+    const child = spawn(process.execPath, [file, ...args], { cwd: sandbox.root, env });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (c) => {
@@ -66,10 +72,19 @@ beforeAll(async () => {
           }),
         );
       } else if (req.url === "/device/poll") {
+        // Approves the harnesses the latest /device/start named, Cursor by default.
+        const start = [...requests].reverse().find((r) => r.url === "/device/start");
+        const harnesses = start
+          ? ((JSON.parse(start.body) as { harnesses?: string[] }).harnesses ?? ["cursor"])
+          : ["cursor"];
         res.end(
           JSON.stringify({
             status: "approved",
-            connections: [{ harness: "cursor", connection_id: "conn_1", token: TOKEN }],
+            connections: harnesses.map((harness, index) => ({
+              harness,
+              connection_id: `conn_${index + 1}`,
+              token: TOKEN,
+            })),
           }),
         );
       } else if (req.url === "/device/connection") {
@@ -136,12 +151,16 @@ describe("bundle dist/agentdesk.mjs", () => {
     expect(plain.stdout).toBe(read(GUIDANCE_FILE));
     const cursor = await runBundle(["context", "--harness", "cursor"], env);
     expect(JSON.parse(cursor.stdout)).toEqual({ additional_context: read(GUIDANCE_FILE) });
+    const antigravity = await runBundle(["context", "--harness", "antigravity"], env);
+    expect(JSON.parse(antigravity.stdout)).toEqual({
+      injectSteps: [{ systemMessage: { systemMessage: read(GUIDANCE_FILE) } }],
+    });
     expect(existsSync(join(sandbox.root, "no-home"))).toBe(false);
   });
 
   // component-installer §`agentdesk context` (AC-10.5): the built bundle reads
   // AGENTDESK_PARENT_SESSION from an explicit environment and an isolated HOME.
-  it.each(["claude-code", "codex", "cursor"])(
+  it.each(["claude-code", "codex", "cursor", "antigravity"])(
     "prints the standing or child guidance from context for %s by AGENTDESK_PARENT_SESSION",
     async (id) => {
       const home = join(sandbox.root, `child-home-${id}`);
@@ -162,6 +181,10 @@ describe("bundle dist/agentdesk.mjs", () => {
         expect(result.stderr).toBe("");
         if (id === "cursor") {
           expect(result.stdout).toBe(`${JSON.stringify({ additional_context: text })}\n`);
+        } else if (id === "antigravity") {
+          expect(result.stdout).toBe(
+            `${JSON.stringify({ injectSteps: [{ systemMessage: { systemMessage: text } }] })}\n`,
+          );
         } else {
           expect(result.stdout).toBe(text === standing ? standing : `${text}\n`);
         }
@@ -270,5 +293,67 @@ describe("bundle dist/agentdesk.mjs", () => {
     });
     expect(held.status).toBe(0);
     expect(JSON.parse(held.stdout)).toEqual({});
+  });
+});
+
+// Review round 6: `scripts/build.mjs` writes the bundle as agentdesk.mjs, and
+// a hook written while Node runs it names that file (component-installer
+// §Standing guidance and §Build and distribution). The bundle here keeps that
+// filename through install, re-run, status, and uninstall.
+describe("bundle named agentdesk.mjs with Antigravity", () => {
+  it("owns its own hook across install, re-run, status, and uninstall", async () => {
+    const mjs = join(sandbox.root, "outside", "dist", "agentdesk.mjs");
+    mkdirSync(dirname(mjs), { recursive: true });
+    copyFileSync(bundle, mjs);
+    chmodSync(mjs, 0o755);
+    const home = join(sandbox.root, "agy-home");
+    mkdirSync(join(home, ".gemini", "antigravity-cli"), { recursive: true });
+    const env = { HOME: home, PATH: sandbox.bin };
+    const hooksFile = join(home, ".gemini", "config", "hooks.json");
+    const mcpFile = join(home, ".gemini", "config", "mcp_config.json");
+    const command = `${mjs} context --harness antigravity`;
+
+    const first = await runBundle(["install", "--only", "antigravity", "--yes"], env, mjs);
+    expect(first.stderr).toBe("");
+    expect(first.code).toBe(0);
+    const written = read(hooksFile);
+    expect(JSON.parse(written)).toEqual({
+      agentdesk: { SessionStart: [{ type: "command", command, timeout: 30 }] },
+    });
+    expect(readJson(mcpFile)).toEqual({
+      mcpServers: {
+        agentdesk: { url: `${origin}/mcp`, headers: { Authorization: `Bearer ${TOKEN}` } },
+      },
+    });
+
+    const rerun = await runBundle(["install", "--only", "antigravity", "--yes"], env, mjs);
+    expect(rerun.stderr).toBe("");
+    expect(rerun.code).toBe(0);
+    expect(rerun.stdout).toContain(`Antigravity: session-start hook unchanged in ${hooksFile}`);
+    expect(read(hooksFile)).toBe(written);
+
+    const status = await runBundle(["status"], env, mjs);
+    expect(status.code).toBe(0);
+    expect(status.stdout).toContain(`session-start hook in ${hooksFile}`);
+    expect(status.stdout).not.toContain("unreadable");
+
+    // The hook's command, run by a shell as Antigravity runs it, prints the
+    // injectSteps guidance.
+    const hook = spawnSync("/bin/sh", ["-c", command], {
+      encoding: "utf8",
+      env: { HOME: home, PATH: `${dirname(process.execPath)}:/usr/bin:/bin` },
+    });
+    expect(hook.status).toBe(0);
+    expect(JSON.parse(hook.stdout)).toEqual({
+      injectSteps: [{ systemMessage: { systemMessage: read(GUIDANCE_FILE) } }],
+    });
+
+    const removal = await runBundle(["uninstall"], env, mjs);
+    expect(removal.stderr).toBe("");
+    expect(removal.code).toBe(0);
+    expect(readJson(hooksFile)).toEqual({});
+    expect(readJson(mcpFile)).toEqual({ mcpServers: {} });
+    expect(existsSync(join(home, ".gemini", "config", "skills", "agentdesk"))).toBe(false);
+    expect(existsSync(join(home, ".config", "agentdesk", "state.json"))).toBe(false);
   });
 });

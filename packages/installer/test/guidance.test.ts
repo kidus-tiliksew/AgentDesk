@@ -56,6 +56,20 @@ describe("agentdesk context", () => {
     expect(fetched()).toBe(false);
   });
 
+  // DEC-24(2): Antigravity takes the guidance as an injected system message.
+  it("prints one injectSteps JSON object for antigravity", async () => {
+    const { sandbox, h, fetched } = offline();
+    const before = allFiles(sandbox.root);
+    expect(await h.run(["context", "--harness", "antigravity"])).toBe(0);
+    expect(h.err).toEqual([]);
+    expect(h.out).toHaveLength(1);
+    expect(JSON.parse(h.out[0] as string)).toEqual({
+      injectSteps: [{ systemMessage: { systemMessage: GUIDANCE } }],
+    });
+    expect(fetched()).toBe(false);
+    expect(allFiles(sandbox.root)).toEqual(before);
+  });
+
   it("omits the last line, which points to the skill, for a harness without skills", async () => {
     const harnesses = HARNESSES.map((harness) => ({ ...harness, supportsSkills: false }));
     expect(WITHOUT_SKILL_LINE).not.toContain("skill");
@@ -65,6 +79,11 @@ describe("agentdesk context", () => {
     const cursor = offline({ harnesses }).h;
     expect(await cursor.run(["context", "--harness", "cursor"])).toBe(0);
     expect(JSON.parse(cursor.out[0] as string)).toEqual({ additional_context: WITHOUT_SKILL_LINE });
+    const antigravity = offline({ harnesses }).h;
+    expect(await antigravity.run(["context", "--harness", "antigravity"])).toBe(0);
+    expect(JSON.parse(antigravity.out[0] as string)).toEqual({
+      injectSteps: [{ systemMessage: { systemMessage: WITHOUT_SKILL_LINE } }],
+    });
   });
 
   it.each([
@@ -87,12 +106,33 @@ describe("agentdesk context", () => {
 // whole standing guidance.
 
 const PARENT = "AGENTDESK_PARENT_SESSION";
-const HARNESS_IDS = ["claude-code", "codex", "cursor"] as const;
+const HARNESS_IDS = ["claude-code", "codex", "cursor", "antigravity"] as const;
 const PARENT_VALUES = ["0", "false", " ", "conveyor-session 7f3a"];
 
 /** The standing guidance output for `id`, exactly as `context` prints it with the variable unset. */
 function standingOutput(id: string, text = GUIDANCE): string {
-  return id === "cursor" ? `${JSON.stringify({ additional_context: text })}\n` : text;
+  if (id === "cursor") return `${JSON.stringify({ additional_context: text })}\n`;
+  if (id === "antigravity") return `${injectSteps(text)}\n`;
+  return text;
+}
+
+/** Antigravity's session-start output holding `text` (DEC-24(2)). */
+function injectSteps(text: string): string {
+  return JSON.stringify({ injectSteps: [{ systemMessage: { systemMessage: text } }] });
+}
+
+/** The guidance text inside one captured output of `id`. */
+function textOf(id: string, out: string[]): string {
+  if (id === "cursor") {
+    return (JSON.parse(out[0] as string) as { additional_context: string }).additional_context;
+  }
+  if (id === "antigravity") {
+    const parsed = JSON.parse(out[0] as string) as {
+      injectSteps: { systemMessage: { systemMessage: string } }[];
+    };
+    return parsed.injectSteps[0]?.systemMessage.systemMessage as string;
+  }
+  return printed(out).replace(/\n$/, "");
 }
 
 /** Joins captured lines as the CLI writes them, one newline after each. */
@@ -137,6 +177,12 @@ describe("agentdesk context in a child session", () => {
           if (id === "cursor") {
             expect(h.out).toHaveLength(1);
             expect(JSON.parse(h.out[0] as string)).toEqual({ additional_context: CHILD_GUIDANCE });
+          } else if (id === "antigravity") {
+            // The child guidance takes the same injectSteps shape (AC-10.5).
+            expect(h.out).toHaveLength(1);
+            expect(JSON.parse(h.out[0] as string)).toEqual({
+              injectSteps: [{ systemMessage: { systemMessage: CHILD_GUIDANCE } }],
+            });
           } else {
             expect(printed(h.out)).toBe(`${CHILD_GUIDANCE}\n`);
           }
@@ -159,12 +205,7 @@ describe("agentdesk context in a child session", () => {
       expect(await without.run(["context", "--harness", id])).toBe(0);
       expect(without.err).toEqual([]);
       expect(printed(without.out)).toBe(printed(withSkills.out));
-      const text =
-        id === "cursor"
-          ? (JSON.parse(without.out[0] as string) as { additional_context: string })
-              .additional_context
-          : printed(without.out).replace(/\n$/, "");
-      expect(text).toBe(CHILD_GUIDANCE);
+      expect(textOf(id, without.out)).toBe(CHILD_GUIDANCE);
     });
   });
 

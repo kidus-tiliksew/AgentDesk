@@ -9,15 +9,19 @@ describe("harness vocabulary", () => {
       { id: "claude-code", name: "Claude Code" },
       { id: "codex", name: "Codex" },
       { id: "cursor", name: "Cursor" },
+      { id: "antigravity", name: "Antigravity" },
     ]);
-    expect(HARNESS_IDS).toEqual(["claude-code", "codex", "cursor"]);
+    expect(HARNESS_IDS).toEqual(["claude-code", "codex", "cursor", "antigravity"]);
     expect(harnessName("claude-code")).toBe("Claude Code");
     expect(harnessName("codex")).toBe("Codex");
     expect(harnessName("cursor")).toBe("Cursor");
+    expect(harnessName("antigravity")).toBe("Antigravity");
   });
 
   test("recognizes only the fixed ids", () => {
     expect(isHarnessId("codex")).toBe(true);
+    expect(isHarnessId("antigravity")).toBe(true);
+    expect(isHarnessId("agy")).toBe(false);
     expect(isHarnessId("Codex")).toBe(false);
     expect(isHarnessId("windsurf")).toBe(false);
     expect(isHarnessId(1)).toBe(false);

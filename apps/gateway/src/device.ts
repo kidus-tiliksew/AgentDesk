@@ -103,7 +103,7 @@ export async function deviceStart(request: Request, env: Env, svc: ServiceCall):
       return failure(
         400,
         "invalid",
-        "harnesses must be a non-empty list of distinct values from claude-code, codex, and cursor",
+        "harnesses must be a non-empty list of distinct values from claude-code, codex, cursor, and antigravity",
         "harnesses",
       );
     }

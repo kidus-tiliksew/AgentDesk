@@ -1,6 +1,8 @@
 import {
   chmodSync,
   existsSync,
+  lstatSync,
+  mkdirSync,
   realpathSync,
   renameSync,
   rmSync,
@@ -153,6 +155,93 @@ describe("redirected skill folders (P1)", () => {
     expect(await h.run(["install", "--yes"])).toBe(1);
     expect(read(marker)).toBe("external content\n");
     expect(recorded(sandbox).cursor?.skillPath).toBe(join(parent, "agentdesk"));
+  });
+});
+
+// component-installer §State, re-run, and uninstall: Antigravity's skill
+// folder follows the same ownership rules as every other harness's. Some
+// machines already hold a symbolic link at ~/.gemini/config/skills/agentdesk.
+describe("Antigravity skill folders", () => {
+  function agy() {
+    const sandbox = makeSandbox();
+    stubExecutable(sandbox, "agy");
+    const clock = new FakeClock();
+    const gateway = new FakeGateway(clock);
+    const config = join(sandbox.home, ".gemini", "config");
+    return {
+      sandbox,
+      clock,
+      gateway,
+      owned: join(config, "skills", "agentdesk"),
+      mcp: join(config, "mcp_config.json"),
+      hooks: join(config, "hooks.json"),
+    };
+  }
+
+  it("refuses to write through a pre-existing link, writes the MCP entry and hook, and leaves the link", async () => {
+    const { sandbox, clock, gateway, owned, mcp, hooks } = agy();
+    const { skills, marker } = external(sandbox);
+    write(join(skills, "agentdesk", "SKILL.md"), "linked skill\n");
+    mkdirSync(join(owned, ".."), { recursive: true });
+    symlinkSync(join(skills, "agentdesk"), owned);
+
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes"])).toBe(1);
+    expect(h.err.join("\n")).toContain(
+      `Antigravity: the skill was not written: ${owned} is a symbolic link; the installer does not write through it.`,
+    );
+    expect(lstatSync(owned).isSymbolicLink()).toBe(true);
+    expect(read(join(skills, "agentdesk", "SKILL.md"))).toBe("linked skill\n");
+    expect(read(marker)).toBe("external content\n");
+    expect(read(mcp)).toContain(gateway.tokenFor("antigravity"));
+    expect(read(hooks)).toContain("context --harness antigravity");
+    // The link is never recorded as owned.
+    expect(recorded(sandbox).antigravity?.skillPath).toBeUndefined();
+    expect(recorded(sandbox).antigravity?.skillRealPath).toBeUndefined();
+
+    // Uninstall removes what the installer wrote and leaves the link alone.
+    const u = makeContext(sandbox, { gateway, clock });
+    expect(await u.run(["uninstall"])).toBe(0);
+    expect(lstatSync(owned).isSymbolicLink()).toBe(true);
+    expect(read(join(skills, "agentdesk", "SKILL.md"))).toBe("linked skill\n");
+    expect(readJson(mcp)).toEqual({ mcpServers: {} });
+    expect(readJson(hooks)).toEqual({});
+    expect(gateway.revoked).toEqual([gateway.tokenFor("antigravity")]);
+  });
+
+  it("refuses an owned folder later replaced by a link and keeps the record for a retry", async () => {
+    const { sandbox, clock, gateway, owned } = agy();
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const { skills, marker } = external(sandbox);
+    rmSync(owned, { recursive: true });
+    symlinkSync(join(skills, "agentdesk"), owned);
+
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["uninstall"])).toBe(1);
+    expect(h.out).toContain(`Antigravity: removing the skill folder ${owned}`);
+    expect(h.err.join("\n")).toContain(`${owned} is a symbolic link`);
+    expect(read(marker)).toBe("external content\n");
+    expect(recorded(sandbox).antigravity?.skillPath).toBe(owned);
+
+    // Once the link is gone, a later uninstall finishes.
+    rmSync(owned);
+    expect(await makeContext(sandbox, { gateway, clock }).run(["uninstall"])).toBe(0);
+    expect(read(marker)).toBe("external content\n");
+    expect(existsSync(statePath(h.ctx))).toBe(false);
+  });
+
+  it("refuses an Antigravity skill folder under a redirected parent", async () => {
+    const { sandbox, clock, gateway, owned } = agy();
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const parent = join(owned, "..");
+    const { skills, marker } = external(sandbox);
+    rmSync(parent, { recursive: true });
+    symlinkSync(skills, parent);
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["uninstall"])).toBe(1);
+    expect(h.err.join("\n")).toContain(`${parent} is a symbolic link`);
+    expect(read(marker)).toBe("external content\n");
+    expect(Object.keys(recorded(sandbox))).toEqual(["antigravity"]);
   });
 });
 

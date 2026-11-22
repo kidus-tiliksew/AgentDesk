@@ -171,7 +171,7 @@ describe("createInstallKey", () => {
   test.each<[string, Partial<InstallKeyInput>]>([
     ["a 1-character label", { label: "x" }],
     ["a 64-character label", { label: "x".repeat(64) }],
-    ["every harness", { harnesses: ["cursor", "codex", "claude-code"] }],
+    ["every harness", { harnesses: ["antigravity", "cursor", "codex", "claude-code"] }],
     ["a 1-day expiry", { expiresInDays: 1 }],
     ["a 90-day expiry", { expiresInDays: 90 }],
     ["a machine limit of 1", { machineLimit: 1 }],
@@ -489,6 +489,43 @@ describe("listConnections with install keys", () => {
 });
 
 describe("enroll", () => {
+  // req-install-keys AC-1.2, AC-2.1: an Antigravity connection is minted and
+  // named like any other harness's (component-identity §Harnesses).
+  test("connects Antigravity with its own named connection", async () => {
+    const { base, userId } = await setup();
+    const key = await mintKey(base, userId, {
+      ...KEY,
+      harnesses: ["claude-code", "codex", "cursor", "antigravity"],
+    });
+
+    const result = await enrolled(base, key.secret, ["antigravity", "codex"]);
+
+    expect(result.connections.map((connection) => connection.harness)).toEqual([
+      "antigravity",
+      "codex",
+    ]);
+    const { credentials } = await snapshot(base);
+    expect(credentials.map((credential) => [credential.harness, credential.name])).toEqual([
+      ["antigravity", "Antigravity"],
+      ["codex", "Codex"],
+    ]);
+    for (const [index, connection] of result.connections.entries()) {
+      expect(connection.token).toMatch(/^adc_[A-Za-z0-9_-]{43}$/);
+      expect(credentials[index]?.tokenHash).toBe(await hashToken(connection.token));
+    }
+  });
+
+  test("refuses Antigravity when the key does not name it", async () => {
+    const { base, userId } = await setup();
+    const key = await mintKey(base, userId, KEY);
+
+    expect(await enroll(base, key.secret, ["antigravity"])).toEqual({
+      status: "harness_not_allowed",
+      harness: "antigravity",
+    });
+    expect((await snapshot(base)).credentials).toEqual([]);
+  });
+
   // req-install-keys AC-2.1, AC-2.4
   test("connects every harness in request order as one machine", async () => {
     const { base, userId } = await setup();

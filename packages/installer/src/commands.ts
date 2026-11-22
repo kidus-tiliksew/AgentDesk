@@ -1,5 +1,5 @@
 import { lstatSync, realpathSync, rmSync } from "node:fs";
-import { isAbsolute, parse, relative, resolve } from "node:path";
+import { isAbsolute, join, parse, relative, resolve } from "node:path";
 import {
   findListedHook,
   type HookList,
@@ -19,12 +19,14 @@ import {
 } from "./config.js";
 import { type Context, InstallerError, TerminalReadError } from "./context.js";
 import {
+  assertConfinedFile,
   type Detection,
   detectHarnesses,
   HARNESS_IDS,
   type Harness,
   type HarnessId,
   harnessById,
+  isConfined,
   isHarnessId,
 } from "./harnesses.js";
 import {
@@ -51,7 +53,10 @@ import {
   assertOwnedDir,
   installedSkillVersion,
   planSkills,
+  refuseLink,
   removeSkillDir,
+  SKILL_FILE,
+  skillFileText,
   writeSkill,
 } from "./skill.js";
 import {
@@ -178,10 +183,21 @@ function installSkills(ctx: Context, harnesses: readonly Harness[], state: State
     const record: HarnessRecord = state.harnesses[harness.id] ?? {};
     if (plan.dir) {
       try {
-        record.skillRealPath = writeSkill(plan.dir, ctx.skill.content);
+        // The folder and its SKILL.md, with the temporary file beside it, are
+        // checked for a link before the content is read or written; a re-run
+        // names Antigravity's skill unchanged when its bytes match.
+        refuseLink(plan.dir);
+        assertConfinedFile(ctx, harness, join(plan.dir, SKILL_FILE));
+        const unchanged =
+          harness.hookFormat === "named-hook" && skillFileText(plan.dir) === ctx.skill.content;
+        record.skillRealPath = writeSkill(plan.dir, ctx.skill.content, isConfined(harness));
         record.skillPath = plan.dir;
         record.skillVersion = ctx.skill.version;
-        ctx.io.out(`${harness.displayName}: skill ${ctx.skill.version} written to ${plan.dir}`);
+        ctx.io.out(
+          unchanged
+            ? `${harness.displayName}: skill ${ctx.skill.version} unchanged in ${plan.dir}`
+            : `${harness.displayName}: skill ${ctx.skill.version} written to ${plan.dir}`,
+        );
       } catch (error) {
         failures.push(`${harness.displayName}: the skill was not written: ${message(error)}`);
       }
@@ -300,17 +316,21 @@ async function installGuidance(
     const commands = new Map(
       events.map((event) => [event.id, currentHookCommand(ctx, harness.id, event.id)]),
     );
+    let changed: boolean;
     try {
-      writeHooks(ctx, harness, (event) => commands.get(event.id) as string, backups);
+      changed = writeHooks(ctx, harness, (event) => commands.get(event.id) as string, backups);
     } catch (error) {
       failures.push(
         `${harness.displayName}: its hooks in ${file} were not written: ${message(error)}`,
       );
       continue;
     }
+    // A re-run names Antigravity's hook unchanged when its bytes match; the
+    // other harnesses keep their messages.
+    const verb = !changed && harness.hookFormat === "named-hook" ? "unchanged in" : "written to";
     for (const event of events) {
       record[HOOK_PATH_FIELDS[event.id]] = file;
-      ctx.io.out(`${harness.displayName}: ${event.label} written to ${file}`);
+      ctx.io.out(`${harness.displayName}: ${event.label} ${verb} ${file}`);
     }
     if (harness.id === "codex") {
       failures.push(...(await trustCodexHooks(ctx, harness, record, events, commands, backups)));
@@ -387,8 +407,13 @@ async function removeGuidance(
         ctx.io.out(`${harness.displayName}: removing the ${event.label} from ${file}`);
       }
     }
-    backups.backupOnce(file);
-    writeFileAtomic(file, removal.text);
+    if (removal.removed.length === 0) {
+      // An Antigravity `agentdesk` object that holds no handler goes too.
+      ctx.io.out(`${harness.displayName}: removing the AgentDesk hooks from ${file}`);
+    }
+    // Antigravity's backup and write never follow a link (DEC-24(1)).
+    backups.backupOnce(file, isConfined(harness));
+    writeFileAtomic(file, removal.text, 0o600, isConfined(harness));
     if (before) {
       const carry = await carriedTrust(ctx, before, keyFile, removal.moved);
       if (carry) carried = carry;
@@ -505,7 +530,7 @@ async function installWith(
   const detected = detectHarnesses(ctx);
   if (detected.length === 0) {
     throw new InstallerError(
-      "No supported harness was found. Install Claude Code, Codex, or Cursor first.",
+      "No supported harness was found. Install Claude Code, Codex, Cursor, or Antigravity first.",
     );
   }
   const selected = await select(ctx, detected, options);
@@ -750,7 +775,7 @@ export async function skillInstall(ctx: Context): Promise<number> {
   const detected = detectHarnesses(ctx);
   if (detected.length === 0) {
     throw new InstallerError(
-      "No supported harness was found. Install Claude Code, Codex, or Cursor first.",
+      "No supported harness was found. Install Claude Code, Codex, Cursor, or Antigravity first.",
     );
   }
   const harnesses = detected.map((d) => d.harness);
@@ -852,7 +877,19 @@ export async function status(ctx: Context): Promise<number> {
       }
     }
     let skill: string;
+    let skillRefusal: string | undefined;
     if (record.skillPath) {
+      // Antigravity's recorded SKILL.md is checked for a link before its
+      // version is read (DEC-24(1)).
+      try {
+        assertConfinedFile(ctx, harness, join(record.skillPath, SKILL_FILE));
+      } catch (error) {
+        skillRefusal = message(error);
+      }
+    }
+    if (record.skillPath && skillRefusal !== undefined) {
+      skill = `skill not read (${skillRefusal})`;
+    } else if (record.skillPath) {
       const version = installedSkillVersion(record.skillPath);
       skill = version
         ? `skill ${version} at ${record.skillPath}`

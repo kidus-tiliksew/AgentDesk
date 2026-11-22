@@ -527,7 +527,11 @@ describe("collectDeviceRequest", () => {
   // req-accounts-and-connections AC-6.3, AC-6.4
   test("approval mints one connection per harness, returned exactly once", async () => {
     const { base, a, userId } = await setup();
-    const { code, deviceSecret } = await start(base, ["codex", "claude-code", "cursor"], "devbox");
+    const { code, deviceSecret } = await start(
+      base,
+      ["codex", "claude-code", "cursor", "antigravity"],
+      "devbox",
+    );
     await approve(a, code);
 
     const connections = approved(await collect(base, deviceSecret));
@@ -536,9 +540,10 @@ describe("collectDeviceRequest", () => {
       "codex",
       "claude-code",
       "cursor",
+      "antigravity",
     ]);
     const stored = await credentials(base);
-    expect(stored).toHaveLength(3);
+    expect(stored).toHaveLength(4);
     for (const connection of connections) {
       expect(connection.token).toMatch(/^adc_/);
       const credential = stored.find((row) => row._id === connection.connection_id);
@@ -556,12 +561,17 @@ describe("collectDeviceRequest", () => {
         }),
       ).toMatchObject({ userId, credentialId: connection.connection_id });
     }
-    expect(stored.map((row) => row.name)).toEqual(["Codex", "Claude Code", "Cursor"]);
-    expect(new Set(connections.map((connection) => connection.token)).size).toBe(3);
+    expect(stored.map((row) => row.name)).toEqual([
+      "Codex",
+      "Claude Code",
+      "Cursor",
+      "Antigravity",
+    ]);
+    expect(new Set(connections.map((connection) => connection.token)).size).toBe(4);
 
     expect((await requests(base))[0]?.status).toBe("consumed");
     expect(await collect(base, deviceSecret)).toEqual({ status: "not_found" });
-    expect(await credentials(base)).toHaveLength(3);
+    expect(await credentials(base)).toHaveLength(4);
   });
 
   test("an approved request stays collectable after the code expires", async () => {

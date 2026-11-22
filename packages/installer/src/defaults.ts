@@ -55,3 +55,8 @@ export const HOOK_MATCHER = "startup|clear|compact";
 
 /** Limit on one `codex app-server` exchange (component-installer §Codex trust). */
 export const APP_SERVER_TIMEOUT_MS = 10_000;
+
+/** The temporary file the installer writes before it renames it to `file`. */
+export function tempPath(file: string): string {
+  return `${file}.agentdesk-tmp-${process.pid}`;
+}

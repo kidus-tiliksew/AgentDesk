@@ -139,10 +139,11 @@ describe("content", () => {
     }
   });
 
-  test("names the three supported harnesses (AC-1.4)", () => {
+  test("names the four supported harnesses (AC-1.4)", () => {
     for (const name of ["Claude Code", "Codex", "Cursor"]) {
       expect(html).toContain(`<li>${name}</li>`);
     }
+    expect(html).toContain("<li>Antigravity</li>");
   });
 
   test("links the repository and its MIT license (AC-1.5)", () => {

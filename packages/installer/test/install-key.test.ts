@@ -103,6 +103,28 @@ function connectionIds(h: Harnessed): Record<string, string | undefined> {
 }
 
 describe("--key-file input", () => {
+  // req-install-keys AC-1.2, AC-2.1, AC-2.3: Antigravity enrolls like the others.
+  it("enrolls Antigravity with the key and writes its entry, skill, and hook", async () => {
+    const { sandbox, clock, gateway } = setup(["agy"]);
+    const h = makeContext(sandbox, { gateway, clock, answers: [] });
+    expect(await h.run(["install", "--yes", "--key-file", keyFile(sandbox)])).toBe(0);
+    expect(gateway.enrollRequests().map((r) => r.body)).toEqual([
+      { install_key: KEY, machine_name: HOSTNAME, harnesses: ["antigravity"] },
+    ]);
+    expect(gateway.startRequests()).toEqual([]);
+    const config = join(sandbox.home, ".gemini", "config");
+    const token = gateway.tokenFor("antigravity");
+    expect(readJson(join(config, "mcp_config.json"))).toEqual({
+      mcpServers: {
+        agentdesk: { url: `${SERVER}/mcp`, headers: { Authorization: `Bearer ${token}` } },
+      },
+    });
+    expect(existsSync(join(config, "skills", "agentdesk", "SKILL.md"))).toBe(true);
+    expect(read(join(config, "hooks.json"))).toContain("context --harness antigravity");
+    expect(connectionIds(h)).toEqual({ antigravity: gateway.issued[0]?.connectionId });
+    expectNoKey(h, sandbox);
+  });
+
   it("enrolls every selected harness with one request and shows no code (AC-2.1, AC-2.4)", async () => {
     const { sandbox, clock, gateway } = setup();
     const h = makeContext(sandbox, { gateway, clock, answers: [] });

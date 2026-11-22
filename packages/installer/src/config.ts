@@ -1,19 +1,26 @@
 import {
+  closeSync,
   copyFileSync,
   existsSync,
+  fchmodSync,
+  constants as fsConstants,
+  lstatSync,
   mkdirSync,
+  openSync,
   readFileSync,
   realpathSync,
   renameSync,
   rmSync,
+  type Stats,
   statSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { basename, dirname } from "node:path";
 import { parse as parseToml } from "smol-toml";
 import { type Context, InstallerError } from "./context.js";
-import { BACKUP_SUFFIX, MCP_ENTRY_NAME } from "./defaults.js";
-import { findExecutable, type Harness } from "./harnesses.js";
+import { BACKUP_SUFFIX, MCP_ENTRY_NAME, tempPath } from "./defaults.js";
+import { assertConfinedFile, findExecutable, type Harness, isConfined } from "./harnesses.js";
 
 /**
  * Copies each file to `<file>.agentdesk-backup` before its first edit in a run
@@ -23,11 +30,43 @@ import { findExecutable, type Harness } from "./harnesses.js";
 export class BackupRegistry {
   private readonly seen = new Set<string>();
 
-  backupOnce(file: string): void {
+  /**
+   * With `noFollow`, for a harness confined to its configuration root, the
+   * backup never goes through a symbolic link: a backup path that is a link or
+   * not a regular file is refused before anything is copied, an earlier
+   * backup file is replaced, and the copy creates a new file.
+   */
+  backupOnce(file: string, noFollow = false): void {
     if (this.seen.has(file)) return;
     this.seen.add(file);
     if (!existsSync(file)) return;
-    copyFileSync(file, file + BACKUP_SUFFIX);
+    const backup = file + BACKUP_SUFFIX;
+    if (!noFollow) {
+      copyFileSync(file, backup);
+      return;
+    }
+    refuseUnlessRegular(file);
+    refuseUnlessRegular(backup);
+    if (lstatOrUndefined(backup)) unlinkSync(backup);
+    copyFileSync(file, backup, fsConstants.COPYFILE_EXCL);
+  }
+}
+
+function lstatOrUndefined(path: string): Stats | undefined {
+  try {
+    return lstatSync(path);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Refuses `path` when it exists and is a symbolic link or not a regular file. */
+function refuseUnlessRegular(path: string): void {
+  const stat = lstatOrUndefined(path);
+  if (stat && (stat.isSymbolicLink() || !stat.isFile())) {
+    throw new InstallerError(
+      `${path} is a symbolic link or not a regular file; the installer does not write through it.`,
+    );
   }
 }
 
@@ -35,18 +74,70 @@ export class BackupRegistry {
  * Writes through a temporary file and a rename in the same directory. An
  * existing file keeps its mode; a new file gets `newFileMode`. A symlinked
  * configuration file is written at its target so the link survives.
+ *
+ * With `noFollow`, for a harness confined to its configuration root, nothing
+ * goes through a symbolic link: a file that is a link is refused, and the
+ * temporary file is created new, so an existing entry at its path, a link
+ * included, refuses the write before anything is written.
  */
-export function writeFileAtomic(file: string, content: string, newFileMode = 0o600): void {
+export function writeFileAtomic(
+  file: string,
+  content: string,
+  newFileMode = 0o600,
+  noFollow = false,
+): void {
   let target = file;
   let mode = newFileMode;
-  if (existsSync(file)) {
+  let existed = false;
+  if (noFollow) {
+    refuseUnlessRegular(file);
+    const stat = lstatOrUndefined(file);
+    if (stat) {
+      mode = stat.mode & 0o777;
+      existed = true;
+    }
+  } else if (existsSync(file)) {
     target = realpathSync(file);
     mode = statSync(target).mode & 0o777;
   }
   mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
-  const temp = `${target}.agentdesk-tmp-${process.pid}`;
+  const temp = tempPath(target);
+  if (noFollow) {
+    let fd: number;
+    try {
+      fd = openSync(temp, "wx", mode);
+    } catch (error) {
+      // An existing entry, which this run did not create, is left in place.
+      const code = (error as NodeJS.ErrnoException | undefined)?.code;
+      if (code === "EEXIST") {
+        throw new InstallerError(`${temp} already exists; ${file} was not changed.`);
+      }
+      throw error;
+    }
+    // This run created the temporary file, so a failed write, such as on a
+    // full disk, removes it and a retry can create it again.
+    try {
+      try {
+        // openSync applies the process umask, so a replaced file gets its
+        // earlier mode set on the descriptor before the rename.
+        if (existed) fchmodSync(fd, mode);
+        writeFileSync(fd, content);
+      } finally {
+        closeSync(fd);
+      }
+    } catch (error) {
+      rmSync(temp, { force: true });
+      throw error;
+    }
+  } else {
+    try {
+      writeFileSync(temp, content, { mode });
+    } catch (error) {
+      rmSync(temp, { force: true });
+      throw error;
+    }
+  }
   try {
-    writeFileSync(temp, content, { mode });
     renameSync(temp, target);
   } catch (error) {
     rmSync(temp, { force: true });
@@ -132,25 +223,37 @@ function mcpServersOf(file: string, data: JsonObject): JsonObject {
   return servers;
 }
 
-/** Sets `mcpServers.agentdesk` and keeps every other key. */
-export function setJsonMcpServer(file: string, entry: JsonObject, backups: BackupRegistry): void {
+/**
+ * Sets `mcpServers.agentdesk` and keeps every other key. `noFollow` writes the
+ * backup and the file without following a link (`writeFileAtomic`).
+ */
+export function setJsonMcpServer(
+  file: string,
+  entry: JsonObject,
+  backups: BackupRegistry,
+  noFollow = false,
+): void {
   const current = readJsonFile(file) ?? { data: {}, indent: "  " };
   const servers = mcpServersOf(file, current.data);
   const next: JsonObject = { ...current.data, mcpServers: { ...servers, [MCP_ENTRY_NAME]: entry } };
-  backups.backupOnce(file);
-  writeFileAtomic(file, `${JSON.stringify(next, null, current.indent)}\n`);
+  backups.backupOnce(file, noFollow);
+  writeFileAtomic(file, `${JSON.stringify(next, null, current.indent)}\n`, 0o600, noFollow);
 }
 
 /** Removes `mcpServers.agentdesk`; returns whether an entry was removed. */
-export function removeJsonMcpServer(file: string, backups: BackupRegistry): boolean {
+export function removeJsonMcpServer(
+  file: string,
+  backups: BackupRegistry,
+  noFollow = false,
+): boolean {
   const current = readJsonFile(file);
   if (!current) return false;
   const servers = mcpServersOf(file, current.data);
   if (!(MCP_ENTRY_NAME in servers)) return false;
   const { [MCP_ENTRY_NAME]: _removed, ...rest } = servers;
   const next: JsonObject = { ...current.data, mcpServers: rest };
-  backups.backupOnce(file);
-  writeFileAtomic(file, `${JSON.stringify(next, null, current.indent)}\n`);
+  backups.backupOnce(file, noFollow);
+  writeFileAtomic(file, `${JSON.stringify(next, null, current.indent)}\n`, 0o600, noFollow);
   return true;
 }
 
@@ -566,6 +669,7 @@ export async function writeMcpEntry(
   backups: BackupRegistry,
 ): Promise<void> {
   const file = harness.configPath(ctx);
+  assertConfinedFile(ctx, harness, file);
   switch (harness.configFormat) {
     case "claude": {
       const cli = findExecutable(ctx, "claude");
@@ -597,11 +701,12 @@ export async function writeMcpEntry(
     case "codex-toml":
       setCodexEntry(file, server, token, backups);
       return;
-    case "cursor-json":
+    case "url-headers-json":
       setJsonMcpServer(
         file,
         { url: mcpUrl(server), headers: { Authorization: bearer(token) } },
         backups,
+        isConfined(harness),
       );
       return;
   }
@@ -610,6 +715,7 @@ export async function writeMcpEntry(
 /** Reads the harness's agentdesk entry; throws when the configuration cannot be read or parsed. */
 export function readMcpEntry(ctx: Context, harness: Harness): McpEntry {
   const file = harness.configPath(ctx);
+  assertConfinedFile(ctx, harness, file);
   return harness.configFormat === "codex-toml" ? readCodexEntry(file) : readJsonMcpServer(file);
 }
 
@@ -624,6 +730,7 @@ export async function removeMcpEntry(
   backups: BackupRegistry,
 ): Promise<boolean> {
   const file = harness.configPath(ctx);
+  assertConfinedFile(ctx, harness, file);
   switch (harness.configFormat) {
     case "claude": {
       // Reading first refuses an unreadable or malformed file before any change.
@@ -659,7 +766,7 @@ export async function removeMcpEntry(
     }
     case "codex-toml":
       return removeCodexEntry(file, backups);
-    case "cursor-json":
-      return removeJsonMcpServer(file, backups);
+    case "url-headers-json":
+      return removeJsonMcpServer(file, backups, isConfined(harness));
   }
 }

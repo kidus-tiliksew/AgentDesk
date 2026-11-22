@@ -12,7 +12,9 @@ import {
   read,
   readJson,
   type Sandbox,
+  SERVER,
   stubExecutable,
+  write,
 } from "./helpers.js";
 
 afterEach(cleanupSandboxes);
@@ -212,5 +214,87 @@ describe("command line", () => {
     const h = makeContext(makeSandbox());
     expect(await h.run(["--version"])).toBe(0);
     expect(h.out).toEqual(["0.0.0-dev"]);
+  });
+});
+
+// The task's exit check: `install --only antigravity` against the fake gateway
+// writes the MCP entry, the skill, and the `agentdesk` named hook; a re-run
+// reports them unchanged; uninstall removes them and keeps other named hooks
+// and MCP servers (component-installer §Harnesses, §Standing guidance, and
+// §State, re-run, and uninstall; DEC-24(1)-(2)).
+describe("Antigravity lifecycle", () => {
+  it("installs, re-runs unchanged, reports status, and uninstalls with --only antigravity", async () => {
+    const sandbox = allThree();
+    stubExecutable(sandbox, "agy");
+    const config = join(sandbox.home, ".gemini", "config");
+    const mcp = join(config, "mcp_config.json");
+    const hooks = join(config, "hooks.json");
+    const skillDir = join(config, "skills", "agentdesk");
+    const otherServers = { linear: { serverUrl: "https://linear" } };
+    const otherHooks = { audit: { PreToolUse: [{ type: "command", command: "echo audit" }] } };
+    write(mcp, "");
+    write(hooks, `${JSON.stringify(otherHooks, null, 2)}\n`);
+
+    const first = makeContext(sandbox);
+    const { gateway, clock } = first;
+    expect(await first.run(["install", "--only", "antigravity"])).toBe(0);
+    expect(gateway.startRequests().map((r) => r.body)).toEqual([
+      { machine_name: "devbox-1", harnesses: ["antigravity"] },
+    ]);
+    const token = gateway.tokenFor("antigravity");
+    expect(readJson(mcp)).toEqual({
+      mcpServers: {
+        agentdesk: { url: `${SERVER}/mcp`, headers: { Authorization: `Bearer ${token}` } },
+      },
+    });
+    const command = `${sandbox.executable} context --harness antigravity`;
+    expect(readJson(hooks)).toEqual({
+      ...otherHooks,
+      agentdesk: { SessionStart: [{ type: "command", command, timeout: 30 }] },
+    });
+    expect(read(join(skillDir, "SKILL.md"))).toBe(first.ctx.skill.content);
+    expect(first.out).toContain(`Antigravity: connected; MCP entry written to ${mcp}`);
+    // Only Antigravity was set up.
+    expect(existsSync(join(sandbox.home, ".codex"))).toBe(false);
+    expect(existsSync(join(sandbox.home, ".cursor"))).toBe(false);
+    expect(existsSync(join(sandbox.home, ".claude.json"))).toBe(false);
+
+    // A user adds another MCP server after install; it must survive.
+    const withOther = readJson(mcp) as { mcpServers: Record<string, unknown> };
+    write(
+      mcp,
+      `${JSON.stringify({ mcpServers: { ...withOther.mcpServers, ...otherServers } }, null, 2)}\n`,
+    );
+    const before = { mcp: read(mcp), hooks: read(hooks), skill: read(join(skillDir, "SKILL.md")) };
+    const rerun = makeContext(sandbox, { gateway, clock });
+    expect(await rerun.run(["install", "--only", "antigravity"])).toBe(0);
+    expect(rerun.out).toEqual(
+      expect.arrayContaining([
+        "Antigravity: connection works; keeping it.",
+        "Every selected harness is already connected. No sign-in is needed.",
+        `Antigravity: skill ${rerun.ctx.skill.version} unchanged in ${skillDir}`,
+        `Antigravity: session-start hook unchanged in ${hooks}`,
+      ]),
+    );
+    expect(gateway.startRequests()).toHaveLength(1);
+    expect({
+      mcp: read(mcp),
+      hooks: read(hooks),
+      skill: read(join(skillDir, "SKILL.md")),
+    }).toEqual(before);
+
+    const status = makeContext(sandbox, { gateway, clock });
+    expect(await status.run(["status"])).toBe(0);
+    const line = status.out.find((l) => l.startsWith("Antigravity:")) ?? "";
+    expect(line.startsWith("Antigravity: connected; skill ")).toBe(true);
+    expect(line.endsWith(` at ${skillDir}; session-start hook in ${hooks}`)).toBe(true);
+
+    const removal = makeContext(sandbox, { gateway, clock });
+    expect(await removal.run(["uninstall"])).toBe(0);
+    expect(gateway.revoked).toEqual([token]);
+    expect(readJson(mcp)).toEqual({ mcpServers: otherServers });
+    expect(readJson(hooks)).toEqual(otherHooks);
+    expect(existsSync(skillDir)).toBe(false);
+    expect(existsSync(statePath(removal.ctx))).toBe(false);
   });
 });
