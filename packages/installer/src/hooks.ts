@@ -504,10 +504,15 @@ function readNamedHook(ctx: Context, harness: Harness): NamedHookDocument {
       );
     }
     const event = events.find((e) => e.name === name);
+    if (event === undefined) {
+      throw new InstallerError(
+        `${file} has an ${NAMED_HOOK}.${name} value, which AgentDesk does not write; it was not changed. Move it to a hook with another name, then run again.`,
+      );
+    }
     for (const handler of handlers) {
-      if (event === undefined || !isOwnedNamedHandler(handler, harness, event)) {
+      if (!isOwnedNamedHandler(handler, harness, event)) {
         throw new InstallerError(
-          `${file} has a handler in its ${NAMED_HOOK} hook that AgentDesk did not write; it was not changed. Move that handler to a hook with another name, then run again.`,
+          `${file} has a handler in its ${NAMED_HOOK} hook that is not exactly the handler AgentDesk writes; it was not changed. Move that handler to a hook with another name, or remove it, then run again.`,
         );
       }
     }
@@ -517,13 +522,23 @@ function readNamedHook(ctx: Context, harness: Harness): NamedHookDocument {
 }
 
 /**
- * Whether `handler` is the installer's own handler for `event`: a command
- * handler (`"type": "command"`) whose command is the installer's. A handler
- * with the installer's command and a missing or other type is malformed, so
- * it is not owned and the file is refused.
+ * Whether `handler` is exactly the handler the installer writes for `event`:
+ * an object whose keys are `type`, `command`, and the event's fields and
+ * nothing else, with `"type": "command"`, the installer's command for this
+ * harness and event (from any executable path, so an older install's handler
+ * is replaced), and each field's exact value, such as `"timeout": 30`. Any
+ * other handler, a missing, extra, or differently typed key included, is not
+ * owned, so the file is refused before setup or removal.
  */
 function isOwnedNamedHandler(handler: unknown, harness: Harness, event: HookEvent): boolean {
-  return isPlainObject(handler) && handler.type === "command" && isOwned(handler, harness, event);
+  if (!isPlainObject(handler)) return false;
+  const expected = ["type", "command", ...Object.keys(event.fields)].sort();
+  const actual = Object.keys(handler).sort();
+  if (actual.length !== expected.length || actual.some((key, i) => key !== expected[i])) {
+    return false;
+  }
+  if (handler.type !== "command" || !isOwned(handler, harness, event)) return false;
+  return Object.entries(event.fields).every(([key, value]) => Object.is(handler[key], value));
 }
 
 function serializeNamed(doc: NamedHookDocument, owned: JsonObject | undefined): string {

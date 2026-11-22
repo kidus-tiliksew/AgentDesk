@@ -150,7 +150,7 @@ describe("a symbolic link at the Antigravity skill folder", () => {
     const h = makeContext(sandbox, { gateway, clock });
     expect(await h.run(["install", "--yes"])).toBe(1);
     expect(h.err.join("\n")).toContain(
-      `Antigravity: the skill was not written: ${join(skill, "SKILL.md")} is not inside`,
+      `Antigravity: the skill was not written: ${join(skill, "SKILL.md")} was not read or changed, because`,
     );
     expect(h.err.join("\n")).toContain(`${join(skill, "..")} is a symbolic link`);
     expect(readUnder(elsewhere)).toEqual([]);
@@ -176,7 +176,7 @@ describe("Antigravity configuration paths that leave ~/.gemini/config", () => {
       const h = makeContext(sandbox, { gateway, clock });
       expect(await h.run(["install", "--yes"])).toBe(1);
       expect(h.err.join("\n")).toContain(
-        `${ctx[which]} is not inside ${config} (${ctx[which]} is a symbolic link, which the installer does not follow); it was not read or changed.`,
+        `${ctx[which]} was not read or changed, because ${ctx[which]} is a symbolic link, which the installer does not follow.`,
       );
       expect(gateway.requests).toEqual([]);
       expect(readUnder(profile)).toEqual([]);
@@ -237,7 +237,7 @@ describe("Antigravity configuration paths that leave ~/.gemini/config", () => {
     const h = makeContext(sandbox, { gateway, clock });
     expect(await h.run(["uninstall"])).toBe(1);
     expect(h.err.join("\n")).toContain(
-      `Antigravity: its hooks were not removed: ${hooks} is not inside`,
+      `Antigravity: its hooks were not removed: ${hooks} was not read or changed, because`,
     );
     expect(readUnder(profile)).toEqual([]);
     expectProfileUnchanged(profile, files);
@@ -256,7 +256,7 @@ describe("Antigravity configuration paths that leave ~/.gemini/config", () => {
 
     const h = makeContext(sandbox, { gateway, clock });
     expect(await h.run(["uninstall"])).toBe(1);
-    expect(h.err.join("\n")).toContain(`${mcp} is not inside`);
+    expect(h.err.join("\n")).toContain(`${mcp} was not read or changed, because`);
     expect(gateway.revoked).toEqual([]);
     expect(readUnder(profile)).toEqual([]);
     expectProfileUnchanged(profile, files);
@@ -265,7 +265,7 @@ describe("Antigravity configuration paths that leave ~/.gemini/config", () => {
     const status = makeContext(sandbox, { gateway, clock });
     expect(await status.run(["status"])).toBe(0);
     expect(status.out.find((l) => l.startsWith("Antigravity:"))).toContain(
-      `configuration unreadable (${mcp} is not inside`,
+      `configuration unreadable (${mcp} was not read or changed, because`,
     );
   });
 
@@ -313,7 +313,7 @@ describe("Antigravity skill files, backups, and temporary files behind links", (
     const h = makeContext(sandbox, { gateway, clock });
     expect(await h.run(["install", "--yes"])).toBe(1);
     expect(h.err.join("\n")).toContain(
-      `Antigravity: the skill was not written: ${join(skill, "SKILL.md")} is not inside`,
+      `Antigravity: the skill was not written: ${join(skill, "SKILL.md")} was not read or changed, because`,
     );
     expect(readUnder(outside.path)).toEqual([]);
     expect(readUnder(join(skill, "SKILL.md"))).toEqual([]);
@@ -334,11 +334,13 @@ describe("Antigravity skill files, backups, and temporary files behind links", (
 
     const rerun = makeContext(sandbox, { gateway, clock });
     expect(await rerun.run(["install", "--yes"])).toBe(1);
-    expect(rerun.err.join("\n")).toContain(`${join(skill, "SKILL.md")} is not inside`);
+    expect(rerun.err.join("\n")).toContain(
+      `${join(skill, "SKILL.md")} was not read or changed, because`,
+    );
     const status = makeContext(sandbox, { gateway, clock });
     expect(await status.run(["status"])).toBe(0);
     expect(status.out.find((l) => l.startsWith("Antigravity:"))).toContain(
-      `skill not read (${join(skill, "SKILL.md")} is not inside`,
+      `skill not read (${join(skill, "SKILL.md")} was not read or changed, because`,
     );
     expect(readUnder(outside.path)).toEqual([]);
     expect(read(outside.path)).toBe(outside.text);
@@ -356,7 +358,9 @@ describe("Antigravity skill files, backups, and temporary files behind links", (
     const status = makeContext(sandbox, { gateway, clock });
     expect(await status.run(["status"])).toBe(0);
     const line = status.out.find((l) => l.startsWith("Antigravity:")) ?? "";
-    expect(line).toContain(`skill not read (${join(skill, "SKILL.md")} is not inside`);
+    expect(line).toContain(
+      `skill not read (${join(skill, "SKILL.md")} was not read or changed, because`,
+    );
     expect(line).toContain(`${skill} is a symbolic link`);
     expect(line).not.toContain("9.9.9");
     expect(readUnder(target)).toEqual([]);
@@ -489,7 +493,7 @@ describe("Antigravity handlers without the command type", () => {
     const h = makeContext(sandbox, { gateway, clock });
     expect(await h.run(["install", "--yes"])).toBe(1);
     expect(h.err.join("\n")).toContain(
-      `${hooks} has a handler in its agentdesk hook that AgentDesk did not write`,
+      `${hooks} has a handler in its agentdesk hook that is not exactly the handler AgentDesk writes`,
     );
     expect(gateway.requests).toEqual([]);
     expect(read(hooks)).toBe(text);
@@ -507,7 +511,7 @@ describe("Antigravity handlers without the command type", () => {
     const h = makeContext(sandbox, { gateway, clock });
     expect(await h.run(["uninstall"])).toBe(1);
     expect(h.err.join("\n")).toContain(
-      `Antigravity: its hooks were not removed: ${hooks} has a handler in its agentdesk hook that AgentDesk did not write`,
+      `Antigravity: its hooks were not removed: ${hooks} has a handler in its agentdesk hook that is not exactly the handler AgentDesk writes`,
     );
     expect(read(hooks)).toBe(text);
     expect(recorded(sandbox).antigravity?.hookPath).toBe(hooks);

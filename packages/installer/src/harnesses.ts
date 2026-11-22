@@ -129,14 +129,16 @@ export function isConfined(harness: Harness): boolean {
 
 /**
  * `assertConfined` for a file the installer reads and writes, and for the
- * backup and temporary files it writes beside it: each of those two must be
- * absent or a regular file, never a symbolic link, so a backup or a write
- * cannot leave the root through a link planted at either path. Callers check
- * before any read, so a refusal comes before sign-in and before any write.
+ * backup and temporary files it writes beside it. The file and each of those
+ * two must be absent or a regular file, never a symbolic link, a directory, a
+ * FIFO, a socket, or a device. So no read can block on a special file, and no
+ * backup or write can leave the root through a link at any of the three
+ * paths. Callers check before any read, so a refusal comes before sign-in and
+ * before any write.
  */
 export function assertConfinedFile(ctx: Context, harness: Harness, file: string): void {
   if (!isConfined(harness)) return;
-  assertConfined(ctx, harness, file);
+  assertConfined(ctx, harness, file, "file");
   for (const sibling of [file + BACKUP_SUFFIX, tempPath(file)]) {
     let stat: ReturnType<typeof lstatSync>;
     try {
@@ -154,22 +156,29 @@ export function assertConfinedFile(ctx: Context, harness: Harness, file: string)
 
 /**
  * Refuses `path` for a harness with a configuration root unless it resolves
- * inside that root: `path` must lie under the root, and no existing component
- * from the home directory down to `path` may be a symbolic link. A missing
+ * inside that root: `path` must lie under the root, no existing component
+ * from the home directory down to `path` may be a symbolic link, every
+ * existing component above `path` must be a directory, and an existing
+ * `path` must be a regular file or a directory, as `kind` says. A missing
  * component ends the walk, because the installer creates it as a real
  * directory or file. A harness without a root is never refused. Callers check
  * before any read or write of `path` (DEC-24(1): Antigravity's setup stays in
  * its user-level configuration under ~/.gemini/config, never in a linked host
  * application profile).
  */
-export function assertConfined(ctx: Context, harness: Harness, path: string): void {
+export function assertConfined(
+  ctx: Context,
+  harness: Harness,
+  path: string,
+  kind: "file" | "directory",
+): void {
   const root = harness.configRoot?.(ctx);
   if (root === undefined) return;
   const refuse = (why: string) =>
-    new InstallerError(`${path} is not inside ${root} (${why}); it was not read or changed.`);
+    new InstallerError(`${path} was not read or changed, because ${why}.`);
   const insideRoot = relative(root, path);
   if (insideRoot.length === 0 || insideRoot.startsWith("..") || isAbsolute(insideRoot)) {
-    throw refuse("it lies outside that directory");
+    throw refuse(`it lies outside ${root}`);
   }
   let current = ctx.home;
   for (const part of relative(ctx.home, path).split(sep)) {
@@ -184,7 +193,11 @@ export function assertConfined(ctx: Context, harness: Harness, path: string): vo
     if (stat.isSymbolicLink()) {
       throw refuse(`${current} is a symbolic link, which the installer does not follow`);
     }
-    if (current !== path && !stat.isDirectory()) throw refuse(`${current} is not a directory`);
+    if (current !== path || kind === "directory") {
+      if (!stat.isDirectory()) throw refuse(`${current} is not a directory`);
+    } else if (!stat.isFile()) {
+      throw refuse("it is not a regular file");
+    }
   }
 }
 

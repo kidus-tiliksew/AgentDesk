@@ -42,6 +42,7 @@ export class BackupRegistry {
       copyFileSync(file, backup);
       return;
     }
+    refuseUnlessRegular(file);
     refuseUnlessRegular(backup);
     if (lstatOrUndefined(backup)) unlinkSync(backup);
     copyFileSync(file, backup, fsConstants.COPYFILE_EXCL);

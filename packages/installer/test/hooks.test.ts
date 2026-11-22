@@ -1057,7 +1057,7 @@ describe("Antigravity's named hook", () => {
     const h = makeContext(sandbox, { gateway, clock });
     expect(await h.run(["install", "--yes"])).toBe(1);
     expect(h.err.join("\n")).toContain(
-      `${file} has a handler in its agentdesk hook that AgentDesk did not write; it was not changed.`,
+      `${file} has a handler in its agentdesk hook that is not exactly the handler AgentDesk writes; it was not changed.`,
     );
   });
 
@@ -1121,7 +1121,7 @@ describe("Antigravity's named hook", () => {
     const h = makeContext(sandbox, { gateway, clock });
     expect(await h.run(["uninstall"])).toBe(1);
     expect(h.err.join("\n")).toContain(
-      `Antigravity: its hooks were not removed: ${file} has a handler in its agentdesk hook that AgentDesk did not write`,
+      `Antigravity: its hooks were not removed: ${file} has a handler in its agentdesk hook that is not exactly the handler AgentDesk writes`,
     );
     expect(read(file)).toBe(tampered);
     const state = readJson(statePath(h.ctx)).harnesses as Record<string, Record<string, string>>;
