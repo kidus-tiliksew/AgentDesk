@@ -1,12 +1,12 @@
 # Local validation evidence for task 261122-b46c01
 
-This branch holds only evidence and shares no history with `main`. This commit replaces the round 3 evidence (parent commit `6b251bd`) with the local `pnpm run check` at the round 4 head. The run uses the same method, which lets the `chmod 000` permission tests work.
+This branch holds only evidence and shares no history with `main`. This commit replaces the evidence for `3b82673` (parent commit `d0e6ee9`) with the local `pnpm run check` at the round 4 head `e4c4afa`. That head adds the fix for CodeRabbit's partial temporary file finding. The run uses the same method, which lets the `chmod 000` permission tests work.
 
 ## Subject
 
 - Repository: kidus-tiliksew/AgentDesk
 - Task branch: `conveyor/task-261122-b46c01`
-- Head checked: `3b82673a1fdaa467d6a7ee492c680373e7c4611c`
+- Head checked: `e4c4afac0e8750d91b5e71b25f5f8607128a7226`
 - Pull request: https://github.com/kidus-tiliksew/AgentDesk/pull/206
 
 ## Environment
@@ -20,8 +20,8 @@ This branch holds only evidence and shares no history with `main`. This commit r
 
 | File | Command | Time (UTC) | Result |
 | --- | --- | --- | --- |
-| `pnpm-check.log` | `setpriv --ambient-caps=-all --inh-caps=-all -- pnpm run check` | 2026-11-22T12:59:53Z to 2026-11-22T13:01:18Z | exit status 0. Typecheck passed. Biome found no errors and 17 warnings, the same 17 as on base. Vitest: 96 files, 3111 tests passed, 0 failed, 0 skipped. Mobile Jest: 29 suites, 917 tests passed |
-| `installer-verbose.log` | `setpriv --ambient-caps=-all --inh-caps=-all -- npx vitest run --project installer --reporter=verbose` | after the check | exit status 0: 23 files, 739 tests passed, each named. They include both permission tests and all 132 cases of `antigravity-paths.test.ts` |
+| `pnpm-check.log` | `setpriv --ambient-caps=-all --inh-caps=-all -- pnpm run check` | 2026-11-22T13:12:12Z to 2026-11-22T13:14:04Z | exit status 0. Typecheck passed. Biome found no errors and 17 warnings, the same 17 as on base. Vitest: 97 files, 3113 tests passed, 0 failed, 0 skipped. Mobile Jest: 29 suites, 917 tests passed |
+| `installer-verbose.log` | `setpriv --ambient-caps=-all --inh-caps=-all -- npx vitest run --project installer --reporter=verbose` | after the check | exit status 0: 24 files, 741 tests passed, each named. They include both permission tests, all 132 cases of `antigravity-paths.test.ts`, and the 2 cases of `write-cleanup.test.ts` |
 | `control-with-capability.log` | the two permission tests alone, with the capability kept (`CapEff: 0000000000000004`) | after the check | exit status 1: both fail. The capability causes that failure, not the change |
 
 Each log is the complete, unedited standard output and standard error of its command.
