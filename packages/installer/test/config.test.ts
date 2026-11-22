@@ -212,6 +212,28 @@ describe("writes and backups that do not follow links", () => {
     expect(statSync(file).mode & 0o777).toBe(0o640);
     expect(existsSync(tempPath(file))).toBe(false);
   });
+
+  // The temporary file is created under the process umask. With umask 077, a
+  // 0640 file must keep its mode when the write replaces it.
+  it("keeps a replaced file's mode under umask 077, and gives a new file 0600", () => {
+    const sandbox = makeSandbox();
+    const { file } = linked(sandbox);
+    chmodSync(file, 0o640);
+    const created = join(sandbox.home, "config", "new.json");
+    const previous = process.umask(0o077);
+    try {
+      expect(process.umask()).toBe(0o077);
+      writeFileAtomic(file, "new\n", 0o600, true);
+      writeFileAtomic(created, "{}\n", 0o644, true);
+    } finally {
+      process.umask(previous);
+    }
+    expect(read(file)).toBe("new\n");
+    expect(statSync(file).mode & 0o777).toBe(0o640);
+    // A new file takes the requested mode less the umask, as before.
+    expect(statSync(created).mode & 0o777).toBe(0o600);
+    expect(existsSync(tempPath(file))).toBe(false);
+  });
 });
 
 describe("MCP entries written by install", () => {

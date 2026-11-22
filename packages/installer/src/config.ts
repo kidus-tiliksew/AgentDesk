@@ -2,6 +2,7 @@ import {
   closeSync,
   copyFileSync,
   existsSync,
+  fchmodSync,
   constants as fsConstants,
   lstatSync,
   mkdirSync,
@@ -87,10 +88,14 @@ export function writeFileAtomic(
 ): void {
   let target = file;
   let mode = newFileMode;
+  let existed = false;
   if (noFollow) {
     refuseUnlessRegular(file);
     const stat = lstatOrUndefined(file);
-    if (stat) mode = stat.mode & 0o777;
+    if (stat) {
+      mode = stat.mode & 0o777;
+      existed = true;
+    }
   } else if (existsSync(file)) {
     target = realpathSync(file);
     mode = statSync(target).mode & 0o777;
@@ -113,6 +118,9 @@ export function writeFileAtomic(
     // full disk, removes it and a retry can create it again.
     try {
       try {
+        // openSync applies the process umask, so a replaced file gets its
+        // earlier mode set on the descriptor before the rename.
+        if (existed) fchmodSync(fd, mode);
         writeFileSync(fd, content);
       } finally {
         closeSync(fd);
