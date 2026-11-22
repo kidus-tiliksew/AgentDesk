@@ -19,6 +19,7 @@ import {
 } from "./config.js";
 import { type Context, InstallerError, TerminalReadError } from "./context.js";
 import {
+  assertConfined,
   type Detection,
   detectHarnesses,
   HARNESS_IDS,
@@ -51,6 +52,7 @@ import {
   assertOwnedDir,
   installedSkillVersion,
   planSkills,
+  refuseLink,
   removeSkillDir,
   skillFileText,
   writeSkill,
@@ -179,7 +181,10 @@ function installSkills(ctx: Context, harnesses: readonly Harness[], state: State
     const record: HarnessRecord = state.harnesses[harness.id] ?? {};
     if (plan.dir) {
       try {
-        // A re-run names Antigravity's skill unchanged when its bytes match.
+        // The folder is checked for a link before its content is read; a re-run
+        // names Antigravity's skill unchanged when its bytes match.
+        refuseLink(plan.dir);
+        assertConfined(ctx, harness, plan.dir);
         const unchanged =
           harness.hookFormat === "named-hook" && skillFileText(plan.dir) === ctx.skill.content;
         record.skillRealPath = writeSkill(plan.dir, ctx.skill.content);

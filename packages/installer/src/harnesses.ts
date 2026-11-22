@@ -1,6 +1,6 @@
-import { accessSync, constants, statSync } from "node:fs";
-import { delimiter, isAbsolute, join, resolve } from "node:path";
-import type { Context } from "./context.js";
+import { accessSync, constants, lstatSync, statSync } from "node:fs";
+import { delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { type Context, InstallerError } from "./context.js";
 
 /**
  * Harness ids shared with `/device/start` and the identity vocabulary
@@ -47,6 +47,12 @@ export interface Harness {
   hookFormat: HookFormat;
   /** The user-level file that holds the session-start hook. */
   hookPath(ctx: Context): string;
+  /**
+   * The directory that the MCP configuration, hook file, and skill folder must
+   * stay inside with no symbolic link on the way, or undefined for a harness
+   * whose files may be links. See `assertConfined`.
+   */
+  configRoot?(ctx: Context): string;
 }
 
 export function codexHome(ctx: Context): string {
@@ -111,8 +117,45 @@ export const HARNESSES: readonly Harness[] = [
     skillAnchor: (ctx) => ctx.home,
     hookFormat: "named-hook",
     hookPath: (ctx) => join(ctx.home, ".gemini", "config", "hooks.json"),
+    configRoot: (ctx) => join(ctx.home, ".gemini", "config"),
   },
 ];
+
+/**
+ * Refuses `path` for a harness with a configuration root unless it resolves
+ * inside that root: `path` must lie under the root, and no existing component
+ * from the home directory down to `path` may be a symbolic link. A missing
+ * component ends the walk, because the installer creates it as a real
+ * directory or file. A harness without a root is never refused. Callers check
+ * before any read or write of `path` (DEC-24(1): Antigravity's setup stays in
+ * its user-level configuration under ~/.gemini/config, never in a linked host
+ * application profile).
+ */
+export function assertConfined(ctx: Context, harness: Harness, path: string): void {
+  const root = harness.configRoot?.(ctx);
+  if (root === undefined) return;
+  const refuse = (why: string) =>
+    new InstallerError(`${path} is not inside ${root} (${why}); it was not read or changed.`);
+  const insideRoot = relative(root, path);
+  if (insideRoot.length === 0 || insideRoot.startsWith("..") || isAbsolute(insideRoot)) {
+    throw refuse("it lies outside that directory");
+  }
+  let current = ctx.home;
+  for (const part of relative(ctx.home, path).split(sep)) {
+    current = join(current, part);
+    let stat: ReturnType<typeof lstatSync>;
+    try {
+      stat = lstatSync(current);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") return;
+      throw refuse(`${current} cannot be inspected`);
+    }
+    if (stat.isSymbolicLink()) {
+      throw refuse(`${current} is a symbolic link, which the installer does not follow`);
+    }
+    if (current !== path && !stat.isDirectory()) throw refuse(`${current} is not a directory`);
+  }
+}
 
 export function harnessById(ctx: Context, id: HarnessId): Harness {
   const harness = ctx.harnesses.find((h) => h.id === id);

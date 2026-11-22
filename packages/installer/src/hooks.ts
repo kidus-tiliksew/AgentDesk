@@ -8,7 +8,7 @@ import {
 import { type Context, InstallerError } from "./context.js";
 import { HOOK_MATCHER } from "./defaults.js";
 import { runningExecutable } from "./guidance.js";
-import type { Harness, HarnessId } from "./harnesses.js";
+import { assertConfined, type Harness, type HarnessId } from "./harnesses.js";
 
 // component-installer §Standing guidance and §Resume hooks: each harness's
 // session-start hook runs `<executable> context --harness <id>`, and the
@@ -477,6 +477,8 @@ interface NamedHookDocument {
  */
 function readNamedHook(ctx: Context, harness: Harness): NamedHookDocument {
   const file = harness.hookPath(ctx);
+  // A linked hooks.json or a redirected parent is refused before any read.
+  assertConfined(ctx, harness, file);
   const current = readJsonFile(file);
   const data: JsonObject = current?.data ?? {};
   const doc: NamedHookDocument = {

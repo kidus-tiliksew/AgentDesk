@@ -13,7 +13,7 @@ import { basename, dirname } from "node:path";
 import { parse as parseToml } from "smol-toml";
 import { type Context, InstallerError } from "./context.js";
 import { BACKUP_SUFFIX, MCP_ENTRY_NAME } from "./defaults.js";
-import { findExecutable, type Harness } from "./harnesses.js";
+import { assertConfined, findExecutable, type Harness } from "./harnesses.js";
 
 /**
  * Copies each file to `<file>.agentdesk-backup` before its first edit in a run
@@ -566,6 +566,7 @@ export async function writeMcpEntry(
   backups: BackupRegistry,
 ): Promise<void> {
   const file = harness.configPath(ctx);
+  assertConfined(ctx, harness, file);
   switch (harness.configFormat) {
     case "claude": {
       const cli = findExecutable(ctx, "claude");
@@ -610,6 +611,7 @@ export async function writeMcpEntry(
 /** Reads the harness's agentdesk entry; throws when the configuration cannot be read or parsed. */
 export function readMcpEntry(ctx: Context, harness: Harness): McpEntry {
   const file = harness.configPath(ctx);
+  assertConfined(ctx, harness, file);
   return harness.configFormat === "codex-toml" ? readCodexEntry(file) : readJsonMcpServer(file);
 }
 
@@ -624,6 +626,7 @@ export async function removeMcpEntry(
   backups: BackupRegistry,
 ): Promise<boolean> {
   const file = harness.configPath(ctx);
+  assertConfined(ctx, harness, file);
   switch (harness.configFormat) {
     case "claude": {
       // Reading first refuses an unreadable or malformed file before any change.

@@ -40,7 +40,8 @@ export function planSkills(ctx: Context, harnesses: readonly Harness[]): SkillPl
   });
 }
 
-function refuseLink(dir: string): void {
+/** Refuses a skill folder that is a symbolic link, before anything reads or writes through it. */
+export function refuseLink(dir: string): void {
   if (existsSync(dir) && lstatSync(dir).isSymbolicLink()) {
     throw new InstallerError(`${dir} is a symbolic link; the installer does not write through it.`);
   }
