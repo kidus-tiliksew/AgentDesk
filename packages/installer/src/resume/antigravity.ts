@@ -1,8 +1,7 @@
 import { createReadStream } from "node:fs";
 import { isAbsolute } from "node:path";
-import { createInterface } from "node:readline";
 import { type Context, startTimer } from "../context.js";
-import { HookCancelledError, MAX_TRANSCRIPT_BYTES, openTranscript } from "./codex.js";
+import { HookCancelledError, openTranscript } from "./codex.js";
 import type { HookAdapters } from "./process.js";
 import { isSafeId, ResumeStore } from "./storage.js";
 import { readCredentials, resumeMessage, resumes, watchDecision } from "./waiter.js";
@@ -25,6 +24,14 @@ const HOLDING_REASON = "NO_TOOL_CALL";
 const MCP_CALL_TOOL = "call_mcp_tool";
 /** A result step's `content` larger than this names no decision. */
 const MAX_RESULT_CONTENT = 64 * 1024;
+/**
+ * A transcript line longer than this is never held in memory. It is read past
+ * and counts as a step that is neither an `ask` call nor its result. An `ask`
+ * call and its result are a few kilobytes, so such a line never hides one.
+ */
+export const MAX_LINE_BYTES = 16 * 1024 * 1024;
+/** The size of each read from the transcript. */
+const READ_CHUNK_BYTES = 1024 * 1024;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -155,6 +162,51 @@ export function resultDecisionId(content: string): string | undefined {
   return undefined;
 }
 
+function decodeLine(parts: readonly Buffer[]): string {
+  const text = Buffer.concat(parts).toString("utf8");
+  return text.endsWith("\r") ? text.slice(0, -1) : text;
+}
+
+/**
+ * Splits a byte stream into lines, holding at most one line of at most
+ * `maxLineBytes` bytes in memory. Yields each line without its line ending,
+ * or undefined for a line longer than `maxLineBytes`, whose bytes are read
+ * past and dropped. A last line without a line ending is yielded too.
+ */
+export async function* transcriptLines(
+  chunks: AsyncIterable<Buffer>,
+  maxLineBytes = MAX_LINE_BYTES,
+): AsyncGenerator<string | undefined> {
+  let parts: Buffer[] = [];
+  let size = 0;
+  let oversized = false;
+  for await (const chunk of chunks) {
+    let start = 0;
+    for (;;) {
+      const newline = chunk.indexOf(0x0a, start);
+      const end = newline === -1 ? chunk.length : newline;
+      if (!oversized && end > start) {
+        if (size + (end - start) > maxLineBytes) {
+          oversized = true;
+          parts = [];
+          size = 0;
+        } else {
+          parts.push(chunk.subarray(start, end));
+          size += end - start;
+        }
+      }
+      if (newline === -1) break;
+      yield oversized ? undefined : decodeLine(parts);
+      parts = [];
+      size = 0;
+      oversized = false;
+      start = newline + 1;
+    }
+  }
+  if (oversized) yield undefined;
+  else if (size > 0) yield decodeLine(parts);
+}
+
 /**
  * The distinct decisions of `agentdesk` `ask` results in an Antigravity
  * transcript, in order of appearance. A `PLANNER_RESPONSE` step whose only
@@ -163,7 +215,11 @@ export function resultDecisionId(content: string): string | undefined {
  * `content` names the decision. When both steps carry `step_index`, the
  * result's index is the call's index plus one. An `ask` call followed by any
  * other line, or by no line, names nothing.
- * Aborting `signal` closes the reader and rejects with HookCancelledError.
+ *
+ * The scan reads the whole transcript to its end, however long it is, in
+ * pieces of 1 MiB, so an `ask` late in a long conversation is found. Only the
+ * hold's 50-minute limit bounds it (AC-12.9). Aborting `signal` closes the
+ * reader and rejects with HookCancelledError.
  */
 export async function scanAntigravityTranscript(
   path: string,
@@ -174,22 +230,24 @@ export async function scanAntigravityTranscript(
   const ids = new Set<string>();
   const stream = createReadStream("", {
     fd,
-    encoding: "utf8",
     start: 0,
-    end: MAX_TRANSCRIPT_BYTES - 1,
+    highWaterMark: READ_CHUNK_BYTES,
     autoClose: true,
   });
-  const lines = createInterface({ input: stream, crlfDelay: Number.POSITIVE_INFINITY });
   const stopReading = () => {
-    lines.close();
     stream.destroy();
   };
   signal.addEventListener("abort", stopReading, { once: true });
   // The `ask` call the previous line held, if it held one.
   let call: { index: number | undefined } | undefined;
   try {
-    for await (const line of lines) {
+    for await (const line of transcriptLines(stream as AsyncIterable<Buffer>)) {
       if (signal.aborted) break;
+      // A line too long to hold is neither an `ask` call nor its result.
+      if (line === undefined) {
+        call = undefined;
+        continue;
+      }
       // Most lines are neither an `ask` call nor the line after one.
       if (!call && !line.includes(MCP_CALL_TOOL)) continue;
       const step = classifyStep(line);
@@ -199,6 +257,9 @@ export async function scanAntigravityTranscript(
       }
       call = step.kind === "ask-call" ? { index: step.index } : undefined;
     }
+  } catch (error) {
+    // A reader closed by the limit ends with an error of its own.
+    if (!signal.aborted) throw error;
   } finally {
     signal.removeEventListener("abort", stopReading);
     stopReading();

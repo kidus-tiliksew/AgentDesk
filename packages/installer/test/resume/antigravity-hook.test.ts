@@ -1,14 +1,27 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  mkdtempSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   ANTIGRAVITY_HOLD_LIMIT_MS,
   classifyStep,
+  MAX_LINE_BYTES,
   parseAntigravityStopInput,
   resultDecisionId,
   runAntigravityStop,
   scanAntigravityTranscript,
+  transcriptLines,
 } from "../../src/resume/antigravity.js";
 import { HookCancelledError, TranscriptRefusedError } from "../../src/resume/codex.js";
 import { parseHookArgs, runHook } from "../../src/resume/commands.js";
@@ -632,5 +645,156 @@ describe("agentdesk hook stop --harness antigravity", () => {
     const { elapsed } = await afterScan(h, run, 2, { stepMs: 10_000 });
     expect(h.out).toEqual([continued("dec_phone2")]);
     expect(elapsed).toBe(1_200_000);
+  });
+});
+
+// Review round 2: the scan read only the first 256 MiB of the transcript, a
+// bound the Codex hook keeps for its 8-second budget. No confirmed document
+// sets a byte limit for Antigravity, so the scan now reads to the end in
+// 1 MiB pieces, holding at most one line of at most 16 MiB, and only the
+// 50-minute hold limit bounds it (AC-12.1, AC-12.2, AC-12.9).
+describe("long Antigravity transcripts", () => {
+  /** The 256 MiB the scan used to stop at. */
+  const OLD_CUTOFF = 256 * 1024 * 1024;
+
+  function askLines(id: string, from: number): string {
+    return [
+      {
+        step_index: from,
+        type: "PLANNER_RESPONSE",
+        tool_calls: [
+          {
+            name: "call_mcp_tool",
+            args: { ServerName: "agentdesk", ToolName: "ask", Arguments: { title: "Late?" } },
+          },
+        ],
+      },
+      {
+        step_index: from + 1,
+        type: "GENERIC",
+        content: `Created At: 2026-11-22T10:00:01Z\n{"decision_id": "${id}", "state": "pending"}`,
+      },
+    ]
+      .map((step) => `${JSON.stringify(step)}\n`)
+      .join("");
+  }
+
+  async function* chunked(text: Buffer, size: number): AsyncGenerator<Buffer> {
+    for (let i = 0; i < text.length; i += size) yield text.subarray(i, i + size);
+  }
+
+  async function collect(text: Buffer, size: number, max?: number) {
+    const lines: (string | undefined)[] = [];
+    for await (const line of transcriptLines(chunked(text, size), max)) lines.push(line);
+    return lines;
+  }
+
+  it("splits lines across pieces, keeps multibyte text whole, and drops CR and the last newline", async () => {
+    const text = Buffer.from("first\r\nsé cond ✓\n\nlast", "utf8");
+    for (const size of [1, 2, 3, 7, 64]) {
+      expect(await collect(text, size)).toEqual(["first", "sé cond ✓", "", "last"]);
+    }
+    expect(await collect(Buffer.from("a\n"), 1)).toEqual(["a"]);
+    expect(await collect(Buffer.alloc(0), 4)).toEqual([]);
+  });
+
+  it("reads past a line longer than the limit and yields undefined for it", async () => {
+    const text = Buffer.from(`short\n${"x".repeat(20)}\nafter\n${"y".repeat(11)}`);
+    for (const size of [1, 3, 8, 64]) {
+      expect(await collect(text, size, 10)).toEqual(["short", undefined, "after", undefined]);
+    }
+    // A line of exactly the limit is kept.
+    expect(await collect(Buffer.from(`${"z".repeat(10)}\n`), 4, 10)).toEqual(["z".repeat(10)]);
+  });
+
+  describe("a transcript longer than 256 MiB", () => {
+    let dir: string;
+    let transcript: string;
+    let lateOffset: number;
+
+    beforeAll(() => {
+      // Valid JSONL steps up to past the old cutoff, then one ask and its
+      // result. Written in 1 MiB blocks, so memory stays small.
+      // Its own directory: the shared sandboxes are removed after each test.
+      dir = mkdtempSync(join(tmpdir(), "agentdesk-long-transcript-"));
+      transcript = join(dir, "transcript_full.jsonl");
+      const fd = openSync(transcript, "w");
+      try {
+        const line = `${JSON.stringify({
+          step_index: 0,
+          type: "PLANNER_RESPONSE",
+          content: "Reading the repository. ".repeat(40),
+        })}\n`;
+        const block = Buffer.from(line.repeat(Math.floor((1024 * 1024) / line.length)));
+        let written = 0;
+        while (written <= OLD_CUTOFF + 4 * 1024 * 1024) written += writeSync(fd, block);
+        lateOffset = written;
+        writeSync(fd, askLines("dec_late", 900_000));
+      } finally {
+        closeSync(fd);
+      }
+    }, 120_000);
+
+    afterAll(() => {
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    it("finds an ask and its result after the first 256 MiB", async () => {
+      expect(lateOffset).toBeGreaterThan(OLD_CUTOFF);
+      expect(statSync(transcript).size).toBeGreaterThan(OLD_CUTOFF);
+      expect(await scanAntigravityTranscript(transcript)).toEqual(["dec_late"]);
+    }, 120_000);
+
+    it("holds on that decision and continues for a phone answer", async () => {
+      const sandbox = installSandbox(["antigravity"]);
+      const h = resumeContext(sandbox);
+      h.waits.script("dec_late", ["pending", { decision: decision("dec_late", {}) }]);
+      const run = runAntigravityStop(h.ctx, fakeAdapters(stopInput({}, transcript)));
+      let done = false;
+      run.then(() => {
+        done = true;
+      });
+      // The scan of the long file reads while the fake clock stands still.
+      const deadline = Date.now() + 110_000;
+      while (h.waits.requests.length < 1) {
+        if (done || Date.now() > deadline) throw new Error("the hook opened no wait");
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+      expect(h.clock.now).toBe(0);
+      await pump(h.clock, run, { stepMs: 10_000 });
+      expect(h.out).toEqual([continued("dec_late")]);
+      expect(h.clock.now).toBe(600_000);
+    }, 120_000);
+
+    it("stops reading at once when the hold's limit aborts the scan", async () => {
+      const stop = new AbortController();
+      const scan = scanAntigravityTranscript(transcript, stop.signal);
+      await new Promise((resolve) => setImmediate(resolve));
+      const started = Date.now();
+      stop.abort();
+      await expect(scan).rejects.toBeInstanceOf(HookCancelledError);
+      expect(Date.now() - started).toBeLessThan(5_000);
+    }, 120_000);
+  });
+
+  it("reads past a line over 16 MiB and still finds a later ask", async () => {
+    const sandbox = makeSandbox();
+    const transcript = join(sandbox.root, "transcript_full.jsonl");
+    // An ask call, then a line over 16 MiB that starts with `{` and runs on
+    // as a sparse run of NUL bytes, so the test writes little. The ask names
+    // nothing, because the long line is not its result. A later ask and its
+    // result are found.
+    const head = Buffer.from(`${askLines("dec_unused", 0).split("\n")[0]}\n{`);
+    const longEnd = head.length + MAX_LINE_BYTES + 4096;
+    const tail = Buffer.from(`\n${askLines("dec_after_long_line", 10)}`);
+    const fd = openSync(transcript, "w");
+    try {
+      writeSync(fd, head, 0, head.length, 0);
+      writeSync(fd, tail, 0, tail.length, longEnd);
+    } finally {
+      closeSync(fd);
+    }
+    expect(statSync(transcript).size).toBe(longEnd + tail.length);
+    expect(await scanAntigravityTranscript(transcript)).toEqual(["dec_after_long_line"]);
   });
 });
