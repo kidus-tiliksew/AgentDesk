@@ -49,12 +49,13 @@ export function refuseLink(dir: string): void {
 
 /**
  * Writes SKILL.md at the current version (AC-9.4) and returns the folder's
- * resolved path, which the state records for removal.
+ * resolved path, which the state records for removal. `noFollow` writes it
+ * without following a link (`writeFileAtomic`).
  */
-export function writeSkill(dir: string, content: string): string {
+export function writeSkill(dir: string, content: string, noFollow = false): string {
   refuseLink(dir);
   mkdirSync(dir, { recursive: true });
-  writeFileAtomic(join(dir, SKILL_FILE), content, 0o644);
+  writeFileAtomic(join(dir, SKILL_FILE), content, 0o644, noFollow);
   return realpathSync(dir);
 }
 

@@ -8,7 +8,7 @@ import {
 import { type Context, InstallerError } from "./context.js";
 import { HOOK_MATCHER } from "./defaults.js";
 import { runningExecutable } from "./guidance.js";
-import { assertConfined, type Harness, type HarnessId } from "./harnesses.js";
+import { assertConfinedFile, type Harness, type HarnessId } from "./harnesses.js";
 
 // component-installer §Standing guidance and §Resume hooks: each harness's
 // session-start hook runs `<executable> context --harness <id>`, and the
@@ -477,8 +477,9 @@ interface NamedHookDocument {
  */
 function readNamedHook(ctx: Context, harness: Harness): NamedHookDocument {
   const file = harness.hookPath(ctx);
-  // A linked hooks.json or a redirected parent is refused before any read.
-  assertConfined(ctx, harness, file);
+  // A linked hooks.json, backup, or temporary file, or a redirected parent,
+  // is refused before any read.
+  assertConfinedFile(ctx, harness, file);
   const current = readJsonFile(file);
   const data: JsonObject = current?.data ?? {};
   const doc: NamedHookDocument = {
@@ -504,7 +505,7 @@ function readNamedHook(ctx: Context, harness: Harness): NamedHookDocument {
     }
     const event = events.find((e) => e.name === name);
     for (const handler of handlers) {
-      if (event === undefined || !isOwned(handler, harness, event)) {
+      if (event === undefined || !isOwnedNamedHandler(handler, harness, event)) {
         throw new InstallerError(
           `${file} has a handler in its ${NAMED_HOOK} hook that AgentDesk did not write; it was not changed. Move that handler to a hook with another name, then run again.`,
         );
@@ -513,6 +514,16 @@ function readNamedHook(ctx: Context, harness: Harness): NamedHookDocument {
   }
   doc.owned = owned;
   return doc;
+}
+
+/**
+ * Whether `handler` is the installer's own handler for `event`: a command
+ * handler (`"type": "command"`) whose command is the installer's. A handler
+ * with the installer's command and a missing or other type is malformed, so
+ * it is not owned and the file is refused.
+ */
+function isOwnedNamedHandler(handler: unknown, harness: Harness, event: HookEvent): boolean {
+  return isPlainObject(handler) && handler.type === "command" && isOwned(handler, harness, event);
 }
 
 function serializeNamed(doc: NamedHookDocument, owned: JsonObject | undefined): string {
@@ -541,8 +552,8 @@ function writeNamedHook(
   }
   const text = serializeNamed(doc, owned);
   if (text === doc.text) return false;
-  backups.backupOnce(doc.file);
-  writeFileAtomic(doc.file, text);
+  backups.backupOnce(doc.file, true);
+  writeFileAtomic(doc.file, text, 0o600, true);
   return true;
 }
 
@@ -553,7 +564,7 @@ function ownedHandler(
 ): string | undefined {
   const handlers = doc.owned?.[event.name];
   if (!Array.isArray(handlers)) return undefined;
-  return commandOf(handlers.find((handler) => isOwned(handler, harness, event)));
+  return commandOf(handlers.find((handler) => isOwnedNamedHandler(handler, harness, event)));
 }
 
 function findNamedHooks(

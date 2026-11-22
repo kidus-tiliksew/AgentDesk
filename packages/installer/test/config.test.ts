@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  symlinkSync,
+} from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -6,8 +15,10 @@ import {
   removeCodexTableText,
   replaceCodexTable,
   setJsonMcpServer,
+  writeFileAtomic,
 } from "../src/config.js";
 import { InstallerError } from "../src/context.js";
+import { tempPath } from "../src/defaults.js";
 import {
   allFiles,
   cleanupSandboxes,
@@ -147,6 +158,59 @@ describe("backups", () => {
     const file = join(sandbox.home, "new.json");
     setJsonMcpServer(file, { url: "u" }, new BackupRegistry());
     expect(existsSync(`${file}.agentdesk-backup`)).toBe(false);
+  });
+});
+
+// The no-follow layer for Antigravity (DEC-24(1)): even past the preflight
+// checks, a backup or write never goes through a symbolic link.
+describe("writes and backups that do not follow links", () => {
+  function linked(sandbox: ReturnType<typeof makeSandbox>) {
+    const outside = join(sandbox.root, "outside.md");
+    write(outside, "outside\n");
+    const file = join(sandbox.home, "config", "hooks.json");
+    write(file, "{}\n");
+    return { outside, file };
+  }
+
+  it("refuses a backup path that is a link, and copies nothing", () => {
+    const sandbox = makeSandbox();
+    const { outside, file } = linked(sandbox);
+    symlinkSync(outside, `${file}.agentdesk-backup`);
+    expect(() => new BackupRegistry().backupOnce(file, true)).toThrow(/is a symbolic link/);
+    expect(read(outside)).toBe("outside\n");
+    // Without noFollow, the other harnesses keep copying through it.
+    new BackupRegistry().backupOnce(file);
+    expect(read(outside)).toBe("{}\n");
+  });
+
+  it("refuses a file that is a link, and writes nothing", () => {
+    const sandbox = makeSandbox();
+    const { outside } = linked(sandbox);
+    const file = join(sandbox.home, "config", "mcp_config.json");
+    symlinkSync(outside, file);
+    expect(() => writeFileAtomic(file, "new\n", 0o600, true)).toThrow(/is a symbolic link/);
+    expect(read(outside)).toBe("outside\n");
+    expect(lstatSync(file).isSymbolicLink()).toBe(true);
+  });
+
+  it("refuses an existing temporary path, a link included, and writes nothing", () => {
+    const sandbox = makeSandbox();
+    const { outside, file } = linked(sandbox);
+    symlinkSync(outside, tempPath(file));
+    expect(() => writeFileAtomic(file, "new\n", 0o600, true)).toThrow(/already exists/);
+    expect(read(outside)).toBe("outside\n");
+    expect(read(file)).toBe("{}\n");
+    expect(lstatSync(tempPath(file)).isSymbolicLink()).toBe(true);
+  });
+
+  it("writes a regular file in place and keeps its mode", () => {
+    const sandbox = makeSandbox();
+    const { file } = linked(sandbox);
+    chmodSync(file, 0o640);
+    writeFileAtomic(file, "new\n", 0o600, true);
+    expect(read(file)).toBe("new\n");
+    expect(statSync(file).mode & 0o777).toBe(0o640);
+    expect(existsSync(tempPath(file))).toBe(false);
   });
 });
 

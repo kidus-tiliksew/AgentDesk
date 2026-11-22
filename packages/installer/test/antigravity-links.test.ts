@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { tempPath } from "../src/defaults.js";
 import { statePath } from "../src/state.js";
 import {
   cleanupSandboxes,
@@ -149,7 +150,7 @@ describe("a symbolic link at the Antigravity skill folder", () => {
     const h = makeContext(sandbox, { gateway, clock });
     expect(await h.run(["install", "--yes"])).toBe(1);
     expect(h.err.join("\n")).toContain(
-      `Antigravity: the skill was not written: ${skill} is not inside`,
+      `Antigravity: the skill was not written: ${join(skill, "SKILL.md")} is not inside`,
     );
     expect(h.err.join("\n")).toContain(`${join(skill, "..")} is a symbolic link`);
     expect(readUnder(elsewhere)).toEqual([]);
@@ -286,5 +287,229 @@ describe("Antigravity configuration paths that leave ~/.gemini/config", () => {
         headers: { Authorization: `Bearer ${h.gateway.tokenFor("cursor")}` },
       },
     });
+  });
+});
+
+// Review round 2: the skill file itself, the backups, and the temporary files
+// are checked for links too, so no Antigravity read, write, backup, or
+// temporary file leaves ~/.gemini/config. The outside files below stand for a
+// user's instruction files (AC-10.4) and a host profile.
+describe("Antigravity skill files, backups, and temporary files behind links", () => {
+  /** A user instruction file outside ~/.gemini/config that no run may read or change. */
+  function instructionFile(sandbox: Sandbox): { path: string; text: string } {
+    const path = join(sandbox.home, "AGENTS.md");
+    const text = "# My agent rules\n";
+    write(path, text);
+    return { path, text };
+  }
+
+  it("refuses a linked SKILL.md in a real folder before reading or writing it", async () => {
+    const { sandbox, clock, gateway, mcp, hooks, skill } = agy();
+    const outside = instructionFile(sandbox);
+    fs.mkdirSync(skill, { recursive: true });
+    fs.symlinkSync(outside.path, join(skill, "SKILL.md"));
+    write(hooks, "{}\n");
+
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes"])).toBe(1);
+    expect(h.err.join("\n")).toContain(
+      `Antigravity: the skill was not written: ${join(skill, "SKILL.md")} is not inside`,
+    );
+    expect(readUnder(outside.path)).toEqual([]);
+    expect(readUnder(join(skill, "SKILL.md"))).toEqual([]);
+    expect(read(outside.path)).toBe(outside.text);
+    expect(fs.lstatSync(join(skill, "SKILL.md")).isSymbolicLink()).toBe(true);
+    // The connection and hook are still set up, as for a linked folder.
+    expect(read(mcp)).toContain(gateway.tokenFor("antigravity"));
+    expect(read(hooks)).toContain("context --harness antigravity");
+  });
+
+  it("refuses a SKILL.md replaced by a link after install, on a re-run and in status", async () => {
+    const { sandbox, clock, gateway, skill } = agy();
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const outside = instructionFile(sandbox);
+    fs.rmSync(join(skill, "SKILL.md"));
+    fs.symlinkSync(outside.path, join(skill, "SKILL.md"));
+    readSpy.mockClear();
+
+    const rerun = makeContext(sandbox, { gateway, clock });
+    expect(await rerun.run(["install", "--yes"])).toBe(1);
+    expect(rerun.err.join("\n")).toContain(`${join(skill, "SKILL.md")} is not inside`);
+    const status = makeContext(sandbox, { gateway, clock });
+    expect(await status.run(["status"])).toBe(0);
+    expect(status.out.find((l) => l.startsWith("Antigravity:"))).toContain(
+      `skill not read (${join(skill, "SKILL.md")} is not inside`,
+    );
+    expect(readUnder(outside.path)).toEqual([]);
+    expect(read(outside.path)).toBe(outside.text);
+  });
+
+  it("does not read the version through a skill folder replaced by a link after install", async () => {
+    const { sandbox, clock, gateway, skill } = agy();
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const target = join(sandbox.root, "external", "skills", "agentdesk");
+    write(join(target, "SKILL.md"), '---\nmetadata:\n  version: "9.9.9"\n---\n');
+    fs.rmSync(skill, { recursive: true });
+    fs.symlinkSync(target, skill);
+    readSpy.mockClear();
+
+    const status = makeContext(sandbox, { gateway, clock });
+    expect(await status.run(["status"])).toBe(0);
+    const line = status.out.find((l) => l.startsWith("Antigravity:")) ?? "";
+    expect(line).toContain(`skill not read (${join(skill, "SKILL.md")} is not inside`);
+    expect(line).toContain(`${skill} is a symbolic link`);
+    expect(line).not.toContain("9.9.9");
+    expect(readUnder(target)).toEqual([]);
+  });
+
+  it.each([
+    ["mcp_config.json", "mcp"],
+    ["hooks.json", "hooks"],
+  ] as const)(
+    "refuses a linked %s backup before sign-in, leaving the outside file unchanged",
+    async (_name, which) => {
+      const ctx = agy();
+      const { sandbox, clock, gateway } = ctx;
+      const outside = instructionFile(sandbox);
+      write(ctx[which], "{}\n");
+      fs.symlinkSync(outside.path, `${ctx[which]}.agentdesk-backup`);
+
+      const h = makeContext(sandbox, { gateway, clock });
+      expect(await h.run(["install", "--yes"])).toBe(1);
+      expect(h.err.join("\n")).toContain(
+        `${ctx[which]}.agentdesk-backup is a symbolic link or not a regular file`,
+      );
+      expect(gateway.requests).toEqual([]);
+      expect(readUnder(outside.path)).toEqual([]);
+      expect(read(outside.path)).toBe(outside.text);
+      expect(read(ctx[which])).toBe("{}\n");
+    },
+  );
+
+  it.each([
+    ["mcp_config.json", "mcp"],
+    ["hooks.json", "hooks"],
+  ] as const)(
+    "refuses a linked %s backup on uninstall, keeping the record and the outside file",
+    async (_name, which) => {
+      const ctx = agy();
+      const { sandbox, clock, gateway } = ctx;
+      expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+      const before = read(ctx[which]);
+      const outside = instructionFile(sandbox);
+      fs.rmSync(`${ctx[which]}.agentdesk-backup`, { force: true });
+      fs.symlinkSync(outside.path, `${ctx[which]}.agentdesk-backup`);
+
+      const h = makeContext(sandbox, { gateway, clock });
+      expect(await h.run(["uninstall"])).toBe(1);
+      expect(h.err.join("\n")).toContain(`${ctx[which]}.agentdesk-backup is a symbolic link`);
+      expect(read(outside.path)).toBe(outside.text);
+      expect(read(ctx[which])).toBe(before);
+      expect(recorded(sandbox).antigravity).toBeDefined();
+      // MCP: nothing was revoked, because the configuration could not be read.
+      if (which === "mcp") expect(gateway.revoked).toEqual([]);
+    },
+  );
+
+  it("replaces an earlier regular backup file with a new copy", async () => {
+    const { sandbox, clock, gateway, hooks } = agy();
+    write(hooks, '{"mine": {}}\n');
+    write(`${hooks}.agentdesk-backup`, "old backup\n");
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    expect(read(`${hooks}.agentdesk-backup`)).toBe('{"mine": {}}\n');
+    expect(fs.lstatSync(`${hooks}.agentdesk-backup`).isFile()).toBe(true);
+  });
+
+  it.each([
+    ["mcp_config.json", "mcp"],
+    ["hooks.json", "hooks"],
+  ] as const)(
+    "refuses a linked %s temporary file before sign-in, leaving the outside file unchanged",
+    async (_name, which) => {
+      const ctx = agy();
+      const { sandbox, clock, gateway } = ctx;
+      const outside = instructionFile(sandbox);
+      fs.mkdirSync(ctx.config, { recursive: true });
+      // The installer runs in this process, so its temporary file name uses this pid.
+      fs.symlinkSync(outside.path, tempPath(ctx[which]));
+
+      const h = makeContext(sandbox, { gateway, clock });
+      expect(await h.run(["install", "--yes"])).toBe(1);
+      expect(h.err.join("\n")).toContain(
+        `${tempPath(ctx[which])} is a symbolic link or not a regular file`,
+      );
+      expect(gateway.requests).toEqual([]);
+      expect(read(outside.path)).toBe(outside.text);
+      expect(fs.existsSync(ctx[which])).toBe(false);
+    },
+  );
+
+  it("refuses a linked SKILL.md temporary file, leaving the outside file unchanged", async () => {
+    const { sandbox, clock, gateway, skill, mcp } = agy();
+    const outside = instructionFile(sandbox);
+    fs.mkdirSync(skill, { recursive: true });
+    fs.symlinkSync(outside.path, tempPath(join(skill, "SKILL.md")));
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes"])).toBe(1);
+    expect(h.err.join("\n")).toContain(
+      `Antigravity: the skill was not written: ${tempPath(join(skill, "SKILL.md"))} is a symbolic link`,
+    );
+    expect(read(outside.path)).toBe(outside.text);
+    expect(fs.existsSync(join(skill, "SKILL.md"))).toBe(false);
+    expect(read(mcp)).toContain("Bearer ");
+  });
+
+  it("keeps copying a Cursor backup through a linked backup path, as before", async () => {
+    const sandbox = makeSandbox();
+    stubExecutable(sandbox, "cursor-agent");
+    const file = join(sandbox.home, ".cursor", "mcp.json");
+    write(file, "{}\n");
+    const target = join(sandbox.root, "dotfiles", "cursor-backup.json");
+    write(target, "old\n");
+    fs.symlinkSync(target, `${file}.agentdesk-backup`);
+    expect(await makeContext(sandbox).run(["install", "--yes"])).toBe(0);
+    expect(read(target)).toBe("{}\n");
+  });
+});
+
+// Review round 2: a handler in the `agentdesk` object is the installer's own
+// only when it is a command handler with the installer's command.
+describe("Antigravity handlers without the command type", () => {
+  function command(sandbox: Sandbox): string {
+    return `${sandbox.executable} context --harness antigravity`;
+  }
+
+  it.each([
+    ["no type", (cmd: string) => ({ command: cmd, timeout: 30 })],
+    ["another type", (cmd: string) => ({ type: "prompt", command: cmd, timeout: 30 })],
+  ])("refuses a handler with %s before sign-in and changes nothing", async (_label, handler) => {
+    const { sandbox, clock, gateway, hooks, mcp } = agy();
+    const text = json({ agentdesk: { SessionStart: [handler(command(sandbox))] } });
+    write(hooks, text);
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes"])).toBe(1);
+    expect(h.err.join("\n")).toContain(
+      `${hooks} has a handler in its agentdesk hook that AgentDesk did not write`,
+    );
+    expect(gateway.requests).toEqual([]);
+    expect(read(hooks)).toBe(text);
+    expect(fs.existsSync(mcp)).toBe(false);
+  });
+
+  it("refuses removal when the installer's handler lost its type, and keeps the record", async () => {
+    const { sandbox, clock, gateway, hooks } = agy();
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const text = json({
+      other: { Stop: [{ type: "command", command: "echo other" }] },
+      agentdesk: { SessionStart: [{ command: command(sandbox), timeout: 30 }] },
+    });
+    write(hooks, text);
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["uninstall"])).toBe(1);
+    expect(h.err.join("\n")).toContain(
+      `Antigravity: its hooks were not removed: ${hooks} has a handler in its agentdesk hook that AgentDesk did not write`,
+    );
+    expect(read(hooks)).toBe(text);
+    expect(recorded(sandbox).antigravity?.hookPath).toBe(hooks);
   });
 });

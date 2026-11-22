@@ -1,5 +1,5 @@
 import { lstatSync, realpathSync, rmSync } from "node:fs";
-import { isAbsolute, parse, relative, resolve } from "node:path";
+import { isAbsolute, join, parse, relative, resolve } from "node:path";
 import {
   findListedHook,
   type HookList,
@@ -19,13 +19,14 @@ import {
 } from "./config.js";
 import { type Context, InstallerError, TerminalReadError } from "./context.js";
 import {
-  assertConfined,
+  assertConfinedFile,
   type Detection,
   detectHarnesses,
   HARNESS_IDS,
   type Harness,
   type HarnessId,
   harnessById,
+  isConfined,
   isHarnessId,
 } from "./harnesses.js";
 import {
@@ -54,6 +55,7 @@ import {
   planSkills,
   refuseLink,
   removeSkillDir,
+  SKILL_FILE,
   skillFileText,
   writeSkill,
 } from "./skill.js";
@@ -181,13 +183,14 @@ function installSkills(ctx: Context, harnesses: readonly Harness[], state: State
     const record: HarnessRecord = state.harnesses[harness.id] ?? {};
     if (plan.dir) {
       try {
-        // The folder is checked for a link before its content is read; a re-run
+        // The folder and its SKILL.md, with the temporary file beside it, are
+        // checked for a link before the content is read or written; a re-run
         // names Antigravity's skill unchanged when its bytes match.
         refuseLink(plan.dir);
-        assertConfined(ctx, harness, plan.dir);
+        assertConfinedFile(ctx, harness, join(plan.dir, SKILL_FILE));
         const unchanged =
           harness.hookFormat === "named-hook" && skillFileText(plan.dir) === ctx.skill.content;
-        record.skillRealPath = writeSkill(plan.dir, ctx.skill.content);
+        record.skillRealPath = writeSkill(plan.dir, ctx.skill.content, isConfined(harness));
         record.skillPath = plan.dir;
         record.skillVersion = ctx.skill.version;
         ctx.io.out(
@@ -408,8 +411,9 @@ async function removeGuidance(
       // An Antigravity `agentdesk` object that holds no handler goes too.
       ctx.io.out(`${harness.displayName}: removing the AgentDesk hooks from ${file}`);
     }
-    backups.backupOnce(file);
-    writeFileAtomic(file, removal.text);
+    // Antigravity's backup and write never follow a link (DEC-24(1)).
+    backups.backupOnce(file, isConfined(harness));
+    writeFileAtomic(file, removal.text, 0o600, isConfined(harness));
     if (before) {
       const carry = await carriedTrust(ctx, before, keyFile, removal.moved);
       if (carry) carried = carry;
@@ -873,7 +877,19 @@ export async function status(ctx: Context): Promise<number> {
       }
     }
     let skill: string;
+    let skillRefusal: string | undefined;
     if (record.skillPath) {
+      // Antigravity's recorded SKILL.md is checked for a link before its
+      // version is read (DEC-24(1)).
+      try {
+        assertConfinedFile(ctx, harness, join(record.skillPath, SKILL_FILE));
+      } catch (error) {
+        skillRefusal = message(error);
+      }
+    }
+    if (record.skillPath && skillRefusal !== undefined) {
+      skill = `skill not read (${skillRefusal})`;
+    } else if (record.skillPath) {
       const version = installedSkillVersion(record.skillPath);
       skill = version
         ? `skill ${version} at ${record.skillPath}`

@@ -1,6 +1,7 @@
 import { accessSync, constants, lstatSync, statSync } from "node:fs";
 import { delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { type Context, InstallerError } from "./context.js";
+import { BACKUP_SUFFIX, tempPath } from "./defaults.js";
 
 /**
  * Harness ids shared with `/device/start` and the identity vocabulary
@@ -120,6 +121,36 @@ export const HARNESSES: readonly Harness[] = [
     configRoot: (ctx) => join(ctx.home, ".gemini", "config"),
   },
 ];
+
+/** Whether `harness` is confined to a configuration root (see `assertConfined`). */
+export function isConfined(harness: Harness): boolean {
+  return harness.configRoot !== undefined;
+}
+
+/**
+ * `assertConfined` for a file the installer reads and writes, and for the
+ * backup and temporary files it writes beside it: each of those two must be
+ * absent or a regular file, never a symbolic link, so a backup or a write
+ * cannot leave the root through a link planted at either path. Callers check
+ * before any read, so a refusal comes before sign-in and before any write.
+ */
+export function assertConfinedFile(ctx: Context, harness: Harness, file: string): void {
+  if (!isConfined(harness)) return;
+  assertConfined(ctx, harness, file);
+  for (const sibling of [file + BACKUP_SUFFIX, tempPath(file)]) {
+    let stat: ReturnType<typeof lstatSync>;
+    try {
+      stat = lstatSync(sibling);
+    } catch {
+      continue;
+    }
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      throw new InstallerError(
+        `${sibling} is a symbolic link or not a regular file, and the installer writes there before it changes ${file}; nothing was read or changed.`,
+      );
+    }
+  }
+}
 
 /**
  * Refuses `path` for a harness with a configuration root unless it resolves
