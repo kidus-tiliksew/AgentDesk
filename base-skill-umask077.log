@@ -1,0 +1,54 @@
+base commit: e0404974c2a2a3f56e616b9583fd30014d07eb34
+packages/installer and packages/skill checked out at base; umask 0022
+umask now 0077
+CapEff:	0000000000000000
+
+=======================================================================================
+WARNING: @cloudflare/vitest-pool-workers has been renamed to @cloudflare/vitest-plugin.
+This package will not receive future updates.
+Run `npx @cloudflare/codemods vitest:pool-workers-to-vitest-plugin` to migrate.
+=======================================================================================
+
+
+ RUN  v4.1.11 /home/user/conveyor-worktrees/agentdesk-task-261122-b46c01
+
+ ✓ |installer| test/skill.test.ts > skill version > reads metadata.version from the published skill 1ms
+ ✓ |installer| test/skill.test.ts > skill version > returns undefined without frontmatter or version 0ms
+ × |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes the Claude Code and Codex skills and no Cursor skill when both are installed 129ms
+   → expected 384 to be 420 // Object.is equality
+ ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes no Cursor skill when the run installs the Claude Code skill only 65ms
+ ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes no Cursor skill when the run installs the Codex skill only 33ms
+ ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes the Cursor skill when the run installs neither the Claude Code nor the Codex skill 3ms
+ ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > removes the Cursor skill it owned once a later run installs the Claude Code skill 66ms
+ ✓ |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes the MCP entry and reports no skill for a harness without skills (AC-9.2) 3ms
+ ✓ |installer| test/skill.test.ts > agentdesk skill install (REQ-3) > installs the skill and the hooks for every detected harness without signing in 37ms
+ ✓ |installer| test/skill.test.ts > agentdesk skill install (REQ-3) > writes the Cursor skill when Cursor is the only detected harness 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |installer| test/skill.test.ts > skill placement (component-installer §Harnesses) > writes the Claude Code and Codex skills and no Cursor skill when both are installed
+AssertionError: expected 384 to be 420 // Object.is equality
+
+- Expected
++ Received
+
+- 420
++ 384
+
+ ❯ test/skill.test.ts:52:62
+     50|     expect(read(codexSkill(sandbox.home))).toBe(read(SKILL_FILE));
+     51|     expect(existsSync(cursorSkill(sandbox.home))).toBe(false);
+     52|     expect(statSync(claudeSkill(sandbox.home)).mode & 0o777).toBe(0o64…
+       |                                                              ^
+     53|     expect(h.out).toContain(
+     54|       "Cursor: loads the AgentDesk skill from the Claude Code or Codex…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 passed (10)
+   Start at  13:24:48
+   Duration  628ms (transform 171ms, setup 0ms, import 215ms, tests 339ms, environment 0ms)
+
+vitest exit status: 1
