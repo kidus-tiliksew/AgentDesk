@@ -91,7 +91,7 @@ const openAsync = (path: string, flags: number) =>
  * a FIFO after the check still opens at once, and `fstat` on the open file
  * refuses it unless it is the same regular file.
  */
-async function openTranscript(path: string, signal: AbortSignal): Promise<number> {
+export async function openTranscript(path: string, signal: AbortSignal): Promise<number> {
   const before = await statAsync(path);
   if (!before.isFile()) throw new TranscriptRefusedError();
   if (signal.aborted) throw new HookCancelledError();

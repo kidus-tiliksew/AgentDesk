@@ -909,10 +909,11 @@ describe("removal plan", () => {
   });
 });
 
-// component-installer §Standing guidance; DEC-24(1)-(2): Antigravity's
-// hooks.json holds named hook objects at its top level, and the installer owns
-// the object `agentdesk`, whose SessionStart holds one handler with a 30-second
-// timeout. Antigravity runs the hook with no trust step.
+// component-installer §Standing guidance and §Resume hooks; DEC-24(1)-(3):
+// Antigravity's hooks.json holds named hook objects at its top level, and the
+// installer owns the object `agentdesk`, whose SessionStart holds one handler
+// with a 30-second timeout and whose Stop holds one handler with a 3600-second
+// timeout. Antigravity runs the hooks with no trust step and no loop limit.
 describe("Antigravity's named hook", () => {
   const OTHER_HOOKS = {
     "lint-on-stop": { Stop: [{ type: "command", command: "echo lint", timeout: 5 }] },
@@ -947,6 +948,13 @@ describe("Antigravity's named hook", () => {
       SessionStart: [
         { type: "command", command: commandFor(sandbox, "antigravity", executable), timeout: 30 },
       ],
+      Stop: [
+        {
+          type: "command",
+          command: resumeCommand(sandbox, "stop", "antigravity", executable),
+          timeout: 3600,
+        },
+      ],
     };
   }
 
@@ -963,12 +971,18 @@ describe("Antigravity's named hook", () => {
     expect(read(file)).toBe(json({ ...OTHER_HOOKS, agentdesk: owned(sandbox) }));
     expect(read(`${file}.agentdesk-backup`)).toBe(json(OTHER_HOOKS));
     expect(h.out).toContain(`Antigravity: session-start hook written to ${file}`);
+    expect(h.out).toContain(`Antigravity: Stop hook written to ${file}`);
     // No trust step: nothing names /hooks or trust for Antigravity.
     expect(h.output()).not.toMatch(/Antigravity:.*trust/);
     expect(read(file)).not.toContain(gateway.tokenFor("antigravity"));
+    // The Stop handler holds no Cursor loop limit.
+    expect(read(file)).not.toContain("loop_limit");
     const state = readJson(statePath(h.ctx)).harnesses as Record<string, Record<string, string>>;
     expect(state.antigravity?.hookPath).toBe(file);
+    expect(state.antigravity?.stopHookPath).toBe(file);
     expect(Object.keys(state.antigravity ?? {})).not.toContain("codexTrustKey");
+    expect(Object.keys(state.antigravity ?? {})).not.toContain("codexStopTrustKey");
+    expect(Object.keys(state.antigravity ?? {})).not.toContain("afterMcpHookPath");
     instructionsUnchanged(sandbox);
   });
 
@@ -987,11 +1001,18 @@ describe("Antigravity's named hook", () => {
     const h = makeContext(sandbox, { gateway, clock, executable });
     expect(await h.run(["install", "--yes"])).toBe(0);
     const command = `'${executable}' context --harness antigravity`;
+    const stop = `'${executable}' hook stop --harness antigravity`;
     expect(readJson(file)).toEqual({
-      agentdesk: { SessionStart: [{ type: "command", command, timeout: 30 }] },
+      agentdesk: {
+        SessionStart: [{ type: "command", command, timeout: 30 }],
+        Stop: [{ type: "command", command: stop, timeout: 3600 }],
+      },
     });
     expect(isInstallerCommand(command, "antigravity")).toBe(true);
     expect(isInstallerCommand(command, "cursor")).toBe(false);
+    expect(isInstallerCommand(stop, "antigravity", "stop")).toBe(true);
+    expect(isInstallerCommand(stop, "antigravity")).toBe(false);
+    expect(isInstallerCommand(stop, "cursor", "stop")).toBe(false);
   });
 
   it("reports the hook and skill unchanged on a re-run and leaves the files untouched", async () => {
@@ -1003,6 +1024,7 @@ describe("Antigravity's named hook", () => {
     expect(await h.run(["install", "--yes"])).toBe(0);
     expect(h.out).toContain("Antigravity: connection works; keeping it.");
     expect(h.out).toContain(`Antigravity: session-start hook unchanged in ${file}`);
+    expect(h.out).toContain(`Antigravity: Stop hook unchanged in ${file}`);
     expect(h.out).toContain(`Antigravity: skill 1.0.0 unchanged in ${join(skill, "..")}`);
     expect(gateway.startRequests()).toHaveLength(1);
     expect({ hooks: read(file), mcp: read(mcp), skill: read(skill) }).toEqual(before);
@@ -1036,6 +1058,49 @@ describe("Antigravity's named hook", () => {
     expect(read(file)).toBe(expected);
   });
 
+  // AC-9.9: a re-run over an installation from before the Stop hook adds the
+  // Stop handler to the existing agentdesk object, in place and once.
+  it("adds the Stop hook on a re-run over an installation from before it, with no duplicate", async () => {
+    const { sandbox, file, clock, gateway } = agySetup(json(OTHER_HOOKS));
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const { SessionStart } = owned(sandbox);
+    write(file, json({ ...OTHER_HOOKS, agentdesk: { SessionStart } }));
+    const stateFile = statePath(makeContext(sandbox).ctx);
+    const recorded = readJson(stateFile) as {
+      harnesses: Record<string, Record<string, unknown>>;
+    };
+    delete recorded.harnesses.antigravity?.stopHookPath;
+    write(stateFile, json(recorded));
+
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes"])).toBe(0);
+    expect(h.out).toContain(`Antigravity: Stop hook written to ${file}`);
+    const expected = json({ ...OTHER_HOOKS, agentdesk: owned(sandbox) });
+    expect(read(file)).toBe(expected);
+    const state = readJson(statePath(h.ctx)).harnesses as Record<string, Record<string, string>>;
+    expect(state.antigravity?.stopHookPath).toBe(file);
+
+    const again = makeContext(sandbox, { gateway, clock });
+    expect(await again.run(["install", "--yes"])).toBe(0);
+    expect(again.out).toContain(`Antigravity: Stop hook unchanged in ${file}`);
+    expect(read(file)).toBe(expected);
+    expect(readJson(file).agentdesk).toEqual(owned(sandbox));
+  });
+
+  it("uninstall removes the Stop hook too when the record is from before it", async () => {
+    const { sandbox, file, clock, gateway } = agySetup(json(OTHER_HOOKS));
+    expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+    const stateFile = statePath(makeContext(sandbox).ctx);
+    const recorded = readJson(stateFile) as {
+      harnesses: Record<string, Record<string, unknown>>;
+    };
+    delete recorded.harnesses.antigravity?.stopHookPath;
+    write(stateFile, json(recorded));
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["uninstall"])).toBe(0);
+    expect(read(file)).toBe(json(OTHER_HOOKS));
+  });
+
   const agyRefusals: [string, string][] = [
     ["malformed JSON", "{ not json"],
     ["a top-level list", "[]\n"],
@@ -1061,6 +1126,49 @@ describe("Antigravity's named hook", () => {
       }),
     ],
     ["a handler that is not an object", '{"agentdesk": {"SessionStart": ["echo"]}}\n'],
+    [
+      "a Stop handler with Codex's 10-second timeout",
+      json({
+        agentdesk: {
+          Stop: [
+            {
+              type: "command",
+              command: "/usr/bin/agentdesk hook stop --harness antigravity",
+              timeout: 10,
+            },
+          ],
+        },
+      }),
+    ],
+    [
+      "a Stop handler with Cursor's loop limit",
+      json({
+        agentdesk: {
+          Stop: [
+            {
+              type: "command",
+              command: "/usr/bin/agentdesk hook stop --harness antigravity",
+              timeout: 3600,
+              loop_limit: null,
+            },
+          ],
+        },
+      }),
+    ],
+    [
+      "Cursor's stop command in agentdesk's Stop",
+      json({
+        agentdesk: {
+          Stop: [
+            {
+              type: "command",
+              command: "/usr/bin/agentdesk hook stop --harness cursor",
+              timeout: 3600,
+            },
+          ],
+        },
+      }),
+    ],
   ];
 
   it.each(agyRefusals)("refuses %s before sign-in and changes nothing", async (_name, text) => {
@@ -1098,7 +1206,7 @@ describe("Antigravity's named hook", () => {
     const skillDir = join(sandbox.home, ".gemini", "config", "skills", "agentdesk");
     expect(h.out.find((l) => l.startsWith("Antigravity:"))).toMatch(
       new RegExp(
-        `^Antigravity: connected; skill \\S+ at ${skillDir}; session-start hook in ${file}$`,
+        `^Antigravity: connected; skill \\S+ at ${skillDir}; session-start hook in ${file}; Stop hook in ${file}$`,
       ),
     );
 
@@ -1106,7 +1214,9 @@ describe("Antigravity's named hook", () => {
     const after = makeContext(sandbox, { gateway, clock });
     expect(await after.run(["status"])).toBe(0);
     expect(after.out.find((l) => l.startsWith("Antigravity:"))).toMatch(
-      new RegExp(`; no AgentDesk session-start hook in ${file}$`),
+      new RegExp(
+        `; no AgentDesk session-start hook in ${file}; no AgentDesk Stop hook in ${file}$`,
+      ),
     );
   });
 
@@ -1118,6 +1228,7 @@ describe("Antigravity's named hook", () => {
     const h = makeContext(sandbox, { gateway, clock });
     expect(await h.run(["uninstall"])).toBe(0);
     expect(h.out).toContain(`Antigravity: removing the session-start hook from ${file}`);
+    expect(h.out).toContain(`Antigravity: removing the Stop hook from ${file}`);
     expect(gateway.revoked).toEqual([token]);
     expect(read(file)).toBe(json(OTHER_HOOKS));
     expect(readJson(mcp)).toEqual({ mcpServers: { linear: { serverUrl: "https://linear" } } });
@@ -1194,7 +1305,7 @@ describe("Antigravity's named hook", () => {
     const status = await run(["status"]);
     expect(status.code).toBe(0);
     expect(status.h.out.find((l) => l.startsWith("Antigravity:"))).toMatch(
-      new RegExp(`; session-start hook in ${file}$`),
+      new RegExp(`; session-start hook in ${file}; Stop hook in ${file}$`),
     );
 
     const removal = await run(["uninstall"]);
@@ -1233,7 +1344,7 @@ describe("Antigravity's named hook", () => {
     const { ctx } = makeContext(sandbox);
     const harness = harnessById(ctx, "antigravity");
     const removal = planHookRemoval(ctx, harness, hookEvents(harness));
-    expect(removal?.removed).toEqual(["session-start"]);
+    expect(removal?.removed).toEqual(["session-start", "stop"]);
     expect(removal?.moved.size).toBe(0);
     expect(removal?.text).toBe(json(OTHER_HOOKS));
     write(file, json(OTHER_HOOKS));

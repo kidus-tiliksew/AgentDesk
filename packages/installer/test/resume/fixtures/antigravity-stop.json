@@ -1,0 +1,7 @@
+{
+  "conversationId": "5b1f0c2e-8d4a-4f6b-9c3e-7a2d1e0f9b8c",
+  "transcriptPath": "__TRANSCRIPT__",
+  "terminationReason": "NO_TOOL_CALL",
+  "executionNum": 1,
+  "continuationActive": false
+}

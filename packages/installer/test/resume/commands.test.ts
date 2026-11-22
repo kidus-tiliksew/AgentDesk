@@ -36,6 +36,10 @@ describe("command line for wait and hook", () => {
       event: "stop",
       harness: "cursor",
     });
+    expect(parseHookArgs(["stop", "--harness", "antigravity"])).toEqual({
+      event: "stop",
+      harness: "antigravity",
+    });
     expect(parseHookArgs(["--harness", "cursor", "after-mcp"])).toEqual({
       event: "after-mcp",
       harness: "cursor",
@@ -60,6 +64,7 @@ describe("command line for wait and hook", () => {
     ["hook with an unknown event", ["hook", "start", "--harness", "codex"]],
     ["hook with an unknown harness", ["hook", "stop", "--harness", "vim"]],
     ["hook after-mcp for Codex", ["hook", "after-mcp", "--harness", "codex"]],
+    ["hook after-mcp for Antigravity", ["hook", "after-mcp", "--harness", "antigravity"]],
     ["hook stop for Claude Code", ["hook", "stop", "--harness", "claude-code"]],
     ["hook with an extra argument", ["hook", "stop", "extra", "--harness", "codex"]],
     ["hook with an unknown option", ["hook", "stop", "--harness", "codex", "--x"]],

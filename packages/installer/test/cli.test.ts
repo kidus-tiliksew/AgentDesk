@@ -248,9 +248,13 @@ describe("Antigravity lifecycle", () => {
       },
     });
     const command = `${sandbox.executable} context --harness antigravity`;
+    const stop = `${sandbox.executable} hook stop --harness antigravity`;
     expect(readJson(hooks)).toEqual({
       ...otherHooks,
-      agentdesk: { SessionStart: [{ type: "command", command, timeout: 30 }] },
+      agentdesk: {
+        SessionStart: [{ type: "command", command, timeout: 30 }],
+        Stop: [{ type: "command", command: stop, timeout: 3600 }],
+      },
     });
     expect(read(join(skillDir, "SKILL.md"))).toBe(first.ctx.skill.content);
     expect(first.out).toContain(`Antigravity: connected; MCP entry written to ${mcp}`);
@@ -274,6 +278,7 @@ describe("Antigravity lifecycle", () => {
         "Every selected harness is already connected. No sign-in is needed.",
         `Antigravity: skill ${rerun.ctx.skill.version} unchanged in ${skillDir}`,
         `Antigravity: session-start hook unchanged in ${hooks}`,
+        `Antigravity: Stop hook unchanged in ${hooks}`,
       ]),
     );
     expect(gateway.startRequests()).toHaveLength(1);
@@ -287,7 +292,9 @@ describe("Antigravity lifecycle", () => {
     expect(await status.run(["status"])).toBe(0);
     const line = status.out.find((l) => l.startsWith("Antigravity:")) ?? "";
     expect(line.startsWith("Antigravity: connected; skill ")).toBe(true);
-    expect(line.endsWith(` at ${skillDir}; session-start hook in ${hooks}`)).toBe(true);
+    expect(
+      line.endsWith(` at ${skillDir}; session-start hook in ${hooks}; Stop hook in ${hooks}`),
+    ).toBe(true);
 
     const removal = makeContext(sandbox, { gateway, clock });
     expect(await removal.run(["uninstall"])).toBe(0);

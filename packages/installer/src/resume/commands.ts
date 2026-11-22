@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util";
 import type { Context } from "../context.js";
 import { HARNESS_IDS, type HarnessId, isHarnessId } from "../harnesses.js";
+import { runAntigravityStop } from "./antigravity.js";
 import { runCodexStop } from "./codex.js";
 import { runCursorAfterMcp, runCursorStop } from "./cursor.js";
 import { type HookAdapters, nodeHookAdapters } from "./process.js";
@@ -48,9 +49,9 @@ export interface HookOptions {
   harness: HarnessId;
 }
 
-/** The hooks each harness runs: `stop` for Codex and Cursor, `after-mcp` for Cursor. */
+/** The hooks each harness runs: `stop` for Codex, Cursor, and Antigravity, `after-mcp` for Cursor. */
 const SUPPORTED_HOOKS: Record<HookEvent, readonly HarnessId[]> = {
-  stop: ["codex", "cursor"],
+  stop: ["codex", "cursor", "antigravity"],
   "after-mcp": ["cursor"],
 };
 
@@ -80,7 +81,14 @@ export function runHook(
   adapters: HookAdapters = nodeHookAdapters,
 ): Promise<number> {
   if (options.event === "after-mcp") return runCursorAfterMcp(ctx, adapters);
-  return options.harness === "codex" ? runCodexStop(ctx, adapters) : runCursorStop(ctx, adapters);
+  switch (options.harness) {
+    case "codex":
+      return runCodexStop(ctx, adapters);
+    case "antigravity":
+      return runAntigravityStop(ctx, adapters);
+    default:
+      return runCursorStop(ctx, adapters);
+  }
 }
 
 export { runWait };

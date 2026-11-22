@@ -2,7 +2,7 @@
 name: agentdesk
 description: Use when you start a task, finish a stage, become blocked, or finish a task, and every 10 minutes of work, to report status through AgentDesk. Use when you have a question you should not decide alone, such as an irreversible or destructive action, a choice that depends on the user's preference, or ambiguity the repository and task cannot resolve, to ask it through AgentDesk. AgentDesk reaches the user outside this session and returns the answer.
 metadata:
-  version: "2.6.0"
+  version: "2.7.0"
 ---
 
 AgentDesk reaches the user outside this session. Its MCP server offers `ask`, `await`, `check`, `cancel`, `resolve`, and `status`.
@@ -92,7 +92,7 @@ When you call `ask`, show the same question in this chat: the title, the context
 Wait for the answer in resume mode or in await mode. Resume mode applies when all three hold:
 
 - The session is interactive.
-- The harness is Claude Code, Codex, or Cursor.
+- The harness is Claude Code, Codex, Cursor, or Antigravity.
 - `command -v agentdesk` finds the installed binary.
 
 Await mode applies in every other session. In both modes, never ask the same question twice, and never create a second decision while the first is `pending`.
@@ -101,7 +101,7 @@ In resume mode, after you call `ask` and show the question in this chat:
 
 1. Call `status` with `state` set to `waiting`.
 2. In Claude Code, start `Monitor` with the command `agentdesk wait --harness claude-code <decision_id>`, a description that names the question, and the maximum timeout of 30 minutes. When it expires without an event, start it again the same way.
-3. In Codex and Cursor, start nothing. The installed hooks resume the session.
+3. In Codex, Cursor, and Antigravity, start nothing. The installed hooks resume the session.
 4. End your turn without calling `await`.
 
 A turn that begins with `AgentDesk decision <id> settled` is a resume. Call `check` with that id in `decision_ids`. In your first chat message, state the answer and where it was given, from `answered_via`. Then act on it.
