@@ -1,9 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   ANTIGRAVITY_HOLD_LIMIT_MS,
+  classifyStep,
   parseAntigravityStopInput,
   resultDecisionId,
   runAntigravityStop,
@@ -90,9 +91,49 @@ async function afterScan(
 describe("Antigravity transcript", () => {
   it("names only the decisions of agentdesk ask results, once each, in order", async () => {
     // The fixture also holds another server's tool, another AgentDesk tool, an
-    // ask followed by another call, an ask made beside another call, a repeated
-    // ask result, and a last ask with no result; none of those names a decision.
+    // ask followed by another call, an ask made beside another call, an ask
+    // followed by the user's text or the agent's text that ends in an
+    // ask-shaped object, a result with another key or a settled state, a
+    // result after a step that is not an ask call, an ask call in a step that
+    // is not the agent's, a result whose step index skips one, a repeated ask
+    // result, and a last ask with no result; none of those names a decision.
     expect(await scanAntigravityTranscript(TRANSCRIPT)).toEqual(["dec_phone1", "dec_phone2"]);
+  });
+
+  it("accepts only the GENERIC step right after the agent's ask call as its result", () => {
+    const ask = JSON.stringify({
+      type: "PLANNER_RESPONSE",
+      tool_calls: [
+        {
+          name: "call_mcp_tool",
+          args: { ServerName: "agentdesk", ToolName: "ask", Arguments: {} },
+        },
+      ],
+    });
+    const result = '{"decision_id": "dec_1", "state": "pending"}';
+    expect(classifyStep(ask)).toEqual({ kind: "ask-call", index: undefined });
+    expect(classifyStep(JSON.stringify({ type: "GENERIC", content: result }))).toEqual({
+      kind: "result",
+      index: undefined,
+      content: result,
+    });
+    expect(
+      classifyStep(JSON.stringify({ type: "GENERIC", content: result, tool_calls: [] })),
+    ).toMatchObject({ kind: "result" });
+    for (const step of [
+      { type: "USER_INPUT", content: result },
+      { type: "PLANNER_RESPONSE", content: result },
+      { type: "CHECKPOINT", content: result },
+      { content: result },
+      { type: "GENERIC", content: result, tool_calls: [{ name: "run_command", args: {} }] },
+      { type: "GENERIC", content: { text: result } },
+      { type: "USER_INPUT", tool_calls: JSON.parse(ask).tool_calls },
+      { tool_calls: JSON.parse(ask).tool_calls },
+    ]) {
+      expect(classifyStep(JSON.stringify(step)), JSON.stringify(step)).toEqual({ kind: "other" });
+    }
+    expect(classifyStep("not json")).toEqual({ kind: "other" });
+    expect(classifyStep(`${ask.slice(0, -1)}`)).toEqual({ kind: "other" });
   });
 
   it("reads the JSON object after the timestamp lines of a result", () => {
@@ -117,6 +158,14 @@ describe("Antigravity transcript", () => {
     ["a decision id that is not a string", '{"decision_id": 7}'],
     ["a JSON list", '[{"decision_id": "dec_1"}]'],
     ["JSON that starts inside a line", 'result: {"decision_id": "dec_1"}'],
+    ["no state", '{"decision_id": "dec_1"}'],
+    ["a settled state", '{"decision_id": "dec_1", "state": "answered"}'],
+    ["another key", '{"decision_id": "dec_1", "state": "pending", "note": "x"}'],
+    ["a nested ask result", '{"result": {"decision_id": "dec_1", "state": "pending"}}'],
+    [
+      "an ask result followed by another object",
+      '{"decision_id": "dec_1", "state": "pending"}\n{"ok": true}',
+    ],
   ])("names nothing for a result with %s", (_label, content) => {
     expect(resultDecisionId(content)).toBeUndefined();
   });
@@ -207,6 +256,77 @@ describe("agentdesk hook stop --harness antigravity", () => {
     expect(await runAntigravityStop(h.ctx, fakeAdapters(stopInput({}, transcript)))).toBe(0);
     expect(h.out).toEqual(["{}"]);
     expect(h.waits.requests).toEqual([]);
+  });
+
+  // Review round 1: an ask whose result is missing is followed by ordinary
+  // text that ends in an ask-shaped object. That text names no decision, so
+  // the hook opens no wait and takes no claim for it.
+  it("opens no wait for unrelated text that follows an ask with no result", async () => {
+    const sandbox = installSandbox(["antigravity"]);
+    const transcript = join(sandbox.root, "transcript_full.jsonl");
+    const ask = (step_index: number) => ({
+      step_index,
+      type: "PLANNER_RESPONSE",
+      tool_calls: [
+        {
+          name: "call_mcp_tool",
+          args: { ServerName: "agentdesk", ToolName: "ask", Arguments: { title: "Ship it?" } },
+        },
+      ],
+    });
+    const shaped = (id: string) => `{"decision_id": "${id}", "state": "pending"}`;
+    const steps = [
+      { step_index: 0, type: "USER_INPUT", content: "deploy the app" },
+      ask(1),
+      { step_index: 2, type: "USER_INPUT", content: `Use this one:\n${shaped("dec_user_text")}` },
+      ask(3),
+      { step_index: 4, type: "PLANNER_RESPONSE", content: `Earlier:\n${shaped("dec_agent_text")}` },
+      ask(5),
+      { step_index: 6, type: "CHECKPOINT", content: shaped("dec_checkpoint_text") },
+      ask(7),
+    ];
+    write(transcript, steps.map((step) => `${JSON.stringify(step)}\n`).join(""));
+    const h = resumeContext(sandbox);
+    for (const id of ["dec_user_text", "dec_agent_text", "dec_checkpoint_text"]) {
+      h.waits.script(id, [{ decision: decision(id, {}) }]);
+    }
+    expect(await scanAntigravityTranscript(transcript)).toEqual([]);
+    expect(await runAntigravityStop(h.ctx, fakeAdapters(stopInput({}, transcript)))).toBe(0);
+    expect(h.out).toEqual(["{}"]);
+    expect(h.waits.requests).toEqual([]);
+    for (const id of ["dec_user_text", "dec_agent_text", "dec_checkpoint_text"]) {
+      expect(claimed(sandbox, id)).toBe(false);
+    }
+  });
+
+  it("waits only on the fixture's two ask results", async () => {
+    const sandbox = installSandbox(["antigravity"]);
+    const h = resumeContext(sandbox);
+    // Every decision the fixture's other steps name would resume at once.
+    for (const id of [
+      "dec_other_server",
+      "dec_status_tool",
+      "dec_after_other_call",
+      "dec_ambiguous",
+      "dec_user_text",
+      "dec_agent_text",
+      "dec_extra_key",
+      "dec_settled",
+      "dec_orphan_result",
+      "dec_wrong_call_type",
+      "dec_index_gap",
+    ]) {
+      h.waits.script(id, [{ decision: decision(id, {}) }]);
+    }
+    h.waits.script("dec_phone1", ["hang"]);
+    h.waits.script("dec_phone2", ["pending", { decision: decision("dec_phone2", {}) }]);
+    const run = runAntigravityStop(h.ctx, fakeAdapters(stopInput()));
+    await afterScan(h, run, 2, { stepMs: 10_000 });
+    expect(h.out).toEqual([continued("dec_phone2")]);
+    expect(new Set(h.waits.requests.map((r) => r.body.decision_id))).toEqual(
+      new Set(["dec_phone1", "dec_phone2"]),
+    );
+    expect(readdirSync(join(resumeRoot(sandbox), "claims"))).toEqual(["dec_phone2"]);
   });
 
   it("prints {} when AgentDesk is not installed for Antigravity", async () => {

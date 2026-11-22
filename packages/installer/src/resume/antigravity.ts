@@ -62,14 +62,31 @@ export function parseAntigravityStopInput(
   return { conversationId, transcriptPath, terminationReason };
 }
 
+/**
+ * The step types of the observed transcript shape (DEC-24(3)): the agent's
+ * `PLANNER_RESPONSE` step holds the tool call, and the `GENERIC` step right
+ * after it holds the tool's result. A step's type is its `type` field.
+ */
+export const CALL_STEP_TYPE = "PLANNER_RESPONSE";
+export const RESULT_STEP_TYPE = "GENERIC";
+
 /** The steps a transcript line can be, for matching an `ask` call to its result. */
 type Step =
-  /** A step whose only tool call is `call_mcp_tool` for the `agentdesk` `ask` tool. */
-  | { kind: "ask-call" }
-  /** A step that holds tool calls of any other shape, or more than one call. */
-  | { kind: "other-call" }
-  /** A step with text `content` and no tool calls: a possible result. */
-  | { kind: "content"; content: string }
+  /**
+   * A `PLANNER_RESPONSE` step whose only tool call is `call_mcp_tool` for the
+   * `agentdesk` `ask` tool.
+   */
+  | { kind: "ask-call"; index: number | undefined }
+  /**
+   * A `GENERIC` step with text `content` and no tool calls: the only kind of
+   * step that can hold a tool's result.
+   */
+  | { kind: "result"; index: number | undefined; content: string }
+  /**
+   * Every other step: another tool call, a call beside others, the user's
+   * input, the agent's text, or a line that is not a step. None of these
+   * holds an `ask` result.
+   */
   | { kind: "other" };
 
 function callArgs(call: Record<string, unknown>): Record<string, unknown> | undefined {
@@ -83,26 +100,41 @@ function isAgentDeskAsk(call: unknown): boolean {
   return args?.ServerName === "agentdesk" && args.ToolName === "ask";
 }
 
+function stepIndex(step: Record<string, unknown>): number | undefined {
+  return Number.isSafeInteger(step.step_index) ? (step.step_index as number) : undefined;
+}
+
 /** Classifies one transcript line. */
 export function classifyStep(line: string): Step {
   const step = parseRecord(line);
   if (!step) return { kind: "other" };
   const calls = step.tool_calls;
-  if (Array.isArray(calls) && calls.length > 0) {
+  const hasCalls = Array.isArray(calls) && calls.length > 0;
+  if (step.type === CALL_STEP_TYPE && hasCalls) {
     // A step with several calls is followed by several results, and nothing
     // ties a result to its call, so such a step names no decision.
     return calls.length === 1 && isAgentDeskAsk(calls[0])
-      ? { kind: "ask-call" }
-      : { kind: "other-call" };
+      ? { kind: "ask-call", index: stepIndex(step) }
+      : { kind: "other" };
   }
-  if (typeof step.content === "string") return { kind: "content", content: step.content };
+  // A step that holds a call, or that is not a GENERIC step, is never a
+  // result, so the user's input and the agent's own text cannot name a
+  // decision (component-resume §Antigravity stop hook).
+  if (step.type === RESULT_STEP_TYPE && !hasCalls && typeof step.content === "string") {
+    return { kind: "result", index: stepIndex(step), content: step.content };
+  }
   return { kind: "other" };
 }
 
+/** The keys of the `ask` tool's result (apps/gateway/src/tools.ts). */
+const ASK_RESULT_KEYS = ["decision_id", "state"];
+
 /**
- * The `decision_id` of the JSON object that ends a result step's `content`,
- * after any timestamp lines before it. Only an object that starts at the
- * beginning of a line and runs to the end of the content counts.
+ * The `decision_id` of the `ask` result that ends a result step's `content`,
+ * after the timestamp lines before it. The result is the JSON object that the
+ * gateway's `ask` tool returns, `{"decision_id": <id>, "state": "pending"}`,
+ * with no other key. It starts at the beginning of a line and runs to the end
+ * of the content. Any other text names no decision.
  */
 export function resultDecisionId(content: string): string | undefined {
   if (content.length > MAX_RESULT_CONTENT) return undefined;
@@ -112,17 +144,25 @@ export function resultDecisionId(content: string): string | undefined {
   for (let start = lines.length - 1; start >= 0; start--) {
     if (!lines[start]?.trimStart().startsWith("{")) continue;
     const result = parseRecord(lines.slice(start).join("\n"));
-    if (result) return isSafeId(result.decision_id) ? result.decision_id : undefined;
+    if (!result) continue;
+    const keys = Object.keys(result).sort();
+    if (keys.length !== ASK_RESULT_KEYS.length || keys.some((k, i) => k !== ASK_RESULT_KEYS[i])) {
+      return undefined;
+    }
+    if (result.state !== "pending") return undefined;
+    return isSafeId(result.decision_id) ? result.decision_id : undefined;
   }
   return undefined;
 }
 
 /**
  * The distinct decisions of `agentdesk` `ask` results in an Antigravity
- * transcript, in order of appearance. A step whose only tool call is the
- * `agentdesk` `ask` call is followed by the step that holds its result, and
- * the JSON object at the end of that step's `content` names the decision. An
- * `ask` call followed by another call, or by no step, names nothing.
+ * transcript, in order of appearance. A `PLANNER_RESPONSE` step whose only
+ * tool call is the `agentdesk` `ask` call is followed by the `GENERIC` step
+ * that holds its result, and the `ask` result at the end of that step's
+ * `content` names the decision. When both steps carry `step_index`, the
+ * result's index is the call's index plus one. An `ask` call followed by any
+ * other line, or by no line, names nothing.
  * Aborting `signal` closes the reader and rejects with HookCancelledError.
  */
 export async function scanAntigravityTranscript(
@@ -145,18 +185,19 @@ export async function scanAntigravityTranscript(
     stream.destroy();
   };
   signal.addEventListener("abort", stopReading, { once: true });
-  let afterAsk = false;
+  // The `ask` call the previous line held, if it held one.
+  let call: { index: number | undefined } | undefined;
   try {
     for await (const line of lines) {
       if (signal.aborted) break;
       // Most lines are neither an `ask` call nor the line after one.
-      if (!afterAsk && !line.includes(MCP_CALL_TOOL)) continue;
+      if (!call && !line.includes(MCP_CALL_TOOL)) continue;
       const step = classifyStep(line);
-      if (afterAsk && step.kind === "content") {
+      if (call && step.kind === "result" && follows(call.index, step.index)) {
         const id = resultDecisionId(step.content);
         if (id) ids.add(id);
       }
-      afterAsk = step.kind === "ask-call";
+      call = step.kind === "ask-call" ? { index: step.index } : undefined;
     }
   } finally {
     signal.removeEventListener("abort", stopReading);
@@ -164,6 +205,11 @@ export async function scanAntigravityTranscript(
   }
   if (signal.aborted) throw new HookCancelledError();
   return [...ids];
+}
+
+/** Whether a result's step index follows its call's, when both are known. */
+function follows(callIndex: number | undefined, resultIndex: number | undefined): boolean {
+  return callIndex === undefined || resultIndex === undefined || resultIndex === callIndex + 1;
 }
 
 /**
