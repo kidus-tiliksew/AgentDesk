@@ -36,11 +36,11 @@ Commands:
                      Detect Claude Code, Codex, Cursor, and Antigravity, sign
                      each in with a short code approved in the AgentDesk app,
                      or with an install key, and install the MCP connection,
-                     the skill, the session-start hook, and, for Codex and
-                     Cursor, the resume hooks.
+                     the skill, the session-start hook, and, for Codex,
+                     Cursor, and Antigravity, the resume hooks.
   skill install      Install or update only the skill, the session-start hook,
-                     and, for Codex and Cursor, the resume hooks, for every
-                     detected harness.
+                     and, for Codex, Cursor, and Antigravity, the resume hooks,
+                     for every detected harness.
   context --harness <id>
                      Print the AgentDesk guidance a session starts with; the
                      session-start hook runs this.
@@ -48,8 +48,9 @@ Commands:
                      Wait on one decision and resume its agent session when it
                      settles outside the chat.
   hook <event> --harness <id>
-                     Run a resume hook: stop for Codex and Cursor, after-mcp
-                     for Cursor. The installer's hooks run this.
+                     Run a resume hook: stop for Codex, Cursor, and
+                     Antigravity, after-mcp for Cursor. The installer's hooks
+                     run this.
   status             Show each recorded harness, its connection, its skill
                      version, and its hooks.
   forget <connection-id>

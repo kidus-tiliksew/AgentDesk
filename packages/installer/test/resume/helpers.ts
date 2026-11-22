@@ -20,6 +20,7 @@ export const TOKENS = {
   "claude-code": `adc_claudecode${"k".repeat(32)}`,
   codex: `adc_codex${"x".repeat(32)}`,
   cursor: `adc_cursor${"c".repeat(32)}`,
+  antigravity: `adc_antigravity${"a".repeat(32)}`,
 } as const;
 
 export type HarnessKey = keyof typeof TOKENS;
@@ -45,6 +46,12 @@ export function installSandbox(
       write(
         join(sandbox.home, ".codex", "config.toml"),
         `[mcp_servers.agentdesk]\nurl = "${server}/mcp"\nhttp_headers = { "Authorization" = "Bearer ${TOKENS.codex}" }\n`,
+      );
+    } else if (id === "antigravity") {
+      // DEC-24(1): Antigravity's entry lives in ~/.gemini/config/mcp_config.json.
+      write(
+        join(sandbox.home, ".gemini", "config", "mcp_config.json"),
+        JSON.stringify({ mcpServers: { agentdesk: { url: `${server}/mcp`, headers: header } } }),
       );
     } else {
       write(

@@ -1,5 +1,12 @@
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { dirname, join } from "node:path";
@@ -203,7 +210,7 @@ describe("bundle dist/agentdesk.mjs", () => {
     expect(readFileSync(join(home, ".codex", "skills", "agentdesk", "SKILL.md"))).toEqual(
       readFileSync(SKILL_FILE),
     );
-    expect(result.stdout).toContain("skill 2.6.0");
+    expect(result.stdout).toContain("skill 2.7.0");
     // codex is not on PATH, so trust for each hook is left to Codex's /hooks.
     expect(result.stdout).toContain(
       "Codex: the AgentDesk session-start hook is not trusted yet (codex is not on PATH). In Codex, run /hooks and trust the AgentDesk session-start hook.",
@@ -312,13 +319,17 @@ describe("bundle named agentdesk.mjs with Antigravity", () => {
     const hooksFile = join(home, ".gemini", "config", "hooks.json");
     const mcpFile = join(home, ".gemini", "config", "mcp_config.json");
     const command = `${mjs} context --harness antigravity`;
+    const stop = `${mjs} hook stop --harness antigravity`;
 
     const first = await runBundle(["install", "--only", "antigravity", "--yes"], env, mjs);
     expect(first.stderr).toBe("");
     expect(first.code).toBe(0);
     const written = read(hooksFile);
     expect(JSON.parse(written)).toEqual({
-      agentdesk: { SessionStart: [{ type: "command", command, timeout: 30 }] },
+      agentdesk: {
+        SessionStart: [{ type: "command", command, timeout: 30 }],
+        Stop: [{ type: "command", command: stop, timeout: 3600 }],
+      },
     });
     expect(readJson(mcpFile)).toEqual({
       mcpServers: {
@@ -330,11 +341,14 @@ describe("bundle named agentdesk.mjs with Antigravity", () => {
     expect(rerun.stderr).toBe("");
     expect(rerun.code).toBe(0);
     expect(rerun.stdout).toContain(`Antigravity: session-start hook unchanged in ${hooksFile}`);
+    expect(rerun.stdout).toContain(`Antigravity: Stop hook unchanged in ${hooksFile}`);
     expect(read(hooksFile)).toBe(written);
 
     const status = await runBundle(["status"], env, mjs);
     expect(status.code).toBe(0);
-    expect(status.stdout).toContain(`session-start hook in ${hooksFile}`);
+    expect(status.stdout).toContain(
+      `session-start hook in ${hooksFile}; Stop hook in ${hooksFile}`,
+    );
     expect(status.stdout).not.toContain("unreadable");
 
     // The hook's command, run by a shell as Antigravity runs it, prints the
@@ -347,6 +361,28 @@ describe("bundle named agentdesk.mjs with Antigravity", () => {
     expect(JSON.parse(hook.stdout)).toEqual({
       injectSteps: [{ systemMessage: { systemMessage: read(GUIDANCE_FILE) } }],
     });
+
+    // The Stop hook's command, run the same way, reaches the Antigravity stop
+    // hook: a stop that is not the end of a turn, and a turn whose transcript
+    // holds no AgentDesk ask, each print {} at once.
+    const shellEnv = { HOME: home, PATH: `${dirname(process.execPath)}:/usr/bin:/bin` };
+    const transcript = join(sandbox.root, "agy-transcript.jsonl");
+    writeFileSync(transcript, `${JSON.stringify({ type: "USER_INPUT", content: "hi" })}\n`);
+    for (const terminationReason of ["MAX_STEPS", "NO_TOOL_CALL"]) {
+      const held = spawnSync("/bin/sh", ["-c", stop], {
+        encoding: "utf8",
+        env: shellEnv,
+        input: JSON.stringify({
+          conversationId: "conv-1",
+          transcriptPath: transcript,
+          terminationReason,
+          executionNum: 1,
+          continuationActive: false,
+        }),
+      });
+      expect(held.status).toBe(0);
+      expect(JSON.parse(held.stdout)).toEqual({});
+    }
 
     const removal = await runBundle(["uninstall"], env, mjs);
     expect(removal.stderr).toBe("");

@@ -239,10 +239,12 @@ describe("Antigravity folders that are not directories", () => {
   );
 });
 
-// The installer's handler is exactly {"type": "command", "command":
-// "<agentdesk> context --harness antigravity", "timeout": 30}. Anything else
-// in the `agentdesk` object is refused by install before sign-in and by
-// uninstall, and the file stays unchanged.
+// The installer's handlers are exactly {"type": "command", "command":
+// "<agentdesk> context --harness antigravity", "timeout": 30} in SessionStart
+// and {"type": "command", "command": "<agentdesk> hook stop --harness
+// antigravity", "timeout": 3600} in Stop. Anything else in the `agentdesk`
+// object is refused by install before sign-in and by uninstall, and the file
+// stays unchanged.
 describe("Antigravity handlers that differ from the installer's exact handler", () => {
   function command(sandbox: Sandbox): string {
     return `${sandbox.executable} context --harness antigravity`;
@@ -274,7 +276,23 @@ describe("Antigravity handlers that differ from the installer's exact handler", 
       `a handler with ${label}`,
       (sandbox) => ({ SessionStart: [handler(command(sandbox))] }),
     ]),
-    ["an event the installer does not write, even empty", () => ({ Stop: [] })],
+    ["an event the installer does not write, even empty", () => ({ PreToolUse: [] })],
+    [
+      "a Stop handler with the session-start timeout",
+      (sandbox) => ({
+        Stop: [
+          {
+            type: "command",
+            command: `${sandbox.executable} hook stop --harness antigravity`,
+            timeout: 30,
+          },
+        ],
+      }),
+    ],
+    [
+      "the session-start command under Stop",
+      (sandbox) => ({ Stop: [{ type: "command", command: command(sandbox), timeout: 3600 }] }),
+    ],
     ["an event value that is an object", () => ({ SessionStart: {} })],
   ];
 
@@ -325,7 +343,16 @@ describe("Antigravity handlers that differ from the installer's exact handler", 
     );
     expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
     expect(readJson(files.hooks)).toEqual({
-      agentdesk: { SessionStart: [{ type: "command", command: command(sandbox), timeout: 30 }] },
+      agentdesk: {
+        SessionStart: [{ type: "command", command: command(sandbox), timeout: 30 }],
+        Stop: [
+          {
+            type: "command",
+            command: `${sandbox.executable} hook stop --harness antigravity`,
+            timeout: 3600,
+          },
+        ],
+      },
     });
   });
 });

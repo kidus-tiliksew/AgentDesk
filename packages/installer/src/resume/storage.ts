@@ -123,6 +123,22 @@ export class ResumeStore {
     return true;
   }
 
+  /**
+   * Whether `claims/<decision-id>` exists, without creating anything. Any
+   * entry at that path counts, so a hold never waits on a decision another
+   * waiter or hold may already have resumed. This check only skips a wait;
+   * `claim` stays the one exclusive step that allows a resume.
+   */
+  hasClaim(decisionId: string): boolean {
+    try {
+      lstatSync(this.claimPath(decisionId));
+      return true;
+    } catch (error) {
+      if (isMissing(error)) return false;
+      throw error;
+    }
+  }
+
   /** Deletes claims last modified more than 30 days before `now`. */
   cleanupClaims(now: number): void {
     const dir = this.dir("claims");

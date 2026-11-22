@@ -25,7 +25,7 @@ export interface HarnessRecord {
   skillVersion?: string;
   /** The file that holds this installation's session-start hook. */
   hookPath?: string;
-  /** Codex and Cursor: the file that holds this installation's `stop` resume hook. */
+  /** Codex, Cursor, and Antigravity: the file that holds this installation's `stop` resume hook. */
   stopHookPath?: string;
   /** Cursor only: the file that holds this installation's `afterMCPExecution` resume hook. */
   afterMcpHookPath?: string;

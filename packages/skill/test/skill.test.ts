@@ -619,7 +619,7 @@ describe("delivered Waiting section", () => {
   it("enters resume mode only when the session, harness, and binary all qualify", () => {
     expect(waiting).toContain("Resume mode applies when all three hold:");
     expect(waiting).toContain("- The session is interactive.");
-    expect(waiting).toContain("- The harness is Claude Code, Codex, or Cursor.");
+    expect(waiting).toContain("- The harness is Claude Code, Codex, Cursor, or Antigravity.");
     expect(waiting).toContain("- `command -v agentdesk` finds the installed binary.");
     expect(waiting).toContain("Await mode applies in every other session.");
   });
@@ -630,8 +630,9 @@ describe("delivered Waiting section", () => {
       "In Claude Code, start `Monitor` with the command `agentdesk wait --harness claude-code <decision_id>`, a description that names the question, and the maximum timeout of 30 minutes.",
     );
     expect(waiting).toContain("When it expires without an event, start it again the same way.");
+    // Antigravity resumes through its installed Stop hook (DEC-24(3)).
     expect(waiting).toContain(
-      "In Codex and Cursor, start nothing. The installed hooks resume the session.",
+      "In Codex, Cursor, and Antigravity, start nothing. The installed hooks resume the session.",
     );
     expect(waiting).toContain("End your turn without calling `await`.");
   });
@@ -732,7 +733,7 @@ describe("package export", () => {
     const split = splitSkill(readFileSync(resolved, "utf8"));
     const data: unknown = parseYaml(split?.frontmatter ?? "");
     const version = isRecord(data) && isRecord(data.metadata) ? data.metadata.version : undefined;
-    expect(version).toBe("2.6.0");
+    expect(version).toBe("2.7.0");
   });
 
   it("resolves @agentdesk/skill/agentdesk/GUIDANCE.md to the guidance file", () => {

@@ -12,9 +12,9 @@ import { assertConfinedFile, type Harness, type HarnessId } from "./harnesses.js
 
 // component-installer §Standing guidance and §Resume hooks: each harness's
 // session-start hook runs `<executable> context --harness <id>`, and the
-// Codex and Cursor resume hooks run `<executable> hook <event> --harness <id>`.
-// Antigravity's hooks live in the named hook object `agentdesk` (DEC-24(1)).
-// No hook holds a token.
+// Codex, Cursor, and Antigravity resume hooks run `<executable> hook <event>
+// --harness <id>`. Antigravity's hooks live in the named hook object
+// `agentdesk` (DEC-24(1)). No hook holds a token.
 
 /**
  * The hooks the installer writes: `session-start` runs `context`, and the
@@ -22,13 +22,12 @@ import { assertConfinedFile, type Harness, type HarnessId } from "./harnesses.js
  */
 export type HookEventId = "session-start" | "stop" | "after-mcp";
 
-/** The hooks each harness gets (DEC-12; DEC-15(3) to DEC-15(5)). */
+/** The hooks each harness gets (DEC-12; DEC-15(3) to DEC-15(5); DEC-24(2), DEC-24(3)). */
 const EVENTS_BY_HARNESS: Readonly<Record<HarnessId, readonly HookEventId[]>> = {
   "claude-code": ["session-start"],
   codex: ["session-start", "stop"],
   cursor: ["session-start", "after-mcp", "stop"],
-  // DEC-24(2): the session-start hook only; resume is separate work.
-  antigravity: ["session-start"],
+  antigravity: ["session-start", "stop"],
 };
 
 /** The hook events the installer writes for the harness `id`. */
@@ -87,7 +86,20 @@ export function hookEvent(harness: Harness, id: HookEventId): HookEvent {
     case "stop":
       // Codex runs the Stop hook with a 10-second timeout; Cursor's stop hook
       // holds for up to 50 minutes under a 3600-second timeout with no loop
-      // limit (component-resume §Codex stop hook and §Cursor hooks).
+      // limit; Antigravity's Stop hook holds under a 3600-second timeout and
+      // keys no hook, so it records no trust and sets no loop limit
+      // (component-resume §Codex stop hook, §Cursor hooks, and §Antigravity
+      // stop hook; DEC-24(3)).
+      if (harness.hookFormat === "named-hook") {
+        return {
+          id,
+          name: "Stop",
+          keyName: undefined,
+          label: "Stop hook",
+          fields: { timeout: 3600 },
+          matcher: undefined,
+        };
+      }
       return cursor
         ? {
             id,
@@ -468,7 +480,8 @@ export function planHookRemoval(
 // ---------------------------------------------------------------------------
 // Antigravity: `~/.gemini/config/hooks.json` holds named hook objects at its
 // top level. The installer owns the object `agentdesk`, whose `SessionStart`
-// holds one handler (component-installer §Standing guidance; DEC-24(1)-(2)).
+// and `Stop` each hold one handler (component-installer §Standing guidance and
+// §Resume hooks; DEC-24(1)-(3)).
 
 /** The top-level key of the named hook object the installer owns. */
 export const NAMED_HOOK = "agentdesk";
