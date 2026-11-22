@@ -1,9 +1,11 @@
 import {
+  closeSync,
   copyFileSync,
   existsSync,
   constants as fsConstants,
   lstatSync,
   mkdirSync,
+  openSync,
   readFileSync,
   realpathSync,
   renameSync,
@@ -96,13 +98,27 @@ export function writeFileAtomic(
   mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
   const temp = tempPath(target);
   if (noFollow) {
+    let fd: number;
     try {
-      writeFileSync(temp, content, { mode, flag: "wx" });
+      fd = openSync(temp, "wx", mode);
     } catch (error) {
+      // An existing entry, which this run did not create, is left in place.
       const code = (error as NodeJS.ErrnoException | undefined)?.code;
       if (code === "EEXIST") {
         throw new InstallerError(`${temp} already exists; ${file} was not changed.`);
       }
+      throw error;
+    }
+    // This run created the temporary file, so a failed write, such as on a
+    // full disk, removes it and a retry can create it again.
+    try {
+      try {
+        writeFileSync(fd, content);
+      } finally {
+        closeSync(fd);
+      }
+    } catch (error) {
+      rmSync(temp, { force: true });
       throw error;
     }
   } else {
