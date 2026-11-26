@@ -27,8 +27,15 @@ import UserNotifications
 // a delegate loop and a check cannot interleave at all.
 //
 // The rule covers a press only from its `request` call. A press whose
-// delegate loop copied the list but has not yet called this module's delegate
-// is not recorded, and a host that starts in that gap misses it. When a
+// delegate loop copied the list before the host starts, and whose `request`
+// call comes after the check that decides to start, is not gated. This holds
+// both for a press that has not yet reached this module's delegate and for
+// one that records itself between that decision and `startHost`. Its copy
+// predates its record, so no ordering of the decision with `request` can
+// include it, and holding the lock across `startHost` would block the
+// delegate thread inside React Native code without changing that copy. Such
+// a press reaches the emitter only when its queue append precedes the
+// emitter's `addDelegate`. When a
 // recorded press has waited `maxWait`, about one second, without reaching
 // the queue, the host starts anyway. A press still in its delegate loop then
 // is queued after the emitter registered and stays queued until a later
@@ -121,8 +128,9 @@ final class ColdPressHostStart: @unchecked Sendable {
     }
 
     // A press in the queue stays there until a delegate handles it, so it
-    // needs no second probe. A press recorded after the copy above is still
-    // waiting, so the host does not start before it is probed.
+    // needs no second probe. A press recorded after the copy above and before
+    // this lock is still waiting, so the host does not start before it is
+    // probed. A press recorded after this lock is not gated (see above).
     lock.lock()
     for press in queued {
       waiting.removeValue(forKey: press)
