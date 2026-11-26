@@ -79,8 +79,9 @@ func reactHostRunning() -> Bool {
 /// running when no scene connects. A Release build starts the host, so
 /// JavaScript can answer within the background time iOS grants.
 ///
-/// `ColdPressHostStart` calls it only after expo-notifications has queued the
-/// press, so the emitter module that the new host creates receives the press.
+/// `ColdPressHostStart` calls it once expo-notifications has queued the press,
+/// so the emitter module that the new host creates receives the press. After
+/// its bounded wait, it calls it without that check (see `ColdPressHostStart`).
 @MainActor
 func startReactHostIfNeeded() {
   if EXAppDefines.APP_DEBUG && NSClassFromString("EXDevLauncherController") != nil {

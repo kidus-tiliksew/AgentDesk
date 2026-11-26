@@ -16,10 +16,14 @@ import UserNotifications
 // before the queue append. The emitter then misses the press on both paths.
 //
 // So a press only requests a host start. The start runs on the main queue
-// after the delegate loop returns, and only once the press is in the queue.
-// Whichever order the emitter registers in, it then receives the press once:
-// from the delegate loop when it is in the copy, or from `addDelegate`
-// otherwise.
+// after the delegate loop returns, once the press is in the queue. Whichever
+// order the emitter registers in, it then receives the press once: from the
+// delegate loop when it is in the copy, or from `addDelegate` otherwise.
+// After `attempts` checks, about one second, the host starts even when the
+// press is not in the queue yet. If a delegate loop still runs then, the
+// press is queued after the emitter registered and stays queued until a
+// later `addDelegate`. This bounded wait gives no unconditional queue
+// guarantee and no exactly-once guarantee.
 
 /// Starts the React host for an AgentDesk button press after expo-notifications
 /// has queued the press.
