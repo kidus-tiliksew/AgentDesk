@@ -26,7 +26,7 @@ final class ActionResponseDelegate: NotificationDelegate, Sendable {
   }
 }
 
-/// Starts the React host for a press once expo-notifications has queued it.
+/// Starts the React host once expo-notifications has queued every press seen.
 let coldPressHostStart = ColdPressHostStart(
   hooks: ColdPressHostStart.Hooks(
     hostRunning: { reactHostRunning() },
@@ -79,9 +79,10 @@ func reactHostRunning() -> Bool {
 /// running when no scene connects. A Release build starts the host, so
 /// JavaScript can answer within the background time iOS grants.
 ///
-/// `ColdPressHostStart` calls it once expo-notifications has queued the press,
-/// so the emitter module that the new host creates receives the press. After
-/// its bounded wait, it calls it without that check (see `ColdPressHostStart`).
+/// `ColdPressHostStart` calls it once expo-notifications has queued every
+/// AgentDesk button press seen in this process, so the emitter module that
+/// the new host creates receives each of them. After its bounded wait, it
+/// calls it without that check (see `ColdPressHostStart`).
 @MainActor
 func startReactHostIfNeeded() {
   if EXAppDefines.APP_DEBUG && NSClassFromString("EXDevLauncherController") != nil {

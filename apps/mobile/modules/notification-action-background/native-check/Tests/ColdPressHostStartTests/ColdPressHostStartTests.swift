@@ -63,12 +63,21 @@ final class InlineStartDelegate: NotificationDelegate, @unchecked Sendable {
 }
 
 /// A later delegate in the copied list that holds the delegate loop open until
-/// the test releases it, so the press stays out of the queue meanwhile.
+/// the test releases it, so the press stays out of the queue meanwhile. With
+/// a request id, it holds only that press and lets every other press pass.
 final class BlockingDelegate: NotificationDelegate, @unchecked Sendable {
   let entered = DispatchSemaphore(value: 0)
   let release = DispatchSemaphore(value: 0)
+  private let requestId: String?
+
+  init(requestId: String? = nil) {
+    self.requestId = requestId
+  }
 
   func didReceive(_ response: UNNotificationResponse, completionHandler: @escaping () -> Void) -> Bool {
+    if let requestId, response.notification.request.identifier != requestId {
+      return false
+    }
     entered.signal()
     release.wait()
     return false
@@ -247,6 +256,80 @@ final class ColdPressHostStartTests: XCTestCase {
     XCTAssertEqual(host.starts, 1)
     XCTAssertEqual(host.emitter.count(requestId: "first-press"), 1)
     XCTAssertEqual(host.emitter.count(requestId: "second-press"), 1)
+  }
+
+  /// Two overlapping presses. The first press is queued and requests a start.
+  /// Before that check runs, the second press copies the delegate list on
+  /// another thread and is held between the copy and the queue append. The
+  /// first press alone would permit the start. The host waits for the second
+  /// press, starts once, and the emitter receives each press once.
+  func testTwoOverlappingPressesStartOneHostAndDeliverBoth() {
+    let first = "overlap-first-press"
+    let second = "overlap-second-press"
+    let host = FakeHost()
+    let blocker = BlockingDelegate(requestId: second)
+    add(RequestingDelegate(handoff: ColdPressHostStart(hooks: host.hooks())))
+    add(blocker)
+    added.append(host.emitter)
+
+    // The first press finishes its delegate loop and is queued. Its check is
+    // scheduled on the main queue and has not run yet.
+    deliver(makeResponse(requestId: first))
+    XCTAssertTrue(isQueuedInNotificationCenter(requestId: first, actionId: "approve"))
+
+    // The second press copies the list, which lacks the emitter, and stops
+    // in the blocker, after the requesting delegate and before the queue.
+    let response = makeResponse(requestId: second, actionId: "reject")
+    let delivered = expectation(description: "second delivery returned")
+    DispatchQueue.global().async {
+      deliver(response)
+      delivered.fulfill()
+    }
+    XCTAssertEqual(blocker.entered.wait(timeout: .now() + 3), .success)
+    XCTAssertFalse(isQueuedInNotificationCenter(requestId: second, actionId: "reject"))
+
+    pump(seconds: 0.3)
+    XCTAssertEqual(host.starts, 0, "the host must wait for the press still in its delegate loop")
+
+    blocker.release.signal()
+    waitForStart(host)
+    wait(for: [delivered], timeout: 3)
+    pump(seconds: 0.2)
+    XCTAssertEqual(host.starts, 1)
+    XCTAssertEqual(host.emitter.count(requestId: first), 1)
+    XCTAssertEqual(host.emitter.count(requestId: second), 1)
+    XCTAssertFalse(isQueuedInNotificationCenter(requestId: second, actionId: "reject"))
+  }
+
+  /// Control for the overlap: a host that starts once the first press is
+  /// queued, while the second press is held between the copy and the queue
+  /// append, misses the second press on both paths. The second press stays
+  /// queued after the emitter registered.
+  func testHostStartedDuringAnOverlappingPressMissesIt() {
+    let first = "overlap-control-first"
+    let second = "overlap-control-second"
+    let host = FakeHost()
+    let blocker = BlockingDelegate(requestId: second)
+    add(blocker)
+    added.append(host.emitter)
+
+    deliver(makeResponse(requestId: first))
+    let response = makeResponse(requestId: second, actionId: "reject")
+    let delivered = expectation(description: "second delivery returned")
+    DispatchQueue.global().async {
+      deliver(response)
+      delivered.fulfill()
+    }
+    XCTAssertEqual(blocker.entered.wait(timeout: .now() + 3), .success)
+
+    // What a start keyed to the first press alone does.
+    host.start()
+    XCTAssertEqual(host.emitter.count(requestId: first), 1)
+
+    blocker.release.signal()
+    wait(for: [delivered], timeout: 3)
+    XCTAssertEqual(host.emitter.count(requestId: second), 0)
+    XCTAssertTrue(isQueuedInNotificationCenter(requestId: second, actionId: "reject"))
   }
 
   /// The probe leaves the queue as it was.
