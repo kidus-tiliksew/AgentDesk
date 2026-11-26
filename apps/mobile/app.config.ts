@@ -62,6 +62,15 @@ const config: ExpoConfig = {
     ["expo-notifications", { defaultChannel: "default" }],
     ["@clerk/expo", { appleSignIn: false }],
     "@react-native-community/datetimepicker",
+    // iOS 27 stops an app linked with the iOS 27 SDK at launch unless it
+    // adopts the UIScene life cycle, and component-mobile-app §Stack requires
+    // Xcode 27 for a native iOS build. This setting adds the scene manifest
+    // with Expo's scene delegate and moves React Native startup from the
+    // generated AppDelegate to that delegate. A notification button that
+    // starts the app with no scene still runs JavaScript through the
+    // notification-action-background module. Expo SDK 58 adopts the scene
+    // life cycle in its template, so remove this entry with that upgrade.
+    ["expo-build-properties", { ios: { enableSceneSupport: true } }],
   ],
   ...(projectId ? { extra: { eas: { projectId } } } : {}),
 };

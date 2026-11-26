@@ -15,6 +15,10 @@ Pod::Spec.new do |s|
 
   s.dependency 'ExpoModulesCore'
   s.dependency 'ExpoNotifications'
+  # Expo provides ExpoReactNativeFactoryProvider and the React Native factory
+  # types, which start the React host for a button pressed while the app is
+  # not running.
+  s.dependency 'Expo'
 
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES'
