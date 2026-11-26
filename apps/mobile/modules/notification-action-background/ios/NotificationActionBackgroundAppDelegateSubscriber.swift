@@ -44,8 +44,11 @@ final class ActionResponseDelegate: NotificationDelegate, Sendable {
 /// `RCTRootViewFactory` creates a host only when it has none.
 ///
 /// It does nothing when the host already runs, when the app delegate provides
-/// no factory, or in a Debug build with the Expo dev launcher, which starts
-/// React Native through its own launcher screen.
+/// no factory, or in a Debug build with the Expo dev launcher. The dev
+/// launcher chooses the bundle and starts React Native only when a scene
+/// connects, and this call must not bypass that choice. So a Debug
+/// development build sends no answer for a press while the app is not
+/// running when no scene connects. A Release build answers it.
 @MainActor
 func startReactHostIfNeeded() {
   if EXAppDefines.APP_DEBUG && NSClassFromString("EXDevLauncherController") != nil {
