@@ -1,5 +1,7 @@
+internal import Expo
 import ExpoModulesCore
 import ExpoNotifications
+import React
 import UIKit
 import UserNotifications
 
@@ -14,12 +16,54 @@ final class ActionResponseDelegate: NotificationDelegate, Sendable {
     let actionId = response.actionIdentifier
     if isAnswerAction(categoryId: request.content.categoryIdentifier, actionId: actionId) {
       let requestId = request.identifier
-      _ = onMain {
+      onMain {
         ActionWindows.shared.begin(requestId: requestId, actionId: actionId)
+        startReactHostIfNeeded()
       }
     }
     return false
   }
+}
+
+/// component-mobile-app §Notifications: a button pressed while the app is not
+/// running launches it in the background. Under the UIScene life cycle that
+/// `expo-build-properties` `ios.enableSceneSupport` adopts, the generated
+/// AppDelegate only creates the React Native factory, and Expo's scene
+/// delegate starts React Native when UIKit connects a scene. Apple documents a
+/// background notification action as a background launch that calls the
+/// notification center delegate, with no scene connection promised. When no
+/// scene connects, no JavaScript runs without this call, the response
+/// listener in `src/notification-action-task.ts` never loads, and the answer
+/// is lost (REQ-4, AC-4.1).
+///
+/// The call starts the React host of the app delegate's existing factory with
+/// no window, root view, or scene. React Native evaluates the bundle, so the
+/// module-scope response listener and the launch response read carry the
+/// press. expo-notifications holds the response until its emitter module
+/// registers. A scene that connects later reuses the same host, because
+/// `RCTRootViewFactory` creates a host only when it has none.
+///
+/// It does nothing when the host already runs, when the app delegate provides
+/// no factory, or in a Debug build with the Expo dev launcher, which starts
+/// React Native through its own launcher screen.
+@MainActor
+func startReactHostIfNeeded() {
+  if EXAppDefines.APP_DEBUG && NSClassFromString("EXDevLauncherController") != nil {
+    return
+  }
+  guard let provider = UIApplication.shared.delegate as? ExpoReactNativeFactoryProvider,
+    let factory = provider.reactNativeFactory else {
+    return
+  }
+  let rootViewFactory = factory.rootViewFactory
+  if rootViewFactory.value(forKey: "reactHost") != nil {
+    return
+  }
+  rootViewFactory.initializeReactHost(
+    launchOptions: nil,
+    bundleConfiguration: factory.bundleConfiguration,
+    devMenuConfiguration: factory.devMenuConfiguration ?? RCTDevMenuConfiguration.default()
+  )
 }
 
 /// Registers the delegate through expo-notifications' public
