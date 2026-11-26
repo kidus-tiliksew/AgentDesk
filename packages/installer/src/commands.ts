@@ -273,38 +273,45 @@ function recordedProfileTarget(
 }
 
 /**
- * Records `written` in `field` beside the paths already recorded. When this
- * run wrote every target, a recorded path is dropped only when it is a T3
- * Code profile file confirmed absent; a path that still exists, cannot be
- * inspected, or lies outside the current T3 Code home stays for later
- * cleanup.
+ * Records `written` in `field` beside the paths already recorded. Nothing is
+ * dropped here, so a run that fails keeps every recorded path; see
+ * `pruneAbsentProfilePaths`.
  */
 function recordProfilePaths(
-  ctx: Context,
-  harness: Harness,
   record: HarnessRecord,
   field: ExtraPathField,
   written: readonly string[],
-  succeeded: boolean,
 ): void {
-  const keep = new Set(written);
-  for (const path of record[field] ?? []) {
-    if (keep.has(path)) continue;
-    if (succeeded) {
+  setExtraPaths(record, field, [...(record[field] ?? []), ...written]);
+}
+
+/**
+ * After a command that succeeded, drops from each of `fields` the recorded
+ * T3 Code profile paths confirmed absent. A path that still exists, cannot be
+ * inspected, or lies outside the current T3 Code home stays for later
+ * cleanup (component-installer §State, re-run, and uninstall).
+ */
+function pruneAbsentProfilePaths(
+  ctx: Context,
+  harnesses: readonly Harness[],
+  state: State,
+  fields: readonly ExtraPathField[],
+): void {
+  const harness = harnesses.find((h) => h.id === "antigravity");
+  const record = harness ? state.harnesses[harness.id] : undefined;
+  if (!harness || !record) return;
+  for (const field of fields) {
+    const keep = (record[field] ?? []).filter((path) => {
       const recorded = recordedProfileTarget(ctx, harness, path, field);
-      if (recorded) {
-        let found: "absent" | "present" | undefined;
-        try {
-          found = probeConfined(ctx, recorded.target, recorded.file, "file");
-        } catch {
-          found = undefined;
-        }
-        if (found === "absent") continue;
+      if (!recorded) return true;
+      try {
+        return probeConfined(ctx, recorded.target, recorded.file, "file") !== "absent";
+      } catch {
+        return true;
       }
-    }
-    keep.add(path);
+    });
+    setExtraPaths(record, field, keep);
   }
-  setExtraPaths(record, field, keep);
 }
 
 /**
@@ -314,7 +321,6 @@ function recordProfilePaths(
  */
 async function syncProfileMcp(
   ctx: Context,
-  harness: Harness,
   record: HarnessRecord,
   targets: readonly Harness[],
   server: string,
@@ -337,7 +343,7 @@ async function syncProfileMcp(
       );
     }
   }
-  recordProfilePaths(ctx, harness, record, "extraConfigPaths", written, failures.length === 0);
+  recordProfilePaths(record, "extraConfigPaths", written);
   return failures;
 }
 
@@ -348,7 +354,6 @@ async function syncProfileMcp(
  */
 function syncProfileHooks(
   ctx: Context,
-  harness: Harness,
   record: HarnessRecord,
   targets: readonly Harness[],
   commandFor: (event: HookEvent) => string,
@@ -374,7 +379,7 @@ function syncProfileHooks(
       );
     }
   }
-  recordProfilePaths(ctx, harness, record, "extraHookPaths", written, failures.length === 0);
+  recordProfilePaths(record, "extraHookPaths", written);
   return failures;
 }
 
@@ -489,7 +494,6 @@ async function installGuidance(
       failures.push(
         ...syncProfileHooks(
           ctx,
-          harness,
           record,
           targets,
           (event) => commands.get(event.id) as string,
@@ -824,7 +828,7 @@ async function installWith(
     const record = state.harnesses[harness.id] as HarnessRecord;
     if (targets.length > 0 || record.extraConfigPaths !== undefined) {
       failures.push(
-        ...(await syncProfileMcp(ctx, harness, record, targets, server, connection.token, backups)),
+        ...(await syncProfileMcp(ctx, record, targets, server, connection.token, backups)),
       );
     }
 
@@ -872,14 +876,16 @@ async function installWith(
     if (token === undefined || (targets.length === 0 && record.extraConfigPaths === undefined)) {
       continue;
     }
-    failures.push(
-      ...(await syncProfileMcp(ctx, harnessById(ctx, id), record, targets, server, token, backups)),
-    );
+    failures.push(...(await syncProfileMcp(ctx, record, targets, server, token, backups)));
   }
 
   // AC-9.4: every run rewrites the skill, the hook, and Codex trust.
   failures.push(...installSkills(ctx, selected, state));
   failures.push(...(await installGuidance(ctx, selected, state, backups, profiles)));
+  // Absent profile paths leave the state only when the whole run succeeded.
+  if (failures.length === 0 && unresolved.length === 0) {
+    pruneAbsentProfilePaths(ctx, selected, state, ["extraConfigPaths", "extraHookPaths"]);
+  }
   writeState(ctx, state);
 
   for (const record of unresolved) failures.push(unrevokedLine(ctx, record, "forget"));
@@ -992,6 +998,9 @@ export async function skillInstall(ctx: Context): Promise<number> {
   }
   const failures = installSkills(ctx, harnesses, state);
   failures.push(...(await installGuidance(ctx, harnesses, state, new BackupRegistry(), profiles)));
+  // `skill install` manages only the hooks, so only their absent paths leave
+  // the state, and only when the whole run succeeded.
+  if (failures.length === 0) pruneAbsentProfilePaths(ctx, harnesses, state, ["extraHookPaths"]);
   writeState(ctx, state);
   for (const line of failures) ctx.io.err(line);
   if (failures.length > 0) return 1;

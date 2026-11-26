@@ -401,6 +401,106 @@ describe("install across T3 Code profiles (AC-9.1, AC-9.4, AC-9.9)", () => {
     expect(record.extraConfigPaths).toBeUndefined();
   });
 
+  // A failed run keeps every recorded path, so a deleted profile leaves the
+  // state only on a run that succeeds in full, whichever write failed.
+  describe("pruning waits for a run that succeeds", () => {
+    const NEW_EXECUTABLE = "/opt/agentdesk-next/agentdesk";
+
+    function installed(): Promise<T3> {
+      const t = t3({ profiles: ["alpha", "beta", "gamma"] });
+      return t
+        .ctx()
+        .run(["install", "--yes"])
+        .then((code) => {
+          expect(code).toBe(0);
+          fs.rmSync(join(t.profile("gamma"), ".."), { recursive: true });
+          return t;
+        });
+    }
+
+    function recorded(t: T3, name: string) {
+      return {
+        mcp: (antigravityRecord(t).extraConfigPaths as string[] | undefined) ?? [],
+        hooks: (antigravityRecord(t).extraHookPaths as string[] | undefined) ?? [],
+        mcpFile: join(t.profile(name), "mcp_config.json"),
+        hookFile: join(t.profile(name), "hooks.json"),
+      };
+    }
+
+    it("keeps a deleted profile in both lists when only a profile hook write fails, and a retry prunes both", async () => {
+      const t = await installed();
+      // A new executable path changes the hook commands, so alpha's hook file
+      // must be written, and the entry at its temporary path stops that write.
+      const blocker = tempPath(join(t.profile("alpha"), "hooks.json"));
+      write(blocker, "");
+      const h = t.ctx({ executable: NEW_EXECUTABLE });
+      expect(await h.run(["install", "--yes"])).toBe(1);
+      expect(h.err.join("\n")).toContain(
+        `Antigravity (T3 Code profile alpha): its hooks in ${join(t.profile("alpha"), "hooks.json")} were not written`,
+      );
+      const gamma = recorded(t, "gamma");
+      expect(gamma.mcp).toContain(gamma.mcpFile);
+      expect(gamma.hooks).toContain(gamma.hookFile);
+
+      fs.rmSync(blocker);
+      expect(await t.ctx({ executable: NEW_EXECUTABLE }).run(["install", "--yes"])).toBe(0);
+      const after = recorded(t, "gamma");
+      expect(after.mcp).not.toContain(after.mcpFile);
+      expect(after.hooks).not.toContain(after.hookFile);
+      expect(after.mcp).toEqual([
+        join(t.profile("alpha"), "mcp_config.json"),
+        join(t.profile("beta"), "mcp_config.json"),
+      ]);
+      expect(t.gateway.startRequests()).toHaveLength(1);
+    });
+
+    it("keeps a deleted profile in both lists when only a profile MCP write fails, and a retry prunes both", async () => {
+      const t = await installed();
+      const token = t.gateway.tokenFor("antigravity");
+      // An out-of-date alpha entry must be rewritten, and the entry at its
+      // temporary path stops that write.
+      const alphaMcp = join(t.profile("alpha"), "mcp_config.json");
+      write(alphaMcp, json({ mcpServers: { agentdesk: entry("stale-token") } }));
+      const blocker = tempPath(alphaMcp);
+      write(blocker, "");
+      const h = t.ctx();
+      expect(await h.run(["install", "--yes"])).toBe(1);
+      expect(h.err.join("\n")).toContain(
+        `Antigravity (T3 Code profile alpha): its MCP entry in ${alphaMcp} was not written`,
+      );
+      const gamma = recorded(t, "gamma");
+      expect(gamma.mcp).toContain(gamma.mcpFile);
+      expect(gamma.hooks).toContain(gamma.hookFile);
+
+      fs.rmSync(blocker);
+      expect(await t.ctx().run(["install", "--yes"])).toBe(0);
+      expect(readJson(alphaMcp)).toEqual({ mcpServers: { agentdesk: entry(token) } });
+      const after = recorded(t, "gamma");
+      expect(after.mcp).not.toContain(after.mcpFile);
+      expect(after.hooks).not.toContain(after.hookFile);
+      expect(h.output()).not.toContain(token);
+    });
+
+    it("keeps a deleted profile on a failed skill install, and a later success prunes only the hook list", async () => {
+      const t = await installed();
+      const blocker = tempPath(join(t.profile("alpha"), "hooks.json"));
+      write(blocker, "");
+      expect(await t.ctx({ executable: NEW_EXECUTABLE }).run(["skill", "install"])).toBe(1);
+      const gamma = recorded(t, "gamma");
+      expect(gamma.hooks).toContain(gamma.hookFile);
+      expect(gamma.mcp).toContain(gamma.mcpFile);
+
+      fs.rmSync(blocker);
+      expect(await t.ctx({ executable: NEW_EXECUTABLE }).run(["skill", "install"])).toBe(0);
+      const after = recorded(t, "gamma");
+      expect(after.hooks).not.toContain(after.hookFile);
+      // `skill install` writes no MCP entry, so it leaves that list to install.
+      expect(after.mcp).toContain(after.mcpFile);
+      expect(await t.ctx({ executable: NEW_EXECUTABLE }).run(["install", "--yes"])).toBe(0);
+      expect(recorded(t, "gamma").mcp).not.toContain(after.mcpFile);
+    });
+  });
+
   it("drops a recorded profile whose files are gone and keeps one outside the current T3 Code home", async () => {
     const t = t3();
     expect(await t.ctx().run(["install", "--yes"])).toBe(0);
@@ -862,6 +962,55 @@ describe("uninstall (AC-9.6)", () => {
       undo();
       expect(read(join(t.profile("beta"), "mcp_config.json"))).toContain(token);
       expect(readJson(join(t.profile("beta"), "hooks.json"))).toEqual({ agentdesk: hooks(t) });
+      const retry = t.ctx();
+      expect(await retry.run(["uninstall"])).toBe(0);
+      expect(t.gateway.revoked).toEqual([token]);
+      for (const name of ["alpha", "beta"]) {
+        expect(readJson(join(t.profile(name), "mcp_config.json"))).toEqual({ mcpServers: {} });
+        expect(readJson(join(t.profile(name), "hooks.json"))).toEqual({});
+      }
+      expect(fs.existsSync(stateFile)).toBe(false);
+    },
+  );
+
+  // A regular profile file or config folder that cannot be read is not proof
+  // that its entries are gone (AC-9.6).
+  it.skipIf(process.getuid?.() === 0).each([
+    ["mcp_config.json", (t: T3) => join(t.profile("beta"), "mcp_config.json"), 0o600],
+    ["hooks.json", (t: T3) => join(t.profile("beta"), "hooks.json"), 0o600],
+    ["config folder", (t: T3) => t.profile("beta"), 0o755],
+  ])(
+    "refuses an unreadable profile %s, revoking and removing nothing, and a retry finishes once it can be read",
+    async (_, pathOf, restoreMode) => {
+      const t = t3();
+      expect(await t.ctx().run(["install", "--yes"])).toBe(0);
+      const token = t.gateway.tokenFor("antigravity");
+      const stateFile = statePath(t.ctx().ctx);
+      const files = [t.canonical, t.profile("alpha"), t.profile("beta")].flatMap((dir) => [
+        join(dir, "mcp_config.json"),
+        join(dir, "hooks.json"),
+      ]);
+      const before = Object.fromEntries(files.map((file) => [file, read(file)]));
+      const stateBefore = readJson(stateFile);
+      const target = pathOf(t);
+      fs.chmodSync(target, 0o000);
+      const h = t.ctx();
+      let code: number;
+      try {
+        code = await h.run(["uninstall"]);
+      } finally {
+        fs.chmodSync(target, restoreMode);
+      }
+      expect(code).toBe(1);
+      expect(h.err.join("\n")).toContain(target);
+      expect(h.err.join("\n")).toContain("its record was kept");
+      expect(t.gateway.requests.filter((r) => r.method === "DELETE")).toEqual([]);
+      expect(t.gateway.revoked).toEqual([]);
+      expect(readJson(stateFile)).toEqual(stateBefore);
+      for (const file of files) expect(read(file), file).toBe(before[file]);
+      expect(h.output()).not.toContain(token);
+
+      // With access back, the retry revokes and removes everything.
       const retry = t.ctx();
       expect(await retry.run(["uninstall"])).toBe(0);
       expect(t.gateway.revoked).toEqual([token]);
