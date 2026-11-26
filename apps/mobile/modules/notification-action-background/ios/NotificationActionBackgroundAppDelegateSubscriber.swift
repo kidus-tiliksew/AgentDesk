@@ -17,12 +17,40 @@ final class ActionResponseDelegate: NotificationDelegate, Sendable {
     if isAnswerAction(categoryId: request.content.categoryIdentifier, actionId: actionId) {
       let requestId = request.identifier
       onMain {
-        ActionWindows.shared.begin(requestId: requestId, actionId: actionId)
-        startReactHostIfNeeded()
+        _ = ActionWindows.shared.begin(requestId: requestId, actionId: actionId)
       }
+      // The host must not start inside this call. See ColdPressHostStart.
+      coldPressHostStart.request(requestId: requestId, actionId: actionId)
     }
     return false
   }
+}
+
+/// Starts the React host for a press once expo-notifications has queued it.
+let coldPressHostStart = ColdPressHostStart(
+  hooks: ColdPressHostStart.Hooks(
+    hostRunning: { reactHostRunning() },
+    isQueued: { requestId, actionId in
+      isQueuedInNotificationCenter(requestId: requestId, actionId: actionId)
+    },
+    startHost: { startReactHostIfNeeded() }
+  )
+)
+
+/// The app delegate's React Native factory, when it provides one.
+@MainActor
+private func appReactNativeFactory() -> RCTReactNativeFactory? {
+  guard let provider = UIApplication.shared.delegate as? ExpoReactNativeFactoryProvider else {
+    return nil
+  }
+  return provider.reactNativeFactory
+}
+
+/// Whether the factory's React host exists. A host that exists has created,
+/// or is creating, the emitter module that takes the press.
+@MainActor
+func reactHostRunning() -> Bool {
+  return appReactNativeFactory()?.rootViewFactory.value(forKey: "reactHost") != nil
 }
 
 /// component-mobile-app §Notifications: a button pressed while the app is not
@@ -50,13 +78,15 @@ final class ActionResponseDelegate: NotificationDelegate, Sendable {
 /// development build sends no answer for a press while the app is not
 /// running when no scene connects. A Release build starts the host, so
 /// JavaScript can answer within the background time iOS grants.
+///
+/// `ColdPressHostStart` calls it only after expo-notifications has queued the
+/// press, so the emitter module that the new host creates receives the press.
 @MainActor
 func startReactHostIfNeeded() {
   if EXAppDefines.APP_DEBUG && NSClassFromString("EXDevLauncherController") != nil {
     return
   }
-  guard let provider = UIApplication.shared.delegate as? ExpoReactNativeFactoryProvider,
-    let factory = provider.reactNativeFactory else {
+  guard let factory = appReactNativeFactory() else {
     return
   }
   let rootViewFactory = factory.rootViewFactory
