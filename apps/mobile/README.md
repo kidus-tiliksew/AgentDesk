@@ -27,7 +27,7 @@ The iOS deployment target is 17.0, the minimum `@clerk/expo`'s native module sup
 npx expo prebuild --platform ios --clean
 ```
 
-A notification button pressed while the app is not running can launch it with no scene. The `notification-action-background` module then starts React Native without a window, so the answer is still sent (section 5).
+A notification button pressed while the app is not running can launch it with no scene. In a Release build, the `notification-action-background` module then starts React Native without a window, so JavaScript can answer the press within the background time iOS grants. A Debug development build does not start it (section 5).
 
 ### Android
 
