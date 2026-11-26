@@ -219,17 +219,23 @@ describe("install across T3 Code profiles (AC-9.1, AC-9.4, AC-9.9)", () => {
     for (const file of allFiles(t.sandbox.root)) {
       if (file.endsWith(".agentdesk-backup")) fs.rmSync(file);
     }
+    // An old modification time shows an in-place write of the same bytes too.
+    const old = new Date("2001-02-03T04:05:06Z");
+    const managed = [t.canonical, t.profile("alpha"), t.profile("beta")].flatMap((dir) => [
+      join(dir, "mcp_config.json"),
+      join(dir, "hooks.json"),
+    ]);
+    for (const file of managed) fs.utimesSync(file, old, old);
     const before = snapshot(join(t.base, "userdata"));
-    const canonicalBefore = {
-      mcp: fs.statSync(join(t.canonical, "mcp_config.json")).ino,
-      hooks: fs.statSync(join(t.canonical, "hooks.json")).ino,
-    };
+    const inodes = managed.map((file) => fs.statSync(file).ino);
     const h = t.ctx();
     expect(await h.run(["install", "--yes"])).toBe(0);
     expect(t.gateway.startRequests()).toHaveLength(1);
     expect(snapshot(join(t.base, "userdata"))).toEqual(before);
-    expect(fs.statSync(join(t.canonical, "mcp_config.json")).ino).toBe(canonicalBefore.mcp);
-    expect(fs.statSync(join(t.canonical, "hooks.json")).ino).toBe(canonicalBefore.hooks);
+    expect(managed.map((file) => fs.statSync(file).ino)).toEqual(inodes);
+    for (const file of managed) {
+      expect(fs.statSync(file).mtime.getTime(), file).toBe(old.getTime());
+    }
     expect(allFiles(t.sandbox.root).filter((f) => f.endsWith(".agentdesk-backup"))).toEqual([]);
     const alpha = t.profile("alpha");
     expect(h.out).toContain(
@@ -443,24 +449,24 @@ describe("install across T3 Code profiles (AC-9.1, AC-9.4, AC-9.9)", () => {
 });
 
 describe("refusals before sign-in", () => {
-  function linkCases(): [string, (t: T3, outside: string) => void][] {
+  /** Each case plants a link and returns the planted path. */
+  function linkCases(): [string, (t: T3, outside: string) => string][] {
     const profileFile = (name: string) => (t: T3) => join(t.profile("alpha"), name);
-    const cases: [string, (t: T3, outside: string) => void][] = [];
+    const cases: [string, (t: T3, outside: string) => string][] = [];
+    const link = (outside: string, path: string) => {
+      fs.rmSync(path, { force: true });
+      fs.symlinkSync(outside, path);
+      return path;
+    };
     for (const name of ["mcp_config.json", "hooks.json"]) {
-      cases.push([
-        `a linked ${name}`,
-        (t, outside) => {
-          fs.rmSync(profileFile(name)(t), { force: true });
-          fs.symlinkSync(outside, profileFile(name)(t));
-        },
-      ]);
+      cases.push([`a linked ${name}`, (t, outside) => link(outside, profileFile(name)(t))]);
       cases.push([
         `a linked ${name}.agentdesk-backup`,
-        (t, outside) => fs.symlinkSync(outside, `${profileFile(name)(t)}.agentdesk-backup`),
+        (t, outside) => link(outside, `${profileFile(name)(t)}.agentdesk-backup`),
       ]);
       cases.push([
         `a linked temporary file beside ${name}`,
-        (t, outside) => fs.symlinkSync(outside, tempPath(profileFile(name)(t))),
+        (t, outside) => link(outside, tempPath(profileFile(name)(t))),
       ]);
     }
     return cases;
@@ -470,9 +476,11 @@ describe("refusals before sign-in", () => {
     const t = t3();
     const outside = join(t.sandbox.root, "outside.json");
     write(outside, json(OTHER_MCP));
-    plant(t, outside);
+    const planted = plant(t, outside);
     const h = t.ctx();
     expect(await h.run(["install", "--yes"])).toBe(1);
+    // Neither the link nor its destination was opened for reading.
+    expect(readUnder(planted)).toEqual([]);
     expect(readUnder(outside)).toEqual([]);
     expect(t.gateway.requests).toEqual([]);
     expect(h.err.join("\n")).toContain(t.profile("alpha"));
@@ -496,7 +504,7 @@ describe("refusals before sign-in", () => {
   ];
 
   it.each(malformed)(
-    "refuses a profile %s holding %j before sign-in and on skill install",
+    "refuses a profile %s holding %j before sign-in",
     async (name, content, why) => {
       const t = t3();
       const file = join(t.profile("beta"), name);
@@ -506,13 +514,22 @@ describe("refusals before sign-in", () => {
       expect(t.gateway.requests).toEqual([]);
       expect(h.err.join("\n")).toContain(why);
       expect(read(file)).toBe(content);
-      if (name === "hooks.json") {
-        const skill = t.ctx();
-        expect(await skill.run(["skill", "install"])).toBe(1);
-        expect(read(file)).toBe(content);
-        expect(fs.existsSync(join(t.profile("alpha"), "hooks.json"))).toBe(false);
-        expect(fs.existsSync(join(t.canonical, "hooks.json"))).toBe(false);
-      }
+    },
+  );
+
+  // `skill install` reads no MCP file, so only the hook cases apply to it.
+  it.each(malformed.filter(([name]) => name === "hooks.json"))(
+    "refuses a profile %s holding %j on skill install before any hook is written",
+    async (name, content, why) => {
+      const t = t3();
+      const file = join(t.profile("beta"), name);
+      write(file, content);
+      const h = t.ctx();
+      expect(await h.run(["skill", "install"])).toBe(1);
+      expect(h.err.join("\n")).toContain(why);
+      expect(read(file)).toBe(content);
+      expect(fs.existsSync(join(t.profile("alpha"), "hooks.json"))).toBe(false);
+      expect(fs.existsSync(join(t.canonical, "hooks.json"))).toBe(false);
     },
   );
 
@@ -526,6 +543,7 @@ describe("refusals before sign-in", () => {
     const h = t.ctx();
     expect(await h.run(["install", "--yes"])).toBe(0);
     expect(readUnder(elsewhere)).toEqual([]);
+    expect(readUnder(join(t.base, "userdata"))).toEqual([]);
     expect(read(join(linked, "mcp_config.json"))).toBe(json(OTHER_MCP));
     expect(fs.readdirSync(linked)).toEqual(["mcp_config.json"]);
     expect(antigravityRecord(t).extraConfigPaths).toBeUndefined();
@@ -685,14 +703,80 @@ describe("uninstall (AC-9.6)", () => {
     expect(h.output()).not.toContain("foreign-token");
   });
 
-  const refusals: [string, (t: T3, outside: string) => void, string][] = [
+  it("revokes only with a profile token the server names as the recorded connection", async () => {
+    const t = t3();
+    expect(await t.ctx().run(["install", "--yes"])).toBe(0);
+    const first = t.gateway.tokenFor("antigravity");
+    // The connection is replaced, so the first token is revoked and the state
+    // records the second connection.
+    t.gateway.refused.add(first);
+    expect(await t.ctx().run(["install", "--yes"])).toBe(0);
+    const second = t.gateway.tokenFor("antigravity");
+    const connectionId = t.gateway.issued.at(-1)?.connectionId;
+    expect(antigravityRecord(t).connectionId).toBe(connectionId);
+    expect(t.gateway.revoked).toEqual([first]);
+    // A partial rotation left the revoked token in alpha; beta holds the live one.
+    write(join(t.canonical, "mcp_config.json"), json({ mcpServers: {} }));
+    write(
+      join(t.profile("alpha"), "mcp_config.json"),
+      json({ mcpServers: { agentdesk: entry(first) } }),
+    );
+    write(
+      join(t.profile("beta"), "mcp_config.json"),
+      json({ mcpServers: { agentdesk: entry(second) } }),
+    );
+    const h = t.ctx();
+    expect(await h.run(["uninstall"])).toBe(0);
+    expect(t.gateway.revoked).toEqual([first, second]);
+    const deletes = t.gateway.requests.filter((r) => r.method === "DELETE");
+    expect(deletes.at(-1)?.authorization).toBe(`Bearer ${second}`);
+    expect(deletes.filter((r) => r.authorization === `Bearer ${first}`)).toHaveLength(1);
+    expect(h.out).toContain(
+      `Antigravity: revoking its connection with the token in ${join(t.profile("beta"), "mcp_config.json")}`,
+    );
+    expect(fs.existsSync(statePath(h.ctx))).toBe(false);
+  });
+
+  it("keeps a recovery record when a profile token belongs to another live connection", async () => {
+    const t = t3();
+    expect(await t.ctx().run(["install", "--yes"])).toBe(0);
+    const connectionId = t.gateway.issued[0]?.connectionId;
+    const other = {
+      harness: "antigravity",
+      connectionId: "conn_other",
+      token: `adc_other${"o".repeat(32)}`,
+    };
+    t.gateway.issued.push(other);
+    write(join(t.canonical, "mcp_config.json"), json({ mcpServers: {} }));
+    write(
+      join(t.profile("alpha"), "mcp_config.json"),
+      json({ mcpServers: { agentdesk: entry(other.token) } }),
+    );
+    write(join(t.profile("beta"), "mcp_config.json"), json({ mcpServers: {} }));
+    const h = t.ctx();
+    expect(await h.run(["uninstall"])).toBe(1);
+    expect(t.gateway.requests.filter((r) => r.method === "DELETE")).toEqual([]);
+    expect(t.gateway.revoked).toEqual([]);
+    const state = readJson(statePath(h.ctx)) as { unrevoked: { connectionId: string }[] };
+    expect(state.unrevoked.map((u) => u.connectionId)).toEqual([connectionId]);
+    expect(h.output()).not.toContain(other.token);
+  });
+
+  /** Each case plants a refusal and returns the step that undoes only that change. */
+  const refusals: [string, (t: T3, outside: string) => () => void, string][] = [
     [
       "a stray recorded path",
       (t) => {
         const file = statePath(t.ctx().ctx);
         const state = readJson(file) as { harnesses: { antigravity: Record<string, unknown> } };
+        const recorded = state.harnesses.antigravity.extraConfigPaths;
         state.harnesses.antigravity.extraConfigPaths = [join(t.sandbox.home, "mcp_config.json")];
         write(file, JSON.stringify(state));
+        return () => {
+          const now = readJson(file) as { harnesses: { antigravity: Record<string, unknown> } };
+          now.harnesses.antigravity.extraConfigPaths = recorded;
+          write(file, JSON.stringify(now));
+        };
       },
       "is not a mcp_config.json in a profile's config directory",
     ],
@@ -700,8 +784,13 @@ describe("uninstall (AC-9.6)", () => {
       "a linked profile MCP file",
       (t, outside) => {
         const file = join(t.profile("beta"), "mcp_config.json");
+        const original = read(file);
         fs.rmSync(file);
         fs.symlinkSync(outside, file);
+        return () => {
+          fs.rmSync(file);
+          write(file, original);
+        };
       },
       "is a symbolic link",
     ],
@@ -709,24 +798,37 @@ describe("uninstall (AC-9.6)", () => {
       "a linked profile directory",
       (t, outside) => {
         const dir = join(t.profile("beta"), "..");
-        fs.rmSync(dir, { recursive: true });
-        fs.mkdirSync(join(outside, "..", "fake-profile", "config"), { recursive: true });
-        fs.symlinkSync(join(outside, "..", "fake-profile"), dir);
+        const saved = join(t.sandbox.root, "beta-saved");
+        fs.renameSync(dir, saved);
+        const fake = join(outside, "..", "fake-profile");
+        fs.mkdirSync(join(fake, "config"), { recursive: true });
+        fs.symlinkSync(fake, dir);
+        return () => {
+          fs.rmSync(dir);
+          fs.renameSync(saved, dir);
+        };
       },
       "is a symbolic link",
     ],
     [
       "a malformed profile hook file",
-      (t) => write(join(t.profile("beta"), "hooks.json"), "{not json"),
+      (t) => {
+        const file = join(t.profile("beta"), "hooks.json");
+        const original = read(file);
+        write(file, "{not json");
+        return () => write(file, original);
+      },
       "is not valid JSON",
     ],
     [
       "a foreign handler in a profile's agentdesk hook",
       (t) => {
         const file = join(t.profile("beta"), "hooks.json");
+        const original = read(file);
         const data = readJson(file) as { agentdesk: { Stop: unknown[] } };
         data.agentdesk.Stop.push({ type: "command", command: "echo mine", timeout: 3600 });
         write(file, json(data));
+        return () => write(file, original);
       },
       "is not exactly the handler AgentDesk writes",
     ],
@@ -741,7 +843,7 @@ describe("uninstall (AC-9.6)", () => {
       const outside = join(t.sandbox.root, "outside", "outside.json");
       write(outside, json(OTHER_MCP));
       const stateFile = statePath(t.ctx().ctx);
-      plant(t, outside);
+      const undo = plant(t, outside);
       const stateText = read(stateFile);
       const canonical = read(join(t.canonical, "mcp_config.json"));
       const alpha = read(join(t.profile("alpha"), "mcp_config.json"));
@@ -756,20 +858,17 @@ describe("uninstall (AC-9.6)", () => {
       expect(read(outside)).toBe(json(OTHER_MCP));
       expect(h.output()).not.toContain(token);
 
-      // Restore beta as the installer left it and keep the recorded paths valid.
-      const beta = join(t.profile("beta"), "..");
-      fs.rmSync(beta, { recursive: true, force: true });
-      fs.mkdirSync(t.profile("beta"), { recursive: true });
-      const state = readJson(stateFile) as { harnesses: { antigravity: Record<string, unknown> } };
-      state.harnesses.antigravity.extraConfigPaths = [
-        join(t.profile("alpha"), "mcp_config.json"),
-        join(t.profile("beta"), "mcp_config.json"),
-      ];
-      write(stateFile, JSON.stringify(state));
+      // Undo only the planted change; beta keeps the entries the installer wrote.
+      undo();
+      expect(read(join(t.profile("beta"), "mcp_config.json"))).toContain(token);
+      expect(readJson(join(t.profile("beta"), "hooks.json"))).toEqual({ agentdesk: hooks(t) });
       const retry = t.ctx();
       expect(await retry.run(["uninstall"])).toBe(0);
       expect(t.gateway.revoked).toEqual([token]);
-      expect(readJson(join(t.profile("alpha"), "mcp_config.json"))).toEqual({ mcpServers: {} });
+      for (const name of ["alpha", "beta"]) {
+        expect(readJson(join(t.profile(name), "mcp_config.json"))).toEqual({ mcpServers: {} });
+        expect(readJson(join(t.profile(name), "hooks.json"))).toEqual({});
+      }
       expect(fs.existsSync(stateFile)).toBe(false);
     },
   );

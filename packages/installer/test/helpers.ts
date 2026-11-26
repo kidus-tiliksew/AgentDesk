@@ -354,8 +354,10 @@ export class FakeGateway {
       const known =
         this.issued.some((i) => i.token === token) && !this.revoked.includes(token ?? "");
       if (method === "GET") {
-        return known && !this.refused.has(token ?? "")
-          ? json(200, { ok: true })
+        // The gateway names the connection and harness the token belongs to.
+        const issued = this.issued.find((i) => i.token === token);
+        return known && issued && !this.refused.has(token ?? "")
+          ? json(200, { connection_id: issued.connectionId, harness: issued.harness })
           : json(401, { error: { code: "unauthenticated" } });
       }
       if (method === "DELETE") {

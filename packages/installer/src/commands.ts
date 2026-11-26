@@ -52,6 +52,7 @@ import { resumeDir } from "./resume/storage.js";
 import {
   type Connection,
   checkConnection,
+  connectionIdFor,
   InvalidSignInResult,
   revokeConnection,
   signIn,
@@ -1381,18 +1382,20 @@ export async function uninstall(
       let server = recordedServer(state, id) ?? serverOfEntry(entry);
       // With no token in ~/.gemini/config/mcp_config.json, a checked T3 Code
       // profile entry for the recorded server can revoke the shared
+      // connection, but only a token the server names as that recorded
       // connection; no token goes to a server a profile names alone.
       const recorded = recordedServer(state, id);
       if (!token && record.connectionId && recorded) {
-        const profile = profiles.mcp.find(
-          (p) => p.entry.token !== undefined && p.entry.url === mcpUrl(recorded),
-        );
-        if (profile) {
-          token = profile.entry.token;
+        for (const profile of profiles.mcp) {
+          const candidate = profile.entry.token;
+          if (candidate === undefined || profile.entry.url !== mcpUrl(recorded)) continue;
+          if ((await connectionIdFor(ctx, recorded, candidate)) !== record.connectionId) continue;
+          token = candidate;
           server = recorded;
           ctx.io.out(
             `${harness.displayName}: revoking its connection with the token in ${profile.file}`,
           );
+          break;
         }
       }
       if (token) {
