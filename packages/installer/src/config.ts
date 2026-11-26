@@ -225,19 +225,28 @@ function mcpServersOf(file: string, data: JsonObject): JsonObject {
 
 /**
  * Sets `mcpServers.agentdesk` and keeps every other key. `noFollow` writes the
- * backup and the file without following a link (`writeFileAtomic`).
+ * backup and the file without following a link (`writeFileAtomic`), and then
+ * a file whose bytes already match is neither backed up nor written, so a
+ * re-run leaves an Antigravity file unchanged (AC-9.4). Returns whether the
+ * file changed.
  */
 export function setJsonMcpServer(
   file: string,
   entry: JsonObject,
   backups: BackupRegistry,
   noFollow = false,
-): void {
-  const current = readJsonFile(file) ?? { data: {}, indent: "  " };
+): boolean {
+  const current: { data: JsonObject; indent: string; text?: string } = readJsonFile(file) ?? {
+    data: {},
+    indent: "  ",
+  };
   const servers = mcpServersOf(file, current.data);
   const next: JsonObject = { ...current.data, mcpServers: { ...servers, [MCP_ENTRY_NAME]: entry } };
+  const text = `${JSON.stringify(next, null, current.indent)}\n`;
+  if (noFollow && text === current.text) return false;
   backups.backupOnce(file, noFollow);
-  writeFileAtomic(file, `${JSON.stringify(next, null, current.indent)}\n`, 0o600, noFollow);
+  writeFileAtomic(file, text, 0o600, noFollow);
+  return true;
 }
 
 /** Removes `mcpServers.agentdesk`; returns whether an entry was removed. */
@@ -659,7 +668,8 @@ async function runClaude(ctx: Context, cli: string, args: readonly string[]): Pr
 /**
  * Writes the harness's agentdesk MCP entry for `server` with `token`
  * (component-installer §Harnesses; DEC-6). Subprocess output is never shown,
- * because Claude Code can echo the header it was given.
+ * because Claude Code can echo the header it was given. Returns whether the
+ * configuration changed; only an Antigravity file is ever left unchanged.
  */
 export async function writeMcpEntry(
   ctx: Context,
@@ -667,7 +677,7 @@ export async function writeMcpEntry(
   server: string,
   token: string,
   backups: BackupRegistry,
-): Promise<void> {
+): Promise<boolean> {
   const file = harness.configPath(ctx);
   assertConfinedFile(ctx, harness, file);
   switch (harness.configFormat) {
@@ -679,7 +689,7 @@ export async function writeMcpEntry(
           { type: "http", url: mcpUrl(server), headers: { Authorization: bearer(token) } },
           backups,
         );
-        return;
+        return true;
       }
       backups.backupOnce(file);
       await runClaude(ctx, cli, ["mcp", "remove", "--scope", "user", MCP_ENTRY_NAME]);
@@ -696,19 +706,18 @@ export async function writeMcpEntry(
         `Authorization: ${bearer(token)}`,
       ]);
       if (code !== 0) throw new InstallerError(`claude mcp add exited with status ${code}.`);
-      return;
+      return true;
     }
     case "codex-toml":
       setCodexEntry(file, server, token, backups);
-      return;
+      return true;
     case "url-headers-json":
-      setJsonMcpServer(
+      return setJsonMcpServer(
         file,
         { url: mcpUrl(server), headers: { Authorization: bearer(token) } },
         backups,
         isConfined(harness),
       );
-      return;
   }
 }
 

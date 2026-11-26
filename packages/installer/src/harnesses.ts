@@ -1,5 +1,5 @@
-import { accessSync, constants, lstatSync, statSync } from "node:fs";
-import { delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { accessSync, constants, lstatSync, readdirSync, statSync } from "node:fs";
+import { basename, delimiter, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
 import { type Context, InstallerError } from "./context.js";
 import { BACKUP_SUFFIX, tempPath } from "./defaults.js";
 
@@ -54,12 +54,152 @@ export interface Harness {
    * whose files may be links. See `assertConfined`.
    */
   configRoot?(ctx: Context): string;
+  /**
+   * The directory the confinement walk starts from, itself included; the home
+   * directory when absent. See `assertConfined`.
+   */
+  confinementAnchor?(ctx: Context): string;
+  /**
+   * A further way to detect the harness after its executables and detection
+   * path: a human-readable reason, or undefined when it finds nothing.
+   */
+  detectOther?(ctx: Context): string | undefined;
 }
 
 export function codexHome(ctx: Context): string {
   const value = ctx.env.CODEX_HOME;
   if (value && value.length > 0) return resolve(ctx.home, value);
   return join(ctx.home, ".codex");
+}
+
+/**
+ * T3 Code's home: `T3CODE_HOME` resolved against the home directory when it
+ * is set and nonempty, as `CODEX_HOME` is, otherwise `~/.t3`
+ * (component-installer §Harnesses; DEC-25(1)).
+ */
+export function t3Home(ctx: Context): string {
+  const value = ctx.env.T3CODE_HOME;
+  if (value && value.length > 0) return resolve(ctx.home, value);
+  return join(ctx.home, ".t3");
+}
+
+/** The directory that holds T3 Code's Antigravity profiles. */
+export function t3ProfilesDir(ctx: Context): string {
+  return join(t3Home(ctx), "userdata", "providers", "antigravity");
+}
+
+/** Whether `child` is `parent` or lies below it, compared by path segment. */
+export function isWithin(parent: string, child: string): boolean {
+  const rel = relative(parent, child);
+  if (rel.length === 0) return true;
+  return !isAbsolute(rel) && rel.split(sep)[0] !== "..";
+}
+
+/**
+ * The directory confinement walks from for T3 Code's files: the home
+ * directory when T3 Code's home lies inside it, otherwise the filesystem root
+ * (component-installer §Harnesses).
+ */
+export function t3Anchor(ctx: Context): string {
+  const home = resolve(ctx.home);
+  const base = t3Home(ctx);
+  return isWithin(home, base) ? home : parse(base).root;
+}
+
+/** Whether `path` exists and is a real directory, not a symbolic link. */
+function isRealDirectory(path: string): boolean {
+  try {
+    const stat = lstatSync(path);
+    return stat.isDirectory() && !stat.isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The `config` directory of every T3 Code Antigravity profile, sorted by
+ * path. Discovery follows no link: when the anchor or any directory from it
+ * down to `userdata/providers/antigravity` is missing, is not a directory, or
+ * is a symbolic link, there are no profiles. A direct child counts only when
+ * it and its `config` directory are real directories (component-installer
+ * §Harnesses; DEC-25(1)).
+ */
+export function discoverT3Profiles(ctx: Context): string[] {
+  const anchor = t3Anchor(ctx);
+  const dir = t3ProfilesDir(ctx);
+  let current = anchor;
+  if (!isRealDirectory(current)) return [];
+  const rel = relative(anchor, dir);
+  for (const part of rel.length > 0 ? rel.split(sep) : []) {
+    current = join(current, part);
+    if (!isRealDirectory(current)) return [];
+  }
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return [];
+  }
+  return names
+    .map((name) => join(dir, name, "config"))
+    .filter((config) => isRealDirectory(join(config, "..")) && isRealDirectory(config))
+    .sort();
+}
+
+/** The MCP configuration file in a T3 Code profile's `config` directory. */
+export const T3_MCP_FILE = "mcp_config.json";
+/** The hook file in a T3 Code profile's `config` directory. */
+export const T3_HOOK_FILE = "hooks.json";
+
+/**
+ * The Antigravity harness pointed at one T3 Code profile's `config`
+ * directory: the same MCP entry, named hook, and hook commands as
+ * `~/.gemini/config`, confined to that directory and walked from
+ * `t3Anchor`. The skill stays in `~/.gemini/config/skills`, which T3 Code
+ * profiles link to, so this target writes none (DEC-25(1)).
+ */
+export function t3ProfileTarget(ctx: Context, base: Harness, configDir: string): Harness {
+  const anchor = t3Anchor(ctx);
+  return {
+    ...base,
+    displayName: `${base.displayName} (T3 Code profile ${basename(join(configDir, ".."))})`,
+    configPath: () => join(configDir, T3_MCP_FILE),
+    hookPath: () => join(configDir, T3_HOOK_FILE),
+    configRoot: () => configDir,
+    confinementAnchor: () => anchor,
+  };
+}
+
+/**
+ * The `config` directory a recorded T3 Code profile path names, derived from
+ * the current T3 Code home, one profile segment, and the exact `file` name,
+ * never from the recorded text alone. Undefined for any other path: a stray
+ * path, another file name, or a path below a different T3 Code home
+ * (component-installer §State, re-run, and uninstall).
+ */
+export function recordedT3ConfigDir(
+  ctx: Context,
+  recorded: string,
+  file: typeof T3_MCP_FILE | typeof T3_HOOK_FILE,
+): string | undefined {
+  if (!isAbsolute(recorded)) return undefined;
+  const dir = t3ProfilesDir(ctx);
+  const rel = relative(dir, resolve(recorded));
+  if (isAbsolute(rel)) return undefined;
+  const parts = rel.split(sep);
+  const [profile, config, name] = parts;
+  if (
+    parts.length !== 3 ||
+    profile === undefined ||
+    profile.length === 0 ||
+    profile === "." ||
+    profile === ".." ||
+    config !== "config" ||
+    name !== file
+  ) {
+    return undefined;
+  }
+  return join(dir, profile, "config");
 }
 
 // component-installer §Harnesses and §Standing guidance: detection, MCP entry
@@ -105,8 +245,10 @@ export const HARNESSES: readonly Harness[] = [
     hookPath: (ctx) => join(ctx.home, ".cursor", "hooks.json"),
   },
   {
-    // DEC-24(1): only the user-level configuration under ~/.gemini/config;
-    // ~/.gemini/antigravity-cli serves detection alone.
+    // DEC-25(1): the user-level configuration under ~/.gemini/config, plus
+    // the MCP entry and named hook in each T3 Code Antigravity profile's
+    // config directory (`t3ProfileTarget`); ~/.gemini/antigravity-cli and the
+    // T3 Code profiles also detect the harness.
     id: "antigravity",
     displayName: "Antigravity",
     supportsSkills: true,
@@ -119,6 +261,8 @@ export const HARNESSES: readonly Harness[] = [
     hookFormat: "named-hook",
     hookPath: (ctx) => join(ctx.home, ".gemini", "config", "hooks.json"),
     configRoot: (ctx) => join(ctx.home, ".gemini", "config"),
+    detectOther: (ctx) =>
+      discoverT3Profiles(ctx).length > 0 ? `T3 Code profiles in ${t3ProfilesDir(ctx)}` : undefined,
   },
 ];
 
@@ -143,8 +287,12 @@ export function assertConfinedFile(ctx: Context, harness: Harness, file: string)
     let stat: ReturnType<typeof lstatSync>;
     try {
       stat = lstatSync(sibling);
-    } catch {
-      continue;
+    } catch (error) {
+      // Only a confirmed absence passes; any other failure is refused.
+      if ((error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") continue;
+      throw new InstallerError(
+        `${sibling} cannot be inspected, and the installer writes there before it changes ${file}; nothing was read or changed.`,
+      );
     }
     if (stat.isSymbolicLink() || !stat.isFile()) {
       throw new InstallerError(
@@ -157,14 +305,15 @@ export function assertConfinedFile(ctx: Context, harness: Harness, file: string)
 /**
  * Refuses `path` for a harness with a configuration root unless it resolves
  * inside that root: `path` must lie under the root, no existing component
- * from the home directory down to `path` may be a symbolic link, every
- * existing component above `path` must be a directory, and an existing
- * `path` must be a regular file or a directory, as `kind` says. A missing
- * component ends the walk, because the installer creates it as a real
+ * from the anchor (the home directory, or the harness's
+ * `confinementAnchor`), itself included, down to `path` may be a symbolic
+ * link, every existing component above `path` must be a directory, and an
+ * existing `path` must be a regular file or a directory, as `kind` says. A
+ * missing component ends the walk, because the installer creates it as a real
  * directory or file. A harness without a root is never refused. Callers check
- * before any read or write of `path` (DEC-24(1): Antigravity's setup stays in
- * its user-level configuration under ~/.gemini/config, never in a linked host
- * application profile).
+ * before any read or write of `path` (DEC-25(1): Antigravity's setup stays in
+ * ~/.gemini/config and in each T3 Code profile's config directory, never
+ * behind a link).
  */
 export function assertConfined(
   ctx: Context,
@@ -172,32 +321,62 @@ export function assertConfined(
   path: string,
   kind: "file" | "directory",
 ): void {
+  probeConfined(ctx, harness, path, kind);
+}
+
+/**
+ * `assertConfined`, returning whether `path` exists: "absent" when a
+ * component from the anchor down to `path` is confirmed missing, "present"
+ * when `path` exists and passes. Any other outcome throws.
+ */
+export function probeConfined(
+  ctx: Context,
+  harness: Harness,
+  path: string,
+  kind: "file" | "directory",
+): "absent" | "present" {
   const root = harness.configRoot?.(ctx);
-  if (root === undefined) return;
+  if (root === undefined) return lstatOrMissing(path) ? "present" : "absent";
   const refuse = (why: string) =>
     new InstallerError(`${path} was not read or changed, because ${why}.`);
-  const insideRoot = relative(root, path);
-  if (insideRoot.length === 0 || insideRoot.startsWith("..") || isAbsolute(insideRoot)) {
+  if (path === root || !isWithin(root, path)) {
     throw refuse(`it lies outside ${root}`);
   }
-  let current = ctx.home;
-  for (const part of relative(ctx.home, path).split(sep)) {
-    current = join(current, part);
+  const anchor = harness.confinementAnchor?.(ctx) ?? ctx.home;
+  if (!isWithin(anchor, root)) throw refuse(`${root} lies outside ${anchor}`);
+  const check = (current: string, last: boolean): boolean => {
     let stat: ReturnType<typeof lstatSync>;
     try {
       stat = lstatSync(current);
     } catch (error) {
-      if ((error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") return;
+      if ((error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") return false;
       throw refuse(`${current} cannot be inspected`);
     }
     if (stat.isSymbolicLink()) {
       throw refuse(`${current} is a symbolic link, which the installer does not follow`);
     }
-    if (current !== path || kind === "directory") {
+    if (!last || kind === "directory") {
       if (!stat.isDirectory()) throw refuse(`${current} is not a directory`);
     } else if (!stat.isFile()) {
       throw refuse("it is not a regular file");
     }
+    return true;
+  };
+  let current = anchor;
+  if (!check(current, false)) return "absent";
+  for (const part of relative(anchor, path).split(sep)) {
+    current = join(current, part);
+    if (!check(current, current === path)) return "absent";
+  }
+  return "present";
+}
+
+function lstatOrMissing(path: string): boolean {
+  try {
+    lstatSync(path);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -249,7 +428,12 @@ export function detectHarnesses(ctx: Context): Detection[] {
       continue;
     }
     const path = harness.detectionPath(ctx);
-    if (exists(path)) found.push({ harness, via: path });
+    if (exists(path)) {
+      found.push({ harness, via: path });
+      continue;
+    }
+    const other = harness.detectOther?.(ctx);
+    if (other !== undefined) found.push({ harness, via: other });
   }
   return found;
 }

@@ -1,7 +1,8 @@
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import { afterEach, describe, expect, it } from "vitest";
+import { tempPath } from "../src/defaults.js";
 import {
   ENROLL_REFUSALS,
   KEY_FILE_UNREADABLE,
@@ -643,6 +644,69 @@ describe("re-runs through the existing pipeline", () => {
     expect(await h.run(["install", "--yes", "--key-file", keyFile(sandbox)])).toBe(1);
     expect(gateway.revoked).toEqual([gateway.tokenFor("claude-code")]);
     expect(h.err.join("\n")).toContain("Claude Code: its MCP entry in");
+    expectNoKey(h, sandbox);
+  });
+});
+
+// DEC-25(1); component-installer §Harnesses: an unsafe or malformed T3 Code
+// Antigravity profile file stops the run before enrollment, as before a
+// short code.
+describe("T3 Code Antigravity profiles", () => {
+  function t3Profile(sandbox: Sandbox, name: string): string {
+    const dir = join(sandbox.home, ".t3", "userdata", "providers", "antigravity", name, "config");
+    mkdirSync(dir, { recursive: true });
+    return dir;
+  }
+
+  it.each([
+    ["a linked mcp_config.json", "mcp_config.json", "link"],
+    ["a linked hooks.json", "hooks.json", "link"],
+    ["a linked mcp_config.json backup", "mcp_config.json.agentdesk-backup", "link"],
+    ["a linked temporary file beside hooks.json", "temp:hooks.json", "link"],
+    ["a malformed mcp_config.json", "mcp_config.json", "{not json"],
+    ["a foreign handler in hooks.json", "hooks.json", "foreign"],
+  ])("refuses %s before /device/enroll", async (_, name, kind) => {
+    const { sandbox, clock, gateway } = setup(["agy"]);
+    const dir = t3Profile(sandbox, "work");
+    const outside = join(sandbox.root, "outside.json");
+    write(outside, "{}\n");
+    const path = name.startsWith("temp:")
+      ? tempPath(join(dir, name.slice("temp:".length)))
+      : join(dir, name);
+    if (kind === "link") symlinkSync(outside, path);
+    else if (kind === "foreign") {
+      write(
+        path,
+        JSON.stringify({
+          agentdesk: { Stop: [{ type: "command", command: "echo mine", timeout: 3600 }] },
+        }),
+      );
+    } else write(path, kind);
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes", "--key-file", keyFile(sandbox)])).toBe(1);
+    expect(gateway.requests).toEqual([]);
+    expect(h.err.join("\n")).toContain(dir);
+    expect(read(outside)).toBe("{}\n");
+    expect(existsSync(statePath(h.ctx))).toBe(false);
+    expectNoKey(h, sandbox);
+  });
+
+  it("enrolls once and writes the entry and hooks into each profile with no key in any file", async () => {
+    const { sandbox, clock, gateway } = setup(["agy"]);
+    const work = t3Profile(sandbox, "work");
+    const home = t3Profile(sandbox, "home");
+    const h = makeContext(sandbox, { gateway, clock });
+    expect(await h.run(["install", "--yes", "--key-file", keyFile(sandbox)])).toBe(0);
+    expect(gateway.enrollRequests()).toHaveLength(1);
+    const token = gateway.tokenFor("antigravity");
+    for (const dir of [work, home]) {
+      expect(readJson(join(dir, "mcp_config.json"))).toEqual({
+        mcpServers: {
+          agentdesk: { url: `${SERVER}/mcp`, headers: { Authorization: `Bearer ${token}` } },
+        },
+      });
+      expect(read(join(dir, "hooks.json"))).toContain("hook stop --harness antigravity");
+    }
     expectNoKey(h, sandbox);
   });
 });
