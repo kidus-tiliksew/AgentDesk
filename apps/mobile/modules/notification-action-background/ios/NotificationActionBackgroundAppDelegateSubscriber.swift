@@ -48,7 +48,8 @@ final class ActionResponseDelegate: NotificationDelegate, Sendable {
 /// launcher chooses the bundle and starts React Native only when a scene
 /// connects, and this call must not bypass that choice. So a Debug
 /// development build sends no answer for a press while the app is not
-/// running when no scene connects. A Release build answers it.
+/// running when no scene connects. A Release build starts the host, so
+/// JavaScript can answer within the background time iOS grants.
 @MainActor
 func startReactHostIfNeeded() {
   if EXAppDefines.APP_DEBUG && NSClassFromString("EXDevLauncherController") != nil {
