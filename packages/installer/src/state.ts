@@ -33,6 +33,35 @@ export interface HarnessRecord {
   codexTrustKey?: string;
   /** Codex only: the `hooks.state` key whose trust this installation recorded for the `Stop` hook. */
   codexStopTrustKey?: string;
+  /**
+   * Antigravity only: each T3 Code profile `config/mcp_config.json` this
+   * installation wrote, sorted and unique, and omitted when empty
+   * (component-installer §State, re-run, and uninstall; DEC-25(1)).
+   */
+  extraConfigPaths?: string[];
+  /** Antigravity only: each T3 Code profile `config/hooks.json` this installation wrote, as `extraConfigPaths`. */
+  extraHookPaths?: string[];
+}
+
+/** The record fields that list T3 Code profile files, valid only on Antigravity. */
+export const EXTRA_PATH_FIELDS = ["extraConfigPaths", "extraHookPaths"] as const;
+export type ExtraPathField = (typeof EXTRA_PATH_FIELDS)[number];
+
+/** Sorted, unique paths; undefined when there are none, so the field is omitted. */
+export function normalizePaths(paths: Iterable<string>): string[] | undefined {
+  const unique = [...new Set(paths)].sort();
+  return unique.length > 0 ? unique : undefined;
+}
+
+/** Sets an extra path field to sorted, unique `paths`, or removes it when empty. */
+export function setExtraPaths(
+  record: HarnessRecord,
+  field: ExtraPathField,
+  paths: Iterable<string>,
+): void {
+  const value = normalizePaths(paths);
+  if (value === undefined) delete record[field];
+  else record[field] = value;
 }
 
 /** The record field that names the file holding each hook (component-installer §State, re-run, and uninstall). */
@@ -165,6 +194,22 @@ export function readState(ctx: Context): State | undefined {
         }
         clean[field] = fieldValue;
       }
+      // The T3 Code profile lists are read whole or refused: each is a list of
+      // non-empty strings on the Antigravity record only.
+      for (const field of EXTRA_PATH_FIELDS) {
+        const fieldValue = (record as Record<string, unknown>)[field];
+        if (fieldValue === undefined) continue;
+        if (
+          id !== "antigravity" ||
+          !Array.isArray(fieldValue) ||
+          !fieldValue.every((item) => typeof item === "string" && item.length > 0)
+        ) {
+          throw new InstallerError(
+            `${file} has an unreadable ${field} for ${id}. Fix it, then run again.`,
+          );
+        }
+        setExtraPaths(clean, field, fieldValue as string[]);
+      }
       state.harnesses[id] = clean;
     }
   }
@@ -202,8 +247,15 @@ export function writeState(ctx: Context, state: State): void {
   const file = statePath(ctx);
   const dir = join(file, "..");
   mkdirSync(dir, { recursive: true, mode: 0o700 });
-  const { unrevoked, ...rest } = state;
-  const value = unrevoked.length > 0 ? { ...rest, unrevoked } : rest;
+  const { unrevoked, harnesses, ...rest } = state;
+  const records: Partial<Record<HarnessId, HarnessRecord>> = {};
+  for (const [id, record] of Object.entries(harnesses) as [HarnessId, HarnessRecord][]) {
+    const clean: HarnessRecord = { ...record };
+    for (const field of EXTRA_PATH_FIELDS) setExtraPaths(clean, field, record[field] ?? []);
+    records[id] = clean;
+  }
+  const base = { ...rest, harnesses: records };
+  const value = unrevoked.length > 0 ? { ...base, unrevoked } : base;
   writeFileAtomic(file, `${JSON.stringify(value, null, 2)}\n`, 0o600);
   chmodSync(file, 0o600);
 }

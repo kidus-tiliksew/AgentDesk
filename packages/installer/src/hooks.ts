@@ -478,10 +478,12 @@ export function planHookRemoval(
 }
 
 // ---------------------------------------------------------------------------
-// Antigravity: `~/.gemini/config/hooks.json` holds named hook objects at its
-// top level. The installer owns the object `agentdesk`, whose `SessionStart`
-// and `Stop` each hold one handler (component-installer §Standing guidance and
-// §Resume hooks; DEC-24(1)-(3)).
+// Antigravity: `~/.gemini/config/hooks.json`, and `config/hooks.json` in each
+// T3 Code Antigravity profile (`t3ProfileTarget`), hold named hook objects at
+// their top level. The installer owns the object `agentdesk`, whose
+// `SessionStart` and `Stop` each hold one handler, with the same commands in
+// every file (component-installer §Standing guidance and §Resume hooks;
+// DEC-25(1)).
 
 /** The top-level key of the named hook object the installer owns. */
 export const NAMED_HOOK = "agentdesk";

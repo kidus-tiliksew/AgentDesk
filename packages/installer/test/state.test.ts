@@ -306,6 +306,84 @@ describe("state from an installer without resume hooks", () => {
     expect(readJson(statePath(ctx))).toEqual(value);
   });
 
+  it("round-trips the T3 Code profile lists sorted and unique, and omits an empty list", () => {
+    const sandbox = makeSandbox();
+    const ctx = makeContext(sandbox).ctx;
+    const profile = (name: string, file: string) =>
+      `/h/.t3/userdata/providers/antigravity/${name}/config/${file}`;
+    write(
+      statePath(ctx),
+      JSON.stringify({
+        version: 1,
+        harnesses: {
+          antigravity: {
+            hookPath: "/h/.gemini/config/hooks.json",
+            extraConfigPaths: [
+              profile("b", "mcp_config.json"),
+              profile("a", "mcp_config.json"),
+              profile("b", "mcp_config.json"),
+            ],
+            extraHookPaths: [],
+          },
+          codex: { hookPath: "/h/.codex/hooks.json" },
+        },
+      }),
+    );
+    const state = readState(ctx);
+    expect(state?.harnesses.antigravity).toEqual({
+      hookPath: "/h/.gemini/config/hooks.json",
+      extraConfigPaths: [profile("a", "mcp_config.json"), profile("b", "mcp_config.json")],
+    });
+    expect(state?.harnesses.codex).toEqual({ hookPath: "/h/.codex/hooks.json" });
+    const written = state as NonNullable<typeof state>;
+    (written.harnesses.antigravity as Record<string, unknown>).extraHookPaths = [];
+    writeState(ctx, written);
+    expect(readJson(statePath(ctx))).toEqual({
+      version: 1,
+      harnesses: {
+        antigravity: {
+          hookPath: "/h/.gemini/config/hooks.json",
+          extraConfigPaths: [profile("a", "mcp_config.json"), profile("b", "mcp_config.json")],
+        },
+        codex: { hookPath: "/h/.codex/hooks.json" },
+      },
+    });
+  });
+
+  const unreadableLists: [string, string, unknown][] = [
+    ["antigravity", "extraConfigPaths", "/h/.t3/x/config/mcp_config.json"],
+    ["antigravity", "extraConfigPaths", [7]],
+    ["antigravity", "extraHookPaths", [""]],
+    ["antigravity", "extraHookPaths", null],
+    ["antigravity", "extraHookPaths", { path: "x" }],
+    // A list on a harness other than Antigravity.
+    ["codex", "extraConfigPaths", ["/h/.codex/config.toml"]],
+    ["cursor", "extraHookPaths", []],
+  ];
+
+  it.each(unreadableLists)(
+    "refuses a %s record whose %s is %j, changing nothing",
+    async (id, field, fieldValue) => {
+      const { sandbox, gateway, clock } = setup();
+      stubExecutable(sandbox, "agy");
+      expect(await makeContext(sandbox, { gateway, clock }).run(["install", "--yes"])).toBe(0);
+      const file = statePath(makeContext(sandbox).ctx);
+      const state = readJson(file) as { harnesses: Record<string, Record<string, unknown>> };
+      (state.harnesses[id] as Record<string, unknown>)[field] = fieldValue;
+      const text = JSON.stringify(state);
+      write(file, text);
+      const hooks = read(join(sandbox.home, ".gemini", "config", "hooks.json"));
+      for (const argv of [["install", "--yes"], ["skill", "install"], ["status"], ["uninstall"]]) {
+        const h = makeContext(sandbox, { gateway, clock });
+        expect(await h.run(argv)).toBe(1);
+        expect(h.err.join("\n")).toContain(`has an unreadable ${field} for ${id}`);
+      }
+      expect(read(file)).toBe(text);
+      expect(read(join(sandbox.home, ".gemini", "config", "hooks.json"))).toBe(hooks);
+      expect(gateway.revoked).toEqual([]);
+    },
+  );
+
   const unreadable: [string, string, unknown][] = [
     ["codex", "stopHookPath", 7],
     ["codex", "stopHookPath", ""],

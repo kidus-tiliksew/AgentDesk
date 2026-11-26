@@ -22,12 +22,19 @@ import {
   assertConfinedFile,
   type Detection,
   detectHarnesses,
+  discoverT3Profiles,
   HARNESS_IDS,
   type Harness,
   type HarnessId,
   harnessById,
   isConfined,
   isHarnessId,
+  probeConfined,
+  recordedT3ConfigDir,
+  T3_HOOK_FILE,
+  T3_MCP_FILE,
+  t3ProfilesDir,
+  t3ProfileTarget,
 } from "./harnesses.js";
 import {
   checkHookFile,
@@ -45,6 +52,7 @@ import { resumeDir } from "./resume/storage.js";
 import {
   type Connection,
   checkConnection,
+  connectionIdFor,
   InvalidSignInResult,
   revokeConnection,
   signIn,
@@ -61,6 +69,7 @@ import {
 } from "./skill.js";
 import {
   deleteState,
+  type ExtraPathField,
   emptyState,
   type HarnessRecord,
   HOOK_PATH_FIELDS,
@@ -69,6 +78,7 @@ import {
   recordedServer,
   recordUnrevoked,
   type State,
+  setExtraPaths,
   stateIsEmpty,
   statePath,
   TRUST_KEY_FIELDS,
@@ -227,6 +237,152 @@ function installSkills(ctx: Context, harnesses: readonly Harness[], state: State
   return failures;
 }
 
+// ---------------------------------------------------------------------------
+// T3 Code Antigravity profiles (component-installer §Harnesses and §State,
+// re-run, and uninstall; DEC-25(1)). Each profile's config directory gets the
+// same MCP entry and named hook as ~/.gemini/config; the skill stays there.
+
+/** The T3 Code profile targets this run sets up for `harness`: none unless it is Antigravity. */
+type ProfileTargets = ReadonlyMap<HarnessId, readonly Harness[]>;
+
+function discoverProfileTargets(ctx: Context, harness: Harness): Harness[] {
+  if (harness.id !== "antigravity") return [];
+  return discoverT3Profiles(ctx).map((dir) => t3ProfileTarget(ctx, harness, dir));
+}
+
+const PROFILE_FILES: Readonly<Record<ExtraPathField, typeof T3_MCP_FILE | typeof T3_HOOK_FILE>> = {
+  extraConfigPaths: T3_MCP_FILE,
+  extraHookPaths: T3_HOOK_FILE,
+};
+
+/**
+ * The target a recorded T3 Code profile path names, derived from the current
+ * T3 Code home; undefined for a stray path.
+ */
+function recordedProfileTarget(
+  ctx: Context,
+  harness: Harness,
+  path: string,
+  field: ExtraPathField,
+): { target: Harness; file: string } | undefined {
+  const dir = recordedT3ConfigDir(ctx, path, PROFILE_FILES[field]);
+  if (dir === undefined) return undefined;
+  const target = t3ProfileTarget(ctx, harness, dir);
+  const file = field === "extraConfigPaths" ? target.configPath(ctx) : target.hookPath(ctx);
+  return { target, file };
+}
+
+/**
+ * Records `written` in `field` beside the paths already recorded. Nothing is
+ * dropped here, so a run that fails keeps every recorded path; see
+ * `pruneAbsentProfilePaths`.
+ */
+function recordProfilePaths(
+  record: HarnessRecord,
+  field: ExtraPathField,
+  written: readonly string[],
+): void {
+  setExtraPaths(record, field, [...(record[field] ?? []), ...written]);
+}
+
+/**
+ * After a command that succeeded, drops from each of `fields` the recorded
+ * T3 Code profile paths confirmed absent. A path that still exists, cannot be
+ * inspected, or lies outside the current T3 Code home stays for later
+ * cleanup (component-installer §State, re-run, and uninstall).
+ */
+function pruneAbsentProfilePaths(
+  ctx: Context,
+  harnesses: readonly Harness[],
+  state: State,
+  fields: readonly ExtraPathField[],
+): void {
+  const harness = harnesses.find((h) => h.id === "antigravity");
+  const record = harness ? state.harnesses[harness.id] : undefined;
+  if (!harness || !record) return;
+  for (const field of fields) {
+    const keep = (record[field] ?? []).filter((path) => {
+      const recorded = recordedProfileTarget(ctx, harness, path, field);
+      if (!recorded) return true;
+      try {
+        return probeConfined(ctx, recorded.target, recorded.file, "file") !== "absent";
+      } catch {
+        return true;
+      }
+    });
+    setExtraPaths(record, field, keep);
+  }
+}
+
+/**
+ * Writes `mcpServers.agentdesk` for `server` and `token` into every T3 Code
+ * profile target, leaving a file whose bytes match unchanged, and records each
+ * path written or unchanged. Returns failure lines (AC-9.4).
+ */
+async function syncProfileMcp(
+  ctx: Context,
+  record: HarnessRecord,
+  targets: readonly Harness[],
+  server: string,
+  token: string,
+  backups: BackupRegistry,
+): Promise<string[]> {
+  const failures: string[] = [];
+  const written: string[] = [];
+  for (const target of targets) {
+    const file = target.configPath(ctx);
+    try {
+      const changed = await writeMcpEntry(ctx, target, server, token, backups);
+      written.push(file);
+      ctx.io.out(
+        `${target.displayName}: MCP entry ${changed ? "written to" : "unchanged in"} ${file}`,
+      );
+    } catch (error) {
+      failures.push(
+        `${target.displayName}: its MCP entry in ${file} was not written: ${message(error)}`,
+      );
+    }
+  }
+  recordProfilePaths(record, "extraConfigPaths", written);
+  return failures;
+}
+
+/**
+ * Writes or refreshes the named hook `agentdesk` in every T3 Code profile
+ * target with the same commands as ~/.gemini/config, and records each path
+ * written or unchanged. Returns failure lines (AC-9.9).
+ */
+function syncProfileHooks(
+  ctx: Context,
+  record: HarnessRecord,
+  targets: readonly Harness[],
+  commandFor: (event: HookEvent) => string,
+  backups: BackupRegistry,
+): string[] {
+  const failures: string[] = [];
+  const written: string[] = [];
+  for (const target of targets) {
+    const file = target.hookPath(ctx);
+    let changed: boolean;
+    try {
+      changed = writeHooks(ctx, target, commandFor, backups);
+    } catch (error) {
+      failures.push(
+        `${target.displayName}: its hooks in ${file} were not written: ${message(error)}`,
+      );
+      continue;
+    }
+    written.push(file);
+    for (const event of hookEvents(target)) {
+      ctx.io.out(
+        `${target.displayName}: ${event.label} ${changed ? "written to" : "unchanged in"} ${file}`,
+      );
+    }
+  }
+  recordProfilePaths(record, "extraHookPaths", written);
+  return failures;
+}
+
 /** The Codex hooks whose trust the installer records, with the record field of each key. */
 function trustedEvents(
   events: readonly HookEvent[],
@@ -306,6 +462,7 @@ async function installGuidance(
   harnesses: readonly Harness[],
   state: State,
   backups: BackupRegistry,
+  profiles: ProfileTargets,
 ): Promise<string[]> {
   const failures: string[] = [];
   for (const harness of harnesses) {
@@ -331,6 +488,18 @@ async function installGuidance(
     for (const event of events) {
       record[HOOK_PATH_FIELDS[event.id]] = file;
       ctx.io.out(`${harness.displayName}: ${event.label} ${verb} ${file}`);
+    }
+    const targets = profiles.get(harness.id) ?? [];
+    if (targets.length > 0 || record.extraHookPaths !== undefined) {
+      failures.push(
+        ...syncProfileHooks(
+          ctx,
+          record,
+          targets,
+          (event) => commands.get(event.id) as string,
+          backups,
+        ),
+      );
     }
     if (harness.id === "codex") {
       failures.push(...(await trustCodexHooks(ctx, harness, record, events, commands, backups)));
@@ -544,11 +713,21 @@ async function installWith(
   const oldEntries = new Map<HarnessId, McpEntry>();
   const kept = new Set<HarnessId>();
   const needSignIn: Harness[] = [];
+  const profiles = new Map<HarnessId, Harness[]>();
   for (const harness of selected) {
     const entry = readMcpEntry(ctx, harness);
     if (entry.token) ctx.secrets.add(entry.token);
     // A hook file the run would refuse stops it before a code is requested.
     checkHookFile(ctx, harness);
+    // So does a T3 Code profile's MCP or hook file, before either sign-in
+    // route (component-installer §Harnesses; DEC-25(1)).
+    const targets = discoverProfileTargets(ctx, harness);
+    for (const target of targets) {
+      const profileEntry = readMcpEntry(ctx, target);
+      if (profileEntry.token) ctx.secrets.add(profileEntry.token);
+      checkHookFile(ctx, target);
+    }
+    profiles.set(harness.id, targets);
     oldEntries.set(harness.id, entry);
     const record = previous.harnesses[harness.id];
     if (
@@ -620,6 +799,8 @@ async function installWith(
       failures.push(
         `${harness.displayName}: its MCP entry in ${file} was not written: ${message(error)}`,
       );
+      // No T3 Code profile file is written for this attempt.
+      profiles.set(harness.id, []);
       // The new connection is unused; revoke it, or keep it recorded.
       const undo = await revokeConnection(ctx, server, connection.token);
       if (undo.kind === "failed") {
@@ -633,6 +814,23 @@ async function installWith(
       continue;
     }
     ctx.io.out(`${harness.displayName}: connected; MCP entry written to ${file}`);
+    state.harnesses[harness.id] = {
+      ...state.harnesses[harness.id],
+      server,
+      connectionId: connection.connectionId,
+      configPath: file,
+    };
+
+    // Antigravity's T3 Code profiles get the new connection before the one it
+    // replaces is revoked; a failed profile keeps the paths already written
+    // and fails the run (component-installer §State, re-run, and uninstall).
+    const targets = profiles.get(harness.id) ?? [];
+    const record = state.harnesses[harness.id] as HarnessRecord;
+    if (targets.length > 0 || record.extraConfigPaths !== undefined) {
+      failures.push(
+        ...(await syncProfileMcp(ctx, record, targets, server, connection.token, backups)),
+      );
+    }
 
     // The connection this one replaces is revoked, or kept as a recovery record.
     const prior = previous.harnesses[harness.id];
@@ -667,17 +865,27 @@ async function installWith(
         );
       }
     }
-    state.harnesses[harness.id] = {
-      ...state.harnesses[harness.id],
-      server,
-      connectionId: connection.connectionId,
-      configPath: file,
-    };
+  }
+
+  // AC-9.4: a kept Antigravity connection reaches every T3 Code profile,
+  // including one created since the last run, with no new sign-in.
+  for (const id of kept) {
+    const targets = profiles.get(id) ?? [];
+    const record = state.harnesses[id] as HarnessRecord;
+    const token = oldEntries.get(id)?.token;
+    if (token === undefined || (targets.length === 0 && record.extraConfigPaths === undefined)) {
+      continue;
+    }
+    failures.push(...(await syncProfileMcp(ctx, record, targets, server, token, backups)));
   }
 
   // AC-9.4: every run rewrites the skill, the hook, and Codex trust.
   failures.push(...installSkills(ctx, selected, state));
-  failures.push(...(await installGuidance(ctx, selected, state, backups)));
+  failures.push(...(await installGuidance(ctx, selected, state, backups, profiles)));
+  // Absent profile paths leave the state only when the whole run succeeded.
+  if (failures.length === 0 && unresolved.length === 0) {
+    pruneAbsentProfilePaths(ctx, selected, state, ["extraConfigPaths", "extraHookPaths"]);
+  }
   writeState(ctx, state);
 
   for (const record of unresolved) failures.push(unrevokedLine(ctx, record, "forget"));
@@ -779,9 +987,20 @@ export async function skillInstall(ctx: Context): Promise<number> {
     );
   }
   const harnesses = detected.map((d) => d.harness);
-  for (const harness of harnesses) checkHookFile(ctx, harness);
+  const profiles = new Map<HarnessId, Harness[]>();
+  for (const harness of harnesses) {
+    checkHookFile(ctx, harness);
+    // Every T3 Code profile hook file is checked before any write; the MCP
+    // entries are left as they are.
+    const targets = discoverProfileTargets(ctx, harness);
+    for (const target of targets) checkHookFile(ctx, target);
+    profiles.set(harness.id, targets);
+  }
   const failures = installSkills(ctx, harnesses, state);
-  failures.push(...(await installGuidance(ctx, harnesses, state, new BackupRegistry())));
+  failures.push(...(await installGuidance(ctx, harnesses, state, new BackupRegistry(), profiles)));
+  // `skill install` manages only the hooks, so only their absent paths leave
+  // the state, and only when the whole run succeeded.
+  if (failures.length === 0) pruneAbsentProfilePaths(ctx, harnesses, state, ["extraHookPaths"]);
   writeState(ctx, state);
   for (const line of failures) ctx.io.err(line);
   if (failures.length > 0) return 1;
@@ -833,15 +1052,105 @@ async function hookStatus(
   return parts.join("; ");
 }
 
+/** Describes one recorded T3 Code profile MCP file against the ~/.gemini/config entry. */
+function profileMcpStatus(
+  ctx: Context,
+  harness: Harness,
+  path: string,
+  canonical: McpEntry | undefined,
+): string {
+  const recorded = recordedProfileTarget(ctx, harness, path, "extraConfigPaths");
+  if (!recorded) {
+    return `${harness.displayName}: MCP file ${path} not checked, because it is not a T3 Code profile file under ${t3ProfilesDir(ctx)}`;
+  }
+  const { target, file } = recorded;
+  let entry: McpEntry;
+  try {
+    if (probeConfined(ctx, target, file, "file") === "absent") {
+      return `${target.displayName}: MCP file missing (${file})`;
+    }
+    entry = readMcpEntry(ctx, target);
+  } catch (error) {
+    return `${target.displayName}: MCP file unreadable (${message(error)})`;
+  }
+  if (!entry.present) return `${target.displayName}: no AgentDesk MCP entry in ${file}`;
+  if (!canonical?.token) {
+    return `${target.displayName}: MCP entry in ${file}, not compared, because ${harness.configPath(ctx)} holds no AgentDesk token`;
+  }
+  return entry.url === canonical.url && entry.token === canonical.token
+    ? `${target.displayName}: MCP entry in ${file} matches ${harness.configPath(ctx)}`
+    : `${target.displayName}: MCP entry in ${file} is out of sync with ${harness.configPath(ctx)}. Run: agentdesk install`;
+}
+
+/** Describes one recorded T3 Code profile hook file. */
+function profileHookStatus(ctx: Context, harness: Harness, path: string): string {
+  const recorded = recordedProfileTarget(ctx, harness, path, "extraHookPaths");
+  if (!recorded) {
+    return `${harness.displayName}: hook file ${path} not checked, because it is not a T3 Code profile file under ${t3ProfilesDir(ctx)}`;
+  }
+  const { target, file } = recorded;
+  const events = hookEvents(target);
+  let found: ReturnType<typeof findHooks>;
+  try {
+    if (probeConfined(ctx, target, file, "file") === "absent") {
+      return `${target.displayName}: hook file missing (${file})`;
+    }
+    found = findHooks(ctx, target, events);
+  } catch (error) {
+    return `${target.displayName}: hook file unreadable (${message(error)})`;
+  }
+  const missing = events.filter((event) => found.get(event.id)?.kind !== "found");
+  if (missing.length > 0) {
+    return `${target.displayName}: no AgentDesk ${missing.map((e) => e.label).join(" or ")} in ${file}. Run: agentdesk install`;
+  }
+  return `${target.displayName}: ${events.map((e) => e.label).join(" and ")} in ${file}`;
+}
+
+/**
+ * The `status` lines for T3 Code Antigravity profiles: each recorded MCP and
+ * hook file, then each detected profile this installation has not set up
+ * (component-installer §State, re-run, and uninstall). No line holds a token.
+ */
+function profileStatus(ctx: Context, record: HarnessRecord | undefined): string[] {
+  const harness = ctx.harnesses.find((h) => h.id === "antigravity");
+  if (!harness) return [];
+  const lines: string[] = [];
+  if (record?.extraConfigPaths) {
+    let canonical: McpEntry | undefined;
+    try {
+      canonical = readMcpEntry(ctx, harness);
+    } catch {
+      canonical = undefined;
+    }
+    for (const path of record.extraConfigPaths) {
+      lines.push(profileMcpStatus(ctx, harness, path, canonical));
+    }
+  }
+  for (const path of record?.extraHookPaths ?? []) {
+    lines.push(profileHookStatus(ctx, harness, path));
+  }
+  const configs = new Set(record?.extraConfigPaths ?? []);
+  const hooks = new Set(record?.extraHookPaths ?? []);
+  for (const target of discoverProfileTargets(ctx, harness)) {
+    if (configs.has(target.configPath(ctx)) && hooks.has(target.hookPath(ctx))) continue;
+    lines.push(
+      `${target.displayName}: detected in ${target.configRoot?.(ctx)} but not set up. Run: agentdesk install`,
+    );
+  }
+  return lines;
+}
+
 /**
  * `agentdesk status`: each recorded harness, its connection check, its skill
- * version, and its session-start and resume hooks with Codex trust.
+ * version, and its session-start and resume hooks with Codex trust, and each
+ * T3 Code Antigravity profile.
  */
 export async function status(ctx: Context): Promise<number> {
   const state = readState(ctx);
   const ids = HARNESS_IDS.filter((id) => state?.harnesses[id]);
   if (!state || (ids.length === 0 && state.unrevoked.length === 0)) {
     ctx.io.out("AgentDesk is not installed on this machine. Run: agentdesk install");
+    for (const line of profileStatus(ctx, undefined)) ctx.io.out(line);
     return 0;
   }
   ctx.io.out(`AgentDesk server: ${state.server ?? "none recorded"}`);
@@ -901,6 +1210,10 @@ export async function status(ctx: Context): Promise<number> {
     }
     const hooks = await hookStatus(ctx, harness, record);
     ctx.io.out(`${harness.displayName}: ${connection}; ${skill}${hooks ? `; ${hooks}` : ""}`);
+    if (id === "antigravity") for (const line of profileStatus(ctx, record)) ctx.io.out(line);
+  }
+  if (!state.harnesses.antigravity) {
+    for (const line of profileStatus(ctx, undefined)) ctx.io.out(line);
   }
   return 0;
 }
@@ -914,6 +1227,99 @@ export interface UninstallOptions {
 }
 
 export const FORGET_UNREVOKED_FLAG = "--forget-unrevoked";
+
+/** A recorded T3 Code profile file that exists and passed every check before uninstall changes anything. */
+interface ProfileFile {
+  /** The path as the record holds it. */
+  path: string;
+  target: Harness;
+  file: string;
+}
+
+interface ProfileUninstall {
+  mcp: (ProfileFile & { entry: McpEntry })[];
+  hooks: ProfileFile[];
+}
+
+/**
+ * Checks every recorded T3 Code profile file before uninstall revokes or
+ * removes anything for Antigravity: each path must name `mcp_config.json` or
+ * `hooks.json` in one profile's `config` directory under the current T3 Code
+ * home, and each file that exists must pass no-follow confinement, parse, and
+ * hold no foreign handler in `agentdesk`. A file or profile confirmed absent
+ * is skipped. Throws on the first refusal, so the record is kept for a retry
+ * (component-installer §State, re-run, and uninstall; AC-9.6).
+ */
+function planProfileUninstall(
+  ctx: Context,
+  harness: Harness,
+  record: HarnessRecord,
+): ProfileUninstall {
+  const plan: ProfileUninstall = { mcp: [], hooks: [] };
+  for (const field of ["extraConfigPaths", "extraHookPaths"] as const) {
+    for (const path of record[field] ?? []) {
+      const recorded = recordedProfileTarget(ctx, harness, path, field);
+      if (!recorded) {
+        throw new InstallerError(
+          `the recorded T3 Code profile path ${path} is not a ${PROFILE_FILES[field]} in a profile's config directory under ${t3ProfilesDir(ctx)}.`,
+        );
+      }
+      const { target, file } = recorded;
+      if (probeConfined(ctx, target, file, "file") === "absent") {
+        ctx.io.out(`${target.displayName}: ${file} no longer exists; skipped.`);
+        continue;
+      }
+      if (field === "extraConfigPaths") {
+        const entry = readMcpEntry(ctx, target);
+        if (entry.token) ctx.secrets.add(entry.token);
+        plan.mcp.push({ path, target, file, entry });
+      } else {
+        planHookRemoval(ctx, target, hookEvents(target));
+        plan.hooks.push({ path, target, file });
+      }
+    }
+  }
+  return plan;
+}
+
+/**
+ * Runs `remove` on each checked T3 Code profile file and drops its path from
+ * `field`; a path the plan skipped as absent is dropped too. On the first
+ * failure the remaining paths stay recorded for a retry, and it returns false.
+ */
+async function removeProfileFiles<T extends ProfileFile>(
+  record: HarnessRecord,
+  field: ExtraPathField,
+  files: readonly T[],
+  failures: string[],
+  remove: (profile: T) => Promise<void>,
+): Promise<boolean> {
+  const remaining = new Set(files.map((profile) => profile.path));
+  for (const profile of files) {
+    try {
+      await remove(profile);
+    } catch (error) {
+      const what = field === "extraConfigPaths" ? "its MCP entry" : "its hooks";
+      failures.push(
+        `${profile.target.displayName}: ${what} in ${profile.file} not removed: ${message(error)}`,
+      );
+      setExtraPaths(record, field, remaining);
+      return false;
+    }
+    remaining.delete(profile.path);
+  }
+  setExtraPaths(record, field, remaining);
+  return true;
+}
+
+/** Removes the named hook `agentdesk` from a checked T3 Code profile hook file. */
+function removeProfileHooks(ctx: Context, profile: ProfileFile, backups: BackupRegistry): void {
+  const removal = planHookRemoval(ctx, profile.target, hookEvents(profile.target));
+  if (!removal) return;
+  ctx.io.out(`${profile.target.displayName}: removing the AgentDesk hooks from ${profile.file}`);
+  backups.backupOnce(profile.file, true);
+  writeFileAtomic(profile.file, removal.text, 0o600, true);
+}
 
 /** `agentdesk uninstall`: revoke, remove, and forget what the state records (AC-9.6). */
 export async function uninstall(
@@ -956,6 +1362,17 @@ export async function uninstall(
       );
       continue;
     }
+    // Every recorded T3 Code profile file is checked before anything is
+    // revoked or removed for Antigravity.
+    let profiles: ProfileUninstall = { mcp: [], hooks: [] };
+    try {
+      profiles = planProfileUninstall(ctx, harness, record);
+    } catch (error) {
+      failures.push(
+        `${harness.displayName}: ${message(error)} Nothing was revoked or removed for it, and its record was kept; fix it, then run agentdesk uninstall again.`,
+      );
+      continue;
+    }
 
     // The MCP entry, read before anything changes; set when the record holds a connection.
     let entry: McpEntry | undefined;
@@ -970,10 +1387,29 @@ export async function uninstall(
         );
         continue;
       }
-      if (entry.token) {
-        const server = recordedServer(state, id) ?? serverOfEntry(entry);
+      let token = entry.token;
+      let server = recordedServer(state, id) ?? serverOfEntry(entry);
+      // With no token in ~/.gemini/config/mcp_config.json, a checked T3 Code
+      // profile entry for the recorded server can revoke the shared
+      // connection, but only a token the server names as that recorded
+      // connection; no token goes to a server a profile names alone.
+      const recorded = recordedServer(state, id);
+      if (!token && record.connectionId && recorded) {
+        for (const profile of profiles.mcp) {
+          const candidate = profile.entry.token;
+          if (candidate === undefined || profile.entry.url !== mcpUrl(recorded)) continue;
+          if ((await connectionIdFor(ctx, recorded, candidate)) !== record.connectionId) continue;
+          token = candidate;
+          server = recorded;
+          ctx.io.out(
+            `${harness.displayName}: revoking its connection with the token in ${profile.file}`,
+          );
+          break;
+        }
+      }
+      if (token) {
         const result = server
-          ? await revokeConnection(ctx, server, entry.token)
+          ? await revokeConnection(ctx, server, token)
           : ({ kind: "failed", detail: "no server is recorded" } as const);
         if (result.kind === "failed") {
           failures.push(
@@ -1006,6 +1442,14 @@ export async function uninstall(
       for (const field of Object.values(HOOK_PATH_FIELDS)) delete record[field];
       for (const field of Object.values(TRUST_KEY_FIELDS)) delete record[field];
     }
+    const hooksRemoved = await removeProfileFiles(
+      record,
+      "extraHookPaths",
+      profiles.hooks,
+      failures,
+      async (profile) => removeProfileHooks(ctx, profile, backups),
+    );
+    if (!hooksRemoved) continue;
 
     if (entry) {
       try {
@@ -1023,6 +1467,18 @@ export async function uninstall(
       delete record.configPath;
       delete record.server;
     }
+    const entriesRemoved = await removeProfileFiles(
+      record,
+      "extraConfigPaths",
+      profiles.mcp,
+      failures,
+      async (profile) => {
+        if (!profile.entry.present) return;
+        ctx.io.out(`${profile.target.displayName}: removing the MCP entry from ${profile.file}`);
+        await removeMcpEntry(ctx, profile.target, backups);
+      },
+    );
+    if (!entriesRemoved) continue;
 
     if (record.skillPath) {
       try {

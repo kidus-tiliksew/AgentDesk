@@ -318,6 +318,31 @@ export async function checkConnection(
   return { kind: "failed", detail: `the server answered ${response.status}` };
 }
 
+/**
+ * The connection id `GET /device/connection` names for `token`
+ * (component-gateway §Routes), or undefined when the server refuses the
+ * token, cannot be reached, or names none. Uninstall uses it to match a T3
+ * Code profile's token to the recorded Antigravity connection before it
+ * revokes with that token.
+ */
+export async function connectionIdFor(
+  ctx: Context,
+  server: string,
+  token: string,
+): Promise<string | undefined> {
+  ctx.secrets.add(token);
+  const response = await request(ctx, server, "GET", "/device/connection", { token });
+  if (response === NETWORK_FAILURE || response.status !== 200) return undefined;
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return undefined;
+  }
+  const id = (body as { connection_id?: unknown } | null)?.connection_id;
+  return typeof id === "string" && id.length > 0 ? id : undefined;
+}
+
 export type RevokeResult = { kind: "revoked" } | { kind: "failed"; detail: string };
 
 /**
